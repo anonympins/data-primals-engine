@@ -6,6 +6,7 @@
   "main": "src/engine.js",
   "type": "module",
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "devserver": "cross-env NODE_ENV=development node server.js",
     "server": "cross-env NODE_ENV=production node server.js",
     "migrate:create": "node src/migrate.js create",
@@ -13,6 +14,11 @@
     "migrate:down": "node src/migrate.js down",
     "migrate:revert": "node src/migrate.js revert",
     "migrate:status": "node src/migrate.js status"
+  },
+  "resolutions": {
+    "tar-fs": "3.0.9",
+    "on-headers": "1.1.0",
+    "brace-expansion": "2.0.2"
   },
   "repository": {
     "type": "git",
