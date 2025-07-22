@@ -40,6 +40,10 @@ export const awsDefaultConfig = {
     region: 'eu-north-1',
 }
 
+export const emailDefaultConfig = {
+    from: "Support - data@primals.net <data@primals.net>"
+}
+
 // 10000 tiny users
 // 1000 modern users
 // 100 mega utilisateurs potentiality

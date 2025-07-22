@@ -1397,7 +1397,7 @@ export async function onInit(defaultEngine) {
             // Créer une représentation de l'utilisateur mis à jour pour la réponse
             const updatedData = { activeTutorial: tutorialState };
 
-            await saveUser(user, updatedData);
+            await engine.userProvider.updateUser(user, updatedData);
 
             // --- MODIFICATION ---
             res.json({

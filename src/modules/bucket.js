@@ -188,9 +188,6 @@ export async function onInit(defaultEngine) {
         // Autres validations possibles (longueur, format de la région, etc.)
 
         try {
-            const primalsDb = MongoClient.db("primals"); // Assure-toi que MongoClient est bien ton client MongoDB connecté
-            const usersCollection = primalsDb.collection("users");
-
             const updateData = {
                 's3Config.bucketName': bucketName,
                 's3Config.accessKeyId': accessKeyId, // Stocké en clair (généralement acceptable)
@@ -207,18 +204,15 @@ export async function onInit(defaultEngine) {
                 // Pour l'instant, on ne touche pas à s3Config.secretAccessKey si req.body.secretAccessKey est vide.
             }
 
-            const result = await usersCollection.updateOne(
+            const result = await engine.userProvider.updateUser(
                 { username: user.username }, // ou user._id si c'est ce que tu utilises comme identifiant unique
-                { $set: updateData }
+                updateData
             );
 
-            if (result.modifiedCount > 0 || result.matchedCount > 0) { // Succès même si rien n'a été modifié (déjà les bonnes valeurs)
-                logger.info(`S3 configuration updated for user ${user.username}`);
+            if (result) { // Succès même si rien n'a été modifié (déjà les bonnes valeurs)
                 res.json({ success: true, message: "S3 configuration updated successfully." });
             } else {
-                logger.warn(`S3 configuration update: User ${user.username} not found or no changes made.`);
-                // Si l'utilisateur n'est pas trouvé, c'est une erreur 404
-                const userExists = await usersCollection.findOne({ username: user.username });
+                const userExists = engine.userProvider.findUserByUsername(user.username);
                 if (!userExists) {
                     return res.status(404).json({ success: false, error: "User not found." });
                 }
