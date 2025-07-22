@@ -14,6 +14,9 @@ import crypto from "node:crypto";
 import * as tar from "tar";
 import {promisify} from "node:util";
 import {calculateTotalUserStorageUsage, hasPermission} from "./user.js";
+import {Logger} from "../gameObject.js";
+import YAML from "yaml";
+import swaggerUi from "swagger-ui-express";
 
 const pbkdf2Async = promisify(crypto.pbkdf2);
 
@@ -189,4 +192,8 @@ export async function decryptFile(filePath, password) {
         // Relancer l'erreur peut être utile pour que l'appelant sache que ça a échoué
         throw new Error(`Decryption failed: ${error.message}`);
     }
+}
+
+export async function onInit(defaultEngine) {
+
 }
