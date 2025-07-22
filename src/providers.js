@@ -47,8 +47,10 @@ export class UserProvider {
 
 export class DefaultUserProvider extends UserProvider {
 
+    users= [{ username: "demo", password: "demo" }];
+
     async findUserByUsername(username) {
-        return { username: "test", password: "test" };
+        return this.users.find(user => user.username === username);
     }
 
     async validatePassword(user, password) {
@@ -57,5 +59,6 @@ export class DefaultUserProvider extends UserProvider {
     }
 
     async initiateUser(req) {
+        req.me = this.users[0];
     }
 }
