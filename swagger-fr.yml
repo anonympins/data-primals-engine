@@ -1,0 +1,2897 @@
+openapi: 3.0.0
+info:
+  title: data.primals.net API
+  description: API pour la gestion des données personnalisées, incluant la vérification de compte et les opérations CRUD génériques.
+  version: 1.0.0
+servers:
+  - url: http://localhost:7633
+    description: Serveur de développement local
+  - url: https://data.primals.net
+    description: Serveur de production
+security:
+  - BearerAuth: []
+tags:
+  - name: Gestion des Modèles
+    description: Opérations liées aux modèles de données.
+  - name: Gestion des Données
+    description: Opérations CRUD génériques pour tous les modèles de données définis.
+paths:
+
+  /api/model:
+    post:
+      tags:
+        - Gestion des Modèles
+      summary: "Créer un nouveau modèle"
+      description: "Crée une nouvelle structure de modèle de données. L'utilisateur doit avoir les permissions nécessaires."
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Votre nom d'utilisateur pour l'authentification."
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: "L'objet de définition du modèle à créer. La structure doit être valide."
+        content:
+          application/json:
+            schema:
+              type: object
+              description: "La définition complète du modèle."
+              example:
+                name: "nouveauModele"
+                description: "Description de mon nouveau modèle."
+                fields:
+                  - name: "titre"
+                    type: "string"
+                    required: true
+                  - name: "prix"
+                    type: "number"
+                    unit: "€"
+                  - name: "categorie"
+                    type: "relation"
+                    relation: "taxonomy"
+      responses:
+        '201':
+          description: "Modèle créé avec succès."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  insertedId:
+                    type: string
+                    description: "L'ID du nouveau modèle créé."
+                    example: "60d0fe4f5311236168a109ca"
+        '400':
+          description: "Définition du modèle invalide ou nom déjà utilisé."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: "Non autorisé (token manquant ou invalide)."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: "Permission refusée pour créer un modèle."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+        tags:
+          - Gestion des Modèles
+        summary: "Supprimer un modèle"
+        description: "Supprime un modèle de données et toutes les données associées. Cette action est irréversible."
+        security:
+          - BearerAuth: [ ]
+        parameters:
+          - name: _user
+            in: query
+            required: true
+            description: "Votre nom d'utilisateur pour l'authentification."
+            schema:
+              type: string
+          - name: name
+            in: query
+            required: true
+            description: "Le nom du modèle à supprimer."
+            schema:
+              type: string
+        responses:
+          '200':
+            description: "Modèle et données associées supprimés avec succès."
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+          '400':
+            description: "Requête invalide (ex: paramètre 'name' manquant)."
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ErrorResponse'
+          '401':
+            description: "Non autorisé (token manquant ou invalide)."
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ErrorResponse'
+          '403':
+            description: "Permission refusée pour supprimer ce modèle."
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ErrorResponse'
+          '404':
+            description: "Modèle non trouvé."
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ErrorResponse'
+
+  /api/model/{id}:
+    put:
+      tags:
+        - Gestion des Modèles
+      summary: "Mettre à jour un modèle existant"
+      description: "Met à jour la structure d'un modèle de données existant en utilisant son ID."
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Votre nom d'utilisateur pour l'authentification."
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: "L'identifiant unique (_id) du modèle à mettre à jour."
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: "L'objet de définition complet du modèle mis à jour."
+        content:
+          application/json:
+            schema:
+              type: object
+              description: "La définition complète du modèle."
+              example:
+                name: "nouveauModeleModifie"
+                description: "Description mise à jour."
+                fields:
+                  - name: "titre"
+                    type: "string"
+                    required: true
+                  - name: "prix"
+                    type: "number"
+                    unit: "€"
+                  - name: "statut"
+                    type: "enum"
+                    items: [ "actif", "inactif" ]
+      responses:
+        '200':
+          description: "Modèle mis à jour avec succès."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: "Le document du modèle mis à jour."
+        '400':
+          description: "Requête invalide ou définition du modèle invalide."
+        '401':
+          description: "Non autorisé (token manquant ou invalide)."
+        '403':
+          description: "Permission refusée pour modifier ce modèle."
+        '404':
+          description: "Modèle non trouvé."
+  # --- Endpoints CRUD génériques ---
+  /api/data/search:
+    post:
+      tags:
+        - Gestion des Données
+      consumes:
+        - application/json
+      summary: "Rechercher parmi les données"
+      description: "Recherche sur l'ensemble des données du modèle spécifié."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Votre nom d'utilisateur pour l'authentification."
+          schema:
+            type: string
+        - in: body
+          name: model
+          required: true
+          description: "Le nom du modèle de données (ex: 'user', 'product')."
+          schema:
+            type: string
+        - name: filter
+          in: body
+          description: "Objet JSON de filtre MongoDB pour la recherche. "
+          schema:
+            type: object
+            example:
+              { "$and": [ { "lang": { "$eq": [ "$$this.code", "fr" ] } }, { "user": { "$exists": true } } ] }
+        - name: sort
+          in: query
+          description: "Paramètre de tri par champ."
+          schema:
+            type: string
+            example: fieldName:ASC;fieldName2:DESC
+        - name: limit
+          in: query
+          description: "Nombre maximum de documents à retourner."
+          schema:
+            type: integer
+            default: 1000
+        - name: offset
+          in: query
+          description: "Nombre de documents à sauter (pour la pagination)."
+          schema:
+            type: integer
+            default: 0
+        - name: depth
+          in: query
+          description: "Profondeur de population pour les champs de type 'relation'."
+          schema:
+            type: integer
+            default: 1
+        - name: lang
+          in: query
+          description: "Langue utilisée pour les messages d'erreur."
+          schema:
+            type: string
+            default: 'en'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              description: "Les données retournées. Les champs retournés correspondent à la définition du modèle."
+              example:
+                [{ _id: "68624b95e59ff3523e72cfff", _hash: "6537742658626211", name: "Nouveau Produit", price: 99.99}]
+  /api/data/{id}:
+    put:
+      tags:
+        - Gestion des Données
+      summary: "Mettre à jour un document"
+      description: "Met à jour un document existant en utilisant son ID."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Votre nom d'utilisateur pour l'authentification."
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: "L'identifiant unique (_id) du document à mettre à jour."
+          schema:
+            type: string
+        - name: lang
+          in: query
+          description: "Langue utilisée pour les messages d'erreur."
+          schema:
+            type: string
+            default: 'en'
+        - in: body
+          name: model
+          required: true
+          description: "Le nom du modèle de données (ex: 'user', 'product')."
+          schema:
+            type: string
+        - name: data
+          in: body
+          required: true
+          description: "Les données à éditer. L'utilisation de l'opérateur $find est recommandée pour copier par référence des données relationnelles."
+          schema:
+            type: object
+            example: {}
+      responses:
+        '200':
+          description: "Document mis à jour avec succès."
+        '400':
+          description: "Données invalides."
+        '401':
+          description: "Non autorisé."
+        '404':
+          description: "Document non trouvé."
+  /api/data:
+    post:
+      tags:
+        - Gestion des Données
+      summary: "Créer un ou plusieurs documents"
+      description: "Crée un ou plusieurs nouveaux documents dans un modèle spécifié."
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Votre nom d'utilisateur pour l'authentification."
+          schema:
+            type: string
+        - name: model
+          in: body
+          required: true
+          description: "Le nom du modèle dans lequel créer les documents."
+          schema:
+            type: string
+        - name: data
+          in: body
+          required: true
+          description: "Les données à insérer. L'utilisation de l'opérateur $find est recommandée pour les données relationnelles."
+          schema:
+            type: object
+            example: {}
+        - name: lang
+          in: query
+          description: "Langue utilisée pour les messages d'erreur."
+          schema:
+            type: string
+            default: 'en'
+      responses:
+        '201':
+          description: "Document(s) créé(s) avec succès."
+        '400':
+          description: "Données invalides."
+        '401':
+          description: "Non autorisé."
+    put:
+      tags:
+        - Gestion des Données
+      summary: "Mettre à jour des documents en masse"
+      description: "Met à jour un document existant en utilisant son ID."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Votre nom d'utilisateur pour l'authentification."
+          schema:
+            type: string
+        - in: body
+          name: model
+          required: true
+          description: "Le nom du modèle de données (ex: 'user', 'product')."
+          schema:
+            type: string
+        - name: data
+          in: body
+          required: true
+          description: "Les données à éditer. L'utilisation de l'opérateur $find est recommandée pour copier par référence des données relationnelles."
+          schema:
+            type: object
+            example: {}
+        - name: lang
+          in: query
+          description: "Langue utilisée pour les messages d'erreur."
+          schema:
+            type: string
+            default: 'en'
+      responses:
+        '200':
+          description: "Document mis à jour avec succès."
+        '400':
+          description: "Données invalides."
+        '401':
+          description: "Non autorisé."
+        '404':
+          description: "Document non trouvé."
+    delete:
+      tags:
+        - Gestion des Données
+      summary: "Supprimer un ou plusieurs document(s)"
+      description: "Supprime un document de manière permanente en utilisant son ID."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Votre nom d'utilisateur pour l'authentification."
+          schema:
+            type: string
+        - name: ids
+          in: body
+          description: "Les identifiants des documents à supprimer."
+          schema:
+            type: string
+        - name: filter
+          in: body
+          description: "Le filtre JSON MongoDB à appliquer pour la suppression en masse."
+          schema:
+            type: object
+            example:
+              { "$and": [ { "lang": { "$eq": [ "$$this.code", "fr" ] } }, { "user": { "$exists": true } } ] }
+        - name: lang
+          in: query
+          description: "Langue utilisée pour les messages d'erreur."
+          schema:
+            type: string
+            default: 'en'
+      responses:
+        '200':
+          description: "Document supprimé avec succès."
+        '401':
+          description: "Non autorisé."
+        '404':
+          description: "Document non trouvé."
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # Supposant l'utilisation de tokens JWT
+  schemas:
+    # --- Réponses Communes ---
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Une erreur interne est survenue."
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Opération réussie."
+    # --- Schémas de Modèles (générés dynamiquement) ---
+    permission:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: permission
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+      required:
+        - name
+    role:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: role
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        permissions:
+          type: array
+          items:
+            type: string
+            description: ID of a permission document
+      required:
+        - name
+    user:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: user
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        username:
+          type: string
+          description: ""
+        password:
+          type: string
+          format: password
+          description: ""
+        gender:
+          type: string
+          enum:
+            - male
+            - female
+            - other
+            - prefer_not_to_say
+          description: ""
+        contact:
+          type: string
+          description: ID of a contact document
+        roles:
+          type: array
+          items:
+            type: string
+            description: ID of a role document
+        lang:
+          type: string
+          description: ID of a lang document
+        profilePicture:
+          type: string
+          format: uuid
+          description: "Mime types: image/jpeg, image/png."
+        tokens:
+          type: array
+          items:
+            type: string
+            description: ID of a token document
+      required:
+        - username
+    token:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: token
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        value:
+          type: string
+          format: password
+          description: ""
+        lastRefresh:
+          type: string
+          format: date-time
+          description: ""
+    translation:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: translation
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        lang:
+          type: string
+          description: ID of a lang document
+        key:
+          type: string
+          maxLength: 200
+          description: ""
+        value:
+          type: string
+          description: ""
+      required:
+        - lang
+        - key
+    lang:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: lang
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+          description: ""
+        code:
+          type: string
+          maxLength: 5
+          description: ""
+    currency:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: currency
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        symbol:
+          type: string
+          maxLength: 5
+          description: ""
+        code:
+          type: string
+          maxLength: 3
+          description: ""
+        name:
+          type: string
+          description: ""
+        exchangeRate:
+          type: number
+          description: ""
+        default:
+          type: boolean
+          default: false
+          description: ""
+      required:
+        - symbol
+        - code
+        - name
+    channel:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: channel
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+        type:
+          type: string
+          enum:
+            - email
+            - SMS
+            - forum
+            - messagerie
+            - push
+            - in-app
+          description: ""
+      required:
+        - name
+        - type
+    message:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: message
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        sender:
+          type: string
+          description: ID of a user document
+        recipient:
+          type: string
+          description: ID of a user document
+        lang:
+          type: string
+          description: ID of a lang document
+        subject:
+          type: string
+          description: ""
+        content:
+          type: string
+          description: ""
+        channels:
+          type: array
+          items:
+            type: string
+            description: ID of a channel document
+        status:
+          type: string
+          enum:
+            - en attente
+            - envoyée
+            - lue
+            - échouée
+          description: ""
+        sentAt:
+          type: string
+          format: date-time
+          description: ""
+        readAt:
+          type: string
+          format: date-time
+          description: ""
+        type:
+          type: string
+          description: ""
+        priority:
+          type: string
+          enum:
+            - basse
+            - moyenne
+            - haute
+          description: ""
+      required:
+        - content
+    webpage:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: webpage
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        title:
+          type: string
+          description: ""
+        path:
+          type: string
+          description: ""
+        html:
+          type: string
+          description: ""
+        published:
+          type: boolean
+          default: false
+          description: ""
+        inSitemap:
+          type: boolean
+          default: true
+          description: ""
+        description:
+          type: string
+          description: ""
+        keywords:
+          type: array
+          items:
+            type: string
+            description: ID of a taxonomy document
+        image:
+          type: string
+          format: uri
+          description: ""
+        category:
+          type: string
+          description: ID of a taxonomy document
+      required:
+        - title
+        - path
+    content:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: content
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        lang:
+          type: string
+          description: ID of a lang document
+        title:
+          type: string
+          description: ""
+        slug:
+          type: string
+          description: ""
+        html:
+          type: string
+          description: ""
+        image:
+          type: string
+          format: uuid
+          description: "Mime types: image/jpeg, image/png, image/gif, image/webp."
+        published:
+          type: boolean
+          description: ""
+        publishedAt:
+          type: string
+          format: date-time
+          description: ""
+        author:
+          type: string
+          description: ID of a user document
+        category:
+          type: string
+          description: ID of a taxonomy document
+        keywords:
+          type: array
+          items:
+            type: string
+            description: ID of a taxonomy document
+        order:
+          type: number
+          default: 0
+          description: ""
+      required:
+        - title
+    resource:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: resource
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        source:
+          type: string
+          format: uri
+          description: ""
+        file:
+          type: string
+          format: uuid
+          description: ""
+    taxonomy:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: taxonomy
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        parent:
+          type: string
+          description: ID of a taxonomy document
+        type:
+          type: string
+          enum:
+            - keyword
+            - category
+          description: ""
+        identifier:
+          type: string
+          description: ""
+        order:
+          type: number
+          default: 0
+          description: ""
+        description:
+          type: string
+          description: ""
+      required:
+        - name
+    contact:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: contact
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        legalName:
+          type: string
+          description: ""
+        firstName:
+          type: string
+          description: ""
+        lastName:
+          type: string
+          description: ""
+        email:
+          type: string
+          format: email
+          description: ""
+        phone:
+          type: string
+          description: ""
+        location:
+          type: string
+          description: ID of a location document
+    location:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: location
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        address_1:
+          type: string
+          description: ""
+        address_2:
+          type: string
+          description: ""
+        address_3:
+          type: string
+          description: ""
+        address_4:
+          type: string
+          description: ""
+        city:
+          type: string
+          description: ""
+        postalCode:
+          type: string
+          description: ""
+        region:
+          type: string
+          description: ""
+        country:
+          type: string
+          description: ""
+        latitude:
+          type: number
+          description: "Unit: °"
+        longitude:
+          type: number
+          description: "Unit: °"
+    brand:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: brand
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        logo:
+          type: string
+          format: uuid
+          description: ""
+        company:
+          type: string
+          description: ID of a contact document
+      required:
+        - name
+    product:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: product
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+        image:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: "Mime types: image/jpeg, image/png, image/gif, image/webp."
+        price:
+          type: number
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        billingFrequency:
+          type: string
+          enum:
+            - aucune
+            - au mois
+            - à l'année
+          description: ""
+        brand:
+          type: string
+          description: ID of a brand document
+        category:
+          type: string
+          description: ID of a taxonomy document
+      required:
+        - name
+        - price
+        - currency
+    productVariant:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: productVariant
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        product:
+          type: string
+          description: ID of a product document
+        size:
+          type: string
+          description: ""
+        color:
+          type: string
+          description: ""
+        sku:
+          type: string
+          description: ""
+        price:
+          type: number
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        stock:
+          type: number
+          default: 0
+          description: ""
+        description:
+          type: string
+          description: ""
+        image:
+          type: string
+          format: uri
+          description: ""
+      required:
+        - product
+        - price
+        - currency
+    cart:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: cart
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        items:
+          type: array
+          items:
+            type: string
+            description: ID of a cartItem document
+        creationDate:
+          type: string
+          format: date-time
+          description: ""
+        lastUpdate:
+          type: string
+          format: date-time
+          description: ""
+        active:
+          type: boolean
+          default: true
+          description: ""
+      required:
+        - user
+        - creationDate
+        - lastUpdate
+    cartItem:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: cartItem
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        product:
+          type: string
+          description: ID of a product document
+        quantity:
+          type: number
+          minimum: 1
+          description: ""
+        variant:
+          type: string
+          description: ID of a productVariant document
+      required:
+        - product
+        - quantity
+    discount:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: discount
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        code:
+          type: string
+          description: ""
+        productSelection:
+          type: array
+          items:
+            type: string
+            description: ID of a product document
+        description:
+          type: string
+          description: ""
+        percentAmount:
+          type: number
+          minimum: 0
+          default: null
+          description: ""
+        fixedAmount:
+          type: number
+          minimum: 0
+          default: null
+          description: ""
+        minAmount:
+          type: number
+          minimum: 0
+          default: null
+          description: "Unit: €"
+        minProductQuantity:
+          type: number
+          minimum: 0
+          description: ""
+        freeProductQuantity:
+          type: number
+          minimum: 0
+          default: null
+          description: ""
+        startDate:
+          type: string
+          format: date-time
+          description: ""
+        endDate:
+          type: string
+          format: date-time
+          description: ""
+      required:
+        - code
+    order:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: order
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        orderId:
+          type: string
+          description: ""
+        orderDate:
+          type: string
+          format: date-time
+          description: ""
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - shipped
+            - delivered
+            - cancelled
+          description: ""
+        products:
+          type: array
+          items:
+            type: string
+            description: ID of a product document
+        customer:
+          type: string
+          description: ID of a user document
+        totalAmount:
+          type: number
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        paymentMethod:
+          type: string
+          description: ""
+        shippingAddress:
+          type: string
+          description: ID of a location document
+        billingAddress:
+          type: string
+          description: ID of a location document
+        shippedDate:
+          type: string
+          format: date-time
+          description: ""
+        deliveryDate:
+          type: string
+          format: date-time
+          description: ""
+        discount:
+          type: string
+          description: ID of a discount document
+      required:
+        - orderId
+        - products
+        - totalAmount
+    invoice:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: invoice
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        order:
+          type: string
+          description: ID of a order document
+        invoiceId:
+          type: string
+          description: ""
+        invoiceDate:
+          type: string
+          format: date-time
+          description: ""
+        dueDate:
+          type: string
+          format: date-time
+          description: ""
+        status:
+          type: string
+          enum:
+            - payée
+            - non payée
+            - partiellement payée
+            - annulée
+          description: ""
+      required:
+        - order
+        - invoiceId
+        - invoiceDate
+    userSubscription:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: userSubscription
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        product:
+          type: string
+          description: ID of a product document
+        startDate:
+          type: string
+          format: date-time
+          description: ""
+        endDate:
+          type: string
+          format: date-time
+          description: ""
+        price:
+          type: number
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        paymentMethod:
+          type: string
+          enum:
+            - carte bancaire
+            - mandat SEPA
+          description: ""
+        status:
+          type: string
+          enum:
+            - actif
+            - inactif
+            - annulé
+            - expiré
+            - en attente
+          description: ""
+        billingCycleAnchor:
+          type: string
+          format: date-time
+          description: ""
+        nextBillingDate:
+          type: string
+          format: date-time
+          description: ""
+        lastBillingDate:
+          type: string
+          format: date-time
+          description: ""
+        cancelReason:
+          type: string
+          description: ""
+        autoRenew:
+          type: boolean
+          default: false
+          description: ""
+      required:
+        - user
+        - product
+        - startDate
+        - price
+        - currency
+    stock:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: stock
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        product:
+          type: string
+          description: ID of a product document
+        variant:
+          type: string
+          description: ID of a productVariant document
+        warehouse:
+          type: string
+          description: ID of a warehouse document
+        available:
+          type: number
+          default: 0
+          description: ""
+        reserved:
+          type: number
+          default: 0
+          description: ""
+      required:
+        - product
+        - warehouse
+    stockAlert:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: stockAlert
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        stock:
+          type: string
+          description: ID of a stock document
+        threshold:
+          type: number
+          minimum: 0
+          description: ""
+      required:
+        - user
+        - stock
+        - threshold
+    shipment:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: shipment
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        order:
+          type: string
+          description: ID of a order document
+        trackingNumber:
+          type: string
+          description: ""
+        carrier:
+          type: string
+          description: ""
+        status:
+          type: string
+          enum:
+            - en attente
+            - en transit
+            - livrée
+            - problème
+          description: ""
+        estimatedDeliveryDate:
+          type: string
+          format: date-time
+          description: ""
+        actualDeliveryDate:
+          type: string
+          format: date-time
+          description: ""
+      required:
+        - order
+    warehouse:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: warehouse
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        location:
+          type: string
+          description: ID of a location document
+        capacity:
+          type: number
+          description: ""
+      required:
+        - name
+    return:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: return
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        reason:
+          type: string
+          maxLength: 2048
+          description: ""
+        channel:
+          type: string
+          description: ID of a channel document
+        status:
+          type: string
+          enum:
+            - en attente
+            - approuvé
+            - remboursé
+            - refusé
+          description: ""
+        amount:
+          type: number
+          minimum: 0
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        refundDate:
+          type: string
+          format: date-time
+          description: ""
+      required:
+        - reason
+    returnItem:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: returnItem
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        return:
+          type: string
+          description: ID of a return document
+        product:
+          type: string
+          description: ID of a product document
+        variant:
+          type: string
+          description: ID of a productVariant document
+        quantity:
+          type: number
+          minimum: 1
+          description: ""
+        condition:
+          type: string
+          enum:
+            - neuf
+            - très bon état
+            - bon état
+            - ddmmagé
+            - inutilisable
+          description: ""
+      required:
+        - return
+        - product
+        - quantity
+    ticket:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: ticket
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: "Nom du pack auquel appartient ce document"
+        order:
+          type: string
+          description: ID of a order document
+        channel:
+          type: string
+          description: ID of a channel document
+        parent:
+          type: string
+          description: ID of a ticket document
+        subject:
+          type: string
+          description: ""
+        message:
+          type: string
+          description: ""
+        status:
+          type: string
+          enum:
+            - ouvert
+            - en cours
+            - fermé
+        priority:
+          type: string
+          enum:
+            - basse
+            - moyenne
+            - haute
+          description: ""
+        assignedTo:
+          type: string
+          description: ID of a user document
+        createdAt:
+          type: string
+          format: date-time
+          description: ""
+      required:
+        - user
+        - subject
+        - message
+        - createdAt
+    campaign:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: campaign
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+        startDate:
+          type: string
+          format: date-time
+          description: ""
+        endDate:
+          type: string
+          format: date-time
+          description: ""
+        type:
+          type: string
+          enum:
+            - email
+            - SMS
+            - publicité
+            - promotion
+          description: ""
+        status:
+          type: string
+          enum:
+            - planifiée
+            - en cours
+            - terminée
+            - annulée
+          description: ""
+        budget:
+          type: number
+          description: ""
+      required:
+        - name
+    review:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: review
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        product:
+          type: string
+          description: ID of a product document
+        productVariant:
+          type: string
+          description: ID of a productVariant document
+        comment:
+          type: string
+          maxLength: 2048
+          description: ""
+        score:
+          type: number
+          description: ""
+        publishedAt:
+          type: string
+          format: date-time
+          description: ""
+      required:
+        - comment
+        - publishedAt
+    device:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: device
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        location:
+          type: string
+          description: ID of a location document
+        lastLocationUpdate:
+          type: string
+          format: date-time
+          description: ""
+    accountingExercise:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: accountingExercise
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: Intitulé de l'exercice comptable
+        companyContact:
+          type: string
+          description: ID of a contact document. Désignation de l'entreprise
+        companyIdentifier:
+          type: string
+          description: SIRET de l'entreprise
+        startDate:
+          type: string
+          format: date
+          description: Date de début de l'exercice
+        endDate:
+          type: string
+          format: date
+          description: Date de clôture de l'exercice
+      required:
+        - name
+        - companyContact
+        - companyIdentifier
+        - startDate
+        - endDate
+    accountingLineItem:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: accountingLineItem
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        accountingExercise:
+          type: string
+          description: ID of a accountingExercise document
+        code:
+          type: string
+          description: "Code unique de la ligne (ex: AA, FB, HA)"
+        label:
+          type: string
+          description: "Libellé de la ligne (ex: Frais d'établissement)"
+        documentType:
+          type: string
+          enum:
+            - bilan_actif
+            - bilan_passif
+            - compte_resultat
+            - immobilisations
+            - amortissements
+            - provisions
+            - creances_dettes
+            - deficits
+            - plus_moins_values
+            - effectifs_valeur_ajoutee
+            - capital_social
+            - filiales_participations
+            - resultat_fiscal
+          description: ""
+        section:
+          type: string
+          description: "Section principale (ex: ACTIF IMMOBILISÉ)"
+        subSection:
+          type: string
+          description: "Sous-section (ex: IMMOBILISATIONS INCORPORELLES)"
+        order:
+          type: number
+          description: Ordre d'affichage dans la section/sous-section
+        calculationFormula:
+          type: string
+          description: Formule de calcul (si applicable)
+        values:
+          type: array
+          items:
+            type: number
+          description: Valeurs de la ligne comptable
+        notes:
+          type: string
+          description: "Notes ou renvois (ex: (1), (3))"
+      required:
+        - accountingExercise
+        - code
+        - label
+        - documentType
+        - section
+        - values
+    accountingEntry:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: accountingEntry
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        exercise:
+          type: string
+          description: ID of a accountingExercise document
+        label:
+          type: string
+          maxLength: 255
+          description: ""
+        entryDate:
+          type: string
+          format: date
+          description: ""
+        amount:
+          type: number
+          default: 0
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        referenceNumber:
+          type: string
+          maxLength: 100
+          description: ""
+        notes:
+          type: string
+          description: ""
+        status:
+          type: string
+          enum:
+            - brouillon
+            - validée
+            - annulée
+          default: brouillon
+          description: ""
+        createdBy:
+          type: string
+          description: ID of a user document
+        validatedBy:
+          type: string
+          description: ID of a user document
+        validationDate:
+          type: string
+          format: date-time
+          description: ""
+        attachments:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: ""
+      required:
+        - exercise
+        - label
+        - entryDate
+        - currency
+    employee:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: employee
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications ultérieures
+        employeeId:
+          type: string
+          description: ""
+        personalInfo:
+          type: string
+          description: ID of a user document
+        jobTitle:
+          type: string
+          description: ""
+        department:
+          type: string
+          description: ""
+        manager:
+          type: string
+          description: ID of a employee document
+        workLocation:
+          type: string
+          description: ID of a location document
+        employmentType:
+          type: string
+          enum:
+            - full_time
+            - part_time
+            - contractor
+            - intern
+            - temporary
+          description: ""
+        emergencyContact:
+          type: string
+          description: ID of a contact document
+        homeAddress:
+          type: string
+          description: ID of a location document
+        dateOfBirth:
+          type: string
+          format: date
+          description: ""
+        nationality:
+          type: string
+          description: ""
+        nationalId:
+          type: string
+          description: ""
+        socialSecurityNumber:
+          type: string
+          description: ""
+        taxId:
+          type: string
+          description: ""
+        startDate:
+          type: string
+          format: date
+          description: ""
+        endDate:
+          type: string
+          format: date
+          description: ""
+        contractType:
+          type: string
+          description: ""
+        salary:
+          type: number
+          description: ""
+        salaryCurrency:
+          type: string
+          description: ID of a currency document
+        payFrequency:
+          type: string
+          enum:
+            - weekly
+            - bi_weekly
+            - monthly
+          description: ""
+        bankAccountNumber:
+          type: string
+          description: ""
+        bankName:
+          type: string
+          description: ""
+        iban:
+          type: string
+          description: ""
+        swiftBic:
+          type: string
+          description: ""
+        workPermitNumber:
+          type: string
+          description: ""
+        workPermitExpiry:
+          type: string
+          format: date
+          description: ""
+        visaType:
+          type: string
+          description: ""
+        visaExpiry:
+          type: string
+          format: date
+          description: ""
+        skills:
+          type: array
+          items:
+            type: string
+          description: ""
+        notes:
+          type: string
+          description: ""
+      required:
+        - employeeId
+        - personalInfo
+        - jobTitle
+        - startDate
+    workflow:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: workflow
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: "Unique name for the workflow (e.g., 'Order Validation', 'Low Stock Notification')."
+        description:
+          type: string
+          description: "Detailed explanation of the workflow's purpose."
+        startStep:
+          type: string
+          description: "ID of a workflowStep document. The first step to execute when the workflow starts."
+      required:
+        - name
+    workflowTrigger:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: workflowTrigger
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        workflow:
+          type: string
+          description: "ID of a workflow document. The workflow this step belongs to."
+        name:
+          type: string
+          description: "Descriptive name for the trigger (e.g., 'New Order Created', 'Stock < 5', 'Monday 9 AM Report')."
+        type:
+          type: string
+          enum:
+            - manual
+            - scheduled
+          description: ""
+        onEvent:
+          type: string
+          enum:
+            - DataAdded
+            - DataEdited
+            - DataDeleted
+            - ModelAdded
+            - ModelEdited
+            - ModelDeleted
+          description: ""
+        targetModel:
+          type: string
+          description: Name of the target model
+        dataFilter:
+          type: string
+          format: text
+          description: "Optional conditions checked before executing the step's action."
+        env:
+          type: string
+          format: text
+          default: '{}'
+          description: "Environment variables (JSON key/value pairs)"
+        isActive:
+          type: boolean
+          description: ""
+        cronExpression:
+          type: string
+          description: "Cron expression for scheduling (e.g., '0 9 * * 1' for Monday 9 AM) (used by Scheduled type)."
+      required:
+        - workflow
+        - name
+        - type
+        - onEvent
+    workflowStep:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: workflowStep
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        workflow:
+          type: string
+          description: "ID of a workflow document. The workflow this step belongs to."
+        name:
+          type: string
+          description: "Optional descriptive name for the step (e.g., 'Check Inventory', 'Send Confirmation Email')."
+        conditions:
+          type: string
+          format: text
+          description: "Optional conditions checked before executing the step's action."
+        actions:
+          type: array
+          items:
+            type: string
+            description: ID of a workflowAction document
+          description: "The main actions performed by this step."
+        onSuccessStep:
+          type: string
+          description: "ID of a workflowStep document. Optional: The next step if this step's action succeeds."
+        onFailureStep:
+          type: string
+          description: "ID of a workflowStep document. Optional: The next step if conditions fail or the action fails."
+        isTerminal:
+          type: boolean
+          default: false
+          description: "Indicates if this step marks the end of a workflow path."
+      required:
+        - workflow
+        - actions
+    workflowAction:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: workflowAction
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: "Name of the action (e.g., 'Update Order Status', 'Send Email', 'Call Payment API')."
+        type:
+          type: string
+          enum:
+            - UpdateData
+            - CreateData
+            - DeleteData
+            - ExecuteScript
+            - CallWebhook
+            - Wait
+          description: "The type of operation to perform."
+        targetModel:
+          type: string
+          description: Name of the target model. Model to target
+        targetSelector:
+          type: string
+          format: text
+          description: "Expression to filter to the target document(s)."
+        fieldsToUpdate:
+          type: string
+          format: text
+          default: '{}'
+          description: "Key-value pairs of fields to update (e.g., { status: 'Validé', lastUpdated: '{now}' })"
+        dataToCreate:
+          type: string
+          format: text
+          default: '{}'
+          description: "Object template for the new document to create"
+        script:
+          type: string
+          description: "The script to execute."
+        url:
+          type: string
+          description: "The URL to call."
+        method:
+          type: string
+          enum:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          default: POST
+          description: "HTTP method."
+        headers:
+          type: string
+          format: text
+          default: '{}'
+          description: "HTTP headers as key-value pairs."
+        body:
+          type: string
+          format: text
+          default: '{}'
+          description: "Request body, can include variables."
+        duration:
+          type: number
+          description: "Duration to wait."
+        durationUnit:
+          type: string
+          enum:
+            - milliseconds
+            - seconds
+            - minutes
+            - hours
+            - days
+          default: seconds
+          description: "Unit for the duration."
+      required:
+        - name
+        - type
+    workflowRun:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: workflowRun
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        workflow:
+          type: string
+          description: "ID of a workflow document. The workflow definition that was executed."
+        contextData:
+          type: string
+          format: text
+          default: '{}'
+          description: "Snapshot of the data or event that triggered this run."
+        status:
+          type: string
+          enum:
+            - pending
+            - running
+            - completed
+            - failed
+            - waiting
+            - cancelled
+          default: pending
+          description: "The current status of the workflow execution."
+        stepExecutionsCount:
+          type: object
+          description: ""
+        currentStep:
+          type: string
+          description: "ID of a workflowStep document. The step currently being executed or waited on."
+        owner:
+          type: string
+          description: ID of a user document
+        startedAt:
+          type: string
+          format: date-time
+          description: "Timestamp when the workflow run began."
+        completedAt:
+          type: string
+          format: date-time
+          description: "Timestamp when the workflow run finished (successfully or failed)."
+        error:
+          type: string
+          maxLength: 4096
+          description: "Error message if the workflow run failed."
+      required:
+        - workflow
+        - status
+        - startedAt
+    dashboard:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: dashboard
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: Nom affiché et personnalisable du tableau de bord.
+        description:
+          type: string
+          description: Description facultative pour donner plus de contexte au tableau de bord.
+        layout:
+          type: string
+          format: text
+          default: '{ "type": "columns", "columns": [] }'
+          description: 'Structure JSON décrivant l''organisation des KPIs. Exemple : { "type": "columns", "columns": [ ["kpi_id_1"], ["kpi_id_2", "kpi_id_3"] ] }.'
+        settings:
+          type: string
+          format: text
+          default: '{ "defaultTimeRange": "last_7_days", "refreshInterval": null }'
+          description: 'Paramètres JSON pour le tableau de bord, comme la plage de temps par défaut (''defaultTimeRange'') ou l''intervalle de rafraîchissement en secondes (''refreshInterval'').'
+        isDefault:
+          type: boolean
+          default: false
+          description: "Si 'true', ce tableau de bord est affiché par défaut pour l'utilisateur."
+      required:
+        - name
+        - layout
+    request:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: request
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        timestamp:
+          type: string
+          format: date-time
+          description: Date et heure exactes de la réception de la requête.
+        method:
+          type: string
+          enum:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS

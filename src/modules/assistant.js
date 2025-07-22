@@ -292,5 +292,5 @@ export async function onInit(engine) {
             res.status(500).json({success: false, message: "Une erreur interne est survenue."});
         }
     });
-    logger.info("Module 'assistant' initialisé et endpoint '/api/assistant/chat' enregistré.");
+    logger.info("Module 'assistant' loaded and endpoint '/api/assistant/chat' registered.");
 }

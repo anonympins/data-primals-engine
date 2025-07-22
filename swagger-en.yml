@@ -1,0 +1,1417 @@
+openapi: 3.0.0
+info:
+  title: data.primals.net API
+  description: API for managing custom data, including account verification and generic CRUD operations.
+  version: 1.0.0
+servers:
+  - url: https://data.primals.net
+    description: Production server
+security:
+  - BearerAuth: []
+tags:
+  - name: Model Management
+    description: Operations related to data models.
+  - name: Data Management
+    description: Generic CRUD operations for all defined data models.
+paths:
+
+  /api/model:
+    post:
+      tags:
+        - Model Management
+      summary: "Create a new model"
+      description: "Creates a new data model structure. User must have required permissions."
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: "The model definition object to create. The structure must be valid."
+        content:
+          application/json:
+            schema:
+              type: object
+              description: "The complete model definition."
+              example:
+                name: "newModel"
+                description: "Description of my new model."
+                fields:
+                  - name: "title"
+                    type: "string"
+                    required: true
+                  - name: "price"
+                    type: "number"
+                    unit: "€"
+                  - name: "category"
+                    type: "relation"
+                    relation: "taxonomy"
+      responses:
+        '201':
+          description: "Model successfully created."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  insertedId:
+                    type: string
+                    description: "The ID of the newly created model."
+                    example: "60d0fe4f5311236168a109ca"
+        '400':
+          description: "Invalid model definition or name already in use."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: "Unauthorized (missing or invalid token)."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: "Permission denied to create a model."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Model Management
+      summary: "Delete a model"
+      description: "Deletes a data model and all associated data. This action is irreversible."
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+        - name: name
+          in: query
+          required: true
+          description: "The name of the model to delete."
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Model and associated data successfully deleted."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: "Invalid request (e.g., missing 'name' parameter)."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: "Unauthorized (missing or invalid token)."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: "Permission denied to delete this model."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: "Model not found."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/model/{id}:
+    put:
+      tags:
+        - Model Management
+      summary: "Update an existing model"
+      description: "Updates the structure of an existing data model using its ID."
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: "The unique identifier (_id) of the model to update."
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: "The complete updated model definition object."
+        content:
+          application/json:
+            schema:
+              type: object
+              description: "The complete model definition."
+              example:
+                name: "updatedNewModel"
+                description: "Updated description."
+                fields:
+                  - name: "title"
+                    type: "string"
+                    required: true
+                  - name: "price"
+                    type: "number"
+                    unit: "€"
+                  - name: "status"
+                    type: "enum"
+                    items: [ "active", "inactive" ]
+      responses:
+        '200':
+          description: "Model successfully updated."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: "The updated model document."
+        '400':
+          description: "Invalid request or model definition."
+        '401':
+          description: "Unauthorized (missing or invalid token)."
+        '403':
+          description: "Permission denied to modify this model."
+        '404':
+          description: "Model not found."
+  # --- Generic CRUD Endpoints ---
+  /api/data/search:
+    post:
+      tags:
+        - Data Management
+      consumes:
+        - application/json
+      summary: "Search through data"
+      description: "Searches across all data of the specified model."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+        - in: body
+          name: model
+          required: true
+          description: "The name of the data model (e.g., 'user', 'product')."
+          schema:
+            type: string
+        - name: filter
+          in: body
+          description: "MongoDB filter JSON object for the search."
+          schema:
+            type: object
+            example:
+              { "$and": [ { "lang": { "$find": { "$eq": [ "$$this.code", "fr" ] } }}, { "user": { "$exists": true } } ] }
+        - name: sort
+          in: query
+          description: "Field sorting parameter."
+          schema:
+            type: string
+            example: fieldName:ASC;fieldName2:DESC
+        - name: limit
+          in: query
+          description: "Maximum number of documents to return."
+          schema:
+            type: integer
+            default: 1000
+        - name: offset
+          in: query
+          description: "Number of documents to skip (for pagination)."
+          schema:
+            type: integer
+            default: 0
+        - name: depth
+          in: query
+          description: "Population depth for 'relation' type fields."
+          schema:
+            type: integer
+            default: 1
+        - name: lang
+          in: query
+          description: "Language used for error messages."
+          schema:
+            type: string
+            default: 'en'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              description: "The returned data. Returned fields correspond to the model definition."
+              example:
+                [{ _id: "68624b95e59ff3523e72cfff", _hash: "6537742658626211", name: "New Product", price: 99.99}]
+  /api/data/{id}:
+    put:
+      tags:
+        - Data Management
+      summary: "Update a document"
+      description: "Updates an existing document using its ID."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: "The unique identifier (_id) of the document to update."
+          schema:
+            type: string
+        - name: lang
+          in: query
+          description: "Language used for error messages."
+          schema:
+            type: string
+            default: 'en'
+        - in: body
+          name: model
+          required: true
+          description: "The name of the data model (e.g., 'user', 'product')."
+          schema:
+            type: string
+        - name: data
+          in: body
+          required: true
+          description: "The data to edit. Using the $find operator is recommended to copy relational data by reference."
+          schema:
+            type: object
+            example: {}
+      responses:
+        '200':
+          description: "Document successfully updated."
+        '400':
+          description: "Invalid data."
+        '401':
+          description: "Unauthorized."
+        '404':
+          description: "Document not found."
+  /api/data:
+    post:
+      tags:
+        - Data Management
+      summary: "Create one or more documents"
+      description: "Creates one or more new documents in a specified model."
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+        - name: model
+          in: body
+          required: true
+          description: "The name of the model in which to create the documents."
+          schema:
+            type: string
+        - name: data
+          in: body
+          required: true
+          description: "The data to insert. Using the $find operator is recommended for relational data."
+          schema:
+            type: object
+            example: {}
+        - name: lang
+          in: query
+          description: "Language used for error messages."
+          schema:
+            type: string
+            default: 'en'
+      responses:
+        '201':
+          description: "Document(s) successfully created."
+        '400':
+          description: "Invalid data."
+        '401':
+          description: "Unauthorized."
+    put:
+      tags:
+        - Data Management
+      summary: "Bulk update documents"
+      description: "Updates an existing document using its ID."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+        - in: body
+          name: model
+          required: true
+          description: "The name of the data model (e.g., 'user', 'product')."
+          schema:
+            type: string
+        - name: data
+          in: body
+          required: true
+          description: "The data to edit. Using the $find operator is recommended to copy relational data by reference."
+          schema:
+            type: object
+            example: {}
+        - name: lang
+          in: query
+          description: "Language used for error messages."
+          schema:
+            type: string
+            default: 'en'
+      responses:
+        '200':
+          description: "Document successfully updated."
+        '400':
+          description: "Invalid data."
+        '401':
+          description: "Unauthorized."
+        '404':
+          description: "Document not found."
+    delete:
+      tags:
+        - Data Management
+      summary: "Delete one or more document(s)"
+      description: "Permanently deletes a document using its ID."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: _user
+          in: query
+          required: true
+          description: "Your username for authentication."
+          schema:
+            type: string
+        - name: ids
+          in: body
+          description: "The identifiers of the documents to delete."
+          schema:
+            type: string
+        - name: filter
+          in: body
+          description: "The MongoDB JSON filter to apply for bulk deletion."
+          schema:
+            type: object
+            example:
+              { "$and": [ { "lang": { "$find": { "$eq": [ "$$this.code", "fr" ] } }}, { "user": { "$exists": true } } ] }
+        - name: lang
+          in: query
+          description: "Language used for error messages."
+          schema:
+            type: string
+            default: 'en'
+      responses:
+        '200':
+          description: "Document successfully deleted."
+        '401':
+          description: "Unauthorized."
+        '404':
+          description: "Document not found."
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # Assuming JWT tokens are used
+  schemas:
+    # --- Common Responses ---
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "An internal error occurred."
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation successful."
+    # --- Model Schemas (dynamically generated) ---
+    permission:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: permission
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+      required:
+        - name
+    role:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: role
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        permissions:
+          type: array
+          items:
+            type: string
+            description: ID of a permission document
+      required:
+        - name
+    user:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: user
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        username:
+          type: string
+          description: ""
+        password:
+          type: string
+          format: password
+          description: ""
+        gender:
+          type: string
+          enum:
+            - male
+            - female
+            - other
+            - prefer_not_to_say
+          description: ""
+        contact:
+          type: string
+          description: ID of a contact document
+        roles:
+          type: array
+          items:
+            type: string
+            description: ID of a role document
+        lang:
+          type: string
+          description: ID of a lang document
+        profilePicture:
+          type: string
+          format: uuid
+          description: "Mime types: image/jpeg, image/png."
+        tokens:
+          type: array
+          items:
+            type: string
+            description: ID of a token document
+      required:
+        - username
+    token:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: token
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        value:
+          type: string
+          format: password
+          description: ""
+        lastRefresh:
+          type: string
+          format: date-time
+          description: ""
+    translation:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: translation
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        lang:
+          type: string
+          description: ID of a lang document
+        key:
+          type: string
+          maxLength: 200
+          description: ""
+        value:
+          type: string
+          description: ""
+      required:
+        - lang
+        - key
+    lang:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: lang
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+          description: ""
+        code:
+          type: string
+          maxLength: 5
+          description: ""
+    currency:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: currency
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        symbol:
+          type: string
+          maxLength: 5
+          description: ""
+        code:
+          type: string
+          maxLength: 3
+          description: ""
+        name:
+          type: string
+          description: ""
+        exchangeRate:
+          type: number
+          description: ""
+        default:
+          type: boolean
+          default: false
+          description: ""
+      required:
+        - symbol
+        - code
+        - name
+    channel:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: channel
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+        type:
+          type: string
+          enum:
+            - email
+            - SMS
+            - forum
+            - messaging
+            - push
+            - in-app
+          description: ""
+      required:
+        - name
+        - type
+    message:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: message
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        sender:
+          type: string
+          description: ID of a user document
+        recipient:
+          type: string
+          description: ID of a user document
+        lang:
+          type: string
+          description: ID of a lang document
+        subject:
+          type: string
+          description: ""
+        content:
+          type: string
+          description: ""
+        channels:
+          type: array
+          items:
+            type: string
+            description: ID of a channel document
+        status:
+          type: string
+          enum:
+            - pending
+            - sent
+            - read
+            - failed
+          description: ""
+        sentAt:
+          type: string
+          format: date-time
+          description: ""
+        readAt:
+          type: string
+          format: date-time
+          description: ""
+        type:
+          type: string
+          description: ""
+        priority:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+          description: ""
+      required:
+        - content
+    webpage:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: webpage
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        title:
+          type: string
+          description: ""
+        path:
+          type: string
+          description: ""
+        html:
+          type: string
+          description: ""
+        published:
+          type: boolean
+          default: false
+          description: ""
+        inSitemap:
+          type: boolean
+          default: true
+          description: ""
+        description:
+          type: string
+          description: ""
+        keywords:
+          type: array
+          items:
+            type: string
+            description: ID of a taxonomy document
+        image:
+          type: string
+          format: uri
+          description: ""
+        category:
+          type: string
+          description: ID of a taxonomy document
+      required:
+        - title
+        - path
+    content:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: content
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        lang:
+          type: string
+          description: ID of a lang document
+        title:
+          type: string
+          description: ""
+        slug:
+          type: string
+          description: ""
+        html:
+          type: string
+          description: ""
+        image:
+          type: string
+          format: uuid
+          description: "Mime types: image/jpeg, image/png, image/gif, image/webp."
+        published:
+          type: boolean
+          description: ""
+        publishedAt:
+          type: string
+          format: date-time
+          description: ""
+        author:
+          type: string
+          description: ID of a user document
+        category:
+          type: string
+          description: ID of a taxonomy document
+        keywords:
+          type: array
+          items:
+            type: string
+            description: ID of a taxonomy document
+        order:
+          type: number
+          default: 0
+          description: ""
+      required:
+        - title
+    resource:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: resource
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        source:
+          type: string
+          format: uri
+          description: ""
+        file:
+          type: string
+          format: uuid
+          description: ""
+    taxonomy:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: taxonomy
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        parent:
+          type: string
+          description: ID of a taxonomy document
+        type:
+          type: string
+          enum:
+            - keyword
+            - category
+          description: ""
+        identifier:
+          type: string
+          description: ""
+        order:
+          type: number
+          default: 0
+          description: ""
+        description:
+          type: string
+          description: ""
+      required:
+        - name
+    contact:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: contact
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        legalName:
+          type: string
+          description: ""
+        firstName:
+          type: string
+          description: ""
+        lastName:
+          type: string
+          description: ""
+        email:
+          type: string
+          format: email
+          description: ""
+        phone:
+          type: string
+          description: ""
+        location:
+          type: string
+          description: ID of a location document
+    location:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: location
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        address_1:
+          type: string
+          description: ""
+        address_2:
+          type: string
+          description: ""
+        address_3:
+          type: string
+          description: ""
+        address_4:
+          type: string
+          description: ""
+        city:
+          type: string
+          description: ""
+        postalCode:
+          type: string
+          description: ""
+        region:
+          type: string
+          description: ""
+        country:
+          type: string
+          description: ""
+        latitude:
+          type: number
+          description: "Unit: °"
+        longitude:
+          type: number
+          description: "Unit: °"
+    brand:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: brand
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        logo:
+          type: string
+          format: uuid
+          description: ""
+        company:
+          type: string
+          description: ID of a contact document
+      required:
+        - name
+    product:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: product
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+        image:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: "Mime types: image/jpeg, image/png, image/gif, image/webp."
+        price:
+          type: number
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        billingFrequency:
+          type: string
+          enum:
+            - none
+            - monthly
+            - yearly
+          description: ""
+        brand:
+          type: string
+          description: ID of a brand document
+        category:
+          type: string
+          description: ID of a taxonomy document
+      required:
+        - name
+        - price
+        - currency
+    productVariant:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: productVariant
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        product:
+          type: string
+          description: ID of a product document
+        size:
+          type: string
+          description: ""
+        color:
+          type: string
+          description: ""
+        sku:
+          type: string
+          description: ""
+        price:
+          type: number
+          description: ""
+        currency:
+          type: string
+          description: ID of a currency document
+        stock:
+          type: number
+          default: 0
+          description: ""
+        description:
+          type: string
+          description: ""
+        image:
+          type: string
+          format: uri
+          description: ""
+      required:
+        - product
+        - price
+        - currency
+    cart:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: cart
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        items:
+          type: array
+          items:
+            type: string
+            description: ID of a cartItem document
+        creationDate:
+          type: string
+          format: date-time
+          description: ""
+        lastUpdate:
+          type: string
+          format: date-time
+          description: ""
+        active:
+          type: boolean
+          default: true
+          description: ""
+      required:
+        - user
+        - creationDate
+        - lastUpdate
+    cartItem:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: cartItem
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        product:
+          type: string
+          description: ID of a product document
+        quantity:
+          type: number
+          minimum: 1
+          description: ""
+        variant:
+          type: string
+          description: ID of a productVariant document
+      required:
+        - product
+        - quantity
+    discount:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document
