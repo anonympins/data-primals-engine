@@ -2,7 +2,7 @@
 // Nouvelle fonction pour ajouter un fichier privé
 import {maxPrivateFileSize, megabytes} from "../constants.js";
 import {isLocalUser} from "../data.js";
-import i18n from "../../../data-primals-engine/src/i18n.js";
+import i18n from "data-primals-engine/i18n";
 import {getUserStorageLimit} from "../user.js";
 import {getCollection} from "./mongodb.js";
 import {getFileExtension, isGUID, uuidv4} from "../core.js";

@@ -1,4 +1,4 @@
-// data-primals-engine/src/index.js
+// data-primals-engine/index
 
 // --- Core Engine & Utilities ---
 export { Engine } from './engine.js';

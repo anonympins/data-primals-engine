@@ -66,7 +66,7 @@ import fs from "node:fs";
 import schedule from "node-schedule";
 import {middleware} from "../middlewares/middleware-mongodb.js";
 import ExpressSitemap from "express-sitemap-xml";
-import i18n from "../../../data-primals-engine/src/i18n.js";
+import i18n from "data-primals-engine/i18n";
 import {
     runScheduledJobWithDbLock,
     scheduleWorkflowTriggers,

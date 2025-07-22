@@ -1,4 +1,4 @@
-import { translations } from "../../data-primals-engine/src/i18n.js";
+import { translations } from "data-primals-engine/i18n";
 import process from "node:process";
 import nodemailer from "nodemailer";
 import juice from "juice";
