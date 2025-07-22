@@ -14,6 +14,15 @@ export class UserProvider {
     }
 
     /**
+     * Met à jour un nouvel utilisateur.
+     * @param user
+     * @returns {Promise<void>}
+     */
+    async updateUser(user, data) {
+
+    }
+
+    /**
      * Trouve un utilisateur par son nom d'utilisateur.
      * @param {string} username - Le nom d'utilisateur à rechercher.
      * @returns {Promise<object|null>} L'objet utilisateur ou null.
@@ -55,6 +64,10 @@ export class DefaultUserProvider extends UserProvider {
 
     async validatePassword(user, password) {
         return true;
+    }
+
+    async updateUser(user, data) {
+        this.users = this.users.map(user => user.username === user.username ? {...user, ...data} : user);
     }
 
     async initiateUser(req) {
