@@ -31,12 +31,15 @@
 ## ⚡ Quick Start
 
 ```bash
+npm i data-primals-engine
+```
+or
+```bash
 git clone https://your-repo/data-primals-engine.git
 cd data-primals-engine
 npm install
 ```
-
-Create a `.env` file:
+Possibly create a `.env` file:
 ```env
 MONGO_DB_URL=mongodb://127.0.0.1:27017
 ```
