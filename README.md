@@ -96,7 +96,7 @@ Example:
 
 #### Create a model
 ```bash
-curl -X POST http://localhost:7633/api/model?_user=demouser \
+curl -X POST http://localhost:7633/api/model?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{
@@ -111,7 +111,7 @@ curl -X POST http://localhost:7633/api/model?_user=demouser \
 
 #### Update a model
 ```bash
-curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demouser \
+curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{
@@ -126,7 +126,7 @@ curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demou
 
 #### Delete a model
 ```bash
-curl -X DELETE "http://localhost:7633/api/model?_user=demouser&name=newModel" \
+curl -X DELETE "http://localhost:7633/api/model?_user=demo&name=newModel" \
      -H "Authorization: Bearer demotoken"
 ```
 
@@ -134,7 +134,7 @@ curl -X DELETE "http://localhost:7633/api/model?_user=demouser&name=newModel" \
 
 #### Create a document
 ```bash
-curl -X POST http://localhost:7633/api/data?_user=demouser \
+curl -X POST http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{
@@ -150,7 +150,7 @@ curl -X POST http://localhost:7633/api/data?_user=demouser \
 
 #### Search documents
 ```bash
-curl -X POST http://localhost:7633/api/data/search?_user=demouser \
+curl -X POST http://localhost:7633/api/data/search?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{
@@ -161,7 +161,7 @@ curl -X POST http://localhost:7633/api/data/search?_user=demouser \
 
 #### Update a document by ID
 ```bash
-curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demouser \
+curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{
@@ -172,7 +172,7 @@ curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demous
 
 #### Bulk update
 ```bash
-curl -X PUT http://localhost:7633/api/data?_user=demouser \
+curl -X PUT http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{
@@ -183,7 +183,7 @@ curl -X PUT http://localhost:7633/api/data?_user=demouser \
 
 #### Delete documents
 ```bash
-curl -X DELETE http://localhost:7633/api/data?_user=demouser \
+curl -X DELETE http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{

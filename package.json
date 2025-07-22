@@ -1,6 +1,7 @@
 {
   "name": "data-primals-engine",
   "version": "1.0.1",
+
   "description": "data-primals-engine is the package responsible from handling large amount of data in a practical and performant way. It can handle large amount of data in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation.",
   "main": "src/engine.js",
   "type": "module",
@@ -12,6 +13,10 @@
     "migrate:down": "node src/migrate.js down",
     "migrate:revert": "node src/migrate.js revert",
     "migrate:status": "node src/migrate.js status"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anonympins/data-primals-engine.git"
   },
   "exports": {
     ".": "./src/index.js",
