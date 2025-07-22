@@ -197,14 +197,15 @@ curl -X DELETE http://localhost:7633/api/data?_user=demo \
 ```
 data-primals-engine/
 ├── src/
-│   ├── engine.js
+│   ├── middlewares/
+│   ├── migrations/
 │   ├── modules/
-│   ├── providers/
-│   ├── constants.js
-│   ├── defaultModels.js
-├── config/
-│   ├── models/
-│   └── packs/
+│   ├── workers/
+│   ├── engine.js // The Express engine that serves the API
+│   ├── constants.js // The inner-application constants definitions
+│   ├── packs.js // The packs that will be loaded and available with installPack() method
+│   ├── defaultModels.js // The default models available to import
+│   ├── ...
 └── server.js
 ```
 
