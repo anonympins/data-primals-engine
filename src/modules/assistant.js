@@ -20,7 +20,7 @@ export const assistantGlobalLimiter = rateLimit({
     legacyHeaders: false, // Désactive les anciens en-têtes `X-RateLimit-*`
     message: { success: false, message: "Trop de requêtes globales envoyées à l'assistant. Veuillez réessayer plus tard." },
     skip: (req) => {
-        return !!req.body?.confirmedAction;
+        return !!req.fields?.confirmedAction;
     }
 });
 
@@ -299,7 +299,7 @@ export async function onInit(engine) {
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée
-        const {message, history, provider, context, confirmedAction} = req.body;
+        const {message, history, provider, context, confirmedAction} = req.fields;
 
         // La validation ne s'applique que s'il n'y a pas d'action confirmée
         if (!confirmedAction) {

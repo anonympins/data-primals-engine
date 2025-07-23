@@ -77,7 +77,7 @@ import {openaiJobModel} from "../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
 import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
-import {encryptFile, removeFile} from "./file.js";
+import {addFile, encryptFile, removeFile} from "./file.js";
 import {listS3Backups, uploadToS3} from "./bucket.js";
 import {
     calculateTotalUserStorageUsage, generateLimiter, hasPermission,
@@ -1232,7 +1232,7 @@ export async function onInit(defaultEngine) {
 
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
         const user = req.me;
-        const { name, description, modelNames } = req.body; // Noms des modèles à inclure
+        const { name, description, modelNames } = req.fields; // Noms des modèles à inclure
 
         if (!name || !Array.isArray(modelNames) || modelNames.length === 0) {
             return res.status(400).json({ error: 'Name and a list of model names are required.' });
@@ -1401,7 +1401,7 @@ export async function onInit(defaultEngine) {
 
     engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
         // ... (vérifications de permissions existantes) ...
-        const result = await importData(req.body, req.files, req.me);
+        const result = await importData(req.fields, req.files, req.me);
         if( result.success ){
             res.status(202).json(result);
         }else{
@@ -1412,7 +1412,7 @@ export async function onInit(defaultEngine) {
 
     engine.post('/api/model/generate', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
         // --- NOUVELLE LOGIQUE : Accepter le prompt ET un modèle existant ---
-        const { prompt, history = [], existingModel } = req.body;
+        const { prompt, history = [], existingModel } = req.fields;
         const user = req.me;
         const lang = req.query.lang || 'en';
 
@@ -1463,7 +1463,7 @@ export async function onInit(defaultEngine) {
             return res.status(403).json({success: false, error: i18n.t('api.permission.editModel', 'Cannot edit models from the API')})
         }
 
-        const dataModel = req.body;
+        const dataModel = req.fields;
         try {
             const collection = getCollectionForUser(req.me);
             validateModelStructure(dataModel);
@@ -1480,13 +1480,13 @@ export async function onInit(defaultEngine) {
             }
 
             // renommage du modèle
-            if (typeof (req.body.name)==='string'&&el.name !== req.body.name && req.body.name ){
-                await collection.updateMany({ _model: el.name }, { $set: { _model: req.body.name }});
+            if (typeof (req.fields.name)==='string'&&el.name !== req.fields.name && req.fields.name ){
+                await collection.updateMany({ _model: el.name }, { $set: { _model: req.fields.name }});
                 await modelsCollection.updateMany({ 'fields' : {
                     '$elemMatch' : { relation: el.name }
                     }}, {
                     $set : {
-                        'fields.$.relation' : req.body.name
+                        'fields.$.relation' : req.fields.name
                     }
                 })
             }
@@ -1526,7 +1526,7 @@ export async function onInit(defaultEngine) {
             await collection.updateMany({ _model: el.name }, { $unset: unset });
 
             // sauvegarde du modele
-            const set = {...req.body};
+            const set = {...req.fields};
             delete set['_id'];
             await modelsCollection.updateOne({_id: new ObjectId(req.params.id)}, {$set: set});
 
@@ -1579,8 +1579,9 @@ export async function onInit(defaultEngine) {
     });
 
     engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
-        const modelName = req.body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
-        const data = req.body.data || (req.body._data && JSON.parse(req.body._data));
+        const body = req.files ? req.fields : req.fields;
+        const modelName = body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
+        const data = body.data || (body._data && JSON.parse(body._data));
 
         try {
             const model = await getModel(modelName, req.me);
@@ -1594,10 +1595,10 @@ export async function onInit(defaultEngine) {
     });
 
     engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
-        const { pack } = req.body;
+        const { pack } = req.fields;
 
         try {
-            const {data, count} = await searchData({query: {...req.query, model: req.body.model || req.query.model, filter: req.body.filter, pack}, user: req.me });
+            const {data, count} = await searchData({query: {...req.query, model: req.fields.model || req.query.model, filter: req.fields.filter, pack}, user: req.me });
 
             if( req.query.attachment ) {
                 res.attachment(req.query.attachment);
@@ -1622,7 +1623,7 @@ export async function onInit(defaultEngine) {
 
     engine.delete('/api/data/:ids', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
         const ids = req.params.ids.split(',');
-        const r = await deleteData(req.body.model, ids, {}, req.me);
+        const r = await deleteData(req.fields.model, ids, {}, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
         }else{
@@ -1631,7 +1632,7 @@ export async function onInit(defaultEngine) {
     });
 
     engine.delete('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
-        const r = await deleteData(req.body.model, [], req.body.filter, req.me);
+        const r = await deleteData(req.fields.model, [], req.fields.filter, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
         }else{
@@ -1642,9 +1643,9 @@ export async function onInit(defaultEngine) {
 // --- Export Endpoint ---
     engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
         try {
-            const results = await exportData({...req.body, depth:req.query.depth, lang: req.query.lang}, req.me);
+            const results = await exportData({...req.fields, depth:req.query.depth, lang: req.query.lang}, req.me);
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `export-${req.body.models.join('-')}-${timestamp}.json`;
+            const filename = `export-${req.fields.models.join('-')}-${timestamp}.json`;
 
             if (!results.success) {
                 res.status(400).json(results); // Renvoyer l'objet d'erreur complet
@@ -1669,10 +1670,10 @@ export async function onInit(defaultEngine) {
     });
 
     engine.patch('/api/data/:id?', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
-        const filter = req.body.filter;
+        const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
-        const data = req.body.data || (req.body._data && JSON.parse(req.body._data));
-        const r = await patchData(req.body.model, filter || hash, data, req.files, req.me);
+        const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+        const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
         if (r.error) {
             res.status(400).json(r);
         } else {
@@ -1682,10 +1683,10 @@ export async function onInit(defaultEngine) {
 
     engine.put('/api/data/:id?', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         try {
-            const filter = req.body.filter;
+            const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
-            const data = req.body.data || (req.body._data && JSON.parse(req.body._data));
-            const r = await editData(req.body.model, filter || hash, data, req.files, req.me)
+            const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+            const r = await editData(req.fields.model, filter || hash, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);
             else
@@ -1741,7 +1742,7 @@ export async function onInit(defaultEngine) {
             return res.status(403).json({success: false, error: i18n.t('api.permission.addModel')})
         }
         try {
-            const modelData = req.body;
+            const modelData = req.fields;
             validateModelStructure(modelData);
 
 
@@ -1795,7 +1796,7 @@ export async function onInit(defaultEngine) {
             return res.status(403).json({success: false, error: i18n.t('api.permission.importModels')})
         }
         try {
-            const modelsToImport = await modelsCollection.find({name: { $in: req.body.models }, _user: { $exists: false } }).toArray();
+            const modelsToImport = await modelsCollection.find({name: { $in: req.fields.models }, _user: { $exists: false } }).toArray();
             const ids = [];
 
             const getPromise = () => {
@@ -1808,13 +1809,17 @@ export async function onInit(defaultEngine) {
                     return Promise.reject();
                 })));
             }
-            const install = !!req.body.install;
+            const install = !!req.fields.install;
             if( install && /^demo[0-9]{1,2}$/.test(req.me.username) ){
 
                 await datasCollection.deleteMany({ _user: req.me.username});
                 await modelsCollection.deleteMany({ _user: req.me.username});
                 const files = await filesCollection.find({ mainUser: req.me.username}).toArray();
-                files.forEach(file =>removeFile(file.guid, req.me));
+                try {
+                    files.forEach(file =>removeFile(file.guid, req.me));
+                } catch (e) {
+                    
+                }
 
                 await cancelAlerts(req.me);
 
@@ -1888,7 +1893,7 @@ export async function onInit(defaultEngine) {
 
         try {
             const modelId = req.params.modelId;
-            const { oldFieldName, newFieldName } = req.body;
+            const { oldFieldName, newFieldName } = req.fields;
 
             // Basic validation
             if (!oldFieldName || !newFieldName) {
@@ -2097,7 +2102,7 @@ export async function onInit(defaultEngine) {
 
     engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
         // --- Récupérer groupByLabelField ---
-        const { model: modelName, type, xAxis, yAxis, groupBy, aggregationType, groupByLabelField, filter: chartFilter } = req.body;
+        const { model: modelName, type, xAxis, yAxis, groupBy, aggregationType, groupByLabelField, filter: chartFilter } = req.fields;
 
         // --- Validation (inchangée) ---
         const isGroupingChart = ['pie', 'doughnut'].includes(type);
@@ -2321,7 +2326,7 @@ export async function onInit(defaultEngine) {
         if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.createPack')})
         }
-        const { itemIds } = req.body;
+        const { itemIds } = req.fields;
         if (!Array.isArray(itemIds) || itemIds.length === 0 || !itemIds.every(isObjectId)) { // Assurez-vous que isObjectId est importé/défini
             return res.status(400).json({ success: false, error: 'itemIds must be a non-empty array of valid ObjectIds.' });
         }
@@ -2451,7 +2456,7 @@ export async function onInit(defaultEngine) {
     });
 
     engine.post('/api/data/addToPack', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter], async (req, res) => {
-        const { packName, itemIds } = req.body;
+        const { packName, itemIds } = req.fields;
         const user = req.me;
 
         if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
@@ -2521,7 +2526,7 @@ export async function onInit(defaultEngine) {
     /*
     engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
 
-        const { pack } = req.body;
+        const { pack } = req.fields;
         const initialModelName = req.query.model; // The starting model
         const user = req.me;
         const collection = getCollectionForUser(user);
@@ -3386,12 +3391,12 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         // Traitement des fichiers
         const fileFields = model.fields.filter(f => f.type === 'file' || (f.type === 'array' && f.itemsType === 'file'));
         for (const field of fileFields) {
-            if (files?.[field.name]) {
+            if (files?.[field.name+'[0]']) {
                 if (field.type === 'file') {
-                    updateData[field.name] = await addFile(files[field.name][0], user);
+                    updateData[field.name] = await addFile(files[field.name+'[0]'][0], user);
                 } else if (field.type === 'array' && field.itemsType === 'file') {
                     const currentFiles = existingDocs[0]?.[field.name] || [];
-                    const newFiles = await processFileArray(files[field.name], currentFiles, user);
+                    const newFiles = await processFileArray(files[field.name+'[0]'], currentFiles, user);
                     updateData[field.name] = newFiles;
                 }
             }
@@ -3490,7 +3495,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
 // Fonctions helper
 async function processFileArray(files, currentFiles, user) {
     const newFiles = await Promise.allSettled(
-        files.map(async (file, i) => {
+        Object.keys(files).map(f=>files[f]).map(async (file, i) => {
             const oldFile = currentFiles.find(f => f.name === file.name);
             if (oldFile && !file.newFile) return oldFile;
             if (file.guid) return file;
@@ -3500,7 +3505,7 @@ async function processFileArray(files, currentFiles, user) {
     ).then(results => results.map(r => r.value).filter(Boolean));
 
     // Suppression des anciens fichiers non réutilisés
-    await Promise.all(
+    await Promise.allSettled(
         currentFiles
             .filter(f => !newFiles.some(nf => nf._id === f._id))
             .map(f => removeFile(f, user))
@@ -5241,7 +5246,7 @@ async function logApiRequest(req, res, user, startTime, responseBody = null, err
         // Champs optionnels
         ip: req.clientIp.substring('::ffff:'.length) || req.clientIp, // Obtenir l'IP du client
         //requestHeaders: JSON.stringify(req.headers).substring(0, maxStringLength), // Optionnel: Peut être volumineux
-        requestBody: req.body,
+        requestBody: req.fields,
         responseBody: res.statusCode >= 400 && responseBody ? JSON.stringify(responseBody).substring(0, maxStringLength) : null, // Optionnel: Peut être volumineux
         error: error ? String(error.message || error) : null // Message d'erreur si applicable
     };
