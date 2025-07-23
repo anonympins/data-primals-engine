@@ -124,7 +124,7 @@ export const Engine = {
 
             process.on('uncaughtException', function (exception) {
                 console.error(exception);
-                fs.appendFile('bugs.txt', JSON.stringify({ code: exception.code, message: exception.message, stack: exception.stack }), function (err) {
+                fs.appendFile('issues.txt', JSON.stringify({ code: exception.code, message: exception.message, stack: exception.stack }), function (err) {
                     if (err){
                         throw err;
                     }
