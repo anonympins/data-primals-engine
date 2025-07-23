@@ -179,7 +179,7 @@ export async function onInit(defaultEngine) {
 
     engine.post('/api/user/s3-config', [middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
         const user = req.me;
-        const { bucketName, accessKeyId, secretAccessKey, region, pathPrefix } = req.body;
+        const { bucketName, accessKeyId, secretAccessKey, region, pathPrefix } = req.fields;
 
         // Validation basique des entrées
         if (!bucketName || !accessKeyId || !region) {
@@ -201,7 +201,7 @@ export async function onInit(defaultEngine) {
             } else {
                 // Si la clé secrète n'est pas fournie, on ne la modifie pas.
                 // Si tu veux permettre de la supprimer, il faudrait une logique explicite.
-                // Pour l'instant, on ne touche pas à s3Config.secretAccessKey si req.body.secretAccessKey est vide.
+                // Pour l'instant, on ne touche pas à s3Config.secretAccessKey si req.fields.secretAccessKey est vide.
             }
 
             const result = await engine.userProvider.updateUser(

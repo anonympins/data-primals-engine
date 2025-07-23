@@ -20,7 +20,7 @@ export const assistantGlobalLimiter = rateLimit({
     legacyHeaders: false, // Désactive les anciens en-têtes `X-RateLimit-*`
     message: { success: false, message: "Trop de requêtes globales envoyées à l'assistant. Veuillez réessayer plus tard." },
     skip: (req) => {
-        return !!req.body?.confirmedAction;
+        return !!req.fields?.confirmedAction;
     }
 });
 
@@ -63,7 +63,9 @@ Tu as accès aux outils suivants. Tu ne dois utiliser QUE ces outils.
 
 La spécification, pour t'aider à construire les filtres, est la suivante :
 utilise une chaine de caractère convertible en ObjectId (mongodb) lorsque le nom du champ est _id 
-utilise une chaine de caracteres lorsque le type de champ est : code, string, string_t , password, url, phone, email, richtext
+utilise une chaine de caracteres lorsque le type de champ est : string, string_t , password, url, phone, email, richtext
+utilise un $FILTER en retour si le type de champ est code et language='json' et conditionBuilder=true
+utilise une chaine si c'est un type de champ code par défaut. 
 utilise une structure { "iso2langcode":"content..." } pour le champ multi-traductions richtext_t
 utilise un booléen pour : boolean
 utilise un nombre pour number
@@ -80,11 +82,18 @@ PROCESSUS DE RAISONNEMENT:
 2. Tu analyses la question et choisis l'outil approprié.
 3. Tu réponds IMMÉDIATEMENT avec l'objet JSON correspondant SANS COMMENTAIRE.
 
+Chacune de tes réponses doit être une étape en soi, ou au plus près d'une étape.
+
 CONTEXTE ACTUEL:
 - L'utilisateur a accès aux modèles de données suivants et ne peut utiliser les filtres que sur les champs associés:
 ${modelDefs.map(m => `  - Modèle "${m.name}":\n    Champs: ${JSON.stringify(m.fields.map(f => ({ name: f.name, type: f.type, hint: f.hint })), null, 2)}`).join('\n')}
 - Le format de $DATA est { modelFieldName: "value", otherModelFieldName: { subObj : true } }
-- Exemples de filtres "params" utilisables : 
+- Exemples de filtres $FILTER utilisables (ils sont compatibles MongoDB) : 
+Filtre utilisable : { $eq: ["$status", 500 ] }
+Filtre incorrect : { "status": 500 }
+==
+
+Exemples de "params" : 
 Je voudrais les événements non terminés, qui ne sont pas des festivals ou des salons :
 \`${cond1}\`
 Donne moi les 5 nouvelles entreprises
@@ -93,8 +102,6 @@ Je veux les 10 dernières traductions ajoutées dans la langue française.
 \`${cond3}\`
 Je veux les commandes qui ont été faites par un admin ou un modérateur
 \`${cond4}\`
-Ton but est de créer un filtre au plus précis, et mets toujours un limit à 1 par défaut pour éviter de faire des actions en masse non désirées.
-
 
 Règles ABSOLUES:
 - UNE SEULE COMMANDE JSON PAR RÉPONSE
@@ -292,7 +299,7 @@ export async function onInit(engine) {
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée
-        const {message, history, provider, context, confirmedAction} = req.body;
+        const {message, history, provider, context, confirmedAction} = req.fields;
 
         // La validation ne s'applique que s'il n'y a pas d'action confirmée
         if (!confirmedAction) {
