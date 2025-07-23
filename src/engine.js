@@ -14,6 +14,7 @@ import requestIp from 'request-ip';
 import {createModel, getModels, installAllPacks, validateModelStructure} from "./modules/data.js";
 import {defaultModels} from "./defaultModels.js";
 import {DefaultUserProvider} from "./providers.js";
+import formidableMiddleware from 'express-formidable';
 
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
@@ -44,13 +45,12 @@ export const Engine = {
         app.set('port', process.env.PORT || 3000);
         app.set('engine', engine);
 
-        app.use(bodyParser.urlencoded({extended: true, limit: 4096 }))
-        app.use(bodyParser.json({ limit: maxDataSize }))
+        app.use(formidableMiddleware({
+            encoding: 'utf-8',
+            uploadDir: process.cwd()+'/uploads/tmp',
+            multiples: true, // req.files to be arrays of files
+        }));
         app.use(cookieParser(isProduction ? cookiesSecret : 'secret'));
-
-        var multipartMiddleware = multipart();
-        app.use(multipartMiddleware);
-
         app.use(requestIp.mw())
 
         engine.use = (...args) => {

@@ -79,7 +79,7 @@ export const generateLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) => {
-        return !!req.body?.confirmedAction;
+        return !!req.fields?.confirmedAction;
     }
 });
 
