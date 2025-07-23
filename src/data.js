@@ -420,6 +420,7 @@ export const getFieldValueHash = (model, data) => {
  * @returns {string} - La chaîne de caractères représentant la donnée.
  */
 export const getDataAsString = (model, data, t, allModels, extended=false) => {
+
     // Cas de base : si le modèle ou les données sont manquants, on ne peut rien faire.
     if (!model || !data) {
         return '';
@@ -484,8 +485,14 @@ export const getDataAsString = (model, data, t, allModels, extended=false) => {
             return value.value; // Champs traduits
         }
 
-        const translatedValue = t(value, {defaultValue: value});
-        return translatedValue || value.toString();
+        if( typeof(value) === 'string' ) {
+            const translatedValue = t(value, {defaultValue: value});
+            return translatedValue || value.toString();
+        }
+        if( typeof(value) === 'object' ) {
+            return JSON.stringify(value, null, 2);
+        }
+        return value;
 
     }).filter(Boolean).join(', ');
 

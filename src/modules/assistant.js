@@ -24,7 +24,13 @@ export const assistantGlobalLimiter = rateLimit({
     }
 });
 
-const createSystemPrompt = (modelDefs, conditionBuilderExample) =>`
+const createSystemPrompt = (modelDefs) => {
+const cond1 = JSON.stringify({ "model": "event", "sort": "startDate:ASC", "limit": 0, "filter": { "$and": [{ "$nin": ["$tags", "festival"] }, { "$lt": ["$endDate", "$$NOW"] }] }}, null, 2);
+    const cond2 = JSON.stringify({ "model": "contact", "sort": "legalName:ASC", "limit": 5,"filter": {"$ne": [{ "$type": "$legalName"}, "missing"] }}, null, 2);
+    const cond3 = JSON.stringify({ "model": "order", "sort": "_id:DESC", "limit": 10,"filter": {"lang": { "$find": [{ "$eq": ["$$this.code", "fr"] }] } }}, null, 2);
+    const cond4 = JSON.stringify({ "model": "order", "sort": "updatedAt:DESC", "limit": 0,"filter": {"user": { "$find": { "roles": { "$find": [{ "$in": ["$$this.name", ["admin", "moderator"]] }] } }}}}, null, 2);
+
+    return `
 Tu es "Prior", un assistant expert en analyse de données pour la plateforme data.primals.net.
 Ta mission est d'aider l'utilisateur en répondant à ses questions sur ses données.
 
@@ -55,7 +61,8 @@ Tu as accès aux outils suivants. Tu ne dois utiliser QUE ces outils.
 5.  **displayMessage**: Pour répondre directement à l'utilisateur. N'utilise cette action QUE lorsque tu as toutes les informations nécessaires pour formuler une réponse finale.
     - Utilisation: \`{ "action": "displayMessage", "params": { "message": "Ta réponse textuelle." } }\`
 
-La spécification suivante peut t'aider à construire les filtres) est la suivante :
+La spécification, pour t'aider à construire les filtres, est la suivante :
+utilise une chaine de caractère convertible en ObjectId (mongodb) lorsque le nom du champ est _id 
 utilise une chaine de caracteres lorsque le type de champ est : code, string, string_t , password, url, phone, email, richtext
 utilise une structure { "iso2langcode":"content..." } pour le champ multi-traductions richtext_t
 utilise un booléen pour : boolean
@@ -76,8 +83,17 @@ PROCESSUS DE RAISONNEMENT:
 CONTEXTE ACTUEL:
 - L'utilisateur a accès aux modèles de données suivants et ne peut utiliser les filtres que sur les champs associés:
 ${modelDefs.map(m => `  - Modèle "${m.name}":\n    Champs: ${JSON.stringify(m.fields.map(f => ({ name: f.name, type: f.type, hint: f.hint })), null, 2)}`).join('\n')}
-- Le format pour les filtres ($FILTER) est : ${conditionBuilderExample}
 - Le format de $DATA est { modelFieldName: "value", otherModelFieldName: { subObj : true } }
+- Exemples de filtres "params" utilisables : 
+Je voudrais les événements non terminés, qui ne sont pas des festivals ou des salons :
+\`${cond1}\`
+Donne moi les 5 nouvelles entreprises
+\`${cond2}\`
+Je veux les 10 dernières traductions ajoutées dans la langue française.
+\`${cond3}\`
+Je veux les commandes qui ont été faites par un admin ou un modérateur
+\`${cond4}\`
+Ton but est de créer un filtre au plus précis, et mets toujours un limit à 1 par défaut pour éviter de faire des actions en masse non désirées.
 
 
 Règles ABSOLUES:
@@ -97,12 +113,18 @@ json
 \`\`\`
 
 Exemple de réponse INCORRECTE (INTERDIT) :
-"Je vais d'abord rechercher ces requêtes. Voici la commande que je vais exécuter..."`;
+"Je vais d'abord rechercher ces requêtes. Voici la commande que je vais exécuter..."
+`;
+}
 
 
 /**
  * Gère la requête de chat, soit en exécutant une action confirmée,
  * soit en lançant la boucle de raisonnement de l'IA.
+ */
+/**
+ * Gère la requête de chat, soit en exécutant une action confirmée,
+ * soit en lanant la boucle de raisonnement de l'IA.
  */
 async function handleChatRequest(message, history, provider, context, user, confirmedAction) {
 
@@ -152,8 +174,7 @@ async function handleChatRequest(message, history, provider, context, user, conf
     const relevantModelNames = new Set([modelName, 'alert', 'kpi', "dashboard", "request", "translation"]);
     const modelDefs = allModels.filter(m => relevantModelNames.has(m.name));
 
-    const conditionBuilderExample = JSON.stringify({ "$and": [{ "$eq": ["$fieldName", "value"] }] }, null, 2);
-    const systemPrompt = createSystemPrompt(modelDefs, conditionBuilderExample);
+    const systemPrompt = createSystemPrompt(modelDefs);
 
     const conversationHistory = history
         .filter(msg => !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
@@ -207,21 +228,27 @@ async function handleChatRequest(message, history, provider, context, user, conf
 
                 return { success: true, displayMessage: resultString };
             }
-
             case 'displayMessage':
                 return { success: true, displayMessage: parsedResponse.params.message };
-
             case 'code':
-                return { success: true, displayMessage: "```json\n" + JSON.stringify(parsedResponse.params.message, null, 2) + "\n```" };
-
+                return { success: true, displayMessage: "Voici le code : " + parsedResponse.params.code };
             case 'post':
             case 'update':
-            case 'delete':
+            case 'delete': {
+                const { model, filter, data } = parsedResponse.params;
+
+                // Un message générique. Les détails seront affichés par le front-end.
+                const confirmationMessage = i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :");
+
                 return {
                     success: true,
-                    displayMessage: i18n.t('assistant.confirmAction', `Je vais exécuter : ${parsedResponse.action}. Confirmez-vous ?`),
-                    confirmationRequest: parsedResponse
+                    model,
+                    filter,
+                    data,
+                    displayMessage: confirmationMessage, // Message détaillé pour l'utilisateur
+                    confirmationRequest: parsedResponse // Action complète pour l'exécution
                 };
+            }
 
             default:
                 return {
@@ -234,7 +261,6 @@ async function handleChatRequest(message, history, provider, context, user, conf
     logger.warn("[Assistant] La boucle a atteint le nombre maximum de tours sans réponse.");
     return { success: true, displayMessage: i18n.t('assistant.loopTimeout', "Désolé, je n'ai pas réussi à terminer ma pensée. Pouvez-vous reformuler votre demande ?"), actions: [] };
 }
-
 /**
  * Exécute une action de modification (post, update, delete) après confirmation de l'utilisateur.
  * @param {string} action - L'action à exécuter ('post', 'update', 'delete').
