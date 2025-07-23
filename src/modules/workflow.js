@@ -10,7 +10,7 @@ import {maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import i18n from "../../../data-primals-engine/src/i18n.js";
+import i18n from "data-primals-engine/i18n";
 import {sendEmail} from "../email.js";
 
 // 1. ADD THIS IMPORT AT THE TOP OF THE FILE

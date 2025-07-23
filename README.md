@@ -31,12 +31,15 @@
 ## ⚡ Quick Start
 
 ```bash
+npm i data-primals-engine
+```
+or
+```bash
 git clone https://your-repo/data-primals-engine.git
 cd data-primals-engine
 npm install
 ```
-
-Create a `.env` file:
+Possibly create a `.env` file:
 ```env
 MONGO_DB_URL=mongodb://127.0.0.1:27017
 ```
@@ -197,14 +200,15 @@ curl -X DELETE http://localhost:7633/api/data?_user=demo \
 ```
 data-primals-engine/
 ├── src/
-│   ├── engine.js
+│   ├── middlewares/
+│   ├── migrations/
 │   ├── modules/
-│   ├── providers/
-│   ├── constants.js
-│   ├── defaultModels.js
-├── config/
-│   ├── models/
-│   └── packs/
+│   ├── workers/
+│   ├── engine.js // The Express engine that serves the API
+│   ├── constants.js // The inner-application constants definitions
+│   ├── packs.js // The packs that will be loaded and available with installPack() method
+│   ├── defaultModels.js // The default models available to import
+│   ├── ...
 └── server.js
 ```
 

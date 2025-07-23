@@ -8,7 +8,6 @@ import sanitizeHtml from 'sanitize-html';
 import * as tar from "tar";
 import process from "node:process";
 import {randomColor} from "randomcolor";
-import rateLimit from "express-rate-limit";
 import cronstrue from 'cronstrue/i18n.js';
 import { setTimeoutMiddleware } from '../middlewares/timeout.js';
 
@@ -65,8 +64,7 @@ import {
 import fs from "node:fs";
 import schedule from "node-schedule";
 import {middleware} from "../middlewares/middleware-mongodb.js";
-import ExpressSitemap from "express-sitemap-xml";
-import i18n from "../../../data-primals-engine/src/i18n.js";
+import i18n from "data-primals-engine/i18n";
 import {
     runScheduledJobWithDbLock,
     scheduleWorkflowTriggers,
@@ -76,7 +74,6 @@ import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
 import {getUserStorageLimit} from "../user.js";
 import {openaiJobModel} from "../openai.jobs.js";
-import {tutorialsConfig} from "../tutorials.js";
 import checkDiskSpace from "check-disk-space";
 import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
@@ -102,10 +99,6 @@ let logger;
 const sseConnections = new Map();
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
-
-const isProduction = process.env.NODE_ENV === 'production';
-export const urlData = isProduction ? 'https://data.primals.net/' : 'http://localhost:5173/';
-export const DATAS_API_TOKEN = process.env.DATAS_API_TOKEN;
 
 const backupDir = process.env.BACKUP_DIR || './backups'; // Répertoire de stockage des sauvegardes
 const execAsync = promisify(exec);
@@ -1123,33 +1116,6 @@ export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
-    const loadFromDb = async () => {
-        const webpages = await searchData({user: {username:'primals', token: DATAS_API_TOKEN}, query: { depth: 2, model: 'webpage', filter:{ $eq: ['$inSitemap', true]}}});
-        const contents = await searchData({user: {username:'primals', token: DATAS_API_TOKEN}, query: { depth: 2, model: 'content', filter:{ $eq: ['$inSitemap', true]}}});
-        const alls = [
-            "/",
-        ];
-
-        availableLangs.forEach(l => {
-            alls.push('/?lang='+l);
-            alls.push('/cgu?lang='+l);
-            alls.push('/'+l+'/documentation');
-        });
-
-        webpages.data.forEach(w => {
-            alls.push('/'+w.lang.code+(w.category.identifier?'/'+w.category.identifier:'')+(w.slug||''));
-        });
-        contents.data.forEach(w => {
-            alls.push('/'+w.lang.code+(w.category.identifier?'/'+w.category.identifier:'')+(w.slug||''));
-        });
-
-        return alls;
-    };
-
-    engine.use(
-        ExpressSitemap(loadFromDb, "https://data.primals.net", { maxAge: 60000 }),
-    );
-
     engine.use(middleware({ whitelist: [
         "$$NOW", "$in", "$eq", "$gt", "$gte", "$in", "$lt", "$lte", "$ne", "$nin", "$type", "$size",
             "$and", "$not", "$nor", "$or", "$regexMatch", "$find", "$elemMatch", "$filter", "$toString", "$toObjectId",
@@ -1160,7 +1126,6 @@ export async function onInit(defaultEngine) {
             "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
             "$dateSubtract", "$dateAdd", "$dateToString",
             '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond',
-
     ]}));
 
     let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection;
@@ -1263,24 +1228,6 @@ export async function onInit(defaultEngine) {
         return await usersCollection.updateOne({ username: user.username }, { $set: data }, { upsert: true })
     }
 
-    /**
-     * Remplace les placeholders dans un objet filtre.
-     * Gère {{userId}}.
-     */
-    const processFilterPlaceholders = (filter, user) => {
-        const processedFilter = JSON.parse(JSON.stringify(filter));
-        for (const key in processedFilter) {
-            if (processedFilter[key] === '{{userId}}') {
-                // Dans le système Primals, le champ utilisateur est souvent `_user`
-                // et contient le nom d'utilisateur, pas l'ID. Adaptez si besoin.
-                processedFilter[key] = user.username;
-            } else if (typeof processedFilter[key] === 'object' && processedFilter[key] !== null) {
-                processedFilter[key] = processFilterPlaceholders(processedFilter[key], user);
-            }
-        }
-        return processedFilter;
-    };
-
     // Dans C:/Dev/hackersonline-engine/server/src/modules/data.js, dans onInit()
 
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
@@ -1382,127 +1329,6 @@ export async function onInit(defaultEngine) {
         } catch (error) {
             logger.error("Error creating magnet link:", error);
             res.status(500).json({ error: "An internal server error occurred." });
-        }
-    });
-
-    engine.post('/api/tutorials/set-active', middlewareAuthenticator, async (req, res) => {
-        try {
-            const { tutorialState } = req.body;
-            const user = req.me;
-
-            if (tutorialState !== null && (typeof tutorialState !== 'object' || !tutorialState.id)) {
-                return res.status(400).json({ error: 'Invalid tutorial state payload.' });
-            }
-
-            // Créer une représentation de l'utilisateur mis à jour pour la réponse
-            const updatedData = { activeTutorial: tutorialState };
-
-            await engine.userProvider.updateUser(user, updatedData);
-
-            // --- MODIFICATION ---
-            res.json({
-                success: true,
-                updatedData // Renvoyer l'objet utilisateur complet
-            });
-
-        } catch (error) {
-            console.error('[Tutoriel Set Active Error]', error);
-            res.status(500).json({ error: 'Error setting active tutorial.', details: error.message });
-        }
-    });
-
-    // ...
-
-    engine.post('/api/tutorials/:tutorialId/claim-rewards', middlewareAuthenticator, async (req, res) => {
-        try {
-            const { tutorialId } = req.params;
-            const user = req.me; // L'objet utilisateur est déjà chargé
-            const tutorial = tutorialsConfig.find(t => t.id === tutorialId);
-
-            if (!tutorial) return res.status(404).json({ error: 'Tutoriel non trouvé.' });
-            if (!tutorial.rewards) return res.status(400).json({ error: 'Ce tutoriel n\'a pas de récompenses.' });
-            if (user.completedTutorials?.includes(tutorialId)) {
-                return res.status(400).json({ error: 'Tutoriel déjà terminé.' });
-            }
-
-            const { xpBonus, skill, achievement, notification } = tutorial.rewards;
-
-            // --- LOGIQUE CORRIGÉE ---
-            let newData= {};
-            newData.xp = newData.xp || 0;
-            newData.achievements = newData.achievements || [];
-            newData.skills = newData.skills || [];
-            newData.completedTutorials = newData.completedTutorials || [];
-
-            // Appliquer les récompenses directement sur l'objet newData
-            if (xpBonus) newData.xp += xpBonus;
-            if (achievement && !newData.achievements.includes(achievement)) newData.achievements.push(achievement);
-            if (skill) {
-                const existingSkill = newData.skills.find(s => s.name === skill.name);
-                if (existingSkill) {
-                    existingSkill.points += skill.points;
-                } else {
-                    newData.skills.push({ name: skill.name, points: skill.points });
-                }
-            }
-
-            newData.completedTutorials.push(tutorialId);
-            newData.activeTutorial = null;
-
-            await saveUser(user, newData);
-
-            const translatedNotification = {
-                title: i18n.t(notification.title, notification.title),
-                message: i18n.t(notification.message, notification.message),
-            };
-
-            res.json({
-                success: true,
-                userUpdate: newData, // Renvoyer l'objet utilisateur complet et mis à jour
-                notification: translatedNotification
-            });
-
-        } catch (error) {
-            console.error('[Tutoriel Rewards Error]', error);
-            res.status(500).json({ error: 'Erreur lors de l\'attribution des récompenses.', details: error.message });
-        }
-    });
-
-
-    /**
-     * Route pour vérifier si une condition de complétion est remplie.
-     * Utilise la fonction `searchData` existante pour interroger les données.
-     */
-    engine.post('/api/tutorials/check-completion', middlewareAuthenticator, async (req, res) => {
-        try {
-            const { model, filter, limit } = req.body;
-            const user = req.me;
-
-            if (!model || !filter || limit === undefined) {
-                return res.status(400).json({ error: 'Payload de condition de complétion invalide.' });
-            }
-
-            const processedFilter = processFilterPlaceholders(filter, user);
-
-            // On utilise la fonction de recherche interne de l'application
-            const searchResult = await searchData({
-                query: {
-                    model,
-                    filter: processedFilter,
-                    limit, // Optimisation : pas besoin de plus de résultats
-                    page: 1,
-                },
-                user: user,
-            });
-
-            // searchData devrait renvoyer un `count` total des documents correspondants
-            const isCompleted = searchResult.count >= limit;
-
-            res.json({ isCompleted });
-
-        } catch (error) {
-            console.error('[Tutoriel Check Error]', error);
-            res.status(500).json({ error: 'Erreur lors de la vérification de la complétion.', details: error.message });
         }
     });
 
