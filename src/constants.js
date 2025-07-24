@@ -120,7 +120,7 @@ metaModels['common'] = { load: ['contact', 'location', 'request'] };
 metaModels['personal'] = { load: ['budget', 'imageGallery'] };
 metaModels['users'] = { load: ['permission', 'role', 'user', 'token'], 'require': ['i18n', 'common'] };
 metaModels['i18n'] = { load: ['translation','lang']};
-metaModels['website'] = { load: ['webpage', 'content', 'taxonomy', 'contact', 'resource'], 'require': ['i18n'] };
+metaModels['website'] = { load: ['webpage', 'content', 'taxonomy', 'contact', 'event', 'resource'], 'require': ['i18n'] };
 metaModels['messaging'] = { load: ['alert','ticket', 'message', 'channel'], 'require': ['i18n'] };
 metaModels['eshopping'] = { load: [
         'order', 'currency', 'product', 'productVariant', 'discount', 'cart', 'cartItem',

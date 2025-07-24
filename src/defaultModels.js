@@ -106,11 +106,11 @@ export const defaultModels = {
             { name: 'subject', type: 'string' }, // Sujet de la notification (ex: titre de l'email)
             { name: 'content', type: 'richtext', required: true }, // Contenu du message (localisable)
             { name: 'channels', type: 'relation', multiple: true, relation: 'channel' }, // Canaux de diffusion (email, SMS, forum, etc.)
-            { name: 'status', type: 'enum', items: ['en attente', 'envoyée', 'lue', 'échouée'] },
+            { name: 'status', type: 'enum', items: ['pending', 'sent', 'read', 'failed'] },
             { name: 'sentAt', type: 'datetime' },
             { name: 'readAt', type: 'datetime' },
             { name: 'type', type: 'string' }, // Type de notification (ex: "commande.miseAJour", "messageForum")
-            { name: 'priority', type: 'enum', items: ['basse', 'moyenne', 'haute'] },
+            { name: 'priority', type: 'enum', items: ['low', 'medium', 'high']},
         ],
     },
     alert: {
@@ -404,7 +404,7 @@ export const defaultModels = {
             { name: 'invoiceId', type: 'string', required: true, unique: true },
             { name: 'invoiceDate', type: 'datetime', required: true },
             { name: 'dueDate', type: 'datetime' },
-            { name: 'status', type: 'enum', items: ['payée', 'non payée', 'partiellement payée', 'annulée'] },
+            { name: 'status', type: 'enum', items: ['paid', 'unpaid', 'partially_paid', 'cancelled'] },
         ],
     },
     userSubscription: {
@@ -418,8 +418,8 @@ export const defaultModels = {
             { name: 'endDate', type: 'datetime' },
             { name: 'price', type: 'number', required: true },
             { name: 'currency', type: 'relation', relation: 'currency', required: true },
-            { name: 'paymentMethod', type: 'enum', items: ['carte bancaire', 'mandat SEPA'] },
-            { name: 'status', type: 'enum', items: ['actif', 'inactif', 'annulé', 'expiré', 'en attente'] },
+            { name: 'paymentMethod', type: 'enum', items: ['bank_card', 'SEPA_mandate', 'cash', 'check', 'other'] },
+            { name: 'status', type: 'enum', items: ['active', 'inactive', 'cancelled', 'expired', 'pending'] },
             { name: 'billingCycleAnchor', type: 'datetime' },
             { name: 'nextBillingDate', type: 'datetime' },
             { name: 'lastBillingDate', type: 'datetime' },
@@ -455,7 +455,7 @@ export const defaultModels = {
             { name: 'order', type: 'relation', relation: 'order', required: true },
             { name: 'trackingNumber', type: 'string' },
             { name: 'carrier', type: 'string' },
-            { name: 'status', type: 'enum', items: ['en attente', 'en transit', 'livrée', 'problème'] },
+            { name: 'status', type: 'enum', items: ['pending', 'in_transit', 'delivered', 'issue'] },
             { name: 'estimatedDeliveryDate', type: 'datetime' },
             { name: 'actualDeliveryDate', type: 'datetime' }
         ],
@@ -476,7 +476,7 @@ export const defaultModels = {
             { "name": "user", "type": "relation", relation: "user" },
             { "name": "reason", "type": "string", maxlength: 2048, required: true },
             { "name": "channel", "type": "relation", relation: 'channel' },
-            { "name": "status", "type": "enum", items: ["en attente", "approuvé", "remboursé", "refusé"] },
+            { "name": "status", "type": "enum", items: ["pending", "approved", "refunded", "refused"] },
             { name: 'amount', type: 'number', min: 0 },
             { name: 'currency', type: 'relation', relation: 'currency' },
             { name: 'refundDate', type: 'datetime' },
@@ -490,7 +490,7 @@ export const defaultModels = {
             { name: 'product', type: 'relation', relation: 'product', required: true },
             { name: 'variant', type: 'relation', relation: 'productVariant' },
             { name: 'quantity', type: 'number', required: true, min: 1 },
-            { name: 'condition', type: 'enum', items: ['neuf', 'très bon état', 'bon état', 'dégradé', 'endommagé', 'inutilisable'] }
+            { name: 'condition', type: 'enum', items: ['new', 'very_good', 'good', 'degraded', 'damaged', 'unusable'] }
         ],
     },
     ticket: {
@@ -504,8 +504,8 @@ export const defaultModels = {
             { name: 'parent', type: 'relation', relation: 'ticket' },
             { name: 'subject', type: 'string', required: true },
             { name: 'message', type: 'richtext', required: true },
-            { name: 'status', type: 'enum', items: ['ouvert', 'en cours', 'fermé'] },
-            { name: 'priority', type: 'enum', items: ['basse', 'moyenne', 'haute'] },
+            { name: 'status', type: 'enum', items: ['opened', 'in_progress', 'closed'] },
+            { name: 'priority', type: 'enum', items: ['low', 'medium', 'high', 'urgent'] },
             { name: 'assignedTo', type: 'relation', relation: 'user' },
             { name: 'createdAt', type: 'datetime', required: true }
         ],
@@ -518,8 +518,8 @@ export const defaultModels = {
             { name: 'description', type: 'richtext' },
             { name: 'startDate', type: 'datetime' },
             { name: 'endDate', type: 'datetime' },
-            { name: 'type', type: 'enum', items: ['email', 'SMS', 'publicité', 'promotion'] },
-            { name: 'status', type: 'enum', items: ['planifiée', 'en cours', 'terminée', 'annulée'] },
+            { name: 'type', type: 'enum', items: ['email', 'sms', 'advertisement', 'promotion'] },
+            { name: 'status', type: 'enum', items: ['planified', 'in_progress', 'finished', 'cancelled'] },
             { name: 'budget', type: 'number' }
         ],
     },
@@ -631,7 +631,7 @@ export const defaultModels = {
             {
                 "name": "status",
                 "type": "enum",
-                "items": ["brouillon", "validée", "annulée"],
+                "items": ["draft", "validated", "cancelled"],
                 "default": "brouillon"
             },
             {
@@ -1282,6 +1282,118 @@ export const defaultModels = {
                 itemsType: 'file', // Pour joindre des reçus, factures, etc.
                 hint: "Pièces jointes (reçus, factures)."
             },
+        ]
+    },
+    event: {
+        "name": "event",
+        "description": "A model for managing events, conferences, meetups, and gatherings.",
+        "fields": [
+            {
+                "name": "title",
+                "type": "string",
+                "required": true,
+                "asMain": true,
+                "hint": "The title of the event"
+            },
+            {
+                "name": "description",
+                "type": "richtext_t",
+                "hint": "A detailed description of the event, including agenda, speakers, and other relevant information."
+            },
+            {
+                "name": "startDate",
+                "type": "datetime",
+                "required": true,
+                "hint": "The starting date and time of the event"
+            },
+            {
+                "name": "endDate",
+                "type": "datetime",
+                "required": true,
+                "hint": "The ending date and time of the event"
+            },
+            {
+                "name": "location",
+                "type": "relation",
+                "relation": "location",
+                "hint": "The venue or location where the event will be held. This could be a physical address or an online meeting link."
+            },
+            {
+                "name": "categories",
+                "type": "relation",
+                "relation": "taxonomy",
+                "multiple": true,
+                "hint": "Categories or tags associated with the event (e.g., \"conference\", \"workshop\", \"music\", \"technology\")."
+            },
+            {
+                "name": "organizer",
+                "type": "relation",
+                "relation": "contact",
+                "hint": "The name of the organization or individual hosting the event."
+            },
+            {
+                "name": "isOnline",
+                "type": "boolean",
+                "default": false,
+                "hint": "Whether the event is online or in-person."
+            },
+            {
+                "name": "eventUrl",
+                "type": "url",
+                "hint": "A link to the official event webpage or registration page."
+            },
+            {
+                "name": "imageUrl",
+                "type": "file",
+                "hint": "URL of the event image or banner."
+            },
+            {
+                "name": "status",
+                "type": "enum",
+                "items": [
+                    "scheduled",
+                    "ongoing",
+                    "completed",
+                    "cancelled",
+                    "postponed"
+                ],
+                "hint": "The current status of the event."
+            },
+            {
+                "name": "capacity",
+                "type": "number",
+                "hint": "The maximum number of attendees allowed for the event."
+            },
+            {
+                "name": "price",
+                "type": "number",
+                "hint": "The price of admission, if applicable."
+            },
+            {
+                "name": "currency",
+                "type": "relation",
+                "relation": "currency",
+                "hint": "The currency for the price (e.g., USD, EUR)."
+            },
+            {
+                "name": "registrationDeadline",
+                "type": "datetime",
+                "hint": "The date by which attendees must register for the event."
+            },
+            {
+                "name": "attendees",
+                "type": "relation",
+                "relation": "contact",
+                "multiple": true,
+                "hint": "A relation to the contacts attending the event"
+            },
+            {
+                "name": "sponsors",
+                "type": "relation",
+                "relation": "contact",
+                "multiple": true,
+                "hint": "List of sponsors or partners involved in the event."
+            }
         ]
     }
 };
