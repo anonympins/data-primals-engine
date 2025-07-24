@@ -3739,7 +3739,6 @@ export const translations = {
 
             "field_return_user_hint": "المستخدم الذي بدأ طلب الإرجاع.",
             "field_return_reason_hint": "سبب إرجاع المنتج (مثال: تالف، خطأ في الشحن).",
-            "field_return_status_hint": "حالة طلب الإرجاع (مثال: مطلوب، معتمد، مسترد).",
             "field_return_amount_hint": "المبلغ الإجمالي الذي سيتم إعادته إلى العميل.",
             "field_return_currency_hint": "العملة التي سيتم بها الاسترداد.",
             "field_return_refundDate_hint": "التاريخ الذي تم فيه الاسترداد فعليًا.",
