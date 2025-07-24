@@ -4,14 +4,11 @@ import fs from 'node:fs'
 import express from 'express'
 import {MongoClient as InternalMongoClient} from 'mongodb'
 import process from "process";
-import multipart from 'connect-multiparty';
-import path from 'node:path';
-import bodyParser from "body-parser";
-import {cookiesSecret, dbName, install, maxDataSize} from "./constants.js";
+import {cookiesSecret, dbName} from "./constants.js";
 import http from "http";
 import cookieParser from "cookie-parser";
 import requestIp from 'request-ip';
-import {createModel, getModels, installAllPacks, validateModelStructure} from "./modules/data.js";
+import {createModel, getModels, validateModelStructure} from "./modules/data.js";
 import {defaultModels} from "./defaultModels.js";
 import {DefaultUserProvider} from "./providers.js";
 import formidableMiddleware from 'express-formidable';
@@ -39,9 +36,8 @@ export const Engine = {
             engine.getComponent(Logger).info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
         };
 
-        var app = express();
-
-// Allows you to set port in the project properties.
+        const app = express();
+        // Allows you to set port in the project properties.
         app.set('port', process.env.PORT || 3000);
         app.set('engine', engine);
 
@@ -50,7 +46,7 @@ export const Engine = {
             uploadDir: process.cwd()+'/uploads/tmp',
             multiples: true, // req.files to be arrays of files
         }));
-        app.use(cookieParser(isProduction ? cookiesSecret : 'secret'));
+        app.use(cookieParser(process.env.COOKIES_SECRET || cookiesSecret));
         app.use(requestIp.mw())
 
         engine.use = (...args) => {
@@ -141,8 +137,8 @@ export const Engine = {
         const logger = engine.getComponent(Logger);
 
         async function setupInitialModels() {
-            logger.info("Validation des structures de modèles et insertion");
-            const ms = Object.values(Config.Get('defaultModels', []));
+            logger.info("Validating structures of default models...");
+            const ms = Object.values(Config.Get('defaultModels', defaultModels));
 
             let dbModels = await getModels();
 
