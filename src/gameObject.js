@@ -70,23 +70,21 @@ export class UsableBehaviour extends Behaviour {
 
     use() {
         Event.Trigger("GameObject.UsableBehavior.use",  "system", "calls", this);
-        // Logique d'utilisation (exemple)
-        console.log(this.gameObject.name + " a été utilisé !");
     }
 }
 
-const pilote = GameObject.Create("Pilote");
+const mainDriver = GameObject.Create("MainDrivers");
 
 // Exemple d'attachement de comportements
-pilote.addComponent(MovableBehaviour, 10);
-pilote.addComponent(UsableBehaviour);
+mainDriver.addComponent(MovableBehaviour, 10);
+mainDriver.addComponent(UsableBehaviour);
 
 // Accéder et utiliser les composants
-const movable = pilote.getComponent(MovableBehaviour);
+const movable = mainDriver.getComponent(MovableBehaviour);
 if (movable) {
     movable.update();
 }
-const usable = pilote.getComponent(UsableBehaviour);
+const usable = mainDriver.getComponent(UsableBehaviour);
 if (usable) {
     usable.use();
 }

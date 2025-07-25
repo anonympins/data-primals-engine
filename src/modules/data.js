@@ -2591,14 +2591,18 @@ export async function onInit(defaultEngine) {
 }
 
 export const createModel = async (data) => {
-    return await modelsCollection.insertOne(data);
+    return await getCollection('model').insertOne(data);
+}
+
+export const deleteModels = async (filter) => {
+    return await getCollection('model').deleteMany(filter ? filter : {_user: { $exists: false }});
 }
 
 export const getModel = async (modelName, user) => {
     const modelInCache = modelsCache.get(user.username+"@@"+modelName);
     if(modelInCache)
         return modelInCache;
-    const model = await modelsCollection.findOne({name: modelName, $and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]});
+    const model = await getCollection('model').findOne({name: modelName, $and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]});
     if (!model) {
         throw new Error(i18n.t('api.model.notFound', {model: modelName}));
     }
@@ -2606,7 +2610,7 @@ export const getModel = async (modelName, user) => {
     return model;
 }
 export const getModels = async ()  => {
-    return await modelsCollection.find({'$or': [{_user: { $exists: false}}]}).toArray();
+    return await getCollection('model').find({'$or': [{_user: { $exists: false}}]}).toArray();
 }
 
 
