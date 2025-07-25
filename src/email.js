@@ -2,6 +2,8 @@ import { translations } from "data-primals-engine/i18n";
 import process from "node:process";
 import nodemailer from "nodemailer";
 import juice from "juice";
+import {event_trigger} from "./core.js";
+import {emailDefaultConfig} from "./constants.js";
 
 // Le transporteur par défaut, utilisé si aucune config spécifique n'est fournie.
 const defaultTransporter = nodemailer.createTransport({

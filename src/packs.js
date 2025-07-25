@@ -242,6 +242,10 @@ export const getAllPacks = async () => {
                     },{
                         "name": "Data purging",
                         "startStep": { "$link": { "name": "Purge execution", "_model": "workflowStep" } }
+                    },{
+                        "name": "Shipment Notification",
+                        "description": "Notifies the customer when their order has been shipped.",
+                        "startStep": { "$link": { "name": "Send Shipment Email Step", "_model": "workflowStep" } }
                     }],
                     "workflowAction": [
                         { "name": "Update order status to 'processing'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": "{triggerData._id}" }, "fieldsToUpdate": { "status": "processing" } },
@@ -250,19 +254,20 @@ export const getAllPacks = async () => {
                             "dataToCreate": { "order": "{triggerData._id}", "status": "preparing" } },
                         { "name": "Update order status to 'shipped'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": "{triggerData._id}" }, "fieldsToUpdate": { "status": "shipped" } },
                         {
-                            "name": "Send Shipping Confirmation",
-                            "type": "SendEmail",
-                            "emailRecipients": ["{triggerData.customer.email}"],
-                            "emailSubject": "Your order #{triggerData.orderId} has been shipped!",
-                            "emailContent": "Hello {triggerData.customer.firstName},<br><br>Good news! Your order is on its way. You can track it using this number: {context.CreateShipmentRecord.insertedIds[0]}.<br><br>Thank you for your purchase!"
-                        },
-                        {
                             name: 'Delete queries older than 30 days',
                             type: 'DeleteData',
                             targetModel: 'request',
                             targetSelector: {
                                 "$lt": ["$timestamp", {"$subtract": ["$$NOW", 1000*3600*24*365*5] } ]
                             }
+                        },
+                        {
+                            "name": "Send Shipping Notification Email",
+                            "type": "SendEmail",
+                            // C'est ici que la magie opère !
+                            "emailRecipients": ["{triggerData.order.customer.contact.email}"],
+                            "emailSubject": "Your order #{triggerData.order.orderId} has been shipped!",
+                            "emailContent": "Hello {triggerData.order.customer.contact.firstName},<br><br>Good news! Your order #{triggerData.order.orderId} is on its way. You can track it using this number: <strong>{triggerData.trackingNumber}</strong>.<br><br>Thank you for your purchase!"
                         }
                     ],
                     "workflowStep": [
@@ -277,6 +282,12 @@ export const getAllPacks = async () => {
                             "workflow": { "$link": { "name": "Order Fulfillment", "_model": "workflow" }},
                             "actions": { "$link": { "name": "Create Shipment Record", "_model": "workflowAction" } },
                             "onSuccessStep": { "$link": { "name": "Ship Order", "_model": "workflowStep" } },
+                        },
+                        {
+                            "name": "Send Shipment Email Step",
+                            "workflow": { "$link": { "name": "Shipment Notification", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Send Shipping Notification Email", "_model": "workflowAction" } },
+                            "isTerminal": true
                         },
                         {
                             "name": "Ship Order",
@@ -300,7 +311,12 @@ export const getAllPacks = async () => {
                         }
                     ],
                     "workflowTrigger": [{
-                        "name": "New order created", "workflow": { "$link": { "name": "Order Fulfillment", "_model": "workflow" } }, "type": "manual", "onEvent": "DataAdded", "dataFilter":{}, "targetModel": "order", "isActive": true
+                        "name": "On New Shipment Created",
+                        "workflow": { "$link": { "name": "Shipment Notification", "_model": "workflow" } },
+                        "type": "manual", // Déclenché par un événement
+                        "onEvent": "DataAdded",
+                        "targetModel": "shipment",
+                        "isActive": true
                     },{
                         name: 'Daily data purge',
                         type: 'scheduled',
