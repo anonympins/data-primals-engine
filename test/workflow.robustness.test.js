@@ -8,14 +8,13 @@ import { Config } from "data-primals-engine/config";
 let mongod;
 let testDbUri;
 const testDbName = 'testRobustnessDbHO_Workflow';
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
 
 // --- Importations des modules de l'application ---
 import { Engine } from "data-primals-engine/engine";
 import { insertData, editData } from 'data-primals-engine/modules/data';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser, getCollection } from 'data-primals-engine/modules/mongodb';
 import * as workflowModule from 'data-primals-engine/modules/workflow';
-import {getUniquePort, initEngine} from "./setenv.js";
+import {getUniquePort, initEngine} from "../src/setenv.js";
 import {maxExecutionsByStep} from "data-primals-engine/constants";
 
 vi.mock('data-primals-engine/modules/workflow', { spy: true })
@@ -39,17 +38,15 @@ const targetDataModel = { name: 'project',  'description': '',_user: mockUser.us
 
 let testModelsColInstance;
 let testDatasColInstance;
-let engineInstance;
 
-beforeAll(async () => {
-
-    engineInstance = await initEngine();
-
-    testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getCollectionForUser(mockUser);
-}, 15000);
+beforeAll(async () =>{
+    Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+    await initEngine();
+})
 
 beforeEach(async () => {
+    testModelsColInstance = getAppModelsCollection;
+    testDatasColInstance = getCollectionForUser(mockUser);
     await testDatasColInstance.deleteMany({ _user: mockUser.username });
     await getCollection('job_locks').deleteMany({}); // Nettoyer les verrous
     const mods = await testModelsColInstance.find({ $and: [{_user: mockUser.username}, {$or: [{name: targetDataModel.name}, ...workflowMetaModels.map(m =>({name: m.name}))] }]}).toArray();

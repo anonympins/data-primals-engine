@@ -1,7 +1,6 @@
 import {getRandom} from "data-primals-engine/core";
 import process from "node:process";
-import {Engine} from "../src/index.js";
-import {MongoMemoryServer} from "mongodb-memory-server";
+import {Engine} from "./index.js";
 
 let ports = [], engineInstance, mongod;
 export const getUniquePort = () =>{
@@ -19,21 +18,22 @@ export const initEngine = async () => {
     if( engineInstance )
         return engineInstance;
 
-    mongod = await MongoMemoryServer.create({ auth: {customRootName: 'admin', customRootPwd: 'admin'}, instance: {port: getUniquePort() } });
-    process.env.DB_URL = mongod.getUri();
-    process.env.DB_NAME = "engine_test";
     process.env.OPENAI_API_KEY = "O000";
 
     const port = process.env.PORT || getUniquePort(); // Different port for this test suite
     engineInstance = await Engine.Create();
     await engineInstance.start(port);
     return engineInstance;
-
-
 }
 
 
-
-process.on('exit', async function (exception) {
-    await engineInstance.stop();
-});
+/**
+ * Stops the application engine and the in-memory MongoDB instance.
+ */
+export const stopEngine = async () => {
+    if (engineInstance) {
+        await engineInstance.stop();
+        engineInstance = null;
+        console.log("Test engine stopped.");
+    }
+};

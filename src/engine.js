@@ -87,7 +87,7 @@ export const Engine = {
             }
         };
 
-        await Promise.all(Config.Get('modules').map(async module => {
+        await Promise.all(Config.Get('modules', []).map(async module => {
             try {
                 if( fs.existsSync(module)){
                     return await importModule(module);

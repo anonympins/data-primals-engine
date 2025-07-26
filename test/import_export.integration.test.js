@@ -1,12 +1,4 @@
-// test/import_export.integration.test.js
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import { ObjectId } from 'mongodb';
 import {expect, describe, it, beforeEach, beforeAll, afterAll, vi} from 'vitest';
-import { Config } from "data-primals-engine/config";
-import { File } from 'node:buffer';
-
-// --- Configuration initiale ---
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
 
 // --- Importations des modules de votre application ---
 import {
@@ -20,11 +12,10 @@ import {
     modelsCollection as getAppModelsCollection,
     getCollectionForUser as getAppUserCollection,
 } from 'data-primals-engine/modules/mongodb';
-import { Engine } from "data-primals-engine/engine";
-import process from "node:process";
 import {sleep} from "data-primals-engine/core";
 import fs from "node:fs";
-import {getUniquePort, initEngine} from "./setenv.js";
+import {getUniquePort, initEngine} from "../src/setenv.js";
+import {Config} from "../src/index.js";
 
 // --- Données Mock ---
 const mockUser = {
@@ -60,21 +51,19 @@ function blobToFile(theBlob, fileName){
     theBlob.name = fileName;
     return theBlob;
 }
-beforeAll(async () => {
 
-    engineInstance = await initEngine();
-
-    vi.stubEnv('OPENAI_API_KEY', '00000000000000000000000000000000');
-
-    testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getAppUserCollection(mockUser);
-}, 15000);
-
+beforeAll(async () =>{
+    Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+    await initEngine();
+})
 // --- Début des tests ---
 describe('Intégration des fonctions d\'Import/Export', () => {
 
     // Préparation avant chaque test du bloc
     beforeEach(async () => {
+        testModelsColInstance = getAppModelsCollection;
+        testDatasColInstance = getAppUserCollection(mockUser);
+
         // Nettoyage complet pour un état propre
         await testDatasColInstance.deleteMany({ _user: "testuserImpex"});
 

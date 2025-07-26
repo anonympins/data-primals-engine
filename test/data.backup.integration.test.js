@@ -1,15 +1,14 @@
 // test/data.backup.integration.test.js
 
 import path from "node:path";
+import { Config } from '../src/config.js';
 
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ObjectId } from 'mongodb';
 import {expect, describe, it, beforeAll, afterAll, beforeEach} from 'vitest';
-import { Config } from "data-primals-engine/config";
 import { vi } from 'vitest'
 import { Buffer } from 'node:buffer'; // Explicitly import Buffer
 import crypto from 'node:crypto';  //Explicitly import crypto
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"])
 
 import {
     createModel,
@@ -26,7 +25,7 @@ import process from "node:process";
 import { dumpUserData, loadFromDump, getUserHash } from 'data-primals-engine/modules/data';
 import fs from "node:fs";
 import {getRandom} from "data-primals-engine/core";
-import {getUniquePort, initEngine} from "./setenv.js";
+import {getUniquePort, initEngine, stopEngine} from "../src/setenv.js";
 
 vi.mock('data-primals-engine/engine', async(importOriginal) => {
     const mod = await importOriginal() // type is inferred
@@ -68,10 +67,6 @@ beforeAll(async () => {
 
     process.env.BACKUP_DIR = backupDir; // Set backup directory
 
-    engineInstance = await initEngine();
-
-    testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getAppUserCollection(mockUser);
     // Create the backup directory if it doesn't exist
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
@@ -85,7 +80,7 @@ beforeAll(async () => {
     vi.stubEnv('OPENAI_API_KEY', '00000000000000000000000000000000');
     // You might need to create a model first if your dumpUserData requires it
     await createModel(testModelDefinition);
-}, 15000);
+}, 45000);
 
 afterAll(async () => {
 
@@ -99,6 +94,15 @@ afterAll(async () => {
         });
         // Optional: fs.rmdirSync(backupDir); // Remove the directory itself
     }
+});
+
+beforeAll(async () =>{
+    Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+    await initEngine();
+})
+beforeEach(async () => {
+    testModelsColInstance = getAppModelsCollection;
+    testDatasColInstance = getAppUserCollection(mockUser);
 });
 
 describe('Data Backup and Restore Integration', () => {

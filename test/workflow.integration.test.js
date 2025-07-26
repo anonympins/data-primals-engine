@@ -5,12 +5,14 @@ import { Config } from "data-primals-engine/config";
 import {insertData, editData, deleteData, patchData} from 'data-primals-engine/modules/data';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser } from 'data-primals-engine/modules/mongodb';
 import * as workflowModule from 'data-primals-engine/modules/workflow';
-import {getUniquePort, initEngine} from "./setenv.js";
+import {getUniquePort, initEngine} from "../src/setenv.js";
 import process from "process";
 
-// --- Configuration initiale pour l'environnement de test ---
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
 
+beforeAll(async () =>{
+    Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+    await initEngine();
+})
 vi.mock('data-primals-engine/modules/workflow', { spy: true })
 // --- Données Mock pour les tests ---
 const mockUser = {
@@ -136,14 +138,9 @@ const port = process.env.PORT || getUniquePort(); // Port différent
 // Cela nous permet de tester uniquement la logique de déclenchement.
 const processWorkflowRunSpy = vi.spyOn(workflowModule, 'processWorkflowRun');
 
-beforeAll(async () => {
-    engineInstance = await initEngine();
-
+beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getCollectionForUser(mockUser);
-}, 15000);
-
-beforeEach(async () => {
     // Nettoyer les données avant chaque test
     await testDatasColInstance.deleteMany({_user: "testuserWorkflow"});
 
@@ -161,12 +158,7 @@ beforeEach(async () => {
     console.log({mods})
 });
 
-afterAll(async () => {
-    delete process.env.DB_URL;
-    delete process.env.DB_NAME;
-});
-
-    describe('Intégration des Workflows - triggerWorkflows', () => {
+describe('Intégration des Workflows - triggerWorkflows', () => {
 
     let testWorkflow;
     let testStep;
