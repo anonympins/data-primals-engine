@@ -26,7 +26,7 @@ import process from "node:process";
 import { dumpUserData, loadFromDump, getUserHash } from 'data-primals-engine/modules/data';
 import fs from "node:fs";
 import {getRandom} from "data-primals-engine/core";
-import {getUniquePort} from "./setenv.js";
+import {getUniquePort, initEngine} from "./setenv.js";
 
 vi.mock('data-primals-engine/engine', async(importOriginal) => {
     const mod = await importOriginal() // type is inferred
@@ -57,8 +57,6 @@ const testModelDefinition = {
     maxRequestData: 10,
 };
 
-let mongod;
-let testDbUri;
 let testModelsColInstance;
 let testDatasColInstance;
 let engineInstance;
@@ -68,16 +66,9 @@ const backupDir = path.resolve('./test-backups'); // Use an absolute path
 
 beforeAll(async () => {
 
-    mongod = await MongoMemoryServer.create({ instance: { port: getUniquePort() } });
-    testDbUri = mongod.getUri();
-    process.env.DB_URL = testDbUri;
-    process.env.DB_NAME = testDbName;
-    process.env.OPENAI_API_KEY = "O000";
     process.env.BACKUP_DIR = backupDir; // Set backup directory
 
-
-    engineInstance = await Engine.Create();
-    await engineInstance.start(getUniquePort());
+    engineInstance = await initEngine();
 
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getAppUserCollection(mockUser);
@@ -96,14 +87,8 @@ beforeAll(async () => {
     await createModel(testModelDefinition);
 });
 
-beforeEach(() => {
-    // Clear data before each test
-    testDatasColInstance.deleteMany({});
-})
-
 afterAll(async () => {
-    await engineInstance.stop();
-    await mongod.stop();
+
     delete process.env.DB_URL;
     delete process.env.DB_NAME;
 

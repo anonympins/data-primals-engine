@@ -1,34 +1,22 @@
 // __tests__/workflow.integration.test.js
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import { ObjectId } from 'mongodb';
 import { expect, describe, it, beforeEach,afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { Config } from "data-primals-engine/config";
-import { substituteVariables } from 'data-primals-engine/modules/workflow';
 
-
-// --- Configuration initiale pour l'environnement de test ---
-let mongod;
-let testDbUri;
-const testDbName = 'testIntegrationDbHO_Workflow'; // Nom unique pour la base de test
-
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
-
-
-// --- Importations des modules de l'application ---
-import { Engine } from "data-primals-engine/engine";
 import {insertData, editData, deleteData, patchData} from 'data-primals-engine/modules/data';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser } from 'data-primals-engine/modules/mongodb';
-// Importer le module workflow pour pouvoir espionner (spy) ses fonctions
 import * as workflowModule from 'data-primals-engine/modules/workflow';
-import {getRandom} from "data-primals-engine/core";
-import {getUniquePort} from "./setenv.js";
+import {getUniquePort, initEngine} from "./setenv.js";
+import process from "process";
+
+// --- Configuration initiale pour l'environnement de test ---
+Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
 
 vi.mock('data-primals-engine/modules/workflow', { spy: true })
 // --- Données Mock pour les tests ---
 const mockUser = {
     username: 'testuserWorkflow',
     _user: 'testuserWorkflow',
-    userPlan: 'premium',
+    userPlan: 'free',
     email: 'testWorkflow@example.com'
 };
 
@@ -149,13 +137,7 @@ const port = process.env.PORT || getUniquePort(); // Port différent
 const processWorkflowRunSpy = vi.spyOn(workflowModule, 'processWorkflowRun');
 
 beforeAll(async () => {
-    mongod = await MongoMemoryServer.create({ instance: { port: getUniquePort() } });
-    testDbUri = mongod.getUri();
-    process.env.DB_URL = testDbUri;
-    process.env.DB_NAME = testDbName;
-
-    engineInstance = await Engine.Create();
-    await engineInstance.start(port);
+    engineInstance = await initEngine();
 
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getCollectionForUser(mockUser);
@@ -163,33 +145,34 @@ beforeAll(async () => {
 
 beforeEach(async () => {
     // Nettoyer les données avant chaque test
-    await testDatasColInstance.deleteMany({});
-    await testModelsColInstance.deleteMany({ _user: mockUser.username });
+    await testDatasColInstance.deleteMany({_user: "testuserWorkflow"});
 
     // Réinitialiser l'espion
     processWorkflowRunSpy.mockClear();
 
-    // Insérer les définitions de modèles nécessaires
-    await testModelsColInstance.insertMany([
-        { ...targetDataModel },
-        ...workflowMetaModels.map(m => ({ ...m })) // Copie pour éviter les mutations
-    ]);
+    const mods = await testModelsColInstance.find({ $and: [{ _user: mockUser.username}, { $or: [{name: targetDataModel.name}, ...workflowMetaModels.map(m =>({name: m.name}))]}]}).toArray();
+    if( mods.length === 0 ) {
+        // Insérer les définitions de modèles nécessaires
+        await testModelsColInstance.insertMany([
+            {...targetDataModel},
+            ...workflowMetaModels.map(m => ({...m})) // Copie pour éviter les mutations
+        ]);
+    }
+    console.log({mods})
 });
 
 afterAll(async () => {
-    await engineInstance.stop();
-    await mongod.stop();
     delete process.env.DB_URL;
     delete process.env.DB_NAME;
 });
 
-describe('Intégration des Workflows - triggerWorkflows', () => {
+    describe('Intégration des Workflows - triggerWorkflows', () => {
 
     let testWorkflow;
     let testStep;
 
     // Avant chaque test de ce bloc, on crée un workflow et une étape de base
-    beforeEach(async () => {
+    const initTest = async () => {
         const workflowInsertResult = await insertData('workflow', { name: 'Test Workflow' }, {}, mockUser, false);
         testWorkflow = { _id: workflowInsertResult.insertedIds[0] };
 
@@ -198,9 +181,10 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
 
         // Lier l'étape au workflow
         await editData('workflow', testWorkflow._id, { startStep: testStep._id.toString() }, {}, mockUser, false);
-    });
+    };
 
     it('devrait créer un workflowRun lors de l\'ajout de données correspondant à un trigger "DataAdded"', async () => {
+        await initTest();
         // 1. Arrange: Créer un déclencheur actif pour 'DataAdded' sur le modèle 'project'
         await insertData('workflowTrigger', {
             name: 'Trigger on Project Add',
@@ -227,6 +211,7 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
     });
 
     it('ne devrait PAS créer de workflowRun si le trigger est inactif', async () => {
+        await initTest();
         // 1. Arrange: Créer un déclencheur INACTIF
         await insertData('workflowTrigger', {
             name: 'Inactive Trigger',
@@ -245,6 +230,7 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
     });
 
     it('devrait créer un workflowRun si le dataFilter est satisfait', async () => {
+        await initTest();
         // 1. Arrange: Créer un déclencheur avec un `dataFilter`
         await insertData('workflowTrigger', {
             name: 'Trigger for Active Projects',
@@ -264,6 +250,7 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
     });
 
     it('ne devrait PAS créer de workflowRun si le dataFilter n\'est PAS satisfait', async () => {
+        await initTest();
         // 1. Arrange: Créer un déclencheur avec un `dataFilter`
         await insertData('workflowTrigger', {
             name: 'Trigger for Archived Projects',
@@ -283,6 +270,7 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
     });
 
     it('devrait déclencher un workflow "DataEdited" lors de la modification de données', async () => {
+        await initTest();
         // 1. Arrange: Insérer une donnée initiale et un déclencheur pour 'DataEdited'
         const insertResult = await insertData(targetDataModel.name, { projectName: 'To Edit', status: 'initial' }, {}, mockUser, false);
         const projectId = insertResult.insertedIds[0];
@@ -308,6 +296,7 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
     });
 
     it('devrait déclencher un workflow "DataDeleted" lors de la suppression de données', async () => {
+        await initTest();
         // 1. Arrange: Insérer une donnée et un déclencheur pour 'DataDeleted'
         const insertResult = await insertData(targetDataModel.name, { projectName: 'To Delete', status: 'temp' }, {}, mockUser, false);
         const projectId = insertResult.insertedIds[0];
