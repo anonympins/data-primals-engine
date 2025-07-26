@@ -20,6 +20,7 @@ jobs:
         NODE_ENV: development
       ports:
         - 7635
+        - 27017
     strategy:
       matrix:
         node-version: [18.x]
