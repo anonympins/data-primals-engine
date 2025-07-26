@@ -248,11 +248,11 @@ export const getAllPacks = async () => {
                         "startStep": { "$link": { "name": "Send Shipment Email Step", "_model": "workflowStep" } }
                     }],
                     "workflowAction": [
-                        { "name": "Update order status to 'processing'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": "{triggerData._id}" }, "fieldsToUpdate": { "status": "processing" } },
+                        { "name": "Update order status to 'processing'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": { $toObjectId: "{triggerData._id}" }}, "fieldsToUpdate": { "status": "processing" } },
                         { "name": "Create Shipment Record", "type": "CreateData",
                             "targetModel": "shipment",
                             "dataToCreate": { "order": "{triggerData._id}", "status": "preparing" } },
-                        { "name": "Update order status to 'shipped'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": "{triggerData._id}" }, "fieldsToUpdate": { "status": "shipped" } },
+                        { "name": "Update order status to 'shipped'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": { $toObjectId: "{triggerData._id}" }}, "fieldsToUpdate": { "status": "shipped" } },
                         {
                             name: 'Delete queries older than 30 days',
                             type: 'DeleteData',

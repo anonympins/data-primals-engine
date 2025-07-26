@@ -29,8 +29,12 @@ export const isLocalUser = (user) => {
     return user && user._model === 'user' && typeof(user._user) === 'string' && user._user.trim() !== '';
 };
 
+export const isDemoUser = (user) => {
+    return /^demo[0-9]{1,2}$/.test(user?.username);
+}
+
 export function getUserHash(user) {
-    if( /^demo[0-9]{1,2}$/.test(user?.username) ){
+    if( isDemoUser(user) ){
         return user.username;
     }
     return user ? (
@@ -419,8 +423,9 @@ export const getFieldValueHash = (model, data) => {
  * @param {array} allModels - Un tableau contenant les définitions de TOUS les modèles du système.
  * @returns {string} - La chaîne de caractères représentant la donnée.
  */
-export const getDataAsString = (model, data, t, allModels, extended=false) => {
-
+export const getDataAsString = (model, data, tr, allModels, extended=false) => {
+    const { t, i18n} = tr;
+    const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     // Cas de base : si le modèle ou les données sont manquants, on ne peut rien faire.
     if (!model || !data) {
         return '';
@@ -464,7 +469,6 @@ export const getDataAsString = (model, data, t, allModels, extended=false) => {
             const relatedModel = allModels?.find(m => m.name === fieldDef.relation);
             if (!relatedModel) return `[${fieldDef.relation}]`; // Modnon trouvé
 
-            console.log({relatedModel, value});
             // Si la relation est multiple (un tableau d'objets)
             if (Array.isArray(value)) {
                 return value
@@ -474,9 +478,15 @@ export const getDataAsString = (model, data, t, allModels, extended=false) => {
             }
             // Si la relation est simple (un seul objet)
             else if (typeof value === 'object') {
-                console.log({relatedModel, value});
                 return getDataAsString(relatedModel, value, t, allModels); // Appel récursif
             }
+        }
+
+        if(fieldDef.type === 'datetime'){
+            return new Date(value).toLocaleDateString(lang, {year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric'});
+        }
+        if(fieldDef.type === 'date'){
+            return new Date(value).toLocaleDateString(lang, {year: 'numeric', month: 'numeric', day: 'numeric'});
         }
         // --- FIN DE LA NOUVELLE LOGIQUE ---
 

@@ -16,7 +16,7 @@ import {
     encryptValue,
     getDefaultForType,
     getFieldValueHash,
-    getUserId,
+    getUserId, isDemoUser,
     isLocalUser
 } from "../data.js";
 import {
@@ -88,6 +88,7 @@ import {
 import {assistantGlobalLimiter} from "./assistant.js";
 import {getAllPacks} from "../packs.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
+import {Config} from "../config.js";
 
 // Obtenir le chemin du répertoire courant de manière fiable avec ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -147,7 +148,7 @@ export const jobDumpUserData = async () => {
 
         users.forEach((user) =>
         {
-            if( /^demo[0-9]{1,2}$/.test(user?.username))
+            if( isDemoUser(user) && Config.Get("useDemoAccounts"))
                 return;
             try {
                 dumpUserData(user).catch(e => {
@@ -383,7 +384,7 @@ export const dataTypes = {
         }
     },
     boolean: {
-        validate: (value) => typeof value === 'boolean',
+        validate: (value) => value === null || typeof value === 'boolean',
         anonymize: () => {
             return !!getRandom(0, 1);
         }
@@ -1459,7 +1460,7 @@ export async function onInit(defaultEngine) {
 
     engine.put('/api/model/:id', [middlewareAuthenticator, userInitiator, setTimeoutMiddleware(15000)], async (req, res) => {
 
-        if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_EDIT_MODEL"], req.me)){
+        if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_EDIT_MODEL"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.editModel', 'Cannot edit models from the API')})
         }
 
@@ -1698,7 +1699,7 @@ export async function onInit(defaultEngine) {
 
     engine.get('/api/models', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
 
-        if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODELS"], req.me)){
+        if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODELS"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.getModels')})
         }
 
@@ -1726,7 +1727,7 @@ export async function onInit(defaultEngine) {
                 return res.status(400).json({error: "Le paramètre 'name' est requis."});
             }
 
-            if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODEL"], req.me) && !await hasPermission("API_GET_MODEL_"+modelName, req.me)){
+            if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODEL"], req.me) && !await hasPermission("API_GET_MODEL_"+modelName, req.me)){
                 return res.json({success: false, error: i18n.t('api.permission.getModel')})
             }
 
@@ -1738,7 +1739,7 @@ export async function onInit(defaultEngine) {
     });
     engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter], async (req, res) => {
 
-        if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_ADD_MODEL"], req.me) ){
+        if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_ADD_MODEL"], req.me) ){
             return res.status(403).json({success: false, error: i18n.t('api.permission.addModel')})
         }
         try {
@@ -1810,7 +1811,7 @@ export async function onInit(defaultEngine) {
                 })));
             }
             const install = !!req.fields.install;
-            if( install && /^demo[0-9]{1,2}$/.test(req.me.username) ){
+            if( install && (isDemoUser(req.me) && Config.Get("useDemoAccounts")) ){
 
                 await datasCollection.deleteMany({ _user: req.me.username});
                 await modelsCollection.deleteMany({ _user: req.me.username});
@@ -1846,7 +1847,7 @@ export async function onInit(defaultEngine) {
             return res.status(400).json({error: "Le paramètre 'name' est requis."});
         }
 
-        if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && (
+        if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && (
             !await hasPermission(["API_ADMIN","API_DELETE_MODEL","API_DELETE_MODEL_"+modelName], req.me) ||
             await hasPermission(["API_DELETE_MODEL_NOT_"+modelName], req.me))){
             return res.status(403).json({success: false, error: i18n.t( "api.permission.deleteModel", { model: modelName})})
@@ -1910,7 +1911,7 @@ export async function onInit(defaultEngine) {
                 return res.status(404).json({ error: i18n.t('api.model.notFound', { model: modelId }) });
             }
 
-            if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && (
+            if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && (
                 !await hasPermission(["API_ADMIN", "API_EDIT_MODEL", "API_EDIT_MODEL_"+model.name], req.me) ||
                 await hasPermission(["API_EDIT_MODEL_NOT_"+model.name], req.me))){
                 return res.status(403).json({success: false, error: i18n.t('api.permission.editModel')})
@@ -2323,7 +2324,7 @@ export async function onInit(defaultEngine) {
 
 
     engine.post('/api/data/removeFromPack', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
-        if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
+        if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.createPack')})
         }
         const { itemIds } = req.fields;
@@ -2459,7 +2460,7 @@ export async function onInit(defaultEngine) {
         const { packName, itemIds } = req.fields;
         const user = req.me;
 
-        if( !/^demo[0-9]{1,2}$/.test(req.me.username) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
+        if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.createPack')})
         }
         // --- Validation ---
@@ -2591,18 +2592,18 @@ export async function onInit(defaultEngine) {
 }
 
 export const createModel = async (data) => {
-    return await getCollection('model').insertOne(data);
+    return await getCollection('models').insertOne(data);
 }
 
 export const deleteModels = async (filter) => {
-    return await getCollection('model').deleteMany(filter ? filter : {_user: { $exists: false }});
+    return await getCollection('models').deleteMany(filter ? filter : {_user: { $exists: false }});
 }
 
 export const getModel = async (modelName, user) => {
     const modelInCache = modelsCache.get(user.username+"@@"+modelName);
     if(modelInCache)
         return modelInCache;
-    const model = await getCollection('model').findOne({name: modelName, $and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]});
+    const model = await getCollection('models').findOne({name: modelName, $and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]});
     if (!model) {
         throw new Error(i18n.t('api.model.notFound', {model: modelName}));
     }
@@ -2610,7 +2611,7 @@ export const getModel = async (modelName, user) => {
     return model;
 }
 export const getModels = async ()  => {
-    return await getCollection('model').find({'$or': [{_user: { $exists: false}}]}).toArray();
+    return await getCollection('models').find({'$or': [{_user: { $exists: false}}]}).toArray();
 }
 
 
@@ -2726,7 +2727,7 @@ export async function checkServerCapacity(incomingDataSize = 0) {
 export const insertData = async (modelName, data, files, user, triggerWorkflow = true, waitForWorkflow = true) => {
 
     // --- Vérification des permissions (inchangée) ---
-    if (!/^demo[0-9]{1,2}$/.test(user.username) && isLocalUser(user) && (
+    if (!(isDemoUser(user) && Config.Get("useDemoAccounts")) && isLocalUser(user) && (
         !await hasPermission(["API_ADMIN", "API_ADD_DATA", "API_ADD_DATA_" + modelName], user) ||
         await hasPermission(["API_ADD_DATA_NOT_" + modelName], user))) {
         // Renvoyer une structure d'erreur cohérente
@@ -3165,28 +3166,29 @@ async function applyFieldFilters(docToProcess, model) {
 /**
  * Valide la structure et le contenu du document selon le modèle
  */
-function validateModelData(doc, model) {
-    // 1. Vérification des champs obligatoires
-     model.fields.forEach(field =>{
-        const value = doc[field.name];
-        if (field.required) {
-            if (value === undefined && !('default' in field)) {
-                throw new Error(i18n.t('api.field.missingRequired', { field: field.name+" ("+model.name+")" }));
+function validateModelData(doc, model, isPatch = false) {
+    if (!isPatch) {
+        model.fields.forEach(field => {
+            const value = doc[field.name];
+            if (field.required) {
+                if (value === undefined && !('default' in field)) {
+                    throw new Error(i18n.t('api.field.missingRequired', { field: field.name + " (" + model.name + ")" }));
+                }
+                if (value === '' || value === null) {
+                    throw new Error(i18n.t('api.field.requiredCannotBeEmpty', { field: field.name }));
+                }
             }
-            if (value === '' || value === null) {
-                throw new Error(i18n.t('api.field.requiredCannotBeEmpty', { field: field.name }));
-            }
-        }
-    });
+        });
+    }
 
-    // 2. Validation des types de champs
+    // 2. Validation des types de champs (toujours exécutée pour les champs fournis)
     for (const [fieldName, value] of Object.entries(doc)) {
         const fieldDef = model.fields.find(f => f.name === fieldName);
         if (!fieldDef) continue; // On ignore les champs supplémentaires
 
         const validator = dataTypes[fieldDef.type]?.validate;
         if (validator && !validator(value, fieldDef)) {
-            throw new Error(i18n.t('api.field.validationFailed', { field: fieldName, value}));
+            throw new Error(i18n.t('api.field.validationFailed', { field: fieldName, value }));
         }
     }
 }
@@ -3362,9 +3364,11 @@ export const editData = async (modelName, filter, data, files, user, triggerWork
     return await internalEditOrPatchData(modelName, filter, data, files, user, false, triggerWorkflow, waitForWorkflow);
 };
 
+// Dans src/modules/data.js
+
 const internalEditOrPatchData = async (modelName, filter, data, files, user, isPatch, triggerWorkflow = true, waitForWorkflow = false) => {
     try {
-        // Vérification des permissions
+        // 1. Vérification des permissions
         if (user.username !== 'demo' && isLocalUser(user) && (
             !await hasPermission(["API_ADMIN", "API_EDIT_DATA", "API_EDIT_DATA_" + modelName], user) ||
             await hasPermission(["API_EDIT_DATA_NOT_" + modelName], user))) {
@@ -3377,22 +3381,20 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             throw new Error(i18n.t("api.model.notFound", {model: modelName}));
         }
 
-        // Récupération des documents existants
+        // 2. Récupération des documents existants et de leur hash original
         const existingDocs = (await searchData({user, query: {model: modelName, filter}}))?.data;
         if (!existingDocs || existingDocs.length === 0) {
             return {success: false, error: i18n.t("api.data.notFound")};
         }
-
         const ids = existingDocs.map(d => new ObjectId(d._id));
+        const originalHash = existingDocs[0]._hash; // Sauvegarde du hash avant modification
 
-        // Préparation des données de mise à jour
+        // 3. Préparation des données de mise à jour (inchangé)
         const updateData = {...data};
         delete updateData._model;
         delete updateData._user;
 
-        const dataToValidateAndHash = { ...existingDocs[0], ...updateData };
-
-        // Traitement des fichiers
+        // Traitement des fichiers (inchangé)
         const fileFields = model.fields.filter(f => f.type === 'file' || (f.type === 'array' && f.itemsType === 'file'));
         for (const field of fileFields) {
             if (files?.[field.name+'[0]']) {
@@ -3406,12 +3408,15 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // Validation complète si ce n'est pas un patch
+        // 4. Validation adaptée pour patch ou edit (inchangé)
         if (!isPatch) {
-            validateModelData(updateData, model);
+            const dataToValidate = { ...existingDocs[0], ...updateData };
+            validateModelData(dataToValidate, model, false);
+        } else {
+            validateModelData(updateData, model, true);
         }
 
-        // Vérification des champs uniques
+        // 5. Vérification des champs uniques (inchangé)
         const uniqueFields = model.fields.filter(f => f.unique);
         for (const field of uniqueFields) {
             if (updateData[field.name] !== undefined) {
@@ -3419,31 +3424,27 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
                     _user: user._user || user.username,
                     _model: modelName,
                     [field.name]: updateData[field.name],
-                    _id: {$nin: ids} // Exclure les documents actuels
+                    _id: {$nin: ids}
                 });
-
                 if (existing) {
-                    throw new Error(i18n.t("api.data.duplicateValue", {
-                        field: field.name,
-                        value: updateData[field.name]
-                    }));
+                    throw new Error(i18n.t("api.data.duplicateValue", { field: field.name, value: updateData[field.name] }));
                 }
             }
         }
+
+        // 6. Traitement des relations (inchangé)
         const relationFields = model.fields.filter(f => f.type === 'relation');
         for (const field of relationFields) {
             if (updateData[field.name] !== undefined) {
                 const relationValue = updateData[field.name];
                 if (relationValue !== null && typeof relationValue === 'object') {
-                    // Ajouter l'option preserveIds: true pour conserver les IDs
                     const insertedIds = await pushDataUnsecure(relationValue, field.relation, user, { preserveIds: true });
                     updateData[field.name] = field.multiple ? insertedIds || [] : insertedIds?.[0] || null;
                 }
             }
         }
 
-
-        // Gestion des mots de passe et autres filtres
+        // 7. Application des filtres de champ (ex: hashage de mot de passe) (inchangé)
         for (const field of model.fields) {
             if (updateData[field.name] !== undefined && dataTypes[field.type]?.filter) {
                 updateData[field.name] = await dataTypes[field.type].filter(
@@ -3453,23 +3454,31 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        const finalHash = getFieldValueHash(model, dataToValidateAndHash);
+        // 8. Calcul du nouveau hash et préparation des données finales
+        const finalStateForHash = { ...existingDocs[0], ...updateData };
+        const newHash = getFieldValueHash(model, finalStateForHash);
 
-        // On ne met à jour que les champs fournis + le nouveau hash
         const finalDataForSet = {
             ...updateData,
-            _hash: finalHash
+            _hash: newHash
         };
 
-        const hashCheck = await checkHash(user, model, finalHash, existingDocs[0]._id.toString());
-        if (hashCheck) {
-            throw new Error(i18n.t("api.data.notUniqueData"));
+        // 9. *** CORRECTION LOGIQUE ***
+        // On ne vérifie l'unicité que si le hash a réellement changé.
+        if (newHash !== originalHash) {
+            const hashCheck = await checkHash(user, model, newHash, existingDocs[0]._id.toString());
+            if (hashCheck) {
+                // Le nouvel état du document créerait un doublon.
+                throw new Error(i18n.t("api.data.notUniqueData"));
+            }
         }
 
+        // 10. Exécution de la mise à jour (inchangé)
         const bulkOps = [{ updateMany: { filter: {_id: {$in: ids}}, update: {$set: finalDataForSet} } }];
         const bulkResult = await collection.bulkWrite(bulkOps);
         const modifiedCount = bulkResult.modifiedCount || 0;
 
+        // 11. Tâches post-mise à jour (schedules, workflows) (inchangé)
         if (["workflowTrigger", "alert"].includes(modelName)) {
             await handleScheduledJobs(modelName, existingDocs, collection, finalDataForSet);
         }
@@ -4235,8 +4244,10 @@ export const searchData = async ({user, query}) => {
         pipelines.push({$project: {_user: 0}});
         pipelines.push({$project: {_model: 0}});
     }
-    console.log(util.inspect(pipelines, false, 29, true))
 
+    console.log(util.inspect(pipelines, false, 29, true));
+
+    // 4. Exécuter la pipeline
     const ts = parseInt(timeout, 10)/2.0 || searchRequestTimeout;
     const count = await collection.aggregate([...pipelines, { $count: "count" }]).maxTimeMS(ts).toArray();
     let prom = collection.aggregate(pipelines).maxTimeMS(ts);
@@ -4253,7 +4264,7 @@ export const searchData = async ({user, query}) => {
 
 export const importData = async(options, files, user) => {
 
-    if( !/^demo[0-9]{1,2}$/.test(user.username) && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_IMPORT_DATA"], user)){
+    if( !(isDemoUser(user) && Config.Get("useDemoAccounts")) && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_IMPORT_DATA"], user)){
         return ({ success: false, error: "API_IMPORT_DATA permission needed." });
     }
 
@@ -4606,7 +4617,7 @@ export const exportData= async (options, user) =>{
             // Example using hasPermission:
             // if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_"+modelName], user)) {
             // Example using checkPermission (if it exists and works similarly):
-            if (isLocalUser(user) && /^demo[0-9]{1,2}$/.test(user?.username) && !(await hasPermission('API_EXPORT_DATA', user))) { // Adapt this line based on your actual permission function
+            if (isLocalUser(user) && !(isDemoUser(user) && Config.Get("useDemoAccounts")) && !(await hasPermission('API_EXPORT_DATA', user))) { // Adapt this line based on your actual permission function
                 console.warn(`User ${userId} lacks permission to search/export model ${modelName}`);
                 errors.push(i18n.t('api.permission.searchData', 'Cannot search data from the API') + ` (${modelName})`);
                 continue; // Skip this model
@@ -5388,6 +5399,8 @@ export async function installPack(logger, packId, user, lang) {
         if (documents.length === 0) continue;
 
         const docsToInsert = [];
+        console.log(modelName, user);
+
         const modelDefForHash = await getModel(modelName, user);
 
         for (const docSource of documents) {
