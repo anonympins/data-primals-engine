@@ -3003,10 +3003,14 @@ async function processRelations(docToProcess, model, collection, me, idMap) {
     // Phase 3: Traitement des résultats
     findResults.forEach((result, index) => {
         const { field, multiple } = batchFinds[index];
-        if (result.data?.length) {
+        if (result.data?.length > 0) {
+            // Cas où des documents sont trouvés
             docToProcess[field] = multiple
                 ? result.data.map(r => r._id.toString())
                 : result.data[0]._id.toString();
+        } else {
+            // Cas où AUCUN document n'est trouvé : il faut nettoyer le champ !
+            docToProcess[field] = multiple ? [] : null;
         }
     });
 

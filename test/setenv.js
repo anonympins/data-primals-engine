@@ -9,3 +9,6 @@ export const getUniquePort = () =>{
     } while( ports.includes(d) && it < 10000);
     return d;
 }
+
+// --- Utilitaires pour les tests ---
+export const generateUniqueName = (baseName) => `${baseName}_${getRandom(1000, 9999)}_${Date.now()}`;

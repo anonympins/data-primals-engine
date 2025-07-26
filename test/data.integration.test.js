@@ -1,7 +1,7 @@
 // __tests__/data.integration.test.js
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeEach, beforeAll, afterAll, vi} from 'vitest';
+import {expect, describe, it, beforeEach, afterEach, beforeAll, afterAll, vi} from 'vitest';
 import { Config } from "data-primals-engine/config"; // Assurez-vous que Config est importé si utilisé globalement avant les modules
 
 // --- Configuration initiale pour l'environnement de test ---
@@ -30,82 +30,10 @@ import process from "node:process";
 import fs from "node:fs";
 import util from "node:util";
 import {getRandom} from "data-primals-engine/core";
-import {getUniquePort} from "./setenv.js";
+import {generateUniqueName, getUniquePort} from "./setenv.js";
+import {MongoDatabase} from "../src/engine.js";
 // Logger peut être utile pour le débogage des tests, mais pas essentiel pour les assertions
 // import { Logger } from "../server/src/gameObject.js";
-
-// --- Données Mock pour les tests ---
-const mockUser = {
-    username: 'testuserComprehensive',
-    _user: 'testuserComprehensive',
-    userPlan: 'premium',
-    email: 'testComprehensive@example.com'
-};
-
-const relatedModelDefinition = {
-    name: 'relatedComprehensiveModel',
-    _user: mockUser.username,
-    description: 'Model for testing relations',
-    fields: [
-        { name: 'relatedName', type: 'string', required: true, unique: true },
-        { name: 'relatedValue', type: 'number' }
-    ],
-    maxRequestData: 10,
-};
-
-const comprehensiveTestModelDefinition = {
-    name: 'comprehensiveTestModel',
-    _user: mockUser.username,
-    description: 'A model with all field types and constraints for testing',
-    fields: [
-        // String types
-        { name: 'stringRequired', type: 'string', required: true, hint: 'A required string' },
-        { name: 'stringUnique', type: 'string', unique: true, hint: 'A unique string' },
-        { name: 'stringMaxLength', type: 'string', maxlength: 5, hint: 'String with max length 5' },
-        { name: 'stringDefault', type: 'string', default: 'defaultString' },
-        { name: 'string_tLang', type: 'string_t', hint: 'Localizable string' },
-        { name: 'richtextField', type: 'richtext', maxlength: 200 },
-        { name: 'passwordField', type: 'password' },
-        { name: 'emailField', type: 'email' },
-        { name: 'phoneField', type: 'phone' },
-        { name: 'urlField', type: 'url' },
-        // Number types
-        { name: 'number', type: 'number' },
-        { name: 'numberMinMax', type: 'number', min: 10, max: 20 },
-        { name: 'numberStep', type: 'number', step: 0.5 },
-        { name: 'numberDefault', type: 'number', default: 42 },
-        // Boolean
-        { name: 'booleanField', type: 'boolean' },
-        { name: 'booleanDefault', type: 'boolean', default: true },
-        // Date & Datetime
-        { name: 'dateField', type: 'date' },
-        { name: 'datetimeField', type: 'datetime', default: 'now' },
-        { name: 'dateMinMax', type: 'date', min: '2023-01-01', max: '2023-12-31'},
-        // Enum
-        { name: 'enumField', type: 'enum', items: ['alpha', 'beta', 'gamma'] },
-        { name: 'enumDefault', type: 'enum', items: ['one', 'two'], default: 'one' },
-        // Array
-        { name: 'arrayString', type: 'array', itemsType: 'string', maxItems: 2 },
-        { name: 'arrayNumber', type: 'array', itemsType: 'number', minItems: 1 },
-        { name: 'arrayEnum', type: 'array', itemsType: 'enum', items: ['a', 'b'] },
-        // Relation
-        { name: 'relationSingle', type: 'relation', relation: relatedModelDefinition.name },
-        { name: 'relationMultiple', type: 'relation', relation: relatedModelDefinition.name, multiple: true },
-        // File (metadata validation)
-        { name: 'fileField', type: 'file', mimeTypes: ['image/png', 'application/pdf'], maxSize: 1024 * 10 }, // 10KB
-        // Color
-        { name: 'colorField', type: 'color' },
-        // Code
-        { name: 'codeJsonField', type: 'code', language: 'json' },
-        { name: 'codeJsField', type: 'code', language: 'javascript', maxlength: 100 },
-        // Object (simple validation, structure not deeply validated by default dataTypes.object)
-        { name: 'objectField', type: 'object' },
-        // Model & ModelField (validation of string format, not existence)
-        { name: 'modelNameField', type: 'model' },
-        { name: 'modelFieldNameField', type: 'modelField' }, // Note: modelField type expects an object {model: 'modelName', field: 'fieldName'}
-    ],
-    maxRequestData: 50,
-};
 
 let testModelsColInstance;
 let testDatasColInstance;
@@ -127,30 +55,123 @@ beforeAll(async () => {
 
     // Get collection instances after engine has initialized modules
     testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getAppUserCollection(mockUser);
+
     testPacksColInstance = getCollection('packs');
 });
 
-beforeEach(async () => {
-    // Clear data before each test
-    await testDatasColInstance.deleteMany({});
-    await testModelsColInstance.deleteMany({ _user: mockUser.username });
-    await testPacksColInstance.deleteMany({});
 
-    // Insert necessary model definitions for each test run
-    // This ensures a clean state and that models are available
-    // Validate structure before inserting (good practice)
-    // validateModelStructure(comprehensiveTestModelDefinition);
-    // validateModelStructure(relatedModelDefinition);
+// Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte
+async function setupTestContext() {
 
+    const currentTestModelName = generateUniqueName('relatedModel');
+    const currentRelatedModelName = generateUniqueName('comprehensiveModel');
+
+    // Créer un utilisateur unique pour ce test
+    const currentTestUser = {
+        username: generateUniqueName('testuser'),
+        userPlan: 'free',
+        email: generateUniqueName('test') + '@example.com'
+    };
+
+
+    const relatedModelDefinition = {
+        name: currentRelatedModelName,
+        _user: currentTestUser.username,
+        description: 'Model for testing relations',
+        fields: [
+            {name: 'relatedName', type: 'string', required: true, unique: true},
+            {name: 'relatedValue', type: 'number'}
+        ],
+        maxRequestData: 10,
+    };
+
+    const comprehensiveTestModelDefinition = {
+        name: currentTestModelName,
+        _user: currentTestUser.username,
+        description: 'A model with all field types and constraints for testing',
+        fields: [
+            // String types
+            {name: 'stringRequired', type: 'string', required: true, hint: 'A required string'},
+            {name: 'stringUnique', type: 'string', unique: true, hint: 'A unique string'},
+            {name: 'stringMaxLength', type: 'string', maxlength: 5, hint: 'String with max length 5'},
+            {name: 'stringDefault', type: 'string', default: 'defaultString'},
+            {name: 'string_tLang', type: 'string_t', hint: 'Localizable string'},
+            {name: 'richtextField', type: 'richtext', maxlength: 200},
+            {name: 'passwordField', type: 'password'},
+            {name: 'emailField', type: 'email'},
+            {name: 'phoneField', type: 'phone'},
+            {name: 'urlField', type: 'url'},
+            // Number types
+            {name: 'number', type: 'number'},
+            {name: 'numberMinMax', type: 'number', min: 10, max: 20},
+            {name: 'numberStep', type: 'number', step: 0.5},
+            {name: 'numberDefault', type: 'number', default: 42},
+            // Boolean
+            {name: 'booleanField', type: 'boolean'},
+            {name: 'booleanDefault', type: 'boolean', default: true},
+            // Date & Datetime
+            {name: 'dateField', type: 'date'},
+            {name: 'datetimeField', type: 'datetime', default: 'now'},
+            {name: 'dateMinMax', type: 'date', min: '2023-01-01', max: '2023-12-31'},
+            // Enum
+            {name: 'enumField', type: 'enum', items: ['alpha', 'beta', 'gamma']},
+            {name: 'enumDefault', type: 'enum', items: ['one', 'two'], default: 'one'},
+            // Array
+            {name: 'arrayString', type: 'array', itemsType: 'string', maxItems: 2},
+            {name: 'arrayNumber', type: 'array', itemsType: 'number', minItems: 1},
+            {name: 'arrayEnum', type: 'array', itemsType: 'enum', items: ['a', 'b']},
+            // Relation
+            {name: 'relationSingle', type: 'relation', relation: currentRelatedModelName},
+            {name: 'relationMultiple', type: 'relation', relation: currentRelatedModelName, multiple: true},
+            // File (metadata validation)
+            {name: 'fileField', type: 'file', mimeTypes: ['image/png', 'application/pdf'], maxSize: 1024 * 10}, // 10KB
+            // Color
+            {name: 'colorField', type: 'color'},
+            // Code
+            {name: 'codeJsonField', type: 'code', language: 'json'},
+            {name: 'codeJsField', type: 'code', language: 'javascript', maxlength: 100},
+            // Object (simple validation, structure not deeply validated by default dataTypes.object)
+            {name: 'objectField', type: 'object'},
+            // Model & ModelField (validation of string format, not existence)
+            {name: 'modelNameField', type: 'model'},
+            {name: 'modelFieldNameField', type: 'modelField'}, // Note: modelField type expects an object {model: 'modelName', field: 'fieldName'}
+        ],
+        maxRequestData: 50,
+    };
+
+    // Insérer les modèles en base
     await testModelsColInstance.insertMany([
-        { ...comprehensiveTestModelDefinition }, // Spread to avoid mutation if object is reused
-        { ...relatedModelDefinition }
+        comprehensiveTestModelDefinition,
+        relatedModelDefinition
     ]);
+
+    // Retourner toutes les variables nécessaires pour un test
+    return {
+        currentTestUser,
+        comprehensiveTestModelDefinition,
+        relatedModelDefinition,
+    };
+}
+
+beforeEach(async () => {
+
+// Obtenir la collection de données
+    testDatasColInstance = getCollection('datas');
+    testPacksColInstance = getCollection('packs');
+    testModelsColInstance = getAppModelsCollection;
+
+    // Nettoyer les données de test précédentes
+    await testDatasColInstance.deleteMany({ _user: /^testuser/ });
+    await testModelsColInstance.deleteMany({ _user: /^testuser/ });
+    await testPacksColInstance.deleteMany({});
+});
+
+afterEach(async () => {
 });
 
 afterAll(async () => {
     await engineInstance.stop();
+
     await mongod.stop();
     delete process.env.DB_URL;
     delete process.env.DB_NAME;
@@ -161,7 +182,8 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
 
     describe('insertData avec comprehensiveTestModel', () => {
         it('devrait insérer des données valides pour tous les types de champs', async () => {
-            // --- SETUP AMÉLIORÉ ---
+
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             // 1. Créer un suffixe unique pour cette exécution de test
             const testSuffix = getRandom(1000, 9999); // Génère un nombre aléatoire
 
@@ -169,12 +191,12 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const relatedDoc1 = await insertData(relatedModelDefinition.name, {
                 relatedName: `Rel1_Unique_${testSuffix}`, // Nom unique
                 relatedValue: 100
-            }, {}, mockUser, false);
+            }, {}, currentTestUser, false);
 
             const relatedDoc2 = await insertData(relatedModelDefinition.name, {
                 relatedName: `Rel2_Unique_${testSuffix}`, // Nom unique
                 relatedValue: 200
-            }, {}, mockUser, false);
+            }, {}, currentTestUser, false);
 
             // S'assurer que les insertions précédentes ont réussi avant de continuer
             expect(relatedDoc1.success, "L'insertion du document lié 1 a échoué").toBe(true);
@@ -214,7 +236,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 modelFieldNameField: { model: 'someModelName', field: 'someFieldName' },
             };
 
-            const result = await insertData(comprehensiveTestModelDefinition.name, validData, {}, mockUser, false);
+            const result = await insertData(comprehensiveTestModelDefinition.name, validData, {}, currentTestUser, false);
             expect(result.success, `L'insertion principale a échoué: ${result.error}`).toBe(true);
             expect(result.insertedIds).toHaveLength(1);
 
@@ -231,102 +253,118 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         describe('Validations des champs à l\'insertion', () => {
             // --- STRING VALIDATIONS ---
             it('devrait rejeter un string requis non fourni', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringUnique: 'test' /* stringRequired manquant */ }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringUnique: 'test' /* stringRequired manquant */ }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('stringRequired');
             });
 
             it('devrait rejeter un string trop long pour maxlength', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', stringMaxLength: '123456' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', stringMaxLength: '123456' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('stringMaxLength');
             });
 
             it('devrait rejeter une valeur dupliquée pour un champ unique (stringUnique)', async () => {
-                await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req1', stringUnique: 'duplicateMe', 'passwordField': 'pass', number: 1, enumField: 'test' }, {}, mockUser, false);
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req2', stringUnique: 'duplicateMe', 'passwordField': 'pass', number: 1, enumField: 'test' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req1', stringUnique: 'duplicateMe', 'passwordField': 'pass', number: 1, enumField: 'test' }, {}, currentTestUser, false);
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req2', stringUnique: 'duplicateMe', 'passwordField': 'pass', number: 1, enumField: 'test' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
             });
 
             // --- NUMBER VALIDATIONS ---
             it('devrait rejeter un number non numérique', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', number: 'not-a-number' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', number: 'not-a-number' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('number');
             });
 
             it('devrait rejeter un number infur à min (numberMinMax)', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', numberMinMax: 5 }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', numberMinMax: 5 }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('numberMinMax');
             });
 
             it('devrait rejeter un number supérieur à max (numberMinMax)', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', numberMinMax: 25 }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', numberMinMax: 25 }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('numberMinMax');
             });
 
             // --- ARRAY VALIDATIONS ---
             it('devrait rejeter un array avec trop d\'items (arrayString maxItems: 2)', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', arrayString: ['a', 'b', 'c'] }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', arrayString: ['a', 'b', 'c'] }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('arrayString');
             });
 
             it('devrait rejeter un array avec pas assez d\'items (arrayNumber minItems: 1)', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', arrayNumber: [] }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', arrayNumber: [] }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('arrayNumber');
             });
 
             it('devrait rejeter un array avec un item de type incorrect (arrayNumber)', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', arrayNumber: [1, 'not-a-number', 3] }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', arrayNumber: [1, 'not-a-number', 3] }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('arrayNumber');
             });
 
             // --- FILE VALIDATIONS (metadata) ---
             it('devrait rejeter un file avec un mimeType non autorisé', async () => {
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
                 const mockFile = { name: 'test.txt', type: 'text/plain', size: 1024, guid: 'dummy-txt' };
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', fileField: mockFile }, {}, mockUser, false);
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', fileField: mockFile }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('image/png'); // Ou un message plus spécifique sur mimeTypes
                 expect(result.error).toContain('text/plain'); // Ou un message plus spécifique sur mimeTypes
             });
 
             it('devrait rejeter un file avec une taille supérieure à maxSize', async () => {
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
                 const mockFile = { name: 'large.png', type: 'image/png', size: 1024 * 15, guid: 'dummy-large' }; // 15KB > 10KB
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', fileField: mockFile }, {}, mockUser, false);
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', fileField: mockFile }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('fileField'); // Ou un message plus spécifique sur maxSize
             });
 
             // --- EMAIL, URL, PHONE, COLOR (basic format) ---
             it('devrait rejeter un email invalide', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', emailField: 'not-an-email' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', emailField: 'not-an-email' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('emailField');
             });
             it('devrait rejeter une URL invalide', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', urlField: 'not a url' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', urlField: 'not a url' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('urlField');
             });
             it('devrait rejeter une couleur invalide', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', colorField: '#GGHHII' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', colorField: '#GGHHII' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('colorField');
             });
 
             // --- DATE / DATETIME VALIDATIONS ---
             it('devrait rejeter une date invalide (format)', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', dateField: 'not-a-date' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', dateField: 'not-a-date' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('dateField');
             });
             it('devrait rejeter une date en dehors de min/max (dateMinMax)', async () => {
-                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', dateMinMax: '2024-01-01' }, {}, mockUser, false);
+                const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+                const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', dateMinMax: '2024-01-01' }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('dateMinMax');
             });
@@ -339,9 +377,10 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         // --- NOUVEAU TEST POUR $find ---
         it('devrait insérer des données avec des relations référencées par $find', async () => {
             // 1. Insérer les documents liés qui seront trouvés par $find
-            const relatedDocA = await insertData(relatedModelDefinition.name, { relatedName: 'FindMeA', relatedValue: 111 }, {}, mockUser, false);
-            const relatedDocB = await insertData(relatedModelDefinition.name, { relatedName: 'FindMeB', relatedValue: 222 }, {}, mockUser, false);
-            const relatedDocC = await insertData(relatedModelDefinition.name, { relatedName: 'FindMeC', relatedValue: 222 }, {}, mockUser, false);
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const relatedDocA = await insertData(relatedModelDefinition.name, { relatedName: 'FindMeA', relatedValue: 111 }, {}, currentTestUser, false);
+            const relatedDocB = await insertData(relatedModelDefinition.name, { relatedName: 'FindMeB', relatedValue: 222 }, {}, currentTestUser, false);
+            const relatedDocC = await insertData(relatedModelDefinition.name, { relatedName: 'FindMeC', relatedValue: 222 }, {}, currentTestUser, false);
 
             const relatedIdA = relatedDocA.insertedIds[0];
             const relatedIdB = relatedDocB.insertedIds[0];
@@ -377,7 +416,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             };
 
             // 3. Insérer le document principal
-            const result = await insertData(comprehensiveTestModelDefinition.name, dataWithFindRelations, {}, mockUser, false);
+            const result = await insertData(comprehensiveTestModelDefinition.name, dataWithFindRelations, {}, currentTestUser, false);
 
             // 4. Vérifier le résultat de l'insertion
             expect(result.success, `Insertion with $find failed: ${result.error}`).toBe(true);
@@ -387,7 +426,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const insertedDoc = await testDatasColInstance.findOne({ _id: new ObjectId(result.insertedIds[0]) });
             expect(insertedDoc).not.toBeNull();
 
-            console.log({insertedDoc: insertedDoc.relationMultiple, relatedIdB})
+            console.log({insertedDoc: insertedDoc, relatedIdB})
             expect(insertedDoc.relationSingle).toBe(relatedIdA.toString());
 
             expect(insertedDoc.relationMultiple).toBeInstanceOf(Array);
@@ -404,13 +443,14 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         }, 10000); // Augmenter le timeout si nécessaire
     });
 
-    describe('editData avec comprehensiveTestModel', () => {
+    describe('editData avec comprehensiveTestModel', async () => {
         let docToEditId;
         let relatedDocId;
 
-        beforeEach(async () => {
+        const initTest = async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             // Insert a base document and a related document to be used in edit tests
-            const relatedInsert = await insertData(relatedModelDefinition.name, { relatedName: 'RelForEdit', relatedValue: 50 }, {}, mockUser, false);
+            const relatedInsert = await insertData(relatedModelDefinition.name, { relatedName: 'RelForEdit', relatedValue: 50 }, {}, currentTestUser, false);
             relatedDocId = relatedInsert.insertedIds[0];
 
             const initialData = {
@@ -420,13 +460,15 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 passwordField: 'initialPass',
                 relationSingle: relatedDocId,
             };
-            const insertResult = await insertData(comprehensiveTestModelDefinition.name, initialData, {}, mockUser, false);
+            const insertResult = await insertData(comprehensiveTestModelDefinition.name, initialData, {}, currentTestUser, false);
             docToEditId = insertResult.insertedIds[0];
-        });
 
+            return { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition };
+        };
         it('devrait modifier des données valides', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const dataToEdit = { stringRequired: 'Edited String', numberMinMax: 12 };
-            const result = await editData(comprehensiveTestModelDefinition.name, docToEditId, dataToEdit, {}, mockUser);
+            const result = await editData(comprehensiveTestModelDefinition.name, docToEditId, dataToEdit, {}, currentTestUser);
 
             expect(result.success, `Edit failed: ${result.error}`).toBe(true);
             expect(result.modifiedCount).toBe(1);
@@ -437,25 +479,28 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         it('devrait rejeter une modification avec un string requis vide', async () => {
-            const result = await editData(comprehensiveTestModelDefinition.name, docToEditId, { stringRequired: '' }, {}, mockUser);
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
+            const result = await editData(comprehensiveTestModelDefinition.name, docToEditId, { stringRequired: '' }, {}, currentTestUser);
             expect(result.success).toBe(false);
             expect(result.error).toContain('stringRequired');
         });
 
         it('devrait rejeter une modification avec un number hors des bornes (numberMinMax)', async () => {
-            const result = await editData(comprehensiveTestModelDefinition.name, docToEditId, { stringRequired: 'test', numberMinMax: 50 }, {}, mockUser);
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
+            const result = await editData(comprehensiveTestModelDefinition.name, docToEditId, { stringRequired: 'test', numberMinMax: 50 }, {}, currentTestUser);
             expect(result.success).toBe(false);
             expect(result.error).toContain('numberMinMax');
         });
 
         it('devrait rejeter une modification qui viole une contrainte unique (stringUnique)', async ({skip}) => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             // Insert another doc to create the unique conflict
 
-            await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'Other', stringUnique: 'UniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, mockUser, false);
+            await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'Other', stringUnique: 'UniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, currentTestUser, false);
             // Insert another doc to create the unique conflict
-            const res1 = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'Other', stringUnique: 'ExistingUniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, mockUser, false);
+            const res1 = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'Other', stringUnique: 'ExistingUniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, currentTestUser, false);
 
-            const result = await editData(comprehensiveTestModelDefinition.name, { stringUnique: 'ExistingUniqueValue'}, { stringRequired: 'Other', stringUnique: 'UniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, mockUser);
+            const result = await editData(comprehensiveTestModelDefinition.name, { stringUnique: 'ExistingUniqueValue'}, { stringRequired: 'Other', stringUnique: 'UniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, currentTestUser);
             expect(result.success).toBe(false);
             expect(result.error).toContain('UniqueValue');
             expect(result.error).toContain('stringUnique');
@@ -467,15 +512,16 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
     // --- Tests deleteData (repris de votre exemple, peuvent être gardés tels quels ou adaptés) ---
     describe('deleteData (tests existants)', () => {
         it('supprimer des données par ID (deleteData)', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             const dataToDelete = { name: 'Objet à supprimer', value: 300 };
             // Utiliser le modèle simple pour ces tests delete pour ne pas avoir à remplir tous les champs requis de comprehensive
-            const simpleModel = { name: 'simpleDeleteModel', _user: mockUser.username, description: '', fields: [{ name: 'name', type: 'string' }, { name: 'value', type: 'number' }] };
+            const simpleModel = { name: 'simpleDeleteModel', _user: currentTestUser.username, description: '', fields: [{ name: 'name', type: 'string' }, { name: 'value', type: 'number' }] };
             await testModelsColInstance.insertOne(simpleModel);
 
-            const insertResult = await insertData(simpleModel.name, dataToDelete, {}, mockUser, false);
+            const insertResult = await insertData(simpleModel.name, dataToDelete, {}, currentTestUser, false);
             const docId = insertResult.insertedIds[0];
 
-            const deleteResult = await deleteData(simpleModel.name, [docId], {}, mockUser, false);
+            const deleteResult = await deleteData(simpleModel.name, [docId], {}, currentTestUser, false);
 
             expect(deleteResult.success).toBe(true);
             expect(deleteResult.deletedCount).toBe(1);
@@ -485,18 +531,19 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         it('supprimer des données par filtre (deleteData)', async () => {
-            const simpleModel = { name: 'deleteModelTest', _user: mockUser.username, description: '',fields: [{ name: 'name', type: 'string' }, { name: 'value', type: 'number' }] };
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const simpleModel = { name: 'deleteModelTest', _user: currentTestUser.username, description: '',fields: [{ name: 'name', type: 'string' }, { name: 'value', type: 'number' }] };
             await testModelsColInstance.insertOne(simpleModel);
 
-            await insertData(simpleModel.name, { name: 'Item Filtrable 1', value: 401 }, {}, mockUser, false);
-            await insertData(simpleModel.name, { name: 'Item Filtrable 2', value: 402 }, {}, mockUser, false);
-            await insertData(simpleModel.name, { name: 'Autre Item', value: 403 }, {}, mockUser, false);
+            await insertData(simpleModel.name, { name: 'Item Filtrable 1', value: 401 }, {}, currentTestUser, false);
+            await insertData(simpleModel.name, { name: 'Item Filtrable 2', value: 402 }, {}, currentTestUser, false);
+            await insertData(simpleModel.name, { name: 'Autre Item', value: 403 }, {}, currentTestUser, false);
 
             const filter = { $regexMatch: {
                     input: '$name',
                     regex: "^Item Filtrable"
                 } };
-            const deleteResult = await deleteData(simpleModel.name, [], filter, mockUser, false);
+            const deleteResult = await deleteData(simpleModel.name, [], filter, currentTestUser, false);
 
             expect(deleteResult.success).toBe(true);
             expect(deleteResult.deletedCount).toBe(2);
@@ -508,19 +555,19 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
     });
 
-    // ... (dans data.integration.test.js, après les tests editData ou deleteData)
-
-    describe('searchData avec comprehensiveTestModel et filtres $find', () => {
+    describe('searchData avec comprehensiveTestModel et filtres $find', async () => {
         let docId1, docId2;
         let relatedDocId_A1, relatedDocId_A2, relatedDocId_B1;
 
-        beforeEach(async () => {
+        const initTest =async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+
             // Insérer des documents liés
-            const relA1 = await insertData(relatedModelDefinition.name, { relatedName: 'Rel_Search_A1', relatedValue: 101 }, {}, mockUser, false);
+            const relA1 = await insertData(relatedModelDefinition.name, { relatedName: 'Rel_Search_A1', relatedValue: 101 }, {}, currentTestUser, false);
             relatedDocId_A1 = relA1.insertedIds[0].toString();
-            const relA2 = await insertData(relatedModelDefinition.name, { relatedName: 'Rel_Search_A2', relatedValue: 102 }, {}, mockUser, false);
+            const relA2 = await insertData(relatedModelDefinition.name, { relatedName: 'Rel_Search_A2', relatedValue: 102 }, {}, currentTestUser, false);
             relatedDocId_A2 = relA2.insertedIds[0].toString();
-            const relB1 = await insertData(relatedModelDefinition.name, { relatedName: 'Rel_Search_B1', relatedValue: 201 }, {}, mockUser, false);
+            const relB1 = await insertData(relatedModelDefinition.name, { relatedName: 'Rel_Search_B1', relatedValue: 201 }, {}, currentTestUser, false);
             relatedDocId_B1 = relB1.insertedIds[0].toString();
 
             // Insérer des documents principaux
@@ -533,7 +580,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 relationMultiple: [relatedDocId_A1, relatedDocId_A2],
                 number: 10,
             };
-            const insertResult1 = await insertData(comprehensiveTestModelDefinition.name, data1, {}, mockUser, false);
+            const insertResult1 = await insertData(comprehensiveTestModelDefinition.name, data1, {}, currentTestUser, false);
             docId1 = insertResult1.insertedIds[0].toString();
 
             const data2 = {
@@ -545,14 +592,16 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 relationMultiple: [relatedDocId_B1],
                 number: 20,
             };
-            const insertResult2 = await insertData(comprehensiveTestModelDefinition.name, data2, {}, mockUser, false);
+            const insertResult2 = await insertData(comprehensiveTestModelDefinition.name, data2, {}, currentTestUser, false);
             docId2 = insertResult2.insertedIds[0].toString();
-        });
+
+            return { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition };
+        };
 
         it('devrait trouver un document par une condition sur une relation simple ($find)', async () => {
-
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: mockUser,
+                user: currentTestUser,
                 query: {
                     model: comprehensiveTestModelDefinition.name,
                     filter: {
@@ -574,8 +623,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         it('ne devrait pas trouver de document si la condition $find sur relation simple ne correspond pas', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: mockUser,
+                user: currentTestUser,
                 query: {
                     model: comprehensiveTestModelDefinition.name,
                     filter: {
@@ -592,8 +642,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         it('devrait trouver des documents par une condition sur une relation multiple ($find)', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: mockUser,
+                user: currentTestUser,
                 query: {
                     model: comprehensiveTestModelDefinition.name,
                     filter: {
@@ -617,8 +668,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
 
 
         it('devrait trouver des documents en combinant un filtre normal et un filtre $find', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: mockUser,
+                user: currentTestUser,
                 query: {
                     model: comprehensiveTestModelDefinition.name,
                     filter: {
@@ -637,8 +689,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         it('devrait retourner un tableau vide si $find ne correspond à aucun document lié', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: mockUser,
+                user: currentTestUser,
                 query: {
                     model: comprehensiveTestModelDefinition.name,
                     filter: {
@@ -673,6 +726,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         it('devrait installer un pack, créer les modèles et insérer les données avec relations via $link', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             // 1. Définir le pack de données mock
             const mockPack = {
                 name: 'test-pack-for-install',
@@ -714,7 +768,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const packId = packInsertResult.insertedId;
 
             // 3. Appeler la fonction à tester avec la nouvelle signature
-            const result = await installPack(console, packId, mockUser, 'en');
+            const result = await installPack(console, packId, currentTestUser, 'en');
 
             // 4. Assertions sur le résumé de l'installation
             expect(result.success, `L'installation du pack a échoué: ${result.errors?.join('; ')}`).toBe(true);
@@ -723,16 +777,16 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(result.summary.datas.updated).toBe(2); // 2 items mis à jour avec la relation
 
             // 5. Vérifier la création des modèles
-            const userModel = await testModelsColInstance.findOne({ name: 'packUser', _user: mockUser.username });
+            const userModel = await testModelsColInstance.findOne({ name: 'packUser', _user: currentTestUser.username });
             expect(userModel).not.toBeNull();
-            const itemModel = await testModelsColInstance.findOne({ name: 'packItem', _user: mockUser.username });
+            const itemModel = await testModelsColInstance.findOne({ name: 'packItem', _user: currentTestUser.username });
             expect(itemModel).not.toBeNull();
             expect(itemModel.fields.find(f => f.name === 'owner').relation).toBe('packUser');
 
             // 6. Vérifier l'insertion des données
-            const insertedUsers = await testDatasColInstance.find({ _model: 'packUser', _user: mockUser.username }).toArray();
+            const insertedUsers = await testDatasColInstance.find({ _model: 'packUser', _user: currentTestUser.username }).toArray();
             expect(insertedUsers).toHaveLength(2);
-            const insertedItems = await testDatasColInstance.find({ _model: 'packItem', _user: mockUser.username }).toArray();
+            const insertedItems = await testDatasColInstance.find({ _model: 'packItem', _user: currentTestUser.username }).toArray();
             expect(insertedItems).toHaveLength(2);
 
             // 7. Vérifier la résolution des relations via $link
@@ -746,6 +800,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         }, 10000);
 
         it("ne devrait installer que les modèles valides d'un pack et rapporter les erreurs", async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             const mockPackWithInvalidModel = {
                 name: 'invalid-model-pack',
                 models: [
@@ -766,7 +821,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const packInsertResult = await testPacksColInstance.insertOne(mockPackWithInvalidModel);
             const packId = packInsertResult.insertedId;
 
-            const result = await installPack(console, packId, mockUser, 'en');
+            const result = await installPack(console, packId, currentTestUser, 'en');
 
             // Le succès global est faux s'il y a des erreurs
             expect(result.success).toBe(false);
@@ -780,7 +835,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(result.summary.models.installed[0]).toBe('validPackModel');
 
             // Vérifier en BDD que le modèle valide a bien été créé
-            const validModel = await testModelsColInstance.findOne({ name: 'validPackModel', _user: mockUser.username });
+            const validModel = await testModelsColInstance.findOne({ name: 'validPackModel', _user: currentTestUser.username });
             expect(validModel).not.toBeNull();
         });
     });
