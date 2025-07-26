@@ -13,6 +13,3 @@ COPY . .
 
 # Expose the application port
 EXPOSE 7633
-
-# Start the application
-CMD ["npm", "run", "server"]
