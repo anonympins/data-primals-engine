@@ -1,6 +1,8 @@
 # Base image
 FROM node:18
 
+RUN npm install -g npm@11.5.1
+
 # Set working directory
 WORKDIR /
 
