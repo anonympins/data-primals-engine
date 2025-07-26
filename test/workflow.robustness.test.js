@@ -194,7 +194,4 @@ describe('Tests de robustesse et des cas limites du module Workflow', () => {
         });
     });
 
-    describe('Déclencheurs (triggerWorkflows)', () => {
-
-    });
 });
