@@ -72,6 +72,9 @@
     "tar": "^7.4.3",
     "tar-fs": "^3.0.8",
     "uniqid": "^5.4.0",
+
+    "mongodb-memory-server": "^10.1.4",
+    "vitest": "^3.2.3",
     "yaml": "^2.8.0",
     "zlib": "^1.0.5"
   },
