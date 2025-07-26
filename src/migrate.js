@@ -15,7 +15,7 @@ Config.Set("modules", ["mongodb"]);
 const MIGRATIONS_DIR = path.resolve(process.cwd(), 'server', 'src', 'migrations');
 const MIGRATIONS_COLLECTION = 'migrations_log';
 
-const engine = Engine.Create();
+const engine = await Engine.Create();
 const port = process.env.MIGRATE_PORT || 7640;
 
 engine.start(port, async () => {

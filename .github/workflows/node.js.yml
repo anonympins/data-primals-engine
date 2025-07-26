@@ -20,11 +20,21 @@ jobs:
         NODE_ENV: development
       ports:
         - 7635
+        - 27017
     strategy:
       matrix:
         node-version: [18.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
+    services:
+      mongodb:
+        image: mongo:5.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.serverStatus()'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
     - uses: actions/checkout@v4
     
@@ -32,15 +42,6 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: '18.18.2'
-
-    - name: Install mongodb
-      run: curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
-
-    - name: Update package manager list
-      run: echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu $(lsb_release -sc)/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-
-    - name: Update package manager
-      run: apt-get -y update
 
     - name: Install dependencies
       run: npm install

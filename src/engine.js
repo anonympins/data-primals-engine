@@ -17,7 +17,7 @@ import formidableMiddleware from 'express-formidable';
 const isProduction = process.env.NODE_ENV === 'production'
 
 // Connection URL
-export const dbUrl = process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017';
+export const dbUrl = process.env.CI ? 'mongodb://mongodb:27017' : (process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017');
 export const MongoClient = new InternalMongoClient(dbUrl, { maxPoolSize: 20 });
 
 // Database Name
@@ -87,7 +87,7 @@ export const Engine = {
             }
         };
 
-        await Promise.all(Config.Get('modules').map(async module => {
+        await Promise.all(Config.Get('modules', []).map(async module => {
             try {
                 if( fs.existsSync(module)){
                     return await importModule(module);

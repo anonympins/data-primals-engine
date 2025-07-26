@@ -2,14 +2,7 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ObjectId } from 'mongodb';
 import {expect, describe, it, beforeEach, afterEach, beforeAll, afterAll, vi} from 'vitest';
-import { Config } from "data-primals-engine/config"; // Assurez-vous que Config est importé si utilisé globalement avant les modules
-
-// --- Configuration initiale pour l'environnement de test ---
-let mongod;
-let testDbUri;
-const testDbName = 'testIntegrationDbHO_Comprehensive'; // Nom unique pour la base de test
-
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+import { Config } from '../src/config.js';
 
 // --- Importations des modules de votre application ---
 import {
@@ -30,34 +23,11 @@ import process from "node:process";
 import fs from "node:fs";
 import util from "node:util";
 import {getRandom} from "data-primals-engine/core";
-import {generateUniqueName, getUniquePort, initEngine} from "./setenv.js";
+import {generateUniqueName, getUniquePort, initEngine} from "../src/setenv.js";
 import {MongoDatabase} from "../src/engine.js";
-// Logger peut être utile pour le débogage des tests, mais pas essentiel pour les assertions
-// import { Logger } from "../server/src/gameObject.js";
 
 let testModelsColInstance;
 let testDatasColInstance;
-let testPacksColInstance;
-let engineInstance;
-
-const port = process.env.PORT || getUniquePort(); // Different port for this test suite
-
-beforeAll(async () => {
-    mongod = await MongoMemoryServer.create({ instance: { port: getUniquePort() } }); // Ensure a unique port if running multiple test files
-    testDbUri = mongod.getUri();
-    process.env.DB_URL = testDbUri;
-    process.env.DB_NAME = testDbName;
-
-    engineInstance = await initEngine();
-
-    vi.stubEnv('OPENAI_API_KEY', '00000000000000000000000000000000');
-
-    // Get collection instances after engine has initialized modules
-    testModelsColInstance = getAppModelsCollection;
-
-    testPacksColInstance = getCollection('packs');
-});
-
 
 // Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte
 async function setupTestContext() {
@@ -143,6 +113,7 @@ async function setupTestContext() {
         comprehensiveTestModelDefinition,
         relatedModelDefinition
     ]);
+    await testDatasColInstance.deleteMany({ _user: currentTestUser.username });
 
     // Retourner toutes les variables nécessaires pour un test
     return {
@@ -152,28 +123,16 @@ async function setupTestContext() {
     };
 }
 
-beforeEach(async () => {
-
-// Obtenir la collection de données
-    testDatasColInstance = getCollection('datas');
-    testPacksColInstance = getCollection('packs');
-    testModelsColInstance = getAppModelsCollection;
-
-    // Nettoyer les données de test précédentes
-
-    await testDatasColInstance.deleteMany({ _user: /^testuserDataIntegration/ });
-});
-
-afterEach(async () => {
-});
-
-afterAll(async () => {
-    delete process.env.DB_URL;
-    delete process.env.DB_NAME;
-});
-
 describe('Intégration des fonctions CRUD de données avec validation complète', () => {
 
+    beforeAll(async () =>{
+        Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+        await initEngine();
+
+        // Initialize collection instances after the engine is ready
+        testModelsColInstance = getAppModelsCollection;
+        testDatasColInstance = datasCollection;
+    })
 
     describe('insertData avec comprehensiveTestModel', () => {
         it('devrait insérer des données valides pour tous les types de champs', async () => {
@@ -717,7 +676,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         beforeEach(async () => {
-            await testPacksColInstance.deleteMany({});
+            // On supprime les données de ce test
         });
 
         it('devrait installer un pack, créer les modèles et insérer les données avec relations via $link', async () => {

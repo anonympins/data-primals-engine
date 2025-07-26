@@ -5042,6 +5042,7 @@ export const dumpUserData = async (user) => {
 // Déterminer la clé de chiffrement
     // Pour cet exemple, on simule la config S3. Remplace par la vraie récupération.
     const s3Config = user.configS3; // Supposons que l'objet 'user' passé contient déjà 'configS3'
+    const backupDir = getBackupDir();
 
     let encryptedKey = readKeyFromFile(user);
     if (!encryptedKey) {
@@ -5071,7 +5072,6 @@ export const dumpUserData = async (user) => {
 
         // Définir le nom du fichier de sauvegarde et les chemins
         const backupFilename = `backup_${user.username}`; //nom corrigé
-        const backupDir = getBackupDir();
         const backupFileBasePath = path.join(backupDir, backupFilename); //chemin corrigé
         const backupFilePath = `${backupFileBasePath}_${Date.now()}`;
         const backupFilenameBase = `backup_${user.username}`;
