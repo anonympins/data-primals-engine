@@ -15,7 +15,7 @@ import { Engine } from "data-primals-engine/engine";
 import { insertData, editData } from 'data-primals-engine/modules/data';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser, getCollection } from 'data-primals-engine/modules/mongodb';
 import * as workflowModule from 'data-primals-engine/modules/workflow';
-import { getUniquePort } from "./setenv.js";
+import {getUniquePort, initEngine} from "./setenv.js";
 import {maxExecutionsByStep} from "data-primals-engine/constants";
 
 vi.mock('data-primals-engine/modules/workflow', { spy: true })
@@ -42,28 +42,21 @@ let testDatasColInstance;
 let engineInstance;
 
 beforeAll(async () => {
-    mongod = await MongoMemoryServer.create({ instance: { port: getUniquePort() } });
-    testDbUri = mongod.getUri();
-    process.env.DB_URL = testDbUri;
-    process.env.DB_NAME = testDbName;
 
-    engineInstance = await Engine.Create();
-    await engineInstance.start(getUniquePort());
+    engineInstance = await initEngine();
 
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getCollectionForUser(mockUser);
 });
 
 beforeEach(async () => {
-    await testDatasColInstance.deleteMany({});
-    await testModelsColInstance.deleteMany({});
+    await testDatasColInstance.deleteMany({ _user: mockUser.username });
     await getCollection('job_locks').deleteMany({}); // Nettoyer les verrous
-    await testModelsColInstance.insertMany([targetDataModel, ...workflowMetaModels]);
-});
-
-afterAll(async () => {
-    await engineInstance.stop();
-    await mongod.stop();
+    const mods = await testModelsColInstance.find({ $and: [{_user: mockUser.username}, {$or: [{name: targetDataModel.name}, ...workflowMetaModels.map(m =>({name: m.name}))] }]}).toArray();
+    console.log({mods})
+    if( mods.length === 0){
+        await testModelsColInstance.insertMany([targetDataModel, ...workflowMetaModels]);
+    }
 });
 
 // ====================================================================================

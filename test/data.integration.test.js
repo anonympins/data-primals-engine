@@ -30,7 +30,7 @@ import process from "node:process";
 import fs from "node:fs";
 import util from "node:util";
 import {getRandom} from "data-primals-engine/core";
-import {generateUniqueName, getUniquePort} from "./setenv.js";
+import {generateUniqueName, getUniquePort, initEngine} from "./setenv.js";
 import {MongoDatabase} from "../src/engine.js";
 // Logger peut être utile pour le débogage des tests, mais pas essentiel pour les assertions
 // import { Logger } from "../server/src/gameObject.js";
@@ -48,8 +48,7 @@ beforeAll(async () => {
     process.env.DB_URL = testDbUri;
     process.env.DB_NAME = testDbName;
 
-    engineInstance = await Engine.Create();
-    await engineInstance.start(port);
+    engineInstance = await initEngine();
 
     vi.stubEnv('OPENAI_API_KEY', '00000000000000000000000000000000');
 
@@ -68,7 +67,7 @@ async function setupTestContext() {
 
     // Créer un utilisateur unique pour ce test
     const currentTestUser = {
-        username: generateUniqueName('testuser'),
+        username: generateUniqueName('testuserDataIntegration'),
         userPlan: 'free',
         email: generateUniqueName('test') + '@example.com'
     };
@@ -161,18 +160,14 @@ beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
 
     // Nettoyer les données de test précédentes
-    await testDatasColInstance.deleteMany({ _user: /^testuser/ });
-    await testModelsColInstance.deleteMany({ _user: /^testuser/ });
-    await testPacksColInstance.deleteMany({});
+
+    await testDatasColInstance.deleteMany({ _user: /^testuserDataIntegration/ });
 });
 
 afterEach(async () => {
 });
 
 afterAll(async () => {
-    await engineInstance.stop();
-
-    await mongod.stop();
     delete process.env.DB_URL;
     delete process.env.DB_NAME;
 });

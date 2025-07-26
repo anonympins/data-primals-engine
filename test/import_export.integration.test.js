@@ -24,7 +24,7 @@ import { Engine } from "data-primals-engine/engine";
 import process from "node:process";
 import {sleep} from "data-primals-engine/core";
 import fs from "node:fs";
-import {getUniquePort} from "./setenv.js";
+import {getUniquePort, initEngine} from "./setenv.js";
 
 // --- Données Mock ---
 const mockUser = {
@@ -61,25 +61,13 @@ function blobToFile(theBlob, fileName){
     return theBlob;
 }
 beforeAll(async () => {
-    mongod = await MongoMemoryServer.create({ instance: { port: getUniquePort() } });
-    testDbUri = mongod.getUri();
-    process.env.DB_URL = testDbUri;
-    process.env.DB_NAME = testDbName;
 
-    engineInstance = await Engine.Create();
-    await engineInstance.start(port);
+    engineInstance = await initEngine();
 
     vi.stubEnv('OPENAI_API_KEY', '00000000000000000000000000000000');
 
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getAppUserCollection(mockUser);
-});
-
-afterAll(async () => {
-    await engineInstance.stop();
-    await mongod.stop();
-    delete process.env.DB_URL;
-    delete process.env.DB_NAME;
 });
 
 // --- Début des tests ---
@@ -88,12 +76,11 @@ describe('Intégration des fonctions d\'Import/Export', () => {
     // Préparation avant chaque test du bloc
     beforeEach(async () => {
         // Nettoyage complet pour un état propre
-        await testDatasColInstance.deleteMany({});
-        await testModelsColInstance.deleteMany({ _user: mockUser.username });
+        await testDatasColInstance.deleteMany({ _user: "testuserImpex"});
 
-        // Créer le modèle nécessaire pour les tests
-        await createModel(impexTestModel, mockUser);
-
+        if( await testModelsColInstance.find({ name: impexTestModel.name, _user: mockUser.username }).count() === 0) {
+            await testModelsColInstance.insertOne(impexTestModel);
+        }
         // Insérer des données de base pour les tests d'exportation
         await insertData(impexTestModel.name, [
             { name: 'Produit A', sku: 'SKU-A', price: 10.50, inStock: true },
