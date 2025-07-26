@@ -113,6 +113,7 @@ async function setupTestContext() {
         comprehensiveTestModelDefinition,
         relatedModelDefinition
     ]);
+    await testDatasColInstance.deleteMany({ _user: currentTestUser.username });
 
     // Retourner toutes les variables nécessaires pour un test
     return {
@@ -675,7 +676,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         beforeEach(async () => {
-            await testPacksColInstance.deleteMany({});
+            // On supprime les données de ce test
         });
 
         it('devrait installer un pack, créer les modèles et insérer les données avec relations via $link', async () => {

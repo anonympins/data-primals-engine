@@ -23,13 +23,6 @@ export async function onInit(defaultEngine) {
     } catch (e) {
 
     }
-    // Create a SecureContext object
-    // Connection URL
-    const dbUrl = process.env.MONGO_DB_URL || 'mongodb://localhost:27017';
-    const MongoClient = new InternalMongoClient(dbUrl, {
-        tls: false, maxPoolSize: 20
-    });
-    await MongoClient.connect();
 
     modelsCollection = MongoDatabase.collection("models");
     datasCollection = MongoDatabase.collection("datas");

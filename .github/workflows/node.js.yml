@@ -28,11 +28,6 @@ jobs:
     services:
       mongodb:
         image: mongo:4.4.6
-        env:
-          MONGO_INITDB_ROOT_USERNAME: admin
-          MONGO_INITDB_ROOT_PASSWORD: admin
-          # I think MONOGDB_INITDB_DATABASE has no effect in here (see https://hub.docker.com/_/mongo, section MONGO_INITDB_DATABASE)
-          MONGO_INITDB_DATABASE: APP-DATABASE
         ports:
           - 27017:27017
         options: >-
