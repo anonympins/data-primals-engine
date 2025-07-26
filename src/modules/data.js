@@ -101,7 +101,7 @@ const sseConnections = new Map();
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-const backupDir = process.env.BACKUP_DIR || './backups'; // Répertoire de stockage des sauvegardes
+const getBackupDir = () => process.env.BACKUP_DIR || './backups'; // Répertoire de stockage des sauvegardes
 const execAsync = promisify(exec);
 
 let importJobs = {};
@@ -3003,10 +3003,14 @@ async function processRelations(docToProcess, model, collection, me, idMap) {
     // Phase 3: Traitement des résultats
     findResults.forEach((result, index) => {
         const { field, multiple } = batchFinds[index];
-        if (result.data?.length) {
+        if (result.data?.length > 0) {
+            // Cas où des documents sont trouvés
             docToProcess[field] = multiple
                 ? result.data.map(r => r._id.toString())
                 : result.data[0]._id.toString();
+        } else {
+            // Cas où AUCUN document n'est trouvé : il faut nettoyer le champ !
+            docToProcess[field] = multiple ? [] : null;
         }
     });
 
@@ -4940,6 +4944,7 @@ export const loadFromDump = async (user, options = {}) => {
     // ...
     let backupFilePath; // Assurez-vous que cette variable est bien définie avec le chemin du fichier .tar.gz
     // Exemple simplifié :
+    const backupDir = getBackupDir();
     const backupFilenameRegex = new RegExp(`^backup_${user.username}_(\\d+)\\.tar\\.gz$`);
     const backupFiles = fs.readdirSync(backupDir).filter(filename => backupFilenameRegex.test(filename));
     if (backupFiles.length === 0) throw new Error(`Aucun fichier de sauvegarde local trouvé pour l'utilisateur ${user.username}.`);
@@ -5016,6 +5021,7 @@ export const loadFromDump = async (user, options = {}) => {
 
 // Fonction pour générer une clé aléatoire et la stocker dans un fichier
 const generateAndStoreKey = (user) => {
+    const backupDir = getBackupDir();
     const keyFile = path.join(backupDir, getObjectHash({id:getUserId(user)})+'_encryption.key');
     const key = crypto.randomBytes(16).toString('hex');
     fs.writeFileSync(keyFile, key, { mode: 0o600 }); // Permissions strictes
@@ -5024,6 +5030,7 @@ const generateAndStoreKey = (user) => {
 
 // Fonction pour lire la clé depuis le fichier
 const readKeyFromFile = (user) => {
+    const backupDir = getBackupDir();
     const keyFile = path.join(backupDir, getObjectHash({id:getUserId(user)})+'_encryption.key');
     if (fs.existsSync(keyFile)) {
         return fs.readFileSync(keyFile, 'utf8');
@@ -5064,6 +5071,7 @@ export const dumpUserData = async (user) => {
 
         // Définir le nom du fichier de sauvegarde et les chemins
         const backupFilename = `backup_${user.username}`; //nom corrigé
+        const backupDir = getBackupDir();
         const backupFileBasePath = path.join(backupDir, backupFilename); //chemin corrigé
         const backupFilePath = `${backupFileBasePath}_${Date.now()}`;
         const backupFilenameBase = `backup_${user.username}`;
@@ -5166,6 +5174,7 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
 
     } else {
         logger.info(`Gestion de la rotation des sauvegardes locales pour ${userId}.`);
+        const backupDir = getBackupDir();
         const localFiles = fs.readdirSync(backupDir);
         filesToManage = localFiles
             .filter(f => !fs.lstatSync(path.join(backupDir, f)).isDirectory() && f.startsWith(`backup_${userId}_`) && f.endsWith('.tar.gz'))
