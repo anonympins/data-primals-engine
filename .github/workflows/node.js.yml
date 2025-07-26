@@ -33,4 +33,8 @@ jobs:
 
     - name: Run Docker container
       run: |
-        docker run -p 7635:7635 -d --name data-container data-primals-engine && docker exec data-container npm run test
+        docker run -p 7635:7635 --name data-container -d data-primals-engine 
+
+    - name: Run tests
+      run: |
+        docker exec data-container npm run test
