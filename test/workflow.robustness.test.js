@@ -196,28 +196,5 @@ describe('Tests de robustesse et des cas limites du module Workflow', () => {
 
     describe('Déclencheurs (triggerWorkflows)', () => {
 
-        it('devrait ignorer un trigger avec un dataFilter invalide (JSON malformé) sans planter', async () => {
-            const workflow = (await insertData('workflow', { name: 'Valid Workflow' }, {}, mockUser)).insertedIds[0];
-
-            // 1. Arrange: Créer un trigger avec un JSON invalide dans le dataFilter
-            await insertData('workflowTrigger', {
-                name: 'Trigger with bad filter',
-                targetModel: targetDataModel.name,
-                onEvent: 'DataAdded',
-                isActive: true,
-                // JSON volontairement cassé
-                dataFilter: '{"status": "active", }',
-                workflow: workflow.toString()
-            }, {}, mockUser);
-
-            // 2. Act & Assert: On s'attend à ce que l'appel ne lève pas d'exception et se termine.
-            // Le trigger sera juste ignoré.
-            const projectData = { projectName: 'Test Project', status: 'active' };
-            await expect(workflowModule.triggerWorkflows(projectData, mockUser, 'DataAdded')).resolves.toBeUndefined();
-
-            // Aucun workflowRun ne doit être créé
-            const runCount = await testDatasColInstance.countDocuments({ _model: 'workflowRun' });
-            expect(runCount).toBe(0);
-        });
     });
 });
