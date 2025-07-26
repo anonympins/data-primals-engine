@@ -26,11 +26,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
+    - name: Build Docker image
+      run: |
+        docker build -t data-primals-engine . -f DockerfileTest
+
+    - name: Run Docker container
+      run: |
+        docker run -d --name data-container data-primals-engine
