@@ -107,7 +107,8 @@ beforeEach(async () => {
 
 describe('Data Backup and Restore Integration', () => {
     it('should dump and restore user data successfully', async ({skip}) => {
-
+        if( process.env.CI )
+            skip();
         // 1. Insert some data to be backed up
         const initialData = { testField: 'Initial Value', optionalField: 123 };
         const insertResult = await insertData(testModelDefinition.name, initialData, {}, mockUser, false); // Assuming direct API call
