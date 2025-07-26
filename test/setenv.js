@@ -20,7 +20,7 @@ export const initEngine = async () => {
         return engineInstance;
 
 
-    mongod = await MongoMemoryServer.create({ instance: { port: getUniquePort() } });
+    mongod = await MongoMemoryServer.create({ auth: {customRootName: 'admin', customRootPwd: 'admin'}, instance: {port: getUniquePort() } });
     process.env.DB_URL = mongod.getUri();
     process.env.DB_NAME = "engine_test";
     process.env.OPENAI_API_KEY = "O000";
