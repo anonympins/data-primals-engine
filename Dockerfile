@@ -1,5 +1,5 @@
 # Base image
-FROM node:18
+FROM node:18.18.2
 
 # Set working directory
 WORKDIR /
