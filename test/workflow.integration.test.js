@@ -141,7 +141,7 @@ beforeAll(async () => {
 
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getCollectionForUser(mockUser);
-});
+}, 15000);
 
 beforeEach(async () => {
     // Nettoyer les données avant chaque test

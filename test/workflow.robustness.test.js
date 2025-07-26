@@ -47,7 +47,7 @@ beforeAll(async () => {
 
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getCollectionForUser(mockUser);
-});
+}, 15000);
 
 beforeEach(async () => {
     await testDatasColInstance.deleteMany({ _user: mockUser.username });

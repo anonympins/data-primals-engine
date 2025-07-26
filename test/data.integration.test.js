@@ -56,7 +56,7 @@ beforeAll(async () => {
     testModelsColInstance = getAppModelsCollection;
 
     testPacksColInstance = getCollection('packs');
-});
+}, 15000);
 
 
 // Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte

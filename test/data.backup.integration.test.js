@@ -85,7 +85,7 @@ beforeAll(async () => {
     vi.stubEnv('OPENAI_API_KEY', '00000000000000000000000000000000');
     // You might need to create a model first if your dumpUserData requires it
     await createModel(testModelDefinition);
-});
+}, 15000);
 
 afterAll(async () => {
 

@@ -68,7 +68,7 @@ beforeAll(async () => {
 
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = getAppUserCollection(mockUser);
-});
+}, 15000);
 
 // --- Début des tests ---
 describe('Intégration des fonctions d\'Import/Export', () => {
