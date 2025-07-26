@@ -5,7 +5,7 @@
   "main": "src/engine.js",
   "type": "module",
   "scripts": {
-    "test": "cross-env PORT=7635 vitest --no-file-parallelism --no-isolate",
+    "test": "cross-env MONGO_DB_URL=\"mongodb://admin:admin@127.0.0.1:27017\" PORT=7635 vitest --no-file-parallelism x",
     "preinstall": "npx force-resolutions",
     "devserver": "cross-env NODE_ENV=development node server.js",
     "server": "cross-env NODE_ENV=production node server.js",
