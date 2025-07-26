@@ -5,7 +5,7 @@
   "main": "src/engine.js",
   "type": "module",
   "scripts": {
-    "test": "cross-env PORT=7633 vitest --no-file-parallelism",
+    "test": "cross-env PORT=7635 vitest --no-file-parallelism",
     "preinstall": "npx force-resolutions",
     "devserver": "cross-env NODE_ENV=development node server.js",
     "server": "cross-env NODE_ENV=production node server.js",
