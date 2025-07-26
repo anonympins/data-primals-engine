@@ -34,13 +34,7 @@ jobs:
         node-version: '18.18.2'
 
     - name: Install mongodb
-      run: curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
-    
-    - name: Update package manager list
-      run: echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-
-    - name: Update package manager 
-      run: sudo apt-get -y update
+      run: apt-get update && apt-get install -y mongodb-org   
 
     - name: Install dependencies
       run: npm install
