@@ -5,7 +5,7 @@
   "main": "src/engine.js",
   "type": "module",
   "scripts": {
-    "test": "vitest",
+    "test": "vitest --no-file-parallelism",
     "preinstall": "npx force-resolutions",
     "devserver": "cross-env NODE_ENV=development node server.js",
     "server": "cross-env NODE_ENV=production node server.js",
