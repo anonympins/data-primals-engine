@@ -16,6 +16,7 @@ jobs:
     container:
       image: docker:20.10.9  # Specify the Docker version you needx
       env:
+        NODE_OPTIONS: "--max_old_space_size=4096"
         NODE_ENV: development
       ports:
         - 7635
