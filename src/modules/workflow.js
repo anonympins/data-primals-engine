@@ -365,45 +365,40 @@ async function handleCreateDataAction(actionDef, contextData, user, dbCollection
 
     try {
         // 2. Substitute Variables in the data template
-        let substitutedDataString;
         let dataObject;
 
-        // dataToCreate might be a string (JSON) or already an object from the model definition
         if (typeof dataToCreate === 'string') {
-            substitutedDataString = await substituteVariables(dataToCreate, contextData, user);
-            console.log({substitutedDataString});
+            const substitutedDataString = await substituteVariables(dataToCreate, contextData, user);
+            try {
+                // CORRECTION : Utiliser la bonne variable (substitutedDataString)
+                dataObject = JSON.parse(substitutedDataString);
+            } catch (parseError) {
+                const msg = `Failed to parse substituted JSON string: ${substitutedDataString}. Error: ${parseError.message}`;
+                logger.error(`[handleCreateDataAction] ${msg}`);
+                return { success: false, message: msg };
+            }
         } else if (typeof dataToCreate === 'object') {
-            // If it's an object, substitute within its values
-            const substitutedObject = await substituteVariables(dataToCreate, contextData, user);
-            // We still need to stringify and parse if it was originally intended as JSON string
-            // Or assume it's meant to be used directly if it came as an object
-            // Let's assume direct use for now if it's an object in the definition
-            dataObject = substitutedObject;
-
-            console.log({substitutedObject});
+            // CORRECTION : Assigner le résultat de la substitution à dataObject.
+            // On passe une copie pour ne pas muter le template original.
+            dataObject = await substituteVariables(JSON.parse(JSON.stringify(dataToCreate)), contextData, user);
         } else {
-            const msg = `[handleCreateDataAction] Action ${actionDef.name} (${actionDef._id}): 'dataToCreate' has an invalid type (${typeof dataToCreate}). Expected string (JSON) or object.`;
+            const msg = `[handleCreateDataAction] 'dataToCreate' has an invalid type (${typeof dataToCreate}). Expected string (JSON) or object.`;
             logger.error(msg);
             return { success: false, message: msg };
         }
 
+        // Log pour débogage
+        logger.debug('Final data object after substitution:', dataObject);
 
-        // 3. Parse the substituted data if it was a string
-        if (substitutedDataString) {
-            try {
-                dataObject = JSON.parse(substitutedDataString);
-                if (typeof dataObject !== 'object' || dataObject === null) {
-                    throw new Error("Parsed data is not a valid object.");
-                }
-            } catch (parseError) {
-                const msg = `[handleCreateDataAction] Action ${actionDef.name} (${actionDef._id}): Failed to parse substituted 'dataToCreate' JSON. Error: ${parseError.message}. Substituted string: ${substitutedDataString}`;
-                logger.error(msg);
-                return { success: false, message: msg };
-            }
+        // 3. Appeler insertData avec l'objet correctement substitué
+        const result = await insertData(targetModel, dataObject, [], user, true, true); // On attend la fin du workflow déclenché par cette création
+
+        if (result.success) {
+            return { success: true, insertedIds: result.insertedIds };
+        } else {
+            // Propage l'erreur venant de insertData
+            return { success: false, message: result.error || "Insertion failed." };
         }
-
-        const ids = await insertData(targetModel, dataObject, [], user, false);
-        return { success: true, insertedIds: ids };
 
     } catch (error) {
         const msg = `[handleCreateDataAction] Action ${actionDef.name} (${actionDef._id}): Unexpected error during creation for model '${targetModel}'. Error: ${error.message}`;
@@ -723,9 +718,124 @@ function getNestedValue(obj, path) {
     // Retourne la valeur finale trouvée
     return current;
 }
+
+/**
+ * Résout un chemin de variable complexe (ex: "triggerData.order.customer.contact.email")
+ * en construisant un pipeline d'agrégation dynamique pour tout récupérer en une seule requête.
+ *
+ * @param {string} pathString - Le chemin de la variable, ex: "triggerData.order.customer.contact.email".
+ * @param {object} initialContext - L'objet de départ (le triggerData).
+ * @param {object} user - L'objet utilisateur pour les requêtes DB.
+ * @returns {Promise<any>} La valeur résolue.
+ */
+async function resolvePathValue(pathString, initialContext, user) {
+    const pathParts = pathString.split('.');
+    const rootObjectKey = pathParts.shift(); // ex: "triggerData"
+
+    // Si le chemin ne commence pas par triggerData ou context, essayer de résoudre directement
+    if (rootObjectKey !== 'triggerData' && rootObjectKey !== 'context') {
+        let current = initialContext;
+        for (const part of [rootObjectKey, ...pathParts]) {
+            if (current === null || typeof current === 'undefined') return undefined;
+            current = current[part];
+        }
+        return current;
+    }
+
+    // Vérifier si c'est un chemin simple qui peut être résolu sans aggregation
+    if (pathParts.length === 1) {
+        return initialContext[pathParts[0]];
+    }
+
+    let currentModelName = initialContext._model;
+    let currentDocId = new ObjectId(initialContext._id);
+    const collection = getCollectionForUser(user);
+
+    // Construire le pipeline d'agrégation
+    const pipeline = [
+        { $match: { _id: currentDocId } }
+    ];
+
+    // Itérer sur chaque segment du chemin pour construire les lookups
+    for (let i = 0; i < pathParts.length; i++) {
+        const segment = pathParts[i];
+
+        // Si c'est le dernier segment, on n'a pas besoin de faire un lookup
+        if (i === pathParts.length - 1) break;
+
+        const modelDef = await getModel(currentModelName, user);
+        const fieldDef = modelDef.fields.find(f => f.name === segment);
+
+        if (!fieldDef || fieldDef.type !== 'relation') {
+            // Si ce n'est pas une relation, on ne peut pas continuer le chemin
+            return undefined;
+        }
+
+        const nextModelName = fieldDef.relation;
+        const asField = `__resolved_${segment}`;
+
+        pipeline.push({
+            $lookup: {
+                from: collection.collectionName,
+                let: { relationId: `$${segment}` },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $eq: ["$_id", {
+                                    $cond: {
+                                        if: { $eq: [{ $type: "$$relationId" }, "string"] },
+                                        then: { $toObjectId: "$$relationId" },
+                                        else: "$$relationId"
+                                    }
+                                }]
+                            }
+                        }
+                    }
+                ],
+                as: asField
+            }
+        });
+
+        pipeline.push({
+            $unwind: {
+                path: `$${asField}`,
+                preserveNullAndEmptyArrays: true
+            }
+        });
+
+        pipeline.push({
+            $addFields: {
+                [segment]: `$${asField}`
+            }
+        });
+
+        pipeline.push({ $project: { [asField]: 0 } });
+
+        currentModelName = nextModelName;
+    }
+
+    const results = await collection.aggregate(pipeline).toArray();
+
+    if (results.length === 0) {
+        return undefined;
+    }
+
+    // Extraire la valeur finale
+    let finalValue = results[0];
+    for (const part of pathParts) {
+        if (finalValue === null || typeof finalValue === 'undefined') {
+            return undefined;
+        }
+        finalValue = finalValue[part];
+    }
+
+    return finalValue;
+}
+
 /**
  * Remplace les placeholders dans un template (string, object, array) par des valeurs du contextData.
- * Mise à jour pour une meilleure gestion des types et des placeholders introuvables.
+ * Version améliorée avec support des chemins complexes via resolvePathValue.
  */
 export async function substituteVariables(template, contextData, user) {
     // 1. Retourner les types non substituables tels quels
@@ -759,54 +869,76 @@ export async function substituteVariables(template, contextData, user) {
     // `contextToSearch` contient toutes les données disponibles à sa racine
     const contextToSearch = { ...contextData, env: userEnv };
 
-    // 5. Logique de résolution de valeur unifiée
-    const findValue = (key) => {
-        let value;
+    // 5. Logique de résolution de valeur améliorée avec resolvePathValue
+    const findValue = async (key) => {
         let path = key.trim();
-
-        // Gérer les raccourcis : {triggerData.field} -> {context.triggerData.field}
-        if (path.startsWith('triggerData.')) {
-            path = 'context.' + path;
+        if (path.endsWith('._id')) {
+            const basePath = path.slice(0, -4);
+            const value = await findValue(basePath);
+            return value?._id?.toString(); // Convertit l'ObjectId en string
         }
-        // Note : Pas de gestion spéciale pour {env.*} car `env` est déjà à la racine de contextToSearch.
 
         // Gérer les valeurs dynamiques spéciales
         if (path === 'now') {
-            value = new Date().toISOString();
+            return new Date().toISOString();
         } else if (path === 'randomUUID') {
-            // Suppose que 'crypto' est disponible dans le scope (ex: Node.js >= 19 ou avec import 'node:crypto')
-            value = crypto.randomUUID();
-        } else {
-            // Chercher le chemin dans l'objet de contexte entier
-            value = getNestedValue(contextToSearch, path);
+            return crypto.randomUUID();
         }
-        return value;
+
+        // Détecter si le chemin est complexe (contient plus d'un point)
+        if (path.split('.').length > 1) {
+            try {
+                // Essayer de résoudre le chemin avec resolvePathValue
+                const [root, ...rest] = path.split('.');
+                // On vérifie si la racine du chemin (ex: 'triggerData') existe dans notre contexte
+                if (contextToSearch[root]) {
+                    const resolvedValue = await resolvePathValue(
+                        rest.join('.'),
+                        contextToSearch[root], // On passe le bon objet de départ (ex: l'objet triggerData)
+                        user
+                    );
+                    if (resolvedValue !== undefined) {
+                        return resolvedValue;
+                    }
+                }
+            } catch (error) {
+                console.warn(`Erreur lors de la résolution du chemin "${path}":`, error.message);
+                // On continue avec la méthode normale si la résolution échoue
+            }
+        }
+
+        // Fallback: chercher le chemin dans l'objet de contexte normal
+        return getNestedValue(contextToSearch, path);
     };
 
     // CAS A : La chaîne est un unique placeholder (ex: "{context.triggerData.product.price}")
-    // Ceci préserve le type de donnée original (nombre, booléen, objet, etc.).
     const singlePlaceholderMatch = template.match(/^\{([^}]+)\}$/);
     if (singlePlaceholderMatch) {
         const key = singlePlaceholderMatch[1];
-        const value = findValue(key);
-        // Si une valeur est trouvée, la retourner directement. Sinon, retourner le template original.
+        const value = await findValue(key);
         return value !== undefined ? value : template;
     }
 
-    // CAS B : La chaîne est complexe (ex: "Produit: {context.triggerData.product.name}!")
-    // Le résultat sera toujours une chaîne de caractères.
+    // CAS B : La chaîne contient plusieurs placeholders ou mix texte/variables
     const placeholderRegex = /\{([^}]+)\}/g;
-    return template.replace(placeholderRegex, (match, key) => {
-        const value = findValue(key);
+    const placeholders = [...template.matchAll(placeholderRegex)];
 
-        if (value !== undefined) {
-            if (value === null) return 'null'; // Convertir explicitement null en chaîne 'null'
-            if (typeof value === 'object') return JSON.stringify(value); // Convertir les objets/tableaux en JSON
-            return String(value); // S'assurer que les autres types sont convertis en chaîne
-        }
+    // Si aucun placeholder trouvé, retourner la chaîne telle quelle
+    if (placeholders.length === 0) {
+        return template;
+    }
 
-        return match; // Placeholder non trouvé, le laisser tel quel
-    });
+    // Remplacer chaque placeholder de manière asynchrone
+    let result = template;
+    for (const [match, key] of placeholders) {
+        const value = await findValue(key);
+        const replacement = value !== undefined
+            ? (value === null ? 'null' : typeof value === 'object' ? JSON.stringify(value) : String(value))
+            : match;
+        result = result.replace(match, replacement);
+    }
+
+    return result;
 }
 
 /**
