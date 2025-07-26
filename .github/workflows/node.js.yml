@@ -32,7 +32,7 @@ jobs:
 
     - name: Run Docker container
       run: |
-        docker run -d --name data-container data-primals-engine
+        docker run -d --name data-container data-primals-engine -p 7635:7635
 
     - name: Run tests
       run: |
