@@ -1113,6 +1113,111 @@ function applyCronMask(cronString, mask, defaults) {
     return newParts.join(' ');
 }
 
+
+export const editModel = async (user, id, data) => {
+
+    if( !(isDemoUser(user) && Config.Get("useDemoAccounts")) && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_EDIT_MODEL"], user)){
+        return ({success: false, error: i18n.t('api.permission.editModel', 'Cannot edit models from the API')})
+    }
+
+    const dataModel = data;
+    try {
+        const collection = getCollectionForUser(user);
+        validateModelStructure(dataModel);
+
+        const el = await modelsCollection.findOne({ $and: [
+                {_user: {$exists: true}},
+                { _id: new ObjectId(id) },
+                {$and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]
+                }
+            ]});
+
+        if( !el ){
+            return ({success: false, statusCode: 404, error: i18n.t("api.model.notFound", { model: dataModel.name })});
+        }
+
+        // renommage du modèle
+        if (typeof (data.name)==='string'&&el.name !== data.name && data.name ){
+            await collection.updateMany({ _model: el.name }, { $set: { _model: data.name }});
+            await modelsCollection.updateMany({ 'fields' : {
+                    '$elemMatch' : { relation: el.name }
+                }}, {
+                $set : {
+                    'fields.$.relation' : data.name
+                }
+            })
+        }
+
+        const coll = getCollectionForUser(user);
+        // Update indexes
+// Update indexes
+        if (user.userPlan === 'premium') {
+            let indexes = [];
+            try {
+                // On essaie de récupérer les index existants
+                indexes = await coll.indexes();
+            } catch (e) {
+                // Si la collection n'existe pas, c'est normal.
+                // createIndex la créera. Il n'y a juste pas d'index à supprimer.
+                if (e.codeName !== 'NamespaceNotFound') {
+                    throw e; // On relance les autres erreurs
+                }
+            }
+
+            // Le reste de votre logique de gestion d'index peut maintenant s'exécuter en toute sécurité
+            for (const field of data.fields) {
+                const elField = el.fields.find(f => f.name === field.name);
+                if (!elField) continue;
+
+                const index = indexes.find(i => i.key[field.name] === 1 &&
+                    i.partialFilterExpression?._model === el.name &&
+                    i.partialFilterExpression?._user === user.username);
+
+                if (elField.index !== field.index && !field.index) {
+                    if (index) {
+                        await coll.dropIndex(index.name);
+                    }
+                } else if (elField.index !== field.index && field.index) {
+                    if (!index) {
+                        await coll.createIndex({ [field.name]: 1 }, {
+                            partialFilterExpression: {
+                                _model: data.name,
+                                _user: user.username
+                            }
+                        });
+                    }
+                }
+            }
+        }
+        // suppression des données à la suppression des champs
+        const unset = {};
+        el.fields.filter(f=> !dataModel.fields.some(dt => dt.name === f.name)).map(f => f.name).forEach(f => {
+            unset[f] = 1;
+        });
+        await collection.updateMany({ _model: el.name }, { $unset: unset });
+
+        // sauvegarde du modele
+        const set = {...data};
+        delete set['_id'];
+
+        const oid = new ObjectId(id);
+        await modelsCollection.updateOne({_id: oid}, {$set: set});
+
+        modelsCache.del(user.username+'@@'+el.name);
+
+        const model = await modelsCollection.findOne({_id: oid });
+        triggerWorkflows(model, user, 'ModelEdited').catch(workflowError => {
+            logger.error(`Erreur asynchrone lors du déclenchement des workflows pour ${model._model} ID ${model._id}:`, workflowError);
+        });
+
+        return ({ success: true, data: await modelsCollection.findOne({_id : oid}) });
+    } catch (e) {
+        logger.error(e);
+        return ({ success: false, error: e.message, statusCode: 500 });
+    }
+};
+
+
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
@@ -1459,95 +1564,17 @@ export async function onInit(defaultEngine) {
     });
 
     engine.put('/api/model/:id', [middlewareAuthenticator, userInitiator, setTimeoutMiddleware(15000)], async (req, res) => {
-
-        if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_EDIT_MODEL"], req.me)){
-            return res.status(403).json({success: false, error: i18n.t('api.permission.editModel', 'Cannot edit models from the API')})
+        const result = await editModel(req.me, req.params.id, req.fields);
+        if( result.success){
+            return res.status(result.statusCode || '200').json(result);
+        }else{
+            return res.status(result.statusCode || '500').json(result);
         }
-
-        const dataModel = req.fields;
-        try {
-            const collection = getCollectionForUser(req.me);
-            validateModelStructure(dataModel);
-
-            const el = await modelsCollection.findOne({ $and: [
-                {_user: {$exists: true}},
-                { _id: new ObjectId(req.params.id) },
-                {$and: [{_user: {$exists: true}}, {$or: [{_user: req.me._user}, {_user: req.me.username}]}]
-            }
-            ]});
-
-            if( !el ){
-                return res.status(404).json({error: i18n.t("api.model.notFound", { model: dataModel.name })});
-            }
-
-            // renommage du modèle
-            if (typeof (req.fields.name)==='string'&&el.name !== req.fields.name && req.fields.name ){
-                await collection.updateMany({ _model: el.name }, { $set: { _model: req.fields.name }});
-                await modelsCollection.updateMany({ 'fields' : {
-                    '$elemMatch' : { relation: el.name }
-                    }}, {
-                    $set : {
-                        'fields.$.relation' : req.fields.name
-                    }
-                })
-            }
-
-            // Update indexes
-            if( req.me.userPlan === 'premium') {
-                const indexes = await datasCollection.indexes();
-                for (const field of dataModel.fields) {
-                    const elField = el.fields.find(f => f.name === field.name);
-                    if (!elField)
-                        continue;
-                    const index = indexes.find(i => i.key[field.name] === 1 &&
-                        i.partialFilterExpression?._model === el.name &&
-                        i.partialFilterExpression?._user === req.me.username);
-                    if (elField.index !== field.index && !field.index) {
-                        if (index) {
-                            await datasCollection.dropIndex(index.name);
-                        }
-                    } else if (elField.index !== field.index && field.index) {
-                        if (!index) {
-                            await datasCollection.createIndex({[field.name]: 1}, {
-                                partialFilterExpression: {
-                                    _model: dataModel.name,
-                                    _user: req.me.username
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-
-            // suppression des données à la suppression des champs
-            const unset = {};
-            el.fields.filter(f=> !dataModel.fields.some(dt => dt.name === f.name)).map(f => f.name).forEach(f => {
-                unset[f] = 1;
-            });
-            await collection.updateMany({ _model: el.name }, { $unset: unset });
-
-            // sauvegarde du modele
-            const set = {...req.fields};
-            delete set['_id'];
-            await modelsCollection.updateOne({_id: new ObjectId(req.params.id)}, {$set: set});
-
-            modelsCache.del(req.me.username+'@@'+el.name);
-
-            const model = await modelsCollection.findOne({_id: new ObjectId(req.params.id) });
-            triggerWorkflows(model, req.me, 'ModelEdited').catch(workflowError => {
-                logger.error(`Erreur asynchrone lors du déclenchement des workflows pour ${model._model} ID ${model._id}:`, workflowError);
-            });
-
-            res.json({ success: true, data: await modelsCollection.findOne({_id : new ObjectId(req.params.id)}) });
-        } catch (e) {
-            logger.error(e);
-            res.json({ success: false });
-        }
-    })
+    });
 
     engine.post('/api/data/restore', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
 
-        if (!((req.me?.roles || []).includes("admin"))) {
+        if (!((user?.roles || []).includes("admin"))) {
             return res.status(403).json({success: false, error: 'Cannot backup data. Contact an administrator to get back your data'})
         }
 
