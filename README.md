@@ -196,6 +196,34 @@ curl -X DELETE http://localhost:7633/api/data?_user=demo \
 
 ## Other operations
 
+Make sure you use the code below to initialize the user : 
+```javascript
+import { Engine } from 'data-primals-engine/engine';
+import { insertData, searchData } from 'data-primals-engine/modules/data';
+
+// Ensure the engine is initialized
+const engine = await Engine.Create();
+const currentUser = await engine.userProvider.findUserByUsername('demo');
+if (!currentUser) {
+    throw new Error("Could not retrieve the user. Please check credentials or user provider.");
+}
+console.log(`Successfully authenticated as ${currentUser.username}`);
+```
+
+### insertData(modelName, data, files, user)
+
+> Inserts one or more documents, intelligently handling nested relationships.
+
+```javascript
+// Uses the `currentUser` object defined above
+const newProduct = { name: 'Super Widget', price: 99.99, status: 'available' };
+const result = await insertData('product', newProduct, {}, currentUser);
+
+if (result.success) {
+    console.log(`Successfully inserted document with ID: ${result.insertedIds[0]}`);
+}
+```
+
 ### editData(modelName, filter, data, files, user)
 
 > Updates existing data matching the filter.
