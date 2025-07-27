@@ -132,4 +132,39 @@ describe('Data Backup and Restore Integration', () => {
         await loadFromDump(mockUser);
 
     }, 5000); // Increased timeout for potentially long operations
+
+    it('should dump and restore user data successfully, and verify data integrity', async () => { // Le nom du test est plus précis
+
+        // 1. Insérer des données à sauvegarder
+        const initialData = { testField: 'Initial Value', optionalField: 123 };
+        const insertResult = await insertData(testModelDefinition.name, initialData, {}, mockUser, false);
+        expect(insertResult.success).toBe(true);
+        const insertedId = insertResult.insertedIds[0];
+
+        // Vérifier que les données existent avant la sauvegarde
+        let docBeforeBackup = await testDatasColInstance.findOne({ _id: new ObjectId(insertedId) });
+        expect(docBeforeBackup).not.toBeNull();
+        expect(docBeforeBackup.testField).toBe('Initial Value');
+
+        // 2. Sauvegarder les données
+        await dumpUserData(mockUser);
+
+        // 3. Simuler une suppression totale des données
+        await testDatasColInstance.deleteMany({ _user: mockUser.username });
+        let docAfterDelete = await testDatasColInstance.findOne({ _id: new ObjectId(insertedId) });
+        expect(docAfterDelete).toBeNull();
+
+        // 4. Restaurer les données
+        await loadFromDump(mockUser);
+
+        // 5. **VÉRIFICATION FINALE** : S'assurer que les données sont restaurées correctement
+        const countAfterRestore = await testDatasColInstance.countDocuments({ _user: mockUser.username });
+        expect(countAfterRestore).toBeGreaterThan(0);
+
+        const docAfterRestore = await testDatasColInstance.findOne({ _user: mockUser.username, _model: testModelDefinition.name });
+        expect(docAfterRestore).not.toBeNull();
+        expect(docAfterRestore.testField).toBe('Initial Value');
+        expect(docAfterRestore.optionalField).toBe(123);
+
+    }, 15000); // Timeout augmenté pour les opérations de fichiers
 });

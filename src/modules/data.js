@@ -5088,7 +5088,7 @@ export const dumpUserData = async (user) => {
         let col;
         for (const collection of collections) {
 
-            const colls = ['datas', 'models'];
+            const colls = [getUserCollectionName(user), 'models'];
             if( colls.includes(collection.name) ){
 
                 // Exécuter mongodump avec les filtres appropriés
