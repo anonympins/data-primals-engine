@@ -105,33 +105,6 @@ beforeEach(async () => {
 });
 
 describe('Data Backup and Restore Integration', () => {
-    it('should dump and restore user data successfully', async ({skip}) => {
-        if( process.env.CI )
-            skip();
-        // 1. Insert some data to be backed up
-        const initialData = { testField: 'Initial Value', optionalField: 123 };
-        const insertResult = await insertData(testModelDefinition.name, initialData, {}, mockUser, false); // Assuming direct API call
-        expect(insertResult.success).toBe(true);
-        const insertedId = insertResult.insertedIds[0];
-
-        // Verify data exists before backup
-        let doc = await testDatasColInstance.findOne({ _id: new ObjectId(insertedId) });
-        expect(doc).not.toBeNull();
-        expect(doc.testField).toBe('Initial Value');
-
-        //2. Backup the data
-        await dumpUserData(mockUser);
-
-        //3. Simulate deleting all data (for testing purposes)
-        await testDatasColInstance.deleteMany({});
-        let docAfterDelete = await testDatasColInstance.findOne({ _id: new ObjectId(insertedId) });
-        expect(docAfterDelete).toBeNull();
-
-        //4. Restore the data
-        await loadFromDump(mockUser);
-
-    }, 5000); // Increased timeout for potentially long operations
-
     it('should dump and restore user data successfully, and verify data integrity', async () => { // Le nom du test est plus précis
 
         // 1. Insérer des données à sauvegarder
