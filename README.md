@@ -354,6 +354,7 @@ const result = await installPack(logger, "61d1f1a9e3f1a9e3f1a9e3f1", user, "en")
 // Returns installation summary
 ```
 
+
 ---
 
 ## 📁 Project Structure
@@ -371,6 +372,34 @@ data-primals-engine/
 │   ├── ...
 └── server.js
 ```
+
+## Workflows: Automate Your Business Logic
+
+> Workflows are the automation engine of your application. 
+
+They allow you to define complex business processes that run in response to specific events, without writing custom code. 
+
+This is perfect for tasks like **sending welcome emails**, managing **order fulfillment**, or triggering data synchronization.
+
+A workflow is composed of two main parts: **Triggers** and **Actions**.
+
+> A 'workflowTrigger' is the event that initiates a workflow run.
+- **DataAdded**: Fires when a new document is created (e.g., a new user signs up).
+- **DataEdited**: Fires when a document is updated (e.g., an order status changes to "shipped").
+- **DataDeleted**: Fires when a document is removed.
+- **Scheduled**: Runs at a specific time or interval using a Cron expression (e.g., 0 0 * * * for a nightly data cleanup job).
+- **Manual**: Triggered on-demand via an API call, allowing you to integrate workflows into any part of your application.
+
+> A 'workflowAction' is the individual steps a workflow executes. You can chain them together to create sophisticated logic.
+- **CreateData**: Create a new document in any model.
+- **UpdateData**: Modify one or more existing documents that match a filter.
+- **SendEmail**: Send a transactional email using dynamic data from the trigger.
+- **CallWebhook**: Make an HTTP request (GET, POST, etc.) to an external service or API.
+- **ExecuteScript**: Run a custom JavaScript snippet for complex logic, data transformation, or conditional branching.
+- **GenerateAIContent**: Use an integrated AI provider (like OpenAI or Gemini) to generate text, summarize content, or make decisions.
+- **Wait**: Pause the workflow for a specific duration before continuing to the next step
+
+See the details of the workflow models for more details.
 
 ---
 
