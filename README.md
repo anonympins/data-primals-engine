@@ -194,6 +194,166 @@ curl -X DELETE http://localhost:7633/api/data?_user=demo \
          }'
 ```
 
+## Other operations
+
+### editData(modelName, filter, data, files, user)
+
+> Updates existing data matching the filter.
+
+Example:
+
+```javascript
+await editData(
+    "userProfile",
+    { _id: "507f1f77bcf86cd799439011" },
+    { bio: "Updated bio text" },
+    null, // No files
+    currentUser
+);
+```
+
+### patchData(modelName, filter, data, files, user)
+
+> Partially updates data (only modifies specified fields).
+
+Example:
+
+```javascript
+await patchData(
+    "settings",
+    { userId: "507f1f77bcf86cd799439011" },
+    { theme: "dark" },
+    null,
+    currentUser
+);
+```
+
+### deleteData(modelName, ids, filter, user)
+
+>Deletes data with cascading relation cleanup.
+
+Examples:
+
+```javascript
+// Delete by IDs
+await deleteData("comments", ["61d1f1a9e3f1a9e3f1a9e3f1"], null, user);
+
+// Delete by filter
+await deleteData("logs", null, { createdAt: { $lt: "2023-01-01" } }, user);
+```
+
+### searchData({user, query})
+
+Powerful search with relation expansion and filtering.
+
+Query Options:
+
+- model: Model name to search
+- filter: MongoDB-style filter
+- depth: Relation expansion depth (default: 1)
+- limit/page: Pagination
+- sort: Sorting criteria
+
+Example:
+```javascript
+const results = await searchData({
+    user: currentUser,
+    query: {
+        model: "blogPost",
+        filter: { status: "published" },
+        depth: 2, // Expand author and comments
+        limit: 10,
+        sort: "createdAt:DESC"
+    }
+});
+```
+
+## Import/Export
+### importData(options, files, user)
+> Imports data from JSON/CSV files.
+
+Supported Formats:
+
+- JSON arrays
+- JSON with model-keyed objects
+- CSV with headers or field mapping
+
+Example:
+
+```javascript
+const result = await importData(
+    {
+        model: "products",
+        hasHeaders: true
+    },
+    { 
+        file: req.files.myFileField // from multipart body  
+    },
+    currentUser
+);
+```
+
+### exportData(options, user)
+> Exports data to a structured format.
+
+Example:
+
+```javascript
+await exportData(
+    {
+        models: ["products", "categories"],
+        depth: 1, // Include relations
+        lang: "fr" // Localized data
+    },
+    currentUser
+);
+// Returns: { success: true, data: { products: [...], categories: [...] } }
+```
+
+## Backup & Restore
+### dumpUserData(user)
+> Creates an encrypted backup of user data.
+
+Features:
+
+- Automatic encryption
+- S3 or local storage
+- Retention policies by plan (daily/weekly/monthly)
+
+Example:
+
+```javascript
+await dumpUserData(currentUser);
+// Backup saved to S3 or ./backups/
+```
+
+### loadFromDump(user, options)
+
+> Restores user data from backup.
+
+Options:
+- modelsOnly: Restore only model definitions
+
+Example:
+
+```javascript
+await loadFromDump(currentUser, { modelsOnly: false });
+// Full restore including data
+```
+
+## Pack Management
+
+### installPack(logger, packId, user, lang)
+
+> Installs a predefined data pack.
+
+Example:
+
+```javascript
+const result = await installPack(logger, "61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
+// Returns installation summary
+```
+
 ---
 
 ## 📁 Project Structure
