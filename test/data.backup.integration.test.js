@@ -3,7 +3,6 @@
 import path from "node:path";
 import { Config } from '../src/config.js';
 
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ObjectId } from 'mongodb';
 import {expect, describe, it, beforeAll, afterAll, beforeEach} from 'vitest';
 import { vi } from 'vitest'
