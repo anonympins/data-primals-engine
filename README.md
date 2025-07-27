@@ -194,6 +194,167 @@ curl -X DELETE http://localhost:7633/api/data?_user=demo \
          }'
 ```
 
+## Other operations
+
+### editData(modelName, filter, data, files, user)
+
+> Updates existing data matching the filter.
+
+Example:
+
+```javascript
+await editData(
+    "userProfile",
+    { _id: "507f1f77bcf86cd799439011" },
+    { bio: "Updated bio text" },
+    null, // No files
+    currentUser
+);
+```
+
+### patchData(modelName, filter, data, files, user)
+
+> Partially updates data (only modifies specified fields).
+
+Example:
+
+```javascript
+await patchData(
+    "settings",
+    { userId: "507f1f77bcf86cd799439011" },
+    { theme: "dark" },
+    null,
+    currentUser
+);
+```
+
+### deleteData(modelName, ids, filter, user)
+
+>Deletes data with cascading relation cleanup.
+
+Examples:
+
+```javascript
+// Delete by IDs
+await deleteData("comments", ["61d1f1a9e3f1a9e3f1a9e3f1"], null, user);
+
+// Delete by filter
+await deleteData("logs", null, { createdAt: { $lt: "2023-01-01" } }, user);
+```
+
+### searchData({user, query})
+
+Powerful search with relation expansion and filtering.
+
+Query Options:
+
+- model: Model name to search
+- filter: MongoDB-style filter
+- depth: Relation expansion depth (default: 1)
+- limit/page: Pagination
+- sort: Sorting criteria
+
+Example:
+```javascript
+const results = await searchData({
+    user: currentUser,
+    query: {
+        model: "blogPost",
+        filter: { status: "published" },
+        depth: 2, // Expand author and comments
+        limit: 10,
+        sort: "createdAt:DESC"
+    }
+});
+```
+
+## Import/Export
+### importData(options, files, user)
+> Imports data from JSON/CSV files.
+
+Supported Formats:
+
+- JSON arrays
+- JSON with model-keyed objects
+- CSV with headers or field mapping
+
+Example:
+
+```javascript
+const result = await importData(
+    {
+        model: "products",
+        hasHeaders: true
+    },
+    { 
+        file: req.files.myFileField // from multipart body  
+    },
+    currentUser
+);
+```
+
+### exportData(options, user)
+> Exports data to a structured format.
+
+Example:
+
+```javascript
+await exportData(
+    {
+        models: ["products", "categories"],
+        depth: 1, // Include relations
+        lang: "fr" // Localized data
+    },
+    currentUser
+);
+// Returns: { success: true, data: { products: [...], categories: [...] } }
+```
+
+## Backup & Restore
+### dumpUserData(user)
+> Creates an encrypted backup of user data.
+
+Features:
+
+- Automatic encryption
+- S3 or local storage
+- Retention policies by plan (daily/weekly/monthly)
+
+Example:
+
+```javascript
+await dumpUserData(currentUser);
+// Backup saved to S3 or ./backups/
+```
+
+### loadFromDump(user, options)
+
+> Restores user data from backup.
+
+Options:
+- modelsOnly: Restore only model definitions
+
+Example:
+
+```javascript
+await loadFromDump(currentUser, { modelsOnly: false });
+// Full restore including data
+```
+
+## Pack Management
+
+### installPack(logger, packId, user, lang)
+
+> Installs a predefined data pack.
+
+Example:
+
+```javascript
+const result = await installPack(logger, "61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
+// Returns installation summary
+```
+
+
 ---
 
 ## 📁 Project Structure
@@ -211,6 +372,34 @@ data-primals-engine/
 │   ├── ...
 └── server.js
 ```
+
+## Workflows: Automate Your Business Logic
+
+> Workflows are the automation engine of your application. 
+
+They allow you to define complex business processes that run in response to specific events, without writing custom code. 
+
+This is perfect for tasks like **sending welcome emails**, managing **order fulfillment**, or triggering data synchronization.
+
+A workflow is composed of two main parts: **Triggers** and **Actions**.
+
+> A 'workflowTrigger' is the event that initiates a workflow run.
+- **DataAdded**: Fires when a new document is created (e.g., a new user signs up).
+- **DataEdited**: Fires when a document is updated (e.g., an order status changes to "shipped").
+- **DataDeleted**: Fires when a document is removed.
+- **Scheduled**: Runs at a specific time or interval using a Cron expression (e.g., 0 0 * * * for a nightly data cleanup job).
+- **Manual**: Triggered on-demand via an API call, allowing you to integrate workflows into any part of your application.
+
+> A 'workflowAction' is the individual steps a workflow executes. You can chain them together to create sophisticated logic.
+- **CreateData**: Create a new document in any model.
+- **UpdateData**: Modify one or more existing documents that match a filter.
+- **SendEmail**: Send a transactional email using dynamic data from the trigger.
+- **CallWebhook**: Make an HTTP request (GET, POST, etc.) to an external service or API.
+- **ExecuteScript**: Run a custom JavaScript snippet for complex logic, data transformation, or conditional branching.
+- **GenerateAIContent**: Use an integrated AI provider (like OpenAI or Gemini) to generate text, summarize content, or make decisions.
+- **Wait**: Pause the workflow for a specific duration before continuing to the next step
+
+See the details of the workflow models for more details.
 
 ---
 
