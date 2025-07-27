@@ -1,5 +1,4 @@
 // __tests__/data.integration.test.js
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ObjectId } from 'mongodb';
 import {expect, describe, it, beforeEach, afterEach, beforeAll, afterAll, vi} from 'vitest';
 import { Config } from '../src/config.js';
