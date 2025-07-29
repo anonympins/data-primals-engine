@@ -18,6 +18,9 @@
     "migrate:revert": "node src/migrate.js revert",
     "migrate:status": "node src/migrate.js status"
   },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.6.1"
+  },
   "resolutions": {
     "tar-fs": "3.0.9",
     "on-headers": "1.1.0",
