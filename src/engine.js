@@ -95,7 +95,7 @@ export const Engine = {
                     return await importModule('./modules/' + module + ".js");
                 }
             } catch (e){
-                console.log('ERROR at loading module '+ module + ' in /modules dir.'+ e);
+                console.log('ERROR at loading module '+ module + ' in /modules dir.', e.stack);
             }
         })).then(async e => {
             engine._modules = e;

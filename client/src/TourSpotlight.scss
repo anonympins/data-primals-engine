@@ -1,0 +1,100 @@
+// Variables (optionnel)
+$tooltip-bg: white;
+$tooltip-color: #333;
+$tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+$button-bg: #3498db;
+$button-color: white;
+$overlay-bg: rgba(0, 0, 0, 0.75); // Couleur de l'overlay
+
+.tour-spotlight-overlay {
+  // Le style de base est défini en inline pour la position/taille
+  // On peut ajouter des transitions ici si souhaité
+  // background-color: $overlay-bg; // Alternative si on n'utilise pas box-shadow pour l'overlay principal
+}
+
+.tour-tooltip {
+  background-color: $tooltip-bg;
+  color: $tooltip-color;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: $tooltip-shadow;
+  box-sizing: border-box;
+  transition: top 0.2s ease-out, left 0.2s ease-out; // Transition douce
+  width: 100%;
+  max-width: 440px;
+  .tour-tooltip-content {
+    margin-bottom: 15px;
+    line-height: 1.5;
+  }
+
+  .tour-tooltip-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  .tour-step-indicator {
+    font-size: 0.85em;
+    color: #777;
+  }
+
+  .tour-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .tour-button {
+    background-color: $button-bg;
+    color: $button-color;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: darken($button-bg, 10%);
+    }
+  }
+  .tour-button-prev {
+    background-color: #777;
+    &:hover {
+      background-color: darken(#777, 10%);
+    }
+  }
+
+  .tour-button-close {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #aaa;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+
+    &:hover {
+      color: #333;
+    }
+  }
+}
+
+// Optionnel: Ajouter une petite flèche à l'info-bulle (plus complexe)
+// .tour-tooltip::after {
+//   content: '';
+//   position: absolute;
+//   border-width: 8px;
+//   border-style: solid;
+//   /* Logique pour positionner la flèche en fonction de props.position */
+//   /* Exemple pour 'bottom' */
+//   bottom: 100%;
+//   left: 50%;
+//   transform: translateX(-50%);
+//   border-color: transparent transparent $tooltip-bg transparent;
+// }

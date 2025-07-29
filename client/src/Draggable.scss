@@ -1,0 +1,49 @@
+.draggable-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  user-select: none; /* Empêche la sélection de texte pendant le drag */
+  overflow-y: auto; /* Important pour l'auto-scroll tactile */
+  // max-height: 400px; /* Définir une hauteur si nécessaire pour le scroll */
+  width: 100%;
+}
+
+.draggable-item {
+  padding: 8px 12px;
+  margin: 5px 0;
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  cursor: grab;
+  transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.1s linear; /* Transition pour transform (touch) */
+  position: relative; /* Pour z-index */
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  // Style pour l'élément en cours de drag (bureau)
+  &.dragging {
+    opacity: 0.5;
+    background-color: #e0e0e0;
+  }
+
+  // Style pour l'élément en cours de drag (tactile)
+  &.dragging-touch {
+    // background-color: #d3eaff; // Couleur différente si besoin
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    // opacity: 0.8; // Peut être redondant avec le style opacity inline
+  }
+
+  // Style pour la zone où l'élément peut être déposé
+  &.drag-over {
+    background-color: #d3eaff;
+    border-style: dashed;
+  }
+}
+
+// Optionnel: Cacher l'élément fantôme natif pendant le drag (peut améliorer l'UX)
+// .draggable-item.dragging {
+//   color: transparent; // Rend le texte invisible
+//   background: lightgrey; // Garde une forme visible
+// }
+// * Attention: Cacher complètement peut perturber le drag sur certains navigateurs.

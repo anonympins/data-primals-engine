@@ -1,0 +1,80 @@
+// src/components/FlexDataRenderer.scss
+
+// Using the same overall structure as .data-badge for consistency.
+// Specific styles for the values rendered by FlexDataRenderer:
+
+.flex-data-renderer { // This class is on the same element as .data-badge
+  .data-badge-value {
+    // General container for the rendered value, if specific styling is needed here
+  }
+
+  .data-value-empty {
+    color: #9ca3af; // Tailwind gray-400
+    font-style: italic;
+  }
+
+  .data-value-boolean {
+    font-size: 1.1em; // Make icons slightly larger
+    &.true {
+      color: #10b981; // Tailwind green-500
+    }
+    &.false {
+      color: #6b7280; // Tailwind gray-500
+    }
+  }
+
+  .data-value-date {
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 0.95em;
+  }
+
+  .data-value-email,
+  .data-value-url {
+    color: #3b82f6; // Tailwind blue-500
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+    svg { // For the external link icon
+      margin-left: 0.25em;
+      font-size: 0.8em;
+      display: inline-block;
+      vertical-align: middle;
+    }
+  }
+
+  .data-value-image {
+    max-width: 120px; // Adjust as needed
+    max-height: 80px;  // Adjust as needed
+    height: auto;
+    display: block;
+    border: 1px solid #e5e7eb; // Tailwind gray-200
+    border-radius: 3px;
+    margin-top: 2px; // Small space if label is above
+  }
+
+  .data-value-color {
+    display: inline-flex;
+    align-items: center;
+    .color-swatch {
+      width: 1.2em;
+      height: 1.2em;
+      border: 1px solid #d1d5db; // Tailwind gray-300
+      margin-right: 0.5em;
+      display: inline-block;
+      border-radius: 2px;
+    }
+  }
+
+  .data-value-array {
+    // Custom styling for arrays if needed, e.g., tags
+    font-style: italic;
+    color: #4b5563; // Tailwind gray-600
+  }
+
+  .data-value-select,
+  .data-value-text,
+  .data-value-default {
+    // General text styling, if different from default .data-badge-value
+  }
+}

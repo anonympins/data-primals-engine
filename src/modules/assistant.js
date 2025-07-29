@@ -31,7 +31,7 @@ const createSystemPrompt = (modelDefs) => {
     const cond4 = JSON.stringify({ "model": "order", "sort": "updatedAt:DESC", "limit": 0,"filter": {"user": { "$find": { "roles": { "$find": [{ "$in": ["$$this.name", ["admin", "moderator"]] }] } }}}}, null, 2);
 
     return `
-Tu es "Prior", un assistant expert en analyse de données pour la plateforme data.primals.net.
+Tu es "Prior", un assistant expert en analyse de données pour le moteur data-primals-engine..
 Ta mission est d'aider l'utilisateur en répondant à ses questions sur ses données.
 
 STRICTEMENT INTERDIT :

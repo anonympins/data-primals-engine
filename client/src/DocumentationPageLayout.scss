@@ -1,0 +1,262 @@
+// C:/Dev/hackersonline-engine/client/src/DocumentationPageLayout.scss
+@import "_variables";
+
+.documentation-layout {
+  display: flex;
+  // Ajustez 60px en fonction de la hauteur réelle de votre topBarMenu si elle est fixe
+  // Sinon, vous pourriez avoir besoin de JavaScript pour calculer la hauteur disponible
+  // ou utiliser des techniques CSS plus avancées comme Grid/Flexbox pour le layout global de la page.
+  // Pour l'instant, on part sur une hauteur qui remplit le reste de la vue.
+  height: calc(100vh - 70px); // Exemple de hauteur, ajustez selon votre TopBar
+  margin-top: 1rem; // Un peu d'espace sous la TopBar si elle est fixe et que ce layout est en dessous
+
+  .documentation-sidebar {
+    width: 100%;
+    flex:0.4;
+    min-width: 220px; // Largeur minimale
+    background-color: #f8f9fa; // Couleur de fond claire pour le menu
+    padding: 20px;
+    border-right: 1px solid #dee2e6; // Bordure de séparation
+    overflow-y: auto; // Permet le défilement si le contenu du menu est trop long
+    height: 100%; // Prend toute la hauteur disponible dans .documentation-layout
+    box-sizing: border-box;
+    .documentation-menu {
+      // Styles pour le conteneur nav de DocumentationMenu.jsx
+      .doc-menu-group {
+        margin-bottom: 1.25rem; // Espace entre les groupes de menu
+
+        .doc-menu-group-title {
+          font-weight: bold;
+          font-size: 1.1em;
+          color: #343a40; // Couleur de texte foncée pour les titres de groupe
+          margin-bottom: 0.75rem;
+          cursor: pointer;
+          background: none;
+          border: none;
+          padding: 8px;
+          width: 100%;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          transition: color 0.2s ease-in-out;
+
+          svg {
+            margin-right: 10px; // Espace entre l'icône et le texte
+            font-size: 0.8em; // Taille de l'icône chevron
+            transition: transform 0.2s ease-in-out; // Animation douce pour la rotation
+          }
+
+          &:hover {
+            color: $primary-color; // Utilise votre variable de couleur primaire ou un bleu par défaut
+          }
+        }
+
+        .doc-menu-sublist {
+          list-style: none;
+          padding-left: 8px; // Indentation pour les sous-éléments, alignée avec l'icône
+          margin-top: 0.5rem;
+          border-left: 2px solid #e0e0e0; // Ligne verticale discrète pour l'indentation
+          margin-left: 4px; // Pour aligner la bordure avec le centre de l'icône
+
+          li {
+            margin-bottom: 2px; // Petit espace entre les liens
+          }
+
+          .doc-menu-item {
+            display: block;
+            padding: 10px 15px; // Padding confortable
+            text-decoration: none;
+            color: #495057; // Couleur de texte pour les liens
+            border-radius: 5px; // Coins arrondis
+            font-size: 0.95em;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+
+            &:hover {
+              background-color: #e9ecef; // Fond au survol
+              color: $primary-color-darker; // Couleur de texte plus foncée au survol
+            }
+
+            &.active {
+              background-color: $primary-color; // Couleur primaire pour l'élément actif
+              color: white; // Texte blanc pour l'élément actif
+              font-weight: 500; // Un peu plus gras pour l'élément actif
+
+              &:hover {
+                background-color: $primary-color-darker; // Couleur primaire plus foncée au survol de l'actif
+              }
+
+            }
+
+            position: relative;
+            a {
+              color: inherit;
+              display: block;
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .documentation-content {
+    width: 100%;
+    box-sizing: border-box;
+    flex: 1; // Prend le reste de la largeur
+    padding: 25px 40px; // Bon padding intérieur
+    overflow-y: auto; // Permet le défilement du contenu principal
+    background-color: #ffffff; // Fond blanc pour le contenu
+    height: 100%; // Prend toute la hauteur disponible
+
+    // Styles de base pour le contenu de la documentation
+    h1, h2, h3, h4 {
+      color: #212529; // Couleur de texte foncée pour les titres
+      margin-top: 1.5em; // Espace au-dessus des titres
+      margin-bottom: 0.8em;
+      padding-bottom: 0.4em;
+      border-bottom: 1px solid #eaecef; // Ligne de séparation sous les titres
+
+      &:first-child {
+        margin-top: 0; // Pas de marge en haut pour le premier titre de la page
+      }
+    }
+    h1 { font-size: 2.2em; font-weight: 600; }
+    h2 { font-size: 1.8em; font-weight: 600; }
+    h3 { font-size: 1.5em; font-weight: 600; }
+    h4 { font-size: 1.25em; font-weight: 600; }
+
+    p, li {
+      line-height: 1.75; // Bonne lisibilité pour les paragraphes et listes
+      margin-bottom: 1.1em;
+      color: #333; // Couleur de texte principale
+      font-size: 1em; // Taille de police standard
+    }
+
+    li > p {
+      display: inline;
+    }
+
+    ul, ol {
+      padding-left: 30px; // Indentation pour les listes
+      ul, ol {
+        margin-top: 0.5em; // Espace pour les listes imbriquées
+      }
+    }
+
+    a {
+      color: $primary-color; // Couleur des liens
+      text-decoration: none;
+      font-weight: 500;
+
+      &:hover {
+        text-decoration: underline;
+        color: $primary-color-darker;
+      }
+    }
+
+    pre {
+      background-color: #2d2d2d; // Fond sombre pour les blocs de code
+      color: #f8f8f2; // Texte clair pour les blocs de code
+      padding: 1.2em 1.5em;
+      border-radius: 6px;
+      overflow-x: auto; // Permet le défilement horizontal si le code est trop long
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 0.9em;
+      line-height: 1.6;
+      margin-bottom: 1.8rem;
+      white-space: pre-wrap; // Gère les retours à la ligne dans le code
+      word-wrap: break-word; // Coupe les mots longs si nécessaire
+
+      code {
+        background-color: transparent; // Pas de fond pour le code dans un <pre>
+        padding: 0;
+        color: inherit; // Hérite de la couleur du <pre>
+        font-size: 1em; // Taille normale dans le <pre>
+      }
+    }
+
+    blockquote {
+      border-left: 5px solid #dfe2e5; // Bordure pour les citations
+      padding: 10px 20px;
+      margin: 1.5em 0;
+      color: #586069; // Couleur de texte pour les citations
+      background-color: #f8f9fa; // Fond léger pour les citations
+      font-style: italic;
+
+      p {
+        margin-bottom: 0; // Pas de marge en bas pour le dernier paragraphe dans une citation
+      }
+    }
+
+    img {
+      max-width: 100%; // Assure que les images sont responsives
+      height: auto;
+      border-radius: 4px; // Coins arrondis pour les images
+      margin: 1em 0;
+    }
+
+    hr {
+      border: 0;
+      height: 1px;
+      background-color: #e0e0e0;
+      margin: 2em 0;
+    }
+
+    // Classes utilitaires que vous pourriez vouloir ajouter
+    .doc-note {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffeeba;
+      padding: 15px;
+      margin: 1.5em 0;
+      border-radius: 4px;
+      color: #856404;
+    }
+
+    .doc-tip {
+      background-color: #d1ecf1;
+      border-left: 4px solid #bee5eb;
+      padding: 15px;
+      margin: 1.5em 0;
+      border-radius: 4px;
+      color: #0c5460;
+    }
+
+    .doc-warning {
+      background-color: #f8d7da;
+      border-left: 4px solid #f5c6cb;
+      padding: 15px;
+      margin: 1.5em 0;
+      border-radius: 4px;
+      color: #721c24;
+    }
+  }
+}
+
+@media only screen and (min-width: 1024Fpx){
+  .documentation-sidebar{
+    max-width: 360px; // Largeur fixe pour le menu latéral
+  }
+}
+// Styles responsives optionnels
+@media (max-width: 768px) {
+  .documentation-layout {
+    flex-direction: column; // Empile le menu et le contenu sur petits écrans
+    height: auto; // Hauteur automatique pour permettre le défilement de toute la page
+
+    .documentation-sidebar {
+      width: 100%; // Prend toute la largeur
+      height: auto; // Hauteur basée sur le contenu
+      border-right: none;
+      border-bottom: 1px solid #dee2e6; // Bordure en bas à la place de droite
+      margin-bottom: 20px; // Espace avant le contenu principal
+    }
+
+    .documentation-content {
+      padding: 20px; // Moins de padding sur petits écrans
+    }
+  }
+}

@@ -17,6 +17,7 @@ export const availableLangs = [
     "sv"
 ];
 
+
 export const awsDefaultConfig = {
     bucketName : 'bucket-primals',
     region: 'eu-north-1'

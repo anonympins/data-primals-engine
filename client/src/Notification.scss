@@ -1,0 +1,126 @@
+.notification-container {
+  position: fixed;
+  top: 52px;
+  right: 8px;
+  width: 280px;
+  z-index: 10000000;
+  pointer-events: auto;
+}
+
+.notifications-right, .notifications-bubble-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notification {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  opacity: 1;
+  transition: opacity 0.3s ease, height 0.3s ease;
+  pointer-events: all;
+}
+
+.notification.ongoing {
+  border-color: #007bff;
+}
+
+.notification.completed {
+  border-color: #28a745;
+}
+
+.notification.error {
+  border-color: #dc3545;
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.notification-icon {
+  font-size: 1.2em;
+  color: #6c757d;
+}
+
+.notification-status {
+  font-size: 1.2em;
+}
+
+.notification-message {
+  margin: 0;
+}
+
+.notification.expanded {
+  height: auto;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.notification-bubble {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #007bff;
+  color: #fff;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  pointer-events: all;
+  display: none;
+}
+
+.notification-bubble.visible {
+  display: flex;
+}
+.notifications-bubble-content {
+  display: none;
+}
+.notification-bubble.expanded .notifications-bubble-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notification-bubble-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 0.8em;
+  pointer-events: none;
+}
+
+.notification button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}

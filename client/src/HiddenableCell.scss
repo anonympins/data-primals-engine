@@ -1,0 +1,36 @@
+// client/src/HiddenableCell.scss
+
+.hiddenable-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; // Aligne le bouton n  gap: 8px; // Espace entre le contenu et le bouton
+  width: 100%;
+
+  .hidden-placeholder, .revealed-content {
+    flex-grow: 1; // Le contenu prend l'espace disponible
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; // Ajoute "..." si le contenu est trop long
+  }
+
+  .hidden-placeholder {
+    color: #999;
+  }
+
+  .hide-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+  }
+}

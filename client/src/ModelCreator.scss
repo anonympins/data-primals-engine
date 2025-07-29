@@ -1,0 +1,154 @@
+.model-creator {
+  flex: 1;
+  max-width: 720px;
+  form {
+    @media only screen and (min-width: 480px){
+      padding: 16px;
+    }
+    @media only screen and (min-width: 768px){
+      padding: 32px;
+    }
+  }}
+.actions {
+  margin: 0;
+}
+.field-edit {
+  position: relative;
+  margin-bottom: 32px;
+  background-color: #F6F6F6;
+  padding: 8px;
+  .actions {
+    margin-top: -16px;
+  }
+}
+
+
+.model-creator {
+  .field-edit {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px 8px;
+    @media only screen and (min-width: 768px) {
+      padding: 1.5rem; // Plus d'espace intérieur
+    }
+    margin-bottom: 1.5rem; // Plus d'espace entre les champs
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s ease-in-out;
+
+    &:focus-within { // Met en évidence le champ en cours d'édition
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-color: var(--primary-color);
+    }
+
+    .flex:not(.flex-no-gap) {
+      gap: 1rem; // Ajoute de l'espace entre les éléments d'un groupe flex
+    }
+
+    .fieldName {
+      input[type=text] {
+        min-width: 150px;
+      }
+    }
+
+    // Améliorer les boutons d'action
+    .actions button, .group-header button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem; // Espace entre l'icône et le texte
+      font-size: 0.9rem;
+
+      &.delete-button, &.btn-danger { // Style spécifique pour la suppression
+        color: #d9534f;
+        &:hover {
+          background-color: #fbebeb;
+        }
+      }
+    }
+  }
+}
+
+.advanced-options-details {
+  padding: 8px;
+  margin: 4px 0;
+}
+
+// client/src/ModelCreator.scss
+
+.model-generation-layout {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  align-items: flex-start;
+}
+
+.generated-models-list {
+  flex: 0 0 250px; // Donne une largeur fixe à la colonne de la liste
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #dee2e6;
+
+  h4 {
+    margin-top: 0;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    color: #333;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      border-radius: 5px;
+      margin-bottom: 0.5rem;
+      transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+      border: 1px solid transparent;
+
+      &:hover {
+        background-color: #e9ecef;
+        border-color: #ced4da;
+      }
+
+      &.active {
+        // La variable $primary-color doit être définie dans vos fichiers de style globaux
+        background-color: #007bff;
+        color: white;
+        font-weight: bold;
+        border-color: #0056b3;
+      }
+    }
+  }
+}
+
+.model-form-container {
+  flex: 1; // Le formulaire prend le reste de la place
+}
+
+// Styles pour la zone de prompt de l'IA
+.ai-prompt-container {
+  background-color: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #dee2e6;
+
+  .examples {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin: 1rem 0;
+    text-align: left;
+    ul {
+      padding-left: 20px;
+      li {
+        margin-bottom: 0.5rem;
+      }
+    }
+  }
+}

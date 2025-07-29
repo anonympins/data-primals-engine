@@ -1,0 +1,117 @@
+
+.dialog-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  pointer-events: none;
+  background-color: rgba(59, 59, 59, 0.51);
+}
+
+#content .dialog {
+  box-sizing: border-box;
+  filter: opacity(1);
+  pointer-events: all;
+  position: fixed;
+  overflow: visible;
+  z-index: 10000;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #F8F8F8;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  color: black;
+  width: 90%;
+  max-width: 1024px;
+  min-width: 320px;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.25);
+  text-align: left;
+
+}
+
+.dialog .actions {
+  justify-content: flex-end;
+}
+
+.dark .dialog {
+    background-color: #191919;
+    color: #e3e3e3;
+}
+
+#content .dialog.dialog-relation {
+  max-width: 480px;
+}
+.dialog-header {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  border: none;
+  border-bottom: 1px solid #E2E2E2;
+  h2 {
+    display: flex;
+    flex: 1;
+    padding: 0px;
+    margin: 0 0 0 16px;
+    font-size: 100%;
+    line-height: 208%;
+  }
+  .btn {
+    display: flex;
+    justify-self: flex-end;
+    &.btn-close  {
+      position: absolute;
+      right: 0px;
+    }
+  }
+}
+
+#ui .dialog-content {
+  padding: 16px;
+  cursor: auto;
+  word-wrap: break-word;
+  max-height: 85vh;
+  overflow-y: auto;
+  > .field {
+    margin: 0;
+  }
+}
+table {
+  width: 100%;
+  border: 1px solid #DDDDDD;
+  border-collapse: collapse;
+  td,th {
+    padding: 3px;
+    @media only screen and (min-width: 480px) {
+      padding: 5px;
+    }
+    &.mini {
+      cursor: pointer;
+      min-width: auto;
+      width: 40px;
+    }
+  }
+  thead tr {
+    background-color: #F1F1F1;
+    font-weight: lighter;
+  }
+  tbody tr {
+  }
+  @media only screen and (max-width: 480px){
+    font-size: 80%;
+  }
+}
+.dark table {
+  thead tr {
+    background-color: #191919;
+    color: #e3e3e3;
+  }
+  tbody tr {
+    background-color: #191919;
+  }
+  td,th {
+    border: 1px solid #3f3f3f;
+  }
+}

@@ -1,0 +1,128 @@
+// C:/Dev/hackersonline-engine/client/src/CronBuilder.scss
+
+// J'utilise ici des variables pour les couleurs et espacements.
+// Si votre projet a déjà un fichier de variables SCSS, il serait bon de les utiliser
+// pour une cohérence parfaite.
+$primary-border-color: #e0e0e0;
+$secondary-text-color: #555;
+$code-bg-color: #f0f0f0;
+$code-text-color: #c7254e;
+$input-bg-color: #fff;
+$input-border-color: #ccc;
+$input-focus-border-color: #337ab7;
+$label-color: #333;
+$preview-bg-color: #f9f9f9;
+$gap-small: 8px;
+$gap-medium: 16px;
+$border-radius: 4px;
+
+.cron-builder-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-medium;
+  padding: $gap-medium;
+  border: 1px solid $primary-border-color;
+  border-radius: $border-radius;
+  background-color: #fff; // Fond clair
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cron-builder-inputs {
+  display: flex;
+  flex-wrap: wrap; // Permet aux éléments de passer à la ligne sur mobile
+  gap: $gap-medium;
+  align-items: flex-end; // Aligne les champs sur le bas pour un rendu net
+}
+
+.cron-part {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-small / 2;
+  flex: 1 1 120px; // Permet aux champs de s'adapter en largeur
+
+  label {
+    font-size: 0.875rem;
+    color: $label-color;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  // En supposant que CronPartBuilder génère un input ou une div stylisable.
+  // Le style s'appliquera à l'input à l'intérieur.
+  input {
+    width: 100%;
+    padding: $gap-small;
+    border: 1px solid $input-border-color;
+    border-radius: $border-radius;
+    background-color: $input-bg-color;
+    font-family: monospace;
+    font-size: 1rem;
+    line-height: 1.5;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+    &:focus {
+      outline: none;
+      border-color: $input-focus-border-color;
+      box-shadow: 0 0 0 2px rgba($input-focus-border-color, 0.25);
+    }
+  }
+}
+
+.cron-builder-output {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-small;
+  padding: $gap-small $gap-medium;
+  background-color: $preview-bg-color;
+  border-radius: $border-radius;
+  border-top: 1px solid $primary-border-color;
+  font-size: 0.9rem;
+
+  .cron-string-preview, .cron-human-readable {
+    display: flex;
+    align-items: center;
+    gap: $gap-small;
+    flex-wrap: wrap;
+  }
+
+  .label {
+    font-weight: 600;
+    color: $secondary-text-color;
+    white-space: nowrap;
+  }
+
+  code {
+    background-color: $code-bg-color;
+    color: $code-text-color;
+    padding: 3px 6px;
+    border-radius: $border-radius;
+    font-family: monospace;
+  }
+
+  .preview-text {
+    color: #000;
+    font-style: italic;
+  }
+}
+
+// Ajustements pour les  {
+.cron-builder-inputs {
+  gap: $gap-small;
+}
+
+.cron-part {
+  // Sur tablette, 3 champs par ligne
+  flex-basis: calc(33.333% - #{$gap-small});
+  label {
+    font-weight: bold;
+  }
+}
+
+@media (max-width: 480px) {
+  .cron-part {
+    // Sur mobile, 2 champs par ligne pour plus de lisibilité
+    flex-basis: calc(50% - #{$gap-small});
+  }
+}

@@ -1507,7 +1507,7 @@ export async function onInit(defaultEngine) {
         });
     });
 
-    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, [...userMiddlewares], setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
         // ... (vérifications de permissions existantes) ...
         const result = await importData(req.fields, req.files, req.me);
         if( result.success ){
@@ -1699,7 +1699,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.patch('/api/data/:id?', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+    engine.patch('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
         const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
@@ -1711,7 +1711,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.put('/api/data/:id?', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+    engine.put('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         try {
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
@@ -1726,6 +1726,53 @@ export async function onInit(defaultEngine) {
         }
     });
 
+    engine.patch('/api/data/:id', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+        const filter = req.fields.filter;
+        const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
+        const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+        const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
+        if (r.error) {
+            res.status(400).json(r);
+        } else {
+            res.status(200).json(r);
+        }
+    });
+
+    engine.put('/api/data/:id', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+        try {
+            const filter = req.fields.filter;
+            const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
+            const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+            const r = await editData(req.fields.model, filter || hash, data, req.files, req.me)
+            if (r.error)
+                res.status(400).json(r);
+            else
+                res.status(200).json(r);
+        } catch (e) {
+            res.status(500).json({error: e.message});
+        }
+    });
+
+    engine.get('/api/model', [throttle, middlewareAuthenticator, userInitiator,middlewareLogger], async (req, res) => {
+
+        // get by name
+        try {
+            const modelName = req.query.name; // Récupérer le nom du modèle depuis les paramètres de la requête
+            if (!modelName) {
+                return res.status(400).json({error: "Le paramètre 'name' est requis."});
+            }
+
+            if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODEL"], req.me) && !await hasPermission("API_GET_MODEL_"+modelName, req.me)){
+                return res.json({success: false, error: i18n.t('api.permission.getModel')})
+            }
+
+            const model = await getModel(modelName, req.me);
+            res.json(model);
+        } catch (error) {
+            logger.error(error);
+            res.status(404).json({ success: false, error: error.message });
+        }
+    });
     engine.get('/api/models', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
 
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODELS"], req.me)){
@@ -1745,25 +1792,7 @@ export async function onInit(defaultEngine) {
         } catch (error) {
             console.log(error);
             logger.error(error);
-        }
-    });
-    engine.get('/api/model', [throttle, middlewareAuthenticator, userInitiator,middlewareLogger], async (req, res) => {
-
-        // get by name
-        try {
-            const modelName = req.query.name; // Récupérer le nom du modèle depuis les paramètres de la requête
-            if (!modelName) {
-                return res.status(400).json({error: "Le paramètre 'name' est requis."});
-            }
-
-            if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODEL"], req.me) && !await hasPermission("API_GET_MODEL_"+modelName, req.me)){
-                return res.json({success: false, error: i18n.t('api.permission.getModel')})
-            }
-
-            const model = await getModel(modelName, req.me);
-            res.json(model);
-        } catch (error) {
-            logger.error(error);
+            res.status(500).json({ success: false, error: error.message });
         }
     });
     engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares], async (req, res) => {
@@ -1848,7 +1877,7 @@ export async function onInit(defaultEngine) {
                 try {
                     files.forEach(file =>removeFile(file.guid, req.me));
                 } catch (e) {
-                    
+
                 }
 
                 await cancelAlerts(req.me);
@@ -2618,6 +2647,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
+    logger.info("Data module loaded");
 }
 
 export const createModel = async (data) => {
@@ -2991,7 +3021,7 @@ async function processDocuments(datas, model, collection, me) {
             }
         } catch (error) {
             // Modification clé ici : on ne catch plus les erreurs de validation
-            throw error;s
+            throw error;
         }
     }
 
@@ -4900,7 +4930,7 @@ const handleFields = async (model, data, user, isRecursiveCall = false) => {
                         return acc;
                     }, {});
 
-                        
+
                     // 4. Charger temporairement les traductions de l'utilisateur.
                     if (Object.keys(newResourceBundle).length > 0) {
                         // Sauvegarder les traductions originales si elles existent
@@ -5258,12 +5288,20 @@ const middlewareLogger = async (req, res, next) => {
     };
 
     res.on('finish', async () => {
-        await logApiRequest(req, res, req.me, startTime, ( !req.hideApiLogs ) ? JSON.parse(responseBodyChunk) : { message: "The request log has been encrypted because of a clear password in the request."}, res.locals.error); // req.user et res.locals.error dépendent de tes autres middlewares
+        try {
+            await logApiRequest(req, res, req.me, startTime, ( !req.hideApiLogs ) ? JSON.parse(responseBodyChunk) : { message: "The request log has been encrypted because of a clear password in the request."}, res.locals.error);
+        } catch (e) {
+
+        }
     });
 
     res.on('error', async (err) => {
         // Logger aussi en cas d'erreur avant 'finish'
-        await logApiRequest(req, res, req.me, startTime, null, err);
+        try{
+            await logApiRequest(req, res, req.me, startTime, null, err);
+        } catch (e) {
+
+        }
     });
 
     next();
