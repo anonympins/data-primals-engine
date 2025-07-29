@@ -15,7 +15,6 @@ import {
     modelsCollection as getAppModelsCollection,
     getCollection,
     getCollectionForUser as getAppUserCollection,
-    datasCollection // Accès direct pour vérifications
 } from 'data-primals-engine/modules/mongodb';
 import { Engine } from "data-primals-engine/engine";
 import process from "node:process";
@@ -41,6 +40,9 @@ async function setupTestContext() {
         email: generateUniqueName('test') + '@example.com'
     };
 
+    // Initialize collection instances after the engine is ready
+    testModelsColInstance = getAppModelsCollection;
+    testDatasColInstance = await getAppUserCollection(currentTestUser);
 
     const relatedModelDefinition = {
         name: currentRelatedModelName,
@@ -107,11 +109,13 @@ async function setupTestContext() {
         maxRequestData: 50,
     };
 
-    // Insérer les modèles en base
-    await testModelsColInstance.insertMany([
-        comprehensiveTestModelDefinition,
-        relatedModelDefinition
-    ]);
+    if( await testModelsColInstance.find({ $or: [{name: comprehensiveTestModelDefinition.name}, {name: relatedModelDefinition.name}]})) {
+        // Insérer les modèles en base
+        await testModelsColInstance.insertMany([
+            comprehensiveTestModelDefinition,
+            relatedModelDefinition
+        ]);
+    }
     await testDatasColInstance.deleteMany({ _user: currentTestUser.username });
 
     // Retourner toutes les variables nécessaires pour un test
@@ -128,9 +132,6 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
         await initEngine();
 
-        // Initialize collection instances after the engine is ready
-        testModelsColInstance = getAppModelsCollection;
-        testDatasColInstance = datasCollection;
     })
 
     describe('insertData avec comprehensiveTestModel', () => {
@@ -193,6 +194,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(result.success, `L'insertion principale a échoué: ${result.error}`).toBe(true);
             expect(result.insertedIds).toHaveLength(1);
 
+            console.log(result);
             const insertedDoc = await testDatasColInstance.findOne({ _id: new ObjectId(result.insertedIds[0]) });
             expect(insertedDoc).not.toBeNull();
             expect(insertedDoc.stringRequired).toBe('Valid String');
@@ -501,9 +503,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(deleteResult.success).toBe(true);
             expect(deleteResult.deletedCount).toBe(2);
 
-            const remainingCount = await testDatasColInstance.countDocuments({ _model: simpleModel.name, name: { $regex: "^Item Filtrable" } });
+            const remainingCount = await testDatasColInstance.countDocuments({ _user: currentTestUser.username, _model: simpleModel.name, name: { $regex: "^Item Filtrable" } });
             expect(remainingCount).toBe(0);
-            const totalRemaining = await testDatasColInstance.countDocuments({ _model: simpleModel.name });
+            const totalRemaining = await testDatasColInstance.countDocuments({ _user: currentTestUser.username, _model: simpleModel.name });
             expect(totalRemaining).toBe(1);
         });
     });

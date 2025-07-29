@@ -6,7 +6,7 @@ import {decryptValue, encryptValue} from "../data.js";
 import {MongoClient} from "../engine.js";
 import {loadFromDump, validateRestoreRequest} from "./data.js";
 import {Logger} from "../gameObject.js";
-import {middlewareAuthenticator, myFreePremiumAnonymousLimiter, userInitiator} from "./user.js";
+import {middlewareAuthenticator, userInitiator} from "./user.js";
 import {awsDefaultConfig, maxBytesPerSecondThrottleData} from "../constants.js";
 import crypto from "node:crypto";
 import i18n from "data-primals-engine/i18n";
@@ -140,7 +140,8 @@ export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
-    engine.post('/api/backup/request-restore', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    const userMiddlewares = await engine.userProvider.getMiddlewares();
+    engine.post('/api/backup/request-restore', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
         const user = req.me; // Assuming you have user authentication middleware
         if (!user) {
             return res.status(401).json({ error: 'Unauthorized' });
@@ -177,7 +178,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/user/s3-config', [middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/user/s3-config', [middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
         const user = req.me;
         const { bucketName, accessKeyId, secretAccessKey, region, pathPrefix } = req.fields;
 

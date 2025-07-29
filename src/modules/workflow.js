@@ -749,7 +749,7 @@ async function resolvePathValue(pathString, initialContext, user) {
 
     let currentModelName = initialContext._model;
     let currentDocId = new ObjectId(initialContext._id);
-    const collection = getCollectionForUser(user);
+    const collection = await getCollectionForUser(user);
 
     // Construire le pipeline d'agrégation
     const pipeline = [
@@ -862,7 +862,7 @@ export async function substituteVariables(template, contextData, user) {
     // --- À partir d'ici, nous savons que `template` est une chaîne de caractères ---
 
     // 4. Construire le contexte complet pour la substitution
-    const dbCollection = getCollectionForUser(user);
+    const dbCollection = await getCollectionForUser(user);
     const userEnvVars = await dbCollection.find({ _model: 'env', _user: user.username }).toArray();
     const userEnv = userEnvVars.reduce((acc, v) => ({ ...acc, [v.name]: v.value }), {});
 
@@ -972,7 +972,7 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
         console.log(`[Workflow Trigger] Event: ${eventType}, Model: ${targetModelName}${dataId ? `, Data ID: ${dataId}` : ''}, User: ${user.username}`);
 
         try {
-            const dbCollection = getCollectionForUser(user); // Collection des données utilisateur
+            const dbCollection = await getCollectionForUser(user); // Collection des données utilisateur
 
             // 1. Trouver les WorkflowTriggers pertinents
             const workflowTriggers = await dbCollection.find({
@@ -1105,7 +1105,7 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
 // C:/Dev/hackersonline-engine/server/src/modules/workflow.js
 
 export async function processWorkflowRun(workflowRunId, user) {
-    const dbCollection = getCollectionForUser(user);
+    const dbCollection = await getCollectionForUser(user);
     const runId = typeof workflowRunId === 'string' ? new ObjectId(workflowRunId) : workflowRunId;
 
     logger.info(`[processWorkflowRun] Starting processing for workflowRun ID: ${runId}`);
@@ -1298,7 +1298,7 @@ async function executeGenerateAIContentAction(action, context, user) {
     }
 
     // Cherche d'abord dans les variables d'environnement de l'utilisateur
-    const envCollection = getCollectionForUser(user);
+    const envCollection = await getCollectionForUser(user);
     const userEnvVar = await envCollection.findOne({ _model: 'env', name: envKeyName, _user: user.username });
 
     if (userEnvVar && userEnvVar.value) {

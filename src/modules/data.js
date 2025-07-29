@@ -38,7 +38,7 @@ import {
     maxStringLength,
     maxTotalDataPerUser,
     megabytes,
-    optionsSanitizer, plans,
+    optionsSanitizer,
     searchRequestTimeout, storageSafetyMargin
 } from "../constants.js";
 import {
@@ -72,7 +72,6 @@ import {
 } from "./workflow.js";
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
-import {getUserStorageLimit} from "../user.js";
 import {openaiJobModel} from "../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
 import { fileURLToPath } from 'url';
@@ -82,7 +81,6 @@ import {listS3Backups, uploadToS3} from "./bucket.js";
 import {
     calculateTotalUserStorageUsage, generateLimiter, hasPermission,
     middlewareAuthenticator,
-    myFreePremiumAnonymousLimiter,
     userInitiator
 } from "./user.js";
 import {assistantGlobalLimiter} from "./assistant.js";
@@ -1122,7 +1120,7 @@ export const editModel = async (user, id, data) => {
 
     const dataModel = data;
     try {
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
         validateModelStructure(dataModel);
 
         const el = await modelsCollection.findOne({ $and: [
@@ -1148,10 +1146,10 @@ export const editModel = async (user, id, data) => {
             })
         }
 
-        const coll = getCollectionForUser(user);
+        const coll = await getCollectionForUser(user);
         // Update indexes
 // Update indexes
-        if (user.userPlan === 'premium') {
+        if (await engine.userProvider.hasFeature(user, 'indexes')) {
             let indexes = [];
             try {
                 // On essaie de récupérer les index existants
@@ -1233,6 +1231,8 @@ export async function onInit(defaultEngine) {
             "$dateSubtract", "$dateAdd", "$dateToString",
             '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond',
     ]}));
+
+    let userMiddlewares = await engine.userProvider.getMiddlewares();
 
     let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection;
 
@@ -1322,7 +1322,6 @@ export async function onInit(defaultEngine) {
     await scheduleWorkflowTriggers();
 
     await scheduleAlerts();
-
 // Dans onInit(defaultEngine) { ... }
 // ...
 
@@ -1369,11 +1368,12 @@ export async function onInit(defaultEngine) {
             });
             await modelsCollection.insertMany(newModels);
 
+            const coll = await getCollectionForUser(user);
             // 2. Copier les données associes marquer
             // C'est la partie la plus complexe à cause des relations
             const idMap = {}; // Map: old_id -> new_id
             for (const model of modelsToCopy) {
-                const datasToCopy = await getCollectionForUser(user).find({
+                const datasToCopy = await coll.find({
                     _model: model.name,
                     _user: user.username
                 }).limit(maxMagnetsDataPerModel).toArray();
@@ -1391,7 +1391,8 @@ export async function onInit(defaultEngine) {
                         _user: null
                     };
                 });
-                await getCollectionForUser(user).insertMany(newDatas);
+                const coll = await getCollectionForUser(user);
+                await coll.insertMany(newDatas);
 
                 // Passe 2: Mettre à jour les relations dans les documents fraîchement copiés
                 for (const newDoc of newDatas) {
@@ -1409,7 +1410,8 @@ export async function onInit(defaultEngine) {
                         }
                     }
                     if (Object.keys(updatePayload).length > 0) {
-                        await getCollectionForUser(user).updateOne({ _id: newDoc._id }, { $set: updatePayload });
+                        const coll = await getCollectionForUser(user);
+                        await coll.updateOne({ _id: newDoc._id }, { $set: updatePayload });
                     }
                 }
             }
@@ -1505,7 +1507,7 @@ export async function onInit(defaultEngine) {
         });
     });
 
-    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, [...userMiddlewares], setTimeoutMiddleware(60000)], async (req, res) => {
         // ... (vérifications de permissions existantes) ...
         const result = await importData(req.fields, req.files, req.me);
         if( result.success ){
@@ -1572,7 +1574,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/restore', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/restore', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
 
         if (!((user?.roles || []).includes("admin"))) {
             return res.status(403).json({success: false, error: 'Cannot backup data. Contact an administrator to get back your data'})
@@ -1587,7 +1589,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/dump', [throttle, middlewareAuthenticator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/dump', [throttle, middlewareAuthenticator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
 
         if (!((req.me?.roles || []).includes("admin"))) {
             return res.status(403).json({success: false, error: 'Cannot dump data.'})
@@ -1606,7 +1608,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
+    engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         const body = req.files ? req.fields : req.fields;
         const modelName = body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
         const data = body.data || (body._data && JSON.parse(body._data));
@@ -1622,7 +1624,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
+    engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(30000)], async (req, res) => {
         const { pack } = req.fields;
 
         try {
@@ -1669,7 +1671,7 @@ export async function onInit(defaultEngine) {
     });
 
 // --- Export Endpoint ---
-    engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
         try {
             const results = await exportData({...req.fields, depth:req.query.depth, lang: req.query.lang}, req.me);
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1764,7 +1766,7 @@ export async function onInit(defaultEngine) {
             logger.error(error);
         }
     });
-    engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares], async (req, res) => {
 
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_ADD_MODEL"], req.me) ){
             return res.status(403).json({success: false, error: i18n.t('api.permission.addModel')})
@@ -1786,7 +1788,7 @@ export async function onInit(defaultEngine) {
                     $and: [{_user: {$exists: true}}, {_user: req.me.username}]
                 });
                 if( count < maxModelsPerUser) {
-                    if( req.me.userPlan === 'premium' ){
+                    if(await engine.userProvider.hasFeature(req.me, 'indexes')){
                         for (const field of modelData.fields) {
                             if( field.index ) {
                                 await datasCollection.createIndex({[field.name]: 1}, {
@@ -1818,7 +1820,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/models/import', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger,myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/models/import', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares], async (req, res) => {
 
         if( isLocalUser(req.me) && !await hasPermission(["API_ADMIN","API_IMPORT_MODEL"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.importModels')})
@@ -1888,7 +1890,7 @@ export async function onInit(defaultEngine) {
                 return res.status(404).json({error: i18n.t( "api.model.notFound", { model: modelName})});
             }
 
-            if( req.me.userPlan === 'premium' ) {
+            if( await engine.userProvider.hasFeature(req.me, 'indexes') ) {
                 const indexes = await datasCollection.indexes();
                 for (const index of indexes) {
                     if (index.partialFilterExpression?._model === model.name &&
@@ -1958,7 +1960,7 @@ export async function onInit(defaultEngine) {
             if (result.modifiedCount !== 1)
                 return res.status(404).json({ error: i18n.t('api.model.notFound', {model: model.name})});
 
-            const collection = getCollectionForUser(req.me);
+            const collection = await getCollectionForUser(req.me);
 
             await collection.updateMany(
                 { _model: model.name },
@@ -2128,7 +2130,7 @@ export async function onInit(defaultEngine) {
 
 // ... (autres imports et code)
 
-    engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
+    engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         // --- Récupérer groupByLabelField ---
         const { model: modelName, type, xAxis, yAxis, groupBy, aggregationType, groupByLabelField, filter: chartFilter } = req.fields;
 
@@ -2173,7 +2175,7 @@ export async function onInit(defaultEngine) {
             const isMultipleRelation = isRelationGroupBy && groupByFieldDefinition?.multiple === true;
 
             // --- Build Aggregation Pipeline ---
-            const collection = getCollectionForUser(req.me);
+            const collection = await getCollectionForUser(req.me);
 
             // --- MODIFICATION ICI pour inclure chartFilter ---
             let initialMatchStage = { $and : [{
@@ -2350,7 +2352,7 @@ export async function onInit(defaultEngine) {
     });
 
 
-    engine.post('/api/data/removeFromPack', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/data/removeFromPack', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.createPack')})
         }
@@ -2359,7 +2361,7 @@ export async function onInit(defaultEngine) {
             return res.status(400).json({ success: false, error: 'itemIds must be a non-empty array of valid ObjectIds.' });
         }
         const objectIds = itemIds.map(id => new ObjectId(id));
-        const collection = getCollectionForUser(req.me); // Obtenir la collection de l'utilisateur
+        const collection = await getCollectionForUser(req.me); // Obtenir la collection de l'utilisateur
 
         const results = await collection.find({
             _id: { $in: objectIds },
@@ -2456,7 +2458,7 @@ export async function onInit(defaultEngine) {
             }
 
             // --- Logique de suppression ---
-            const collection = getCollectionForUser(user); // Obtenir la collection spécifique à l'utilisateur
+            const collection = await getCollectionForUser(user); // Obtenir la collection spécifique à l'utilisateur
 
             const deleteFilter = {
                 _pack: packName,
@@ -2483,7 +2485,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/addToPack', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/data/addToPack', [throttle, middlewareAuthenticator, userInitiator,...userMiddlewares], async (req, res) => {
         const { packName, itemIds } = req.fields;
         const user = req.me;
 
@@ -2500,7 +2502,7 @@ export async function onInit(defaultEngine) {
 
         // --- Logique Métier ---
         try {
-            const collection = getCollectionForUser(user); // Récupère la collection de l'utilisateur
+            const collection = await getCollectionForUser(user); // Récupère la collection de l'utilisateur
             const objectIds = itemIds.map(id => new ObjectId(id)); // Convertit les strings en ObjectIds
 
             // Met à jour le champ _pack pour les documents sélectionnés appartenant à l'utilisateur
@@ -2552,12 +2554,12 @@ export async function onInit(defaultEngine) {
         }
     });
     /*
-    engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
 
         const { pack } = req.fields;
         const initialModelName = req.query.model; // The starting model
         const user = req.me;
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
 
         try {
             // --- Permission Check ---
@@ -2761,7 +2763,7 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
         return { success: false, error: i18n.t('api.permission.addData'), statusCode: 403 };
     }
 
-    const collection = getCollectionForUser(user);
+    const collection = await getCollectionForUser(user);
     let insertedIds = []; // Pour stocker les IDs retourn par pushDataUnsecure
 
     try {
@@ -2917,7 +2919,7 @@ async function initializeAndValidate(data, modelName, me) {
     if (datas.length === 0) return { datas: [], model: null, collection: null };
 
     const model = await getModel(modelName, me);
-    const collection = getCollectionForUser(me);
+    const collection = await getCollectionForUser(me);
     validateModelStructure(model);
 
     return { datas, model, collection };
@@ -2937,7 +2939,7 @@ function normalizeInputData(data) {
  */
 async function checkLimits(datas, model, collection, me) {
     const incomingDataSize = calculateDataSize(datas);
-    const userStorageLimit = getUserStorageLimit(me);
+    const userStorageLimit = await engine.userProvider.getUserStorageLimit(me);
 
     // Vérification des limites utilisateur
     const currentStorageUsage = await calculateTotalUserStorageUsage(me);
@@ -3351,7 +3353,7 @@ async function handleFilesIfNeeded(insertedIds, files, model, collection) {
     // Ex: association des fichiers uploadés aux documents insérés
 }
 const checkHash = async (me, model, hash, excludeId = null) => {
-    const collection = getCollectionForUser(me);
+    const collection = await getCollectionForUser(me);
     const query = {
         _model: model.name,
         _hash: hash,
@@ -3406,7 +3408,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             throw new Error(i18n.t("api.permission.editData"));
         }
 
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
         const model = await modelsCollection.findOne({name: modelName, _user: user.username});
         if (!model) {
             throw new Error(i18n.t("api.model.notFound", {model: modelName}));
@@ -3590,7 +3592,7 @@ async function handleScheduledJobs(modelName, existingDocs, collection, updateDa
 export const deleteData = async (modelName, ids = [], filter, user ={}, triggerWorkflow, waitForWorkflow = false) => {
 
     try {
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
 
         // --- Début de la logique de suppression ---
 
@@ -3811,7 +3813,7 @@ export const searchData = async ({user, query}) => {
         throw new Error(i18n.t('api.permission.searchData'));
     }
 
-    const collection = getCollectionForUser(user);
+    const collection = await getCollectionForUser(user);
     const modelElement = await getModel(model, user);
 
     const allIds = (ids || '').split(",").map(m => m.trim()).filter(Boolean).map(m => {
@@ -3925,7 +3927,7 @@ export const searchData = async ({user, query}) => {
                 ++i;
                 const lookup = {
                     $lookup: {
-                        from: getUserCollectionName(user),
+                        from: await getUserCollectionName(user),
                         as: "items" + i,
                         let: {
                             dtid: {'$toString': '$_id'}, convertedId: '$' + fi.name,
@@ -4141,7 +4143,7 @@ export const searchData = async ({user, query}) => {
                         // et vous faites 'continue'. C'est bien.
 
                         // Si tout va bien, on construit le lookup :
-                        const targetCollectionName = getUserCollectionName(user);
+                        const targetCollectionName = await getUserCollectionName(user);
                         const localFieldValueInPipeline = `$${lookupDef.localField}`;
 
                         // Vérification basique du localField (déjà présente dans votre code précédent)
@@ -4873,8 +4875,9 @@ const handleFields = async (model, data, user, isRecursiveCall = false) => {
 
 
         try {
+            const coll = await getCollectionForUser(user);
                 // 1. Récupérer l'ID du document de langue de l'utilisateur pour la langue actuelle.
-                const userLangDoc = await getCollectionForUser(user).findOne({
+                const userLangDoc = await coll.findOne({
                     _model: 'lang',
                     code: lang,
                     _user: user.username
@@ -4882,7 +4885,7 @@ const handleFields = async (model, data, user, isRecursiveCall = false) => {
 
                 if (userLangDoc) {
                     // 2. Récupérer les traductions de l'utilisateur pour cette langue.
-                    const userTranslationsArray = await getCollectionForUser(user).find({
+                    const userTranslationsArray = await coll.find({
                         _model: 'translation',
                         _user: user.username,
                         lang: userLangDoc._id.toString()
@@ -5081,19 +5084,7 @@ export const dumpUserData = async (user) => {
 
     try {
         // Déterminer la fréquence de la sauvegarde
-        let backupFrequency;
-        switch (user.userPlan) {
-            case 'premium':
-                backupFrequency = 'daily';
-                break;
-            case 'standard':
-                backupFrequency = 'weekly';
-                break;
-            case 'free':
-            default:
-                backupFrequency = 'monthly';
-                break;
-        }
+        const backupFrequency = await engine.userProvider.getBackupFrequency(user);
 
         logger.info(`Fréquence de sauvegarde : ${backupFrequency}.`);
 
@@ -5115,7 +5106,7 @@ export const dumpUserData = async (user) => {
         let col;
         for (const collection of collections) {
 
-            const colls = [getUserCollectionName(user), 'models'];
+            const colls = [await getUserCollectionName(user), 'models'];
             if( colls.includes(collection.name) ){
 
                 // Exécuter mongodump avec les filtres appropriés
@@ -5350,7 +5341,7 @@ export async function installPack(logger, packId, user, lang) {
         datas: { inserted: 0, updated: 0, skipped: 0, failed: 0 }
     };
     const errors = [];
-    const collection = getCollectionForUser(user);
+    const collection = await getCollectionForUser(user);
     const tempIdToNewIdMap = {};
     const linkCache = new Map();
 
