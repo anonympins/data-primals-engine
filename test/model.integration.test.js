@@ -38,7 +38,7 @@ async function setupTestContext() {
             {name: 'relatedName', type: 'string', required: true, unique: true},
             {name: 'relatedValue', type: 'number'}
         ],
-        maxRequestData: 10,
+        maxRequestData: 10
     };
 
     const comprehensiveTestModelDefinition = {
@@ -90,9 +90,9 @@ async function setupTestContext() {
             {name: 'objectField', type: 'object'},
             // Model & ModelField (validation of string format, not existence)
             {name: 'modelNameField', type: 'model'},
-            {name: 'modelFieldNameField', type: 'modelField'}, // Note: modelField type expects an object {model: 'modelName', field: 'fieldName'}
+            {name: 'modelFieldNameField', type: 'modelField'} // Note: modelField type expects an object {model: 'modelName', field: 'fieldName'}
         ],
-        maxRequestData: 50,
+        maxRequestData: 50
     };
 
     // Insérer les modèles en base
@@ -108,7 +108,7 @@ async function setupTestContext() {
     return {
         currentTestUser,
         comprehensiveTestModelDefinition,
-        relatedModelDefinition,
+        relatedModelDefinition
     };
 }
 
@@ -149,7 +149,7 @@ describe('CRUD on model definitions and integrity tests', () => {
                 ...comprehensiveTestModelDefinition,
                 fields: comprehensiveTestModelDefinition.fields.map(f =>
                     f.name === fieldToIndex ? { ...f, index: true } : f
-                ),
+                )
             };
             await editModel(currentTestUser, testModelId, modelWithIndex);
 
@@ -162,7 +162,7 @@ describe('CRUD on model definitions and integrity tests', () => {
             // Le filtre partiel est crucial pour que l'index ne s'applique qu'aux bonnes données
             expect(newIndex.partialFilterExpression).toEqual({
                 _model: comprehensiveTestModelDefinition.name,
-                _user: currentTestUser.username,
+                _user: currentTestUser.username
             });
 
             // --- ACTION 2 : SUPPRIMER L'INDEX ---
@@ -170,7 +170,7 @@ describe('CRUD on model definitions and integrity tests', () => {
                 ...comprehensiveTestModelDefinition,
                 fields: comprehensiveTestModelDefinition.fields.map(f =>
                     f.name === fieldToIndex ? { ...f, index: false } : f
-                ),
+                )
             };
             await editModel(currentTestUser, testModelId, modelWithoutIndex);
 

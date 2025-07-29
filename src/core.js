@@ -136,7 +136,7 @@ export function shuffle(array) {
     let currentIndex = array.length;
 
     // While there remain elements to shuffle...
-    while (currentIndex != 0) {
+    while (currentIndex !== 0) {
 
         // Pick a remaining element...
         let randomIndex = Math.floor(Math.random() * currentIndex);
@@ -164,14 +164,15 @@ export const setSeed = (s)=>{
     seed = s;
 }
 function splitmix32(a) {
-        a |= 0;
-        a = a + 0x9e3779b9 | 0;
-        let t = a ^ a >>> 16;
-        t = Math.imul(t, 0x21f0aaad);
-        t = t ^ t >>> 15;
-        t = Math.imul(t, 0x735a2d97);
-        return ((t = t ^ t >>> 15) >>> 0) / 4294967296;
+    a |= 0;
+    a = a + 0x9e3779b9 | 0;
+    let t = a ^ a >>> 16;
+    t = Math.imul(t, 0x21f0aaad);
+    t = t ^ t >>> 15;
+    t = Math.imul(t, 0x735a2d97);
+    return ((t = t ^ t >>> 15) >>> 0) / 4294967296;
 }
+
 
 export const getRand = () =>splitmix32(seed);
 

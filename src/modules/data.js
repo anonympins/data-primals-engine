@@ -174,7 +174,7 @@ export const dataTypes = {
     },
     cronSchedule: {
         validate: (value, field) => {
-            if( value == null )
+            if( value === null )
                 return true;
             try {
                 cronstrue.toString(value, { throwExceptionOnParseError: true });
@@ -184,7 +184,7 @@ export const dataTypes = {
             }
         },
         filter: async (value, field)=>{
-            if( value == null )
+            if( value === null )
                 return null;
             if (field.cronMask && field.default) {
                 return applyCronMask(value, field.cronMask, field.default);
@@ -240,7 +240,7 @@ export const dataTypes = {
     },
     'string_t': {
         validate: (value, field) => {
-            if( value == null )
+            if( value === null )
                 return true;
             const ml = Math.min(Math.max(field.maxlength, 0), maxStringLength);
             // La valeur peut être une chaîne de caractères...
@@ -428,7 +428,7 @@ export const dataTypes = {
             }
             return value === null || value === undefined || isObjectId(value) || typeof(value) === 'object';
         },
-        anonymize: () => null,
+        anonymize: () => null
     },
     file: {
         validate: (value, field) => {
@@ -465,7 +465,7 @@ export const dataTypes = {
 
             return value;
         },
-        anonymize: () => null,
+        anonymize: () => null
     },
     color: {
         validate: (value) => {
@@ -511,7 +511,7 @@ export const dataTypes = {
             return sanitizedObject;
         },
         anonymize: () => ({}) // Anonymisation en objet vide
-    },
+    }
 };
 
 export const getAPILang = (langs) => {
@@ -658,138 +658,138 @@ const validateField = (field) => {
 
     // Check for specific field types
     switch (field.type) {
-        case 'relation':
-            allowedFieldTest(['relation', 'multiple', 'relationFilter']);
-            if (!field.relation || typeof field.relation !== 'string' || field.relation.length > maxModelNameLength) {
-                throw new Error(i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["relation"]));
-            }
-            if (field.multiple !== undefined && typeof field.multiple !== 'boolean') {
-                throw new Error(i18n.t('api.validate.fieldBoolean', "L'attribut '{{0}}' doit être un booléen.", ["multiple"]));
-            }
-            if( field.relationFilter && typeof field.relationFilter !== 'object'){
-                throw new Error(i18n.t('api.validate.fieldObject', "L'attribut '{{0}}' doit être un objet.", ["relationFilter"]));
-            }
-            break;
-        case 'enum':
-        {
-            allowedFieldTest(['items']);
-            if (!field.items || !Array.isArray(field.items) || field.items.length === 0) {
-                throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["items"]));
-            }
-            let id = field.items.findIndex(item => typeof item !== 'string');
-            if( id !== -1 ){
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["items["+id+"]"]));
-            }
-            break;
+    case 'relation':
+        allowedFieldTest(['relation', 'multiple', 'relationFilter']);
+        if (!field.relation || typeof field.relation !== 'string' || field.relation.length > maxModelNameLength) {
+            throw new Error(i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["relation"]));
         }
-        case 'number':
-            allowedFieldTest(['min', 'max', 'step', 'unit']);
-            if (field.min !== undefined && typeof field.min !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["min"]));
-            }
-            if (field.max !== undefined && typeof field.max !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["max"]));
-            }
-            if (field.max < field.min ){
-                throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
-            }
-            if (field.step !== undefined && typeof field.step !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["step"]));
-            }
-            if (field.unit !== undefined && typeof field.unit !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["unit"]));
-            }
-            break;
-        case 'string':
-        case 'string_t':
-        case 'richtext':
-        case 'richtext_t':
-        case 'url':
-        case 'email':
-        case 'phone':
-        case 'password':
-        case 'code':
-            if (field.type === 'code')
-                allowedFieldTest(['maxlength', 'language', 'conditionBuilder', 'targetModel']);
-            else if( ['string_t', 'string'].includes(field.type))
-                allowedFieldTest(['maxlength', 'multiline']);
-            else
-                allowedFieldTest(['maxlength']);
-            if (field.maxlength !== undefined && typeof field.maxlength !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxlength"]));
-            }
-            break;
-        case 'model':
-        case 'modelField':
-            allowedFieldTest([]);
-            break;
-        case 'object':
-            allowedFieldTest([]);
-            break;
-        case 'boolean':
-            allowedFieldTest([]);
-            break;
-        case 'date':
-        case 'datetime':
-        {
-            allowedFieldTest(['min','max']);
-            if (field.min !== undefined && typeof field.min !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["min"]));
-            }
-            if (field.max !== undefined && typeof field.max !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["max"]));
-            }
-            const dtMin = field.min ? new Date(field.min) : null;
-            const dtMax = field.max ? new Date(field.max) : null;
-            if( dtMin && dtMax && dtMin > dtMax){
-                throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
-            }
-            break;
+        if (field.multiple !== undefined && typeof field.multiple !== 'boolean') {
+            throw new Error(i18n.t('api.validate.fieldBoolean', "L'attribut '{{0}}' doit être un booléen.", ["multiple"]));
         }
-        case 'image':
-        case 'file':
-        {
-            allowedFieldTest(['mimeTypes', 'maxSize']);
-            if (field.mimeTypes !== undefined && !Array.isArray(field.mimeTypes)) {
-                throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["mimeTypes"]));
-            }
-            let id;
-            if (field.mimeTypes !== undefined && (id = field.mimeTypes.findIndex(item => typeof item !== 'string')) !== -1) {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["mimeTypes["+id+"]"]));
-            }
-            if (field.maxSize !== undefined && typeof field.maxSize !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxSize"]));
-            }
-            if (field.maxSize !== undefined && field.maxSize > maxFileSize) {
-                throw new Error(i18n.t('api.validate.fileSize', `L'attribut 'maxSize' ne doit pas dépasser {{0}} octets.`, [maxFileSize]));
-            }
-            break;
+        if( field.relationFilter && typeof field.relationFilter !== 'object'){
+            throw new Error(i18n.t('api.validate.fieldObject', "L'attribut '{{0}}' doit être un objet.", ["relationFilter"]));
         }
-        case 'color':
-            allowedFieldTest([]);
-            return true;
-        case 'cronSchedule':
-            allowedFieldTest(['cronMask']);
-            return true;
-        case 'calculated':
-            allowedFieldTest(['calculation']);
-            return true;
-        case 'array':
-            if (!field.itemsType || typeof field.itemsType !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["itemsType"]));
-            }
-            if (!dataTypes[field.itemsType]) {
-                throw new Error(i18n.t('api.validate.invalidField', `Champ(s) non valide(s): '{{0}}'`, ["itemsType"]));
-            }
-            if (field.minItems !== undefined && typeof field.minItems !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["minItems"]));
-            }
-            if (field.maxItems !== undefined && typeof field.maxItems !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxItems"]));
-            }
-            break;
-        default:
-            throw new Error(i18n.t('api.validate.unknowType',`Le type '{{0}}' n'est pas reconnu.`, [field.type]));
+        break;
+    case 'enum':
+    {
+        allowedFieldTest(['items']);
+        if (!field.items || !Array.isArray(field.items) || field.items.length === 0) {
+            throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["items"]));
+        }
+        let id = field.items.findIndex(item => typeof item !== 'string');
+        if( id !== -1 ){
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["items["+id+"]"]));
+        }
+        break;
+    }
+    case 'number':
+        allowedFieldTest(['min', 'max', 'step', 'unit']);
+        if (field.min !== undefined && typeof field.min !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["min"]));
+        }
+        if (field.max !== undefined && typeof field.max !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["max"]));
+        }
+        if (field.max < field.min ){
+            throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
+        }
+        if (field.step !== undefined && typeof field.step !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["step"]));
+        }
+        if (field.unit !== undefined && typeof field.unit !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["unit"]));
+        }
+        break;
+    case 'string':
+    case 'string_t':
+    case 'richtext':
+    case 'richtext_t':
+    case 'url':
+    case 'email':
+    case 'phone':
+    case 'password':
+    case 'code':
+        if (field.type === 'code')
+            allowedFieldTest(['maxlength', 'language', 'conditionBuilder', 'targetModel']);
+        else if( ['string_t', 'string'].includes(field.type))
+            allowedFieldTest(['maxlength', 'multiline']);
+        else
+            allowedFieldTest(['maxlength']);
+        if (field.maxlength !== undefined && typeof field.maxlength !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxlength"]));
+        }
+        break;
+    case 'model':
+    case 'modelField':
+        allowedFieldTest([]);
+        break;
+    case 'object':
+        allowedFieldTest([]);
+        break;
+    case 'boolean':
+        allowedFieldTest([]);
+        break;
+    case 'date':
+    case 'datetime':
+    {
+        allowedFieldTest(['min','max']);
+        if (field.min !== undefined && typeof field.min !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["min"]));
+        }
+        if (field.max !== undefined && typeof field.max !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["max"]));
+        }
+        const dtMin = field.min ? new Date(field.min) : null;
+        const dtMax = field.max ? new Date(field.max) : null;
+        if( dtMin && dtMax && dtMin > dtMax){
+            throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
+        }
+        break;
+    }
+    case 'image':
+    case 'file':
+    {
+        allowedFieldTest(['mimeTypes', 'maxSize']);
+        if (field.mimeTypes !== undefined && !Array.isArray(field.mimeTypes)) {
+            throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["mimeTypes"]));
+        }
+        let id;
+        if (field.mimeTypes !== undefined && (id = field.mimeTypes.findIndex(item => typeof item !== 'string')) !== -1) {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["mimeTypes["+id+"]"]));
+        }
+        if (field.maxSize !== undefined && typeof field.maxSize !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxSize"]));
+        }
+        if (field.maxSize !== undefined && field.maxSize > maxFileSize) {
+            throw new Error(i18n.t('api.validate.fileSize', `L'attribut 'maxSize' ne doit pas dépasser {{0}} octets.`, [maxFileSize]));
+        }
+        break;
+    }
+    case 'color':
+        allowedFieldTest([]);
+        return true;
+    case 'cronSchedule':
+        allowedFieldTest(['cronMask']);
+        return true;
+    case 'calculated':
+        allowedFieldTest(['calculation']);
+        return true;
+    case 'array':
+        if (!field.itemsType || typeof field.itemsType !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["itemsType"]));
+        }
+        if (!dataTypes[field.itemsType]) {
+            throw new Error(i18n.t('api.validate.invalidField', `Champ(s) non valide(s): '{{0}}'`, ["itemsType"]));
+        }
+        if (field.minItems !== undefined && typeof field.minItems !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["minItems"]));
+        }
+        if (field.maxItems !== undefined && typeof field.maxItems !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxItems"]));
+        }
+        break;
+    default:
+        throw new Error(i18n.t('api.validate.unknowType',`Le type '{{0}}' n'est pas reconnu.`, [field.type]));
     }
 
     // Check for optional fields
@@ -844,80 +844,80 @@ function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                 }
 
                 switch (field.type) {
-                    case 'number':
-                        if (typeof value !== 'number') { // Convertir si ce n'est pas déjà un nombre
-                            const num = parseFloat(value);
-                            if (!isNaN(num)) {
-                                convertedRecord[field.name] = num;
-                            } else {
-                                logger.warn(`Import: Impossible de parser le nombre pour le champ ${field.name}, valeur: ${value}. Utilisation de la valeur par défaut/null.`);
-                                convertedRecord[field.name] = getDefaultForType(field);
-                            }
-                        }
-                        break;
-                    case 'boolean':
-                        if (typeof value !== 'boolean') {
-                            convertedRecord[field.name] = ['true', '1', 'yes', 'on'].includes(String(value).toLowerCase());
-                        }
-                        break;
-                    case 'date':
-                    case 'datetime':
-                        if (String(value).toLowerCase() === 'now') {
-                            convertedRecord[field.name] = 'now';
+                case 'number':
+                    if (typeof value !== 'number') { // Convertir si ce n'est pas déjà un nombre
+                        const num = parseFloat(value);
+                        if (!isNaN(num)) {
+                            convertedRecord[field.name] = num;
                         } else {
-                            const parsedDate = new Date(value);
-                            if (!isNaN(parsedDate.getTime())) {
-                                convertedRecord[field.name] = field.type === 'date' ? parsedDate.toISOString().split("T")[0] : parsedDate.toISOString();
-                            } else if (value) { // Ne pas logger si la valeur était initialement vide/null
-                                logger.warn(`Import: Impossible de parser la date pour le champ ${field.name}, valeur: ${value}. La validation ulture s'en chargera.`);
-                            }
-                        }
-                        break;
-                    case 'array':
-                        if (sourceType === 'csv' && typeof value === 'string') {
-                            const arrayValues = value.split(/[,;]/).map(item => item.trim()).filter(item => item !== '');
-                            if (field.itemsType === 'number') {
-                                convertedRecord[field.name] = arrayValues.map(v => parseFloat(v)).filter(v => !isNaN(v));
-                            } else {
-                                convertedRecord[field.name] = arrayValues;
-                            }
-                        } else if (sourceType === 'json' && typeof value === 'string') {
-                            try {
-                                const parsedArray = JSON.parse(value);
-                                if (Array.isArray(parsedArray)) {
-                                    convertedRecord[field.name] = parsedArray;
-                                    // TODO: Potentiellement convertir les éléments de parsedArray ici si nécessaire
-                                } else {
-                                    logger.warn(`Import: La chaîne JSON pour le champ tableau ${field.name} n'a pas été parsée en tableau. Valeur: ${value}.`);
-                                }
-                            } catch (e) {
-                                logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ tableau ${field.name}. Valeur: ${value}.`);
-                            }
-                        }
-                            // Si c'est déjà un tableau (cas JSON typique), on suppose que les types des éléments sont corrects
-                        // ou seront validés par pushDataUnsecure.
-                        else if (!Array.isArray(convertedRecord[field.name])) {
+                            logger.warn(`Import: Impossible de parser le nombre pour le champ ${field.name}, valeur: ${value}. Utilisation de la valeur par défaut/null.`);
                             convertedRecord[field.name] = getDefaultForType(field);
                         }
-                        break;
-                    case 'object':
-                        if (typeof value === 'string') {
-                            try {
-                                convertedRecord[field.name] = JSON.parse(value);
-                            } catch (e) {
-                                logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ objet ${field.name}. Valeur: ${value}.`);
-                            }
+                    }
+                    break;
+                case 'boolean':
+                    if (typeof value !== 'boolean') {
+                        convertedRecord[field.name] = ['true', '1', 'yes', 'on'].includes(String(value).toLowerCase());
+                    }
+                    break;
+                case 'date':
+                case 'datetime':
+                    if (String(value).toLowerCase() === 'now') {
+                        convertedRecord[field.name] = 'now';
+                    } else {
+                        const parsedDate = new Date(value);
+                        if (!isNaN(parsedDate.getTime())) {
+                            convertedRecord[field.name] = field.type === 'date' ? parsedDate.toISOString().split("T")[0] : parsedDate.toISOString();
+                        } else if (value) { // Ne pas logger si la valeur était initialement vide/null
+                            logger.warn(`Import: Impossible de parser la date pour le champ ${field.name}, valeur: ${value}. La validation ulture s'en chargera.`);
                         }
-                        break;
-                    case 'code':
-                        if (field.language === 'json' && typeof value === 'string') {
-                            try {
-                                convertedRecord[field.name] = JSON.parse(value);
-                            } catch (e) {
-                                logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ code (json) ${field.name}. Valeur: ${value}.`);
-                            }
+                    }
+                    break;
+                case 'array':
+                    if (sourceType === 'csv' && typeof value === 'string') {
+                        const arrayValues = value.split(/[,;]/).map(item => item.trim()).filter(item => item !== '');
+                        if (field.itemsType === 'number') {
+                            convertedRecord[field.name] = arrayValues.map(v => parseFloat(v)).filter(v => !isNaN(v));
+                        } else {
+                            convertedRecord[field.name] = arrayValues;
                         }
-                        break;
+                    } else if (sourceType === 'json' && typeof value === 'string') {
+                        try {
+                            const parsedArray = JSON.parse(value);
+                            if (Array.isArray(parsedArray)) {
+                                convertedRecord[field.name] = parsedArray;
+                                // TODO: Potentiellement convertir les éléments de parsedArray ici si nécessaire
+                            } else {
+                                logger.warn(`Import: La chaîne JSON pour le champ tableau ${field.name} n'a pas été parsée en tableau. Valeur: ${value}.`);
+                            }
+                        } catch (e) {
+                            logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ tableau ${field.name}. Valeur: ${value}.`);
+                        }
+                    }
+                    // Si c'est déjà un tableau (cas JSON typique), on suppose que les types des éléments sont corrects
+                    // ou seront validés par pushDataUnsecure.
+                    else if (!Array.isArray(convertedRecord[field.name])) {
+                        convertedRecord[field.name] = getDefaultForType(field);
+                    }
+                    break;
+                case 'object':
+                    if (typeof value === 'string') {
+                        try {
+                            convertedRecord[field.name] = JSON.parse(value);
+                        } catch (e) {
+                            logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ objet ${field.name}. Valeur: ${value}.`);
+                        }
+                    }
+                    break;
+                case 'code':
+                    if (field.language === 'json' && typeof value === 'string') {
+                        try {
+                            convertedRecord[field.name] = JSON.parse(value);
+                        } catch (e) {
+                            logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ code (json) ${field.name}. Valeur: ${value}.`);
+                        }
+                    }
+                    break;
                 }
             }
         }
@@ -1124,11 +1124,11 @@ export const editModel = async (user, id, data) => {
         validateModelStructure(dataModel);
 
         const el = await modelsCollection.findOne({ $and: [
-                {_user: {$exists: true}},
-                { _id: new ObjectId(id) },
-                {$and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]
-                }
-            ]});
+            {_user: {$exists: true}},
+            { _id: new ObjectId(id) },
+            {$and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]
+            }
+        ]});
 
         if( !el ){
             return ({success: false, statusCode: 404, error: i18n.t("api.model.notFound", { model: dataModel.name })});
@@ -1138,8 +1138,8 @@ export const editModel = async (user, id, data) => {
         if (typeof (data.name)==='string'&&el.name !== data.name && data.name ){
             await collection.updateMany({ _model: el.name }, { $set: { _model: data.name }});
             await modelsCollection.updateMany({ 'fields' : {
-                    '$elemMatch' : { relation: el.name }
-                }}, {
+                '$elemMatch' : { relation: el.name }
+            }}, {
                 $set : {
                     'fields.$.relation' : data.name
                 }
@@ -1148,7 +1148,7 @@ export const editModel = async (user, id, data) => {
 
         const coll = await getCollectionForUser(user);
         // Update indexes
-// Update indexes
+        // Update indexes
         if (await engine.userProvider.hasFeature(user, 'indexes')) {
             let indexes = [];
             try {
@@ -1222,14 +1222,14 @@ export async function onInit(defaultEngine) {
 
     engine.use(middleware({ whitelist: [
         "$$NOW", "$in", "$eq", "$gt", "$gte", "$in", "$lt", "$lte", "$ne", "$nin", "$type", "$size",
-            "$and", "$not", "$nor", "$or", "$regexMatch", "$find", "$elemMatch", "$filter", "$toString", "$toObjectId",
-            "$concat",
-            '$add', '$subtract', '$multiply', '$divide', '$mod', '$pow', "$sqrt",
-            "$rand",
-            "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
-            "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
-            "$dateSubtract", "$dateAdd", "$dateToString",
-            '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond',
+        "$and", "$not", "$nor", "$or", "$regexMatch", "$find", "$elemMatch", "$filter", "$toString", "$toObjectId",
+        "$concat",
+        '$add', '$subtract', '$multiply', '$divide', '$mod', '$pow', "$sqrt",
+        "$rand",
+        "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
+        "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
+        "$dateSubtract", "$dateAdd", "$dateToString",
+        '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
     ]}));
 
     let userMiddlewares = await engine.userProvider.getMiddlewares();
@@ -1322,8 +1322,8 @@ export async function onInit(defaultEngine) {
     await scheduleWorkflowTriggers();
 
     await scheduleAlerts();
-// Dans onInit(defaultEngine) { ... }
-// ...
+    // Dans onInit(defaultEngine) { ... }
+    // ...
 
     const saveUser = async (user, data) => {
 
@@ -1670,7 +1670,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-// --- Export Endpoint ---
+    // --- Export Endpoint ---
     engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
         try {
             const results = await exportData({...req.fields, depth:req.query.depth, lang: req.query.lang}, req.me);
@@ -1985,7 +1985,7 @@ export async function onInit(defaultEngine) {
     });
 
 
-// Endpoint pour calculer la valeur d'UN KPI spécifique par son ID
+    // Endpoint pour calculer la valeur d'UN KPI spécifique par son ID
     engine.get('/api/kpis/calculate/:id', [throttle, middlewareAuthenticator, userInitiator], async (req, res) => {
         const { id } = req.params;
 
@@ -2126,9 +2126,9 @@ export async function onInit(defaultEngine) {
     // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
 
     // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
-// C:/Dev/hackersonline-engine/server/src/modules/data.js
+    // C:/Dev/hackersonline-engine/server/src/modules/data.js
 
-// ... (autres imports et code)
+    // ... (autres imports et code)
 
     engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         // --- Récupérer groupByLabelField ---
@@ -2200,7 +2200,7 @@ export async function onInit(defaultEngine) {
                 sum: '$sum',
                 avg: '$avg',
                 min: '$min',
-                max: '$max',
+                max: '$max'
                 // median needs special handling later
                 // *** AJOUT: 'value' sera géré par $first (ou $last) ***
             };
@@ -2508,7 +2508,7 @@ export async function onInit(defaultEngine) {
             // Met à jour le champ _pack pour les documents sélectionnés appartenant à l'utilisateur
             const copyData = await collection.find({
                 _id: { $in: objectIds },
-                _user: user.username,
+                _user: user.username
             }).toArray();
 
 
@@ -2742,7 +2742,7 @@ export async function checkServerCapacity(incomingDataSize = 0) {
             return {
                 isSufficient: false,
                 free,
-                total: size,
+                total: size
             };
         }
         return { isSufficient: true, free, total: size };
@@ -2991,7 +2991,7 @@ async function processDocuments(datas, model, collection, me) {
             }
         } catch (error) {
             // Modification clé ici : on ne catch plus les erreurs de validation
-           throw error;s
+            throw error;s
         }
     }
 
@@ -3700,9 +3700,9 @@ export const deleteData = async (modelName, ids = [], filter, user ={}, triggerW
                                     $and: [
                                         {_user: {$exists: true}},
                                         { $or: [
-                                                {_user: {$eq:user._user}},
-                                                {_user: {$eq:user.username}}
-                                            ]}
+                                            {_user: {$eq:user._user}},
+                                            {_user: {$eq:user.username}}
+                                        ]}
                                     ]
                                 }
                             ]
@@ -3930,7 +3930,7 @@ export const searchData = async ({user, query}) => {
                         from: await getUserCollectionName(user),
                         as: "items" + i,
                         let: {
-                            dtid: {'$toString': '$_id'}, convertedId: '$' + fi.name,
+                            dtid: {'$toString': '$_id'}, convertedId: '$' + fi.name
                         },
                         pipeline: [
                             {
@@ -4059,7 +4059,7 @@ export const searchData = async ({user, query}) => {
                                             $in: ['$guid', { $ifNull: ['$$localGuidsArray', []] }] // Handle null or missing array
                                         }
                                     }
-                                },
+                                }
                                 // Optional: Project only necessary fields from the "files" collection if needed
                                 // {
                                 //     $project: {
@@ -4170,7 +4170,7 @@ export const searchData = async ({user, query}) => {
                                                 ]
                                             }
                                         }
-                                    },
+                                    }
                                     // Optionnel: Projeter uniquement les champs nécessaires
                                 ],
                                 as: lookupDef.as
@@ -4780,14 +4780,14 @@ function isValidFieldReference(fieldName, modelElement) {
 function isValidAggregationOperator(operator) {
     const arithmeticOperators = [
         '$add', '$subtract', '$multiply', '$divide', '$mod', '$pow',
-        '$abs', '$ceil', '$floor', '$round', '$trunc', '$exp', '$log', '$log10',
+        '$abs', '$ceil', '$floor', '$round', '$trunc', '$exp', '$log', '$log10'
     ];
     const comparisonOperators = [
-        '$eq', '$gt', '$gte', '$lt', '$lte', '$ne',
+        '$eq', '$gt', '$gte', '$lt', '$lte', '$ne'
         // ... (others like $cmp, $strcasecmp, etc.)
     ];
     const stringOperators = [
-        '$concat', '$strLenCP', '$substrCP', '$toLower', '$toUpper',
+        '$concat', '$strLenCP', '$substrCP', '$toLower', '$toUpper'
         // ... (others)
     ];
     const conditionalOperators = ['$cond', '$ifNull'];
@@ -4876,47 +4876,48 @@ const handleFields = async (model, data, user, isRecursiveCall = false) => {
 
         try {
             const coll = await getCollectionForUser(user);
-                // 1. Récupérer l'ID du document de langue de l'utilisateur pour la langue actuelle.
-                const userLangDoc = await coll.findOne({
-                    _model: 'lang',
-                    code: lang,
-                    _user: user.username
-                });
+            // 1. Récupérer l'ID du document de langue de l'utilisateur pour la langue actuelle.
+            const userLangDoc = await coll.findOne({
+                _model: 'lang',
+                code: lang,
+                _user: user.username
+            });
 
-                if (userLangDoc) {
-                    // 2. Récupérer les traductions de l'utilisateur pour cette langue.
-                    const userTranslationsArray = await coll.find({
-                        _model: 'translation',
-                        _user: user.username,
-                        lang: userLangDoc._id.toString()
-                    }).toArray();
+            if (userLangDoc) {
+                // 2. Récupérer les traductions de l'utilisateur pour cette langue.
+                const userTranslationsArray = await coll.find({
+                    _model: 'translation',
+                    _user: user.username,
+                    lang: userLangDoc._id.toString()
+                }).toArray();
 
-                    if (userTranslationsArray.length > 0) {
-                        // 3. Préparer le "bundle" de ressources pour i18n.
-                        const newResourceBundle = userTranslationsArray.reduce((acc, tr) => {
-                            if (tr.key && tr.value) {
-                                acc[tr.key] = tr.value;
-                            }
-                            return acc;
-                        }, {});
-
-                        // 4. Charger temporairement les traductions de l'utilisateur.
-                        if (Object.keys(newResourceBundle).length > 0) {
-                            // Sauvegarder les traductions originales si elles existent
-                            if (i18n.store.data[lang] && i18n.store.data[lang].translation) {
-                                originalTranslations = {...i18n.store.data[lang].translation};
-                            }
-                            // Ajoute/remplace les clés de traduction pour la langue et le namespace courants.
-                            i18n.addResourceBundle(lang, 'translation', newResourceBundle, true, true);
-                            userTranslationsLoaded = true;
-                            logger.debug(`Chargement de ${userTranslationsArray.length} traductions personnalisées pour l'utilisateur '${user.username}' en '${lang}'.`);
+                if (userTranslationsArray.length > 0) {
+                    // 3. Préparer le "bundle" de ressources pour i18n.
+                    const newResourceBundle = userTranslationsArray.reduce((acc, tr) => {
+                        if (tr.key && tr.value) {
+                            acc[tr.key] = tr.value;
                         }
+                        return acc;
+                    }, {});
+
+                        
+                    // 4. Charger temporairement les traductions de l'utilisateur.
+                    if (Object.keys(newResourceBundle).length > 0) {
+                        // Sauvegarder les traductions originales si elles existent
+                        if (i18n.store.data[lang] && i18n.store.data[lang].translation) {
+                            originalTranslations = {...i18n.store.data[lang].translation};
+                        }
+                        // Ajoute/remplace les clés de traduction pour la langue et le namespace courants.
+                        i18n.addResourceBundle(lang, 'translation', newResourceBundle, true, true);
+                        userTranslationsLoaded = true;
+                        logger.debug(`Chargement de ${userTranslationsArray.length} traductions personnalisées pour l'utilisateur '${user.username}' en '${lang}'.`);
                     }
                 }
+            }
 
-                // 5. Traiter les données avec les traductions (personnalisées ou par défaut).
-                const processedData = await _processItems(dataArray);
-                return wasArray ? processedData : processedData[0];
+            // 5. Traiter les données avec les traductions (personnalisées ou par défaut).
+            const processedData = await _processItems(dataArray);
+            return wasArray ? processedData : processedData[0];
         } finally {
             // 6. Nettoyage : décharger les traductions de l'utilisateur et restaurer les originales.
             // Ce bloc s'exécute toujours, même en cas d'erreur, garantissant l'isolation des requêtes.
@@ -5206,16 +5207,16 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
     let maxFilesToKeep;
     // ... (ta logique existante pour maxFilesToKeep basée sur backupFrequency)
     switch (backupFrequency) {
-        case 'daily': // Premium
-            maxFilesToKeep = 7; // Garder 7 jours
-            break;
-        case 'weekly': // Standard
-            maxFilesToKeep = 4; // Garder 4 semaines
-            break;
-        case 'monthly': // Free
-        default:
-            maxFilesToKeep = 2; // Garder 2 mois
-            break;
+    case 'daily': // Premium
+        maxFilesToKeep = 7; // Garder 7 jours
+        break;
+    case 'weekly': // Standard
+        maxFilesToKeep = 4; // Garder 4 semaines
+        break;
+    case 'monthly': // Free
+    default:
+        maxFilesToKeep = 2; // Garder 2 mois
+        break;
     }
     logger.info(`Rotation pour ${userId}: fréquence ${backupFrequency}, garde ${maxFilesToKeep} sauvegardes.`);
 

@@ -14,7 +14,7 @@ import {
 import {
     modelsCollection as getAppModelsCollection,
     getCollection,
-    getCollectionForUser as getAppUserCollection,
+    getCollectionForUser as getAppUserCollection
 } from 'data-primals-engine/modules/mongodb';
 import { Engine } from "data-primals-engine/engine";
 import process from "node:process";
@@ -52,7 +52,7 @@ async function setupTestContext() {
             {name: 'relatedName', type: 'string', required: true, unique: true},
             {name: 'relatedValue', type: 'number'}
         ],
-        maxRequestData: 10,
+        maxRequestData: 10
     };
 
     const comprehensiveTestModelDefinition = {
@@ -104,9 +104,9 @@ async function setupTestContext() {
             {name: 'objectField', type: 'object'},
             // Model & ModelField (validation of string format, not existence)
             {name: 'modelNameField', type: 'model'},
-            {name: 'modelFieldNameField', type: 'modelField'}, // Note: modelField type expects an object {model: 'modelName', field: 'fieldName'}
+            {name: 'modelFieldNameField', type: 'modelField'} // Note: modelField type expects an object {model: 'modelName', field: 'fieldName'}
         ],
-        maxRequestData: 50,
+        maxRequestData: 50
     };
 
     if( await testModelsColInstance.find({ $or: [{name: comprehensiveTestModelDefinition.name}, {name: relatedModelDefinition.name}]})) {
@@ -122,7 +122,7 @@ async function setupTestContext() {
     return {
         currentTestUser,
         comprehensiveTestModelDefinition,
-        relatedModelDefinition,
+        relatedModelDefinition
     };
 }
 
@@ -187,7 +187,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 codeJsField: 'console.log("hello");',
                 objectField: { a: 1, b: "test" },
                 modelNameField: 'someModelName',
-                modelFieldNameField: { model: 'someModelName', field: 'someFieldName' },
+                modelFieldNameField: { model: 'someModelName', field: 'someFieldName' }
             };
 
             const result = await insertData(comprehensiveTestModelDefinition.name, validData, {}, currentTestUser, false);
@@ -367,7 +367,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 codeJsField: 'console.log("find");',
                 objectField: { find: "test" },
                 modelNameField: 'findModel',
-                modelFieldNameField: { model: 'findModel', field: 'findField' },
+                modelFieldNameField: { model: 'findModel', field: 'findField' }
             };
 
             // 3. Insérer le document principal
@@ -413,7 +413,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 stringUnique: 'UniqueForEdit',
                 enumField: 'alpha',
                 passwordField: 'initialPass',
-                relationSingle: relatedDocId,
+                relationSingle: relatedDocId
             };
             const insertResult = await insertData(comprehensiveTestModelDefinition.name, initialData, {}, currentTestUser, false);
             docToEditId = insertResult.insertedIds[0];
@@ -495,9 +495,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             await insertData(simpleModel.name, { name: 'Autre Item', value: 403 }, {}, currentTestUser, false);
 
             const filter = { $regexMatch: {
-                    input: '$name',
-                    regex: "^Item Filtrable"
-                } };
+                input: '$name',
+                regex: "^Item Filtrable"
+            } };
             const deleteResult = await deleteData(simpleModel.name, [], filter, currentTestUser, false);
 
             expect(deleteResult.success).toBe(true);
@@ -533,7 +533,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 passwordField: 'searchPass1',
                 relationSingle: relatedDocId_A1,
                 relationMultiple: [relatedDocId_A1, relatedDocId_A2],
-                number: 10,
+                number: 10
             };
             const insertResult1 = await insertData(comprehensiveTestModelDefinition.name, data1, {}, currentTestUser, false);
             docId1 = insertResult1.insertedIds[0].toString();
@@ -545,7 +545,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 passwordField: 'searchPass2',
                 relationSingle: relatedDocId_B1,
                 relationMultiple: [relatedDocId_B1],
-                number: 20,
+                number: 20
             };
             const insertResult2 = await insertData(comprehensiveTestModelDefinition.name, data2, {}, currentTestUser, false);
             docId2 = insertResult2.insertedIds[0].toString();
@@ -566,7 +566,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                     },
                     autoExpand: true,
                     depth: 8
-                },
+                }
             };
             const { data, count } = await searchData(searchParams);
             expect(count).toBe(1);

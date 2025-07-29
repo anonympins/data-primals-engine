@@ -135,21 +135,20 @@ export const getAllPacks = async () => {
                         }
                     ],
                     "dashboard":  [{
-                            name: "Business Overview",
-                            description: "Displays the total revenue, total orders, and average order value of the store.",
-                            layout: [{
-                                "name": "Store Overview",
-                                "kpis": ["Total Orders", "Average Order Value", "Total Revenue"],
-                                "chartConfigs": [],
-                                "flexViews": []
-                            }],
-                            settings: {
-                                "defaultTimeRange": "last_7_days",
-                                "refreshInterval": null
-                            }
+                        name: "Business Overview",
+                        description: "Displays the total revenue, total orders, and average order value of the store.",
+                        layout: [{
+                            "name": "Store Overview",
+                            "kpis": ["Total Orders", "Average Order Value", "Total Revenue"],
+                            "chartConfigs": [],
+                            "flexViews": []
+                        }],
+                        settings: {
+                            "defaultTimeRange": "last_7_days",
+                            "refreshInterval": null
                         }
-                    ],
-                "order": [
+                    }],
+                    "order": [
                         {
                             "orderId": "ORDER-0001",
                             "orderDate": "2023-10-27T10:00:00Z",
@@ -275,13 +274,13 @@ export const getAllPacks = async () => {
                             "name": "Validate Order",
                             "workflow": { "$link": { "name": "Order Fulfillment", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Update order status to 'processing'", "_model": "workflowAction" } },
-                            "onSuccessStep": { "$link": { "name": "Prepare Shipment", "_model": "workflowStep" } },
+                            "onSuccessStep": { "$link": { "name": "Prepare Shipment", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Prepare Shipment",
                             "workflow": { "$link": { "name": "Order Fulfillment", "_model": "workflow" }},
                             "actions": { "$link": { "name": "Create Shipment Record", "_model": "workflowAction" } },
-                            "onSuccessStep": { "$link": { "name": "Ship Order", "_model": "workflowStep" } },
+                            "onSuccessStep": { "$link": { "name": "Ship Order", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Send Shipment Email Step",
@@ -296,7 +295,7 @@ export const getAllPacks = async () => {
                                 "$link": {
                                     "$or": [
                                         { "$eq": ["$name", "Update order status to 'shipped'"]},
-                                        { "$eq": ["$name", "Send Shipping Confirmation"]},
+                                        { "$eq": ["$name", "Send Shipping Confirmation"]}
                                     ],
                                     "_model": "workflowAction"
                                 }
@@ -374,17 +373,17 @@ export const getAllPacks = async () => {
                             type: 'category',
                             parent: {
                                 "$find": {
-                                    "name": "Website",
+                                    "name": "Website"
                                 }
                             }
                         })), ...tags.map(t =>({
                         name: t,
-                        type: 'keyword',
+                        type: 'keyword'
                     }))],
                     "permission": getPerms(['website', 'taxonomy', 'lang', 'user', 'role', 'permission']).map(m => {
                         return {
                             name: m,
-                            description: '',
+                            description: ''
                         }
                     }),
                     "role": roles.map(m => {
@@ -399,8 +398,8 @@ export const getAllPacks = async () => {
                     }),
                     "channel": [
                         { "name": "Visitor alerts", "type": "web", "description": "Visitor main channel informations" },
-                        { "name": "Newsletter", "type": "email", "description": "Newsletter channel" },
-                    ],
+                        { "name": "Newsletter", "type": "email", "description": "Newsletter channel" }
+                    ]
                 },
                 "fr": {
                     "lang": [{
@@ -408,8 +407,8 @@ export const getAllPacks = async () => {
                         "code": "fr"
                     }],
                     "translation": [
-                        { "lang": { "$find": { "$eq": ["$code", "fr"]}}, "key": "Visitor alerts", "value": "Alertes visiteurs" },
-                    ],
+                        { "lang": { "$find": { "$eq": ["$code", "fr"]}}, "key": "Visitor alerts", "value": "Alertes visiteurs" }
+                    ]
                 }
             }
         },
@@ -548,7 +547,7 @@ export const getAllPacks = async () => {
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_description_deal", "value": "Représente une opportunité commerciale avec un contact ou une entreprise." },
 
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_interaction", "value": "Interactions" },
-                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_description_interaction", "value": "Représente une interaction (appel, email, rdv) avec un contact ou une entreprise." },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_description_interaction", "value": "Représente une interaction (appel, email, rdv) avec un contact ou une entreprise." }
                     ]
                 },
                 "en": {
@@ -595,7 +594,7 @@ export const getAllPacks = async () => {
                         { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_description_deal", "value": "Represents a business opportunity with a contact or company." },
 
                         { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_interaction", "value": "Interactions" },
-                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_description_interaction", "value": "Represents an interaction (call, email, meeting) with a contact or company." },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_description_interaction", "value": "Represents an interaction (call, email, meeting) with a contact or company." }
                     ]
                 },
                 "it": {
@@ -1075,14 +1074,14 @@ export const getAllPacks = async () => {
                             "type": "GenerateAIContent",
                             "aiProvider": "OpenAI",
                             "aiModel": "gpt-4o-mini",
-                            "prompt": "Write a short, SEO-optimized product description (approximately 30-40 words) for the following product: '{triggerData.name}'. The description should be engaging and highlight the product. Return only the description text, without an introduction or conclusion.",
+                            "prompt": "Write a short, SEO-optimized product description (approximately 30-40 words) for the following product: '{triggerData.name}'. The description should be engaging and highlight the product. Return only the description text, without an introduction or conclusion."
                         },
                         {
                             "name": "Generate SEO Description from Product (Google API)",
                             "type": "GenerateAIContent",
                             "aiProvider": "Google",
                             "aiModel": "gemini-2.0-flash",
-                            "prompt": "Write a short, SEO-optimized product description (approximately 30-40 words) for the following product: '{triggerData.name}'. The description should be engaging and highlight the product. Return only the description text, without an introduction or conclusion.",
+                            "prompt": "Write a short, SEO-optimized product description (approximately 30-40 words) for the following product: '{triggerData.name}'. The description should be engaging and highlight the product. Return only the description text, without an introduction or conclusion."
                         },
                         {
                             "name": "Update Product with AI Description",
@@ -1100,7 +1099,7 @@ export const getAllPacks = async () => {
                                 "$find": {
                                     $or: [
                                         {"$eq": ["$name", "Generate SEO Description from Product (OpenAI API)"]},
-                                        {"$eq": ["$name", "Update Product with AI Description"]},
+                                        {"$eq": ["$name", "Update Product with AI Description"]}
                                     ]
                                 }
                             },
@@ -2300,7 +2299,7 @@ export const getAllPacks = async () => {
                         { name:"Nouveau manat turkmène",code:"TMT", symbol: "m" },
                         { name:"Som ouzbek",code:"UZS", symbol: "som" },
                         { name:"Dong vietnamien",code:"VND", symbol: "₫" }
-                    ],
+                    ]
                 },
                 "fr":{
                     "lang": [{
@@ -3807,7 +3806,7 @@ export const getAllPacks = async () => {
                         { "lang": { "$link": { "code": "sv", "_model": "lang" } }, "key": "Som ouzbek", "value": "Uzbekisk sum" },
                         { "lang": { "$link": { "code": "sv", "_model": "lang" } }, "key": "Dong vietnamien", "value": "Vietnamesisk dong" }
                     ]
-                },
+                }
 
             }
         }

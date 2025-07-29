@@ -45,7 +45,7 @@ export const Engine = {
         app.use(formidableMiddleware({
             encoding: 'utf-8',
             uploadDir: process.cwd()+'/uploads/tmp',
-            multiples: true, // req.files to be arrays of files
+            multiples: true // req.files to be arrays of files
         }));
         app.use(cookieParser(process.env.COOKIES_SECRET || cookiesSecret));
         app.use(requestIp.mw())
@@ -103,7 +103,7 @@ export const Engine = {
         });
         let server;
         engine.start = async (port, cb) =>{
-    // Use connect method to connect to the server
+            // Use connect method to connect to the server
 
             // Start http server
             server = http.createServer(app);
@@ -153,14 +153,14 @@ export const Engine = {
                     dbModels.push({...model, _id: r.insertedId });
                     logger.info('Model inserted (' + model.name + ')');
                 }else
-                logger.info('Model loaded (' + model.name + ')');
+                    logger.info('Model loaded (' + model.name + ')');
             }
             logger.info("All models loaded.");
         }
         engine.resetModels = async () => {
             await deleteModels();
         };
-       return engine;
+        return engine;
     }
 }
 

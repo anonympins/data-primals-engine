@@ -33,7 +33,7 @@ const targetDataModel = {
         { name: 'projectName', type: 'string', required: true },
         { name: 'status', type: 'string', required: true }, // ex: 'new', 'active', 'archived'
         { name: 'budget', type: 'number' }
-    ],
+    ]
 };
 
 // Les modèles qui définissent le système de workflow lui-même.
@@ -130,9 +130,6 @@ const workflowMetaModels = [
 
 let testModelsColInstance;
 let testDatasColInstance;
-let engineInstance;
-
-const port = process.env.PORT || getUniquePort(); // Port différent
 
 // On "espionne" `c` pour vérifier qu'elle est appelée sans l'exécuter réellement.
 // Cela nous permet de tester uniquement la logique de déclenchement.

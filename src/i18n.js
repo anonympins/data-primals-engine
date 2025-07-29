@@ -1,5 +1,5 @@
 import i18n from "i18next";
-import {initReactI18next, Trans} from "react-i18next";
+import {initReactI18next} from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 
 export const translations = {
@@ -194,7 +194,7 @@ export const translations = {
             "field_accountingEntry_attachments_hint": "Pièces jointes",
             "field_employee_notes_hint": "Notes additionnelles sur l'employé",
 
-// workflow
+            // workflow
             "field_workflow_startStep_hint": "La première étape à exécuter lorsque le workflow démarre.",
 
 
@@ -455,18 +455,18 @@ export const translations = {
             field_stockAlert_user: 'Utilisateur',
             field_stockAlert_stock: 'Stock',
             field_stockAlert_threshold: 'Seuil',
-// warehouse
+            // warehouse
             field_warehouse_name: 'Nom',
             field_warehouse_location: 'Lieu',
             field_warehouse_capacity: 'Capacité',
-// shipment
+            // shipment
             field_shipment_order: 'Commande',
             field_shipment_trackingNumber: 'Numéro de suivi',
             field_shipment_carrier: 'Transporteur',
             field_shipment_status: 'Statut',
             field_shipment_estimatedDeliveryDate: 'Date de livraison estimée',
             field_shipment_actualDeliveryDate: 'Date de livraison réelle',
-// userSubscription
+            // userSubscription
             field_userSubscription_user: 'Utilisateur',
             field_userSubscription_product: 'Produit',
             field_userSubscription_startDate: 'Date de début',
@@ -480,7 +480,7 @@ export const translations = {
             field_userSubscription_lastBillingDate: 'Dernière date de facturation',
             field_userSubscription_cancelReason: 'Raison de l\'annulation',
             field_userSubscription_autoRenew: 'Renouvellement automatique',
-// ticket
+            // ticket
             field_ticket_user: 'Utilisateur',
             field_ticket_order: 'Commande',
             field_ticket_channel: 'Canal',
@@ -490,7 +490,7 @@ export const translations = {
             field_ticket_priority: 'Priorité',
             field_ticket_assignedTo: 'Assigné à',
             field_ticket_createdAt: 'Date de création',
-// campaign
+            // campaign
             field_campaign_name: 'Nom',
             field_campaign_description: 'Description',
             field_campaign_startDate: 'Date de début',
@@ -498,28 +498,28 @@ export const translations = {
             field_campaign_type: 'Type',
             field_campaign_status: 'Statut',
             field_campaign_budget: 'Budget',
-// device
+            // device
             field_device_location: 'Lieu',
             field_device_lastLocationUpdate: 'Dernière mise à jour de la position',
-// review
+            // review
             field_review_user: 'Utilisateur',
             field_review_comment: 'Commentaire',
             field_review_score: 'Note',
             field_review_publishedAt: 'Date de publication',
-// return
+            // return
             field_return_user: 'Utilisateur',
             field_return_reason: 'Raison',
             field_return_status: 'Statut',
             field_return_amount: 'Montant',
             field_return_currency: 'Monnaie',
             field_return_refundDate: 'Date de remboursement',
-//returnItem
+            //returnItem
             field_returnItem_return: 'Retour',
             field_returnItem_product: 'Produit',
             field_returnItem_variant: 'Variante',
             field_returnItem_quantity: 'Quantité',
             field_returnItem_condition: 'État',
-//message
+            //message
             field_message_sender: 'Expéditeur',
             field_message_recipient: 'Destinataire',
             field_message_subject: 'Sujet',
@@ -530,7 +530,7 @@ export const translations = {
             field_message_readAt: 'Date de lecture',
             field_message_type: 'Type',
             field_message_priority: 'Priorité',
-//channel
+            //channel
             field_channel_name: 'Nom',
             field_channel_description: 'Description',
             field_channel_type: 'Type',
@@ -907,120 +907,120 @@ export const translations = {
 
             "field_token_name_hint": "Un nom descriptif pour le jeton afin de l'identifier (ex: Clé API pour App Mobile).",
             "field_token_value_hint": "La valeur unique du jeton d'accès, utilisée pour l'authentification.",
-                "field_token_lastRefresh_hint": "La date de la dernière utilisation ou du dernier rafraîchissement du jeton.",
+            "field_token_lastRefresh_hint": "La date de la dernière utilisation ou du dernier rafraîchissement du jeton.",
 
-                "field_translation_key_hint": "La clé unique de traduction, utilisée dans le code (ex: btns.save, model_product).",
-                "field_translation_value_hint": "Le texte traduit correspondant à la clé pour une langue donnée.",
-                "field_translation_html_hint": "Le texte traduit au format HTML, si la traduction contient des balises.",
-                "field_translation_lang_hint": "La langue (code ISO) à laquelle cette traduction s'applique.",
+            "field_translation_key_hint": "La clé unique de traduction, utilisée dans le code (ex: btns.save, model_product).",
+            "field_translation_value_hint": "Le texte traduit correspondant à la clé pour une langue donnée.",
+            "field_translation_html_hint": "Le texte traduit au format HTML, si la traduction contient des balises.",
+            "field_translation_lang_hint": "La langue (code ISO) à laquelle cette traduction s'applique.",
 
-                "field_user_username_hint": "Le nom d'utilisateur unique utilisé pour la connexion.",
-                "field_user_password_hint": "Le mot de passe de l'utilisateur (sera stocké de manière sécurisée et hachée).",
-                "field_user_contact_hint": "La fiche contact associée à cet utilisateur, contenant les informations personnelles.",
-                "field_user_roles_hint": "Les rôles assignés à l'utilisateur, qui définissent l'ensemble de ses permissions.",
-                "field_user_tokens_hint": "Les jetons d'API personnels de l'utilisateur pour un accès programatique.",
+            "field_user_username_hint": "Le nom d'utilisateur unique utilisé pour la connexion.",
+            "field_user_password_hint": "Le mot de passe de l'utilisateur (sera stocké de manière sécurisée et hachée).",
+            "field_user_contact_hint": "La fiche contact associée à cet utilisateur, contenant les informations personnelles.",
+            "field_user_roles_hint": "Les rôles assignés à l'utilisateur, qui définissent l'ensemble de ses permissions.",
+            "field_user_tokens_hint": "Les jetons d'API personnels de l'utilisateur pour un accès programatique.",
 
-                "field_userSubscription_user_hint": "L'utilisateur qui a souscrit à l'abonnement.",
-                "field_userSubscription_product_hint": "Le produit ou service auquel l'utilisateur est abonné.",
-                "field_userSubscription_startDate_hint": "La date à laquelle l'abonnement a commencé.",
-                "field_userSubscription_endDate_hint": "La date de fin prévue de l'abonnement (si non renouvelé).",
-                "field_userSubscription_status_hint": "Le statut actuel de l'abonnement (ex: Actif, Annulé, Expiré).",
-                "field_userSubscription_autoRenew_hint": "Indique si l'abonnement se renouvellera automatiquement à la fin de la période.",
+            "field_userSubscription_user_hint": "L'utilisateur qui a souscrit à l'abonnement.",
+            "field_userSubscription_product_hint": "Le produit ou service auquel l'utilisateur est abonné.",
+            "field_userSubscription_startDate_hint": "La date à laquelle l'abonnement a commencé.",
+            "field_userSubscription_endDate_hint": "La date de fin prévue de l'abonnement (si non renouvelé).",
+            "field_userSubscription_status_hint": "Le statut actuel de l'abonnement (ex: Actif, Annulé, Expiré).",
+            "field_userSubscription_autoRenew_hint": "Indique si l'abonnement se renouvellera automatiquement à la fin de la période.",
 
-                "field_warehouse_name_hint": "Le nom de l'entrepôt pour l'identifier (ex: Entrepôt Principal, Dépôt Sud).",
-                "field_warehouse_location_hint": "L'adresse physique complète de l'entrepôt.",
-                "field_warehouse_capacity_hint": "La capacité de stockage maximale de l'entrepôt (en volume, unités, etc.).",
+            "field_warehouse_name_hint": "Le nom de l'entrepôt pour l'identifier (ex: Entrepôt Principal, Dépôt Sud).",
+            "field_warehouse_location_hint": "L'adresse physique complète de l'entrepôt.",
+            "field_warehouse_capacity_hint": "La capacité de stockage maximale de l'entrepôt (en volume, unités, etc.).",
 
-                "field_webpage_title_hint": "Le titre de la page, affiché dans l'onglet du navigateur et important pour le SEO.",
-                "field_webpage_path_hint": "Le chemin de l'URL de la page après le nom de domaine (ex: /a-propos).",
-                "field_webpage_published_hint": "Indique si la page est visible par le public.",
-                "field_webpage_inSitemap_hint": "Indique si la page doit être incluse dans le sitemap pour les moteurs de recherche.",
+            "field_webpage_title_hint": "Le titre de la page, affiché dans l'onglet du navigateur et important pour le SEO.",
+            "field_webpage_path_hint": "Le chemin de l'URL de la page après le nom de domaine (ex: /a-propos).",
+            "field_webpage_published_hint": "Indique si la page est visible par le public.",
+            "field_webpage_inSitemap_hint": "Indique si la page doit être incluse dans le sitemap pour les moteurs de recherche.",
 
-                "field_workflow_name_hint": "Le nom du workflow pour l'identifier facilement dans la liste.",
-                "field_workflow_description_hint": "Une brève explication de l'objectif et du fonctionnement de ce workflow.",
-                "field_workflow_trigger_hint": "L'événement qui va démarrer l'exécution de ce workflow.",
-                "field_workflow_steps_hint": "La séquence d'étapes et d'actions à exécuter lorsque le workflow est déclenché.",
-                "field_workflow_active_hint": "Indique si le workflow est actuellement activé et peut être déclenché.",
+            "field_workflow_name_hint": "Le nom du workflow pour l'identifier facilement dans la liste.",
+            "field_workflow_description_hint": "Une brève explication de l'objectif et du fonctionnement de ce workflow.",
+            "field_workflow_trigger_hint": "L'événement qui va démarrer l'exécution de ce workflow.",
+            "field_workflow_steps_hint": "La séquence d'étapes et d'actions à exécuter lorsque le workflow est déclenché.",
+            "field_workflow_active_hint": "Indique si le workflow est actuellement activé et peut être déclenché.",
 
-                "field_workflowRun_workflow_hint": "Le workflow parent qui a été exécuté pour cette instance.",
-                "field_workflowRun_status_hint": "Le statut de cette exécution spécifique (ex: En cours, Terminé, Échoué).",
-                "field_workflowRun_startDate_hint": "La date et l'heure exactes du début de l'exécution.",
-                "field_workflowRun_endDate_hint": "La date et l'heure de fin de l'exécution (si terminée ou échouée).",
-                "field_workflowRun_logs_hint": "Les journaux détaillés de chaque étape de l'exécution du workflow.",
+            "field_workflowRun_workflow_hint": "Le workflow parent qui a été exécuté pour cette instance.",
+            "field_workflowRun_status_hint": "Le statut de cette exécution spécifique (ex: En cours, Terminé, Échoué).",
+            "field_workflowRun_startDate_hint": "La date et l'heure exactes du début de l'exécution.",
+            "field_workflowRun_endDate_hint": "La date et l'heure de fin de l'exécution (si terminée ou échouée).",
+            "field_workflowRun_logs_hint": "Les journaux détaillés de chaque étape de l'exécution du workflow.",
 
-                "field_workflowTrigger_name_hint": "Un nom descriptif pour le déclencheur (ex: À la création d'une nouvelle commande).",
-                "field_workflowTrigger_type_hint": "Le type d'événement qui déclenche le workflow (ex: Création de donnée, Mise à jour, Tâche planifiée...)",
-                "field_workflowTrigger_modelName_hint": "Le nom du modèle de données qui est surveillé par le déclencheur.",
-                "field_workflowTrigger_condition_hint": "Une condition supplémentaire sur les données pour que le déclenchement ait lieu.",
+            "field_workflowTrigger_name_hint": "Un nom descriptif pour le déclencheur (ex: À la création d'une nouvelle commande).",
+            "field_workflowTrigger_type_hint": "Le type d'événement qui déclenche le workflow (ex: Création de donnée, Mise à jour, Tâche planifiée...)",
+            "field_workflowTrigger_modelName_hint": "Le nom du modèle de données qui est surveillé par le déclencheur.",
+            "field_workflowTrigger_condition_hint": "Une condition supplémentaire sur les données pour que le déclenchement ait lieu.",
 
-                field_accountingExercise_companyContact_hint: 'Désignation de l\'entreprise',
-                field_accountingExercise_companyIdentifier_hint: 'SIRET de l\'entreprise',
-                field_accountingExercise_startDate: 'Date de début de l\'exercice',
-                field_accountingExercise_endDate: 'Date de clôture de l\'exercice',
-                field_accountingLineItem_code_hint: 'Code unique de la ligne (ex: AA, FB, HA)',
-                field_accountingLineItem_label_hint: 'Libellé de la ligne (ex: Frais d\'établissement)',
-                field_accountingLineItem_section_hint: 'Section principale (ex: ACTIF IMMOBILISÉ)',
-                field_accountingLineItem_subSection_hint: 'Sous-section (ex: IMMOBILISATIONS INCORPORELLES)',
-                field_accountingLineItem_order_hint: 'Ordre d\'affichage dans la section/sous-section',
-                field_accountingLineItem_calculationFormula_hint: 'Formule de calcul (si applicable)',
-                field_accountingLineItem_notes_hint: 'Notes ou renvois',
-                model_accountingEntry: 'Opération comptable',
-                model_description_accountingEntry: 'Entrée d\'une opération comptable au sein d\'un exercice particulier',
-                model_employee: 'Employé(e)s',
-                model_description_employee: 'Gère les aspects de ressources humaines relativement aux employé(e)s de l\'entreprise.',
-                model_accountingLineItem: 'Ligne d\'exercice comptable',
-                model_accountingExercise: 'Exercice comptable',
-                model_description_accountingLineItem: 'Définit une ligne/catégorie dans un document comptable.',
-                model_description_accountingExercise: 'Représente un exercice comptable pour une entreprise donnée.',
-                'bilan_actif': 'Bilan actif',
-                'bilan_passif': 'Bilan passif',
-                'compte_resultat': 'Compte de résultat',
-                'immobilisations': 'Immobilisations',
-                'amortissements': 'Amortissements',
-                'provisions': 'Provisions',
-                'creances_dettes': 'Créances et dettes',
-                'deficits': 'Déficits',
-                'plus_moins_values': 'Plus et moins values',
-                'effectifs_valeur_ajoutee': 'Effectifs et valeur ajoutée',
-                'capital_social': 'Capital social',
-                'filiales_participations': 'Filiales et participations',
-                'resultat_fiscal': 'Résultat fiscal',
+            field_accountingExercise_companyContact_hint: 'Désignation de l\'entreprise',
+            field_accountingExercise_companyIdentifier_hint: 'SIRET de l\'entreprise',
+            field_accountingExercise_startDate: 'Date de début de l\'exercice',
+            field_accountingExercise_endDate: 'Date de clôture de l\'exercice',
+            field_accountingLineItem_code_hint: 'Code unique de la ligne (ex: AA, FB, HA)',
+            field_accountingLineItem_label_hint: 'Libellé de la ligne (ex: Frais d\'établissement)',
+            field_accountingLineItem_section_hint: 'Section principale (ex: ACTIF IMMOBILISÉ)',
+            field_accountingLineItem_subSection_hint: 'Sous-section (ex: IMMOBILISATIONS INCORPORELLES)',
+            field_accountingLineItem_order_hint: 'Ordre d\'affichage dans la section/sous-section',
+            field_accountingLineItem_calculationFormula_hint: 'Formule de calcul (si applicable)',
+            field_accountingLineItem_notes_hint: 'Notes ou renvois',
+            model_accountingEntry: 'Opération comptable',
+            model_description_accountingEntry: 'Entrée d\'une opération comptable au sein d\'un exercice particulier',
+            model_employee: 'Employé(e)s',
+            model_description_employee: 'Gère les aspects de ressources humaines relativement aux employé(e)s de l\'entreprise.',
+            model_accountingLineItem: 'Ligne d\'exercice comptable',
+            model_accountingExercise: 'Exercice comptable',
+            model_description_accountingLineItem: 'Définit une ligne/catégorie dans un document comptable.',
+            model_description_accountingExercise: 'Représente un exercice comptable pour une entreprise donnée.',
+            'bilan_actif': 'Bilan actif',
+            'bilan_passif': 'Bilan passif',
+            'compte_resultat': 'Compte de résultat',
+            'immobilisations': 'Immobilisations',
+            'amortissements': 'Amortissements',
+            'provisions': 'Provisions',
+            'creances_dettes': 'Créances et dettes',
+            'deficits': 'Déficits',
+            'plus_moins_values': 'Plus et moins values',
+            'effectifs_valeur_ajoutee': 'Effectifs et valeur ajoutée',
+            'capital_social': 'Capital social',
+            'filiales_participations': 'Filiales et participations',
+            'resultat_fiscal': 'Résultat fiscal',
 
-                "model_description_translation": "Gérer les traductions des différentes chaînes de caractères. Les champs traduisibles sont indiqués dans l'interface. Indiquez simplement une langue et la clé qui est utilisée pour indexer le contenu traduit. Vous pouvez renommer les le modèle et les champs avec respectivement les clés 'model_$modelName' et 'field_$modelName_$fieldName', ou traduire les descriptions des modèles avec 'model_description_$modelName'.",
-                "model_description_permission": "Gérer les permissions des différents utilisateurs. Chaque permission représente une action spécifique (ou un ensemble d'actions) qu'un utilisateur ou un rôle peut effectuer au sein de l'API. Par exemple, 'API_ADMIN' donne tous les droits sur l'API, mais il existe également 'API_ADD_DATA', 'API_ADD_DATA_$modelName', 'API_SEARCH_DATA', 'API_SEARCH_DATA_$modelName', 'API_EDIT_DATA', 'API_EDIT_DATA_$modelName', 'API_DELETE_DATA', et 'API_DELETE_DATA_$modelName' pour gérer finement les droits d'accès à l'API.",
-                "model_description_user": "Gérer les utilisateurs. Assignez des rôles et des tokens d'accès à l'API aux utilisateurs de votre application.",
-                "model_description_role": "Gérer les différents rôles. Assignez des permissions pour configurer le rôle. Celui-ci pourra ensuite être attribué aux utilisateurs.",
-                "model_description_lang": "Gérer les langues du site. Utilisé par les traductions notamment.",
-                "model_description_order": "Gérer les commandes.",
-                "model_description_webpage": "Gérer les différentes pages web.",
-                "model_description_content": "Gérer les différents contenus et actualités.",
-                "model_description_token": "Gérer les différents jetons d'accès.",
-                "model_description_contact": "Gérer les différents contacts.",
-                "model_description_currency": "Gérer les devises utilisables.",
-                "model_description_resource": "Gérer les différents ressources web.",
-                "model_description_product": "Gérer les produits.",
-                "model_description_discount": "Gérer les promotions.",
-                "model_description_productVariant": "Gérer les déclinaisons des produits.",
-                "model_description_cart": "Gérer les paniers des utilisateurs.",
-                "model_description_cartItem": "Gérer le contenu des paniers.",
-                "model_description_brand": "Gérer les marques.",
-                "model_description_taxonomy": "Gérer les catégories (taxonomie).",
-                "model_description_location": "Gérer les différents lieux.",
-                "model_description_device": "Gérer les terminaux d'accès.",
-                "model_description_return": "Gérer les retours produits.",
-                "model_description_review": "Gérer les retours utilisateurs.",
-                "model_description_stock": "Gérer les stocks des produits.",
-                "model_description_warehouse": "Gérer les entrepôts.",
-                "model_description_shipment": "Gérer les expéditions.",
-                "model_description_ticket": "Gérer les tickets de support.",
-                "model_description_ticketMessage": "Gérer les messages des tickets de support.",
-                "model_description_campaign": "Gérer les campagnes marketing.",
-                "model_description_userSubscription": "Gérer les abonnements utilisateurs.",
-                "model_description_invoice": "Gérer les factures.",
-                "model_description_stockAlert": "Gérer les alertes de stocks.",
-                "model_description_returnItem": "Gérer les produits retournés.",
-                "model_description_channel": "Gérer les canaux de notification.",
-                "model_description_message": "Gérer les messages.",
+            "model_description_translation": "Gérer les traductions des différentes chaînes de caractères. Les champs traduisibles sont indiqués dans l'interface. Indiquez simplement une langue et la clé qui est utilisée pour indexer le contenu traduit. Vous pouvez renommer les le modèle et les champs avec respectivement les clés 'model_$modelName' et 'field_$modelName_$fieldName', ou traduire les descriptions des modèles avec 'model_description_$modelName'.",
+            "model_description_permission": "Gérer les permissions des différents utilisateurs. Chaque permission représente une action spécifique (ou un ensemble d'actions) qu'un utilisateur ou un rôle peut effectuer au sein de l'API. Par exemple, 'API_ADMIN' donne tous les droits sur l'API, mais il existe également 'API_ADD_DATA', 'API_ADD_DATA_$modelName', 'API_SEARCH_DATA', 'API_SEARCH_DATA_$modelName', 'API_EDIT_DATA', 'API_EDIT_DATA_$modelName', 'API_DELETE_DATA', et 'API_DELETE_DATA_$modelName' pour gérer finement les droits d'accès à l'API.",
+            "model_description_user": "Gérer les utilisateurs. Assignez des rôles et des tokens d'accès à l'API aux utilisateurs de votre application.",
+            "model_description_role": "Gérer les différents rôles. Assignez des permissions pour configurer le rôle. Celui-ci pourra ensuite être attribué aux utilisateurs.",
+            "model_description_lang": "Gérer les langues du site. Utilisé par les traductions notamment.",
+            "model_description_order": "Gérer les commandes.",
+            "model_description_webpage": "Gérer les différentes pages web.",
+            "model_description_content": "Gérer les différents contenus et actualités.",
+            "model_description_token": "Gérer les différents jetons d'accès.",
+            "model_description_contact": "Gérer les différents contacts.",
+            "model_description_currency": "Gérer les devises utilisables.",
+            "model_description_resource": "Gérer les différents ressources web.",
+            "model_description_product": "Gérer les produits.",
+            "model_description_discount": "Gérer les promotions.",
+            "model_description_productVariant": "Gérer les déclinaisons des produits.",
+            "model_description_cart": "Gérer les paniers des utilisateurs.",
+            "model_description_cartItem": "Gérer le contenu des paniers.",
+            "model_description_brand": "Gérer les marques.",
+            "model_description_taxonomy": "Gérer les catégories (taxonomie).",
+            "model_description_location": "Gérer les différents lieux.",
+            "model_description_device": "Gérer les terminaux d'accès.",
+            "model_description_return": "Gérer les retours produits.",
+            "model_description_review": "Gérer les retours utilisateurs.",
+            "model_description_stock": "Gérer les stocks des produits.",
+            "model_description_warehouse": "Gérer les entrepôts.",
+            "model_description_shipment": "Gérer les expéditions.",
+            "model_description_ticket": "Gérer les tickets de support.",
+            "model_description_ticketMessage": "Gérer les messages des tickets de support.",
+            "model_description_campaign": "Gérer les campagnes marketing.",
+            "model_description_userSubscription": "Gérer les abonnements utilisateurs.",
+            "model_description_invoice": "Gérer les factures.",
+            "model_description_stockAlert": "Gérer les alertes de stocks.",
+            "model_description_returnItem": "Gérer les produits retournés.",
+            "model_description_channel": "Gérer les canaux de notification.",
+            "model_description_message": "Gérer les messages.",
 
             "pending": "En attente",
             "approved": "Approuvé",
@@ -1062,21 +1062,21 @@ export const translations = {
             "monthly": "Au mois",
             "yearly": "A l'année",
 
-// user.gender
+            // user.gender
             "male": "Homme",
             "female": "Femme",
             "prefer_not_to_say": "Préfère ne pas répondre",
 
-// channel.type
+            // channel.type
             "web": "Web",
             "mobile": "Mobile",
             "sms": "SMS",
             "push": "Notification Push",
 
-// alert.notificationChannel
+            // alert.notificationChannel
             "in_app": "Dans l'application",
 
-// taxonomy.type
+            // taxonomy.type
             "keyword": "Mot-clé",
             "category": "Catégorie",
 
@@ -1150,13 +1150,13 @@ export const translations = {
             "intern": "Stagiaire",
             "temporary": "Temporaire",
 
-// employee.payFrequency
+            // employee.payFrequency
             "bi_weekly": "Bi-hebdomadaire",
 
-// workflowTrigger.type
+            // workflowTrigger.type
             "manual": "Manuel",
 
-// workflowTrigger.onEvent
+            // workflowTrigger.onEvent
             "DataAdded": "Donnée ajoutée",
             "DataEdited": "Donnée modifiée",
             "DataDeleted": "Donnée supprimée",
@@ -1229,8 +1229,8 @@ export const translations = {
             "api.permission.importModel": "Impossible d'importer des modèles depuis l'API",
             "api.permission.deleteModel": "Impossible de supprimer des modèles depuis l'API",
             "api.permission.getModels": "Impossible d'obtenir des modèles depuis l'API",
-            "api.permission.getModel": "Impossible d'obtenir un modèle depuis l'API",
-        },
+            "api.permission.getModel": "Impossible d'obtenir un modèle depuis l'API"
+        }
     },
     en: {
         translation: {
@@ -1515,7 +1515,7 @@ export const translations = {
             "model_kpi": 'KPI indicators',
             "field_permission_name": 'Name',
             "field_permission_description": 'Description',
-// budget
+            // budget
             "field_budget_name": "Title",
             "field_budget_amount": "Transaction amount",
             "field_budget_currency": "Currency",
@@ -1538,24 +1538,24 @@ export const translations = {
             "field_budget_recurringFrequency_hint": "Operation frequency for recurring transactions",
             "field_budget_recurringEndDate_hint": "End date of the recurring operation",
             "field_budget_attachments_hint": "Attachments (receipts, invoices).",
-// role
+            // role
             "field_role_name": 'Name',
             "field_role_permissions": 'Permissions',
-// translation
+            // translation
             "field_translation_key": 'Key',
             "field_translation_value": 'Translation',
             "field_translation_html": 'HTML Translation',
             "field_translation_lang": 'Language',
-// locale
+            // locale
             "field_lang_name": 'Name',
             "field_lang_code": 'Code',
-// currency
+            // currency
             "field_currency_symbol": 'Symbol',
             "field_currency_code": 'Code',
             "field_currency_name": 'Name',
             "field_currency_exchangeRate": 'Exchange rate',
             "field_currency_default": 'Default',
-// webpage
+            // webpage
             "field_webpage_title": 'Title',
             "field_webpage_path": 'Path',
             "field_webpage_published": 'Published',
@@ -1565,7 +1565,7 @@ export const translations = {
             "field_webpage_keywords": 'Keywords',
             "field_webpage_image": 'Image',
             "field_webpage_category": 'Category',
-// content
+            // content
             "field_content_webpage": 'Web page',
             "field_content_title": 'Title',
             "field_content_slug": 'Slug',
@@ -1576,18 +1576,18 @@ export const translations = {
             "field_content_keywords": 'Keywords',
             "field_content_image": 'Image',
             "field_content_author": 'Author',
-// taxonomy
+            // taxonomy
             "field_taxonomy_name": 'Name',
             "field_taxonomy_parent": 'Parent',
             "field_taxonomy_type": 'Type',
-// contact
+            // contact
             "field_contact_legalName": 'Legal name',
             "field_contact_firstName": 'First name',
             "field_contact_lastName": 'Last name',
             "field_contact_email": 'Email',
             "field_contact_phone": 'Phone',
             "field_contact_location": 'Location',
-// location
+            // location
             "field_location_address_1": 'Address 1',
             "field_location_address_2": 'Address 2',
             "field_location_address_3": 'Address 3',
@@ -1598,31 +1598,31 @@ export const translations = {
             "field_location_country": 'Country',
             "field_location_latitude": 'Latitude',
             "field_location_longitude": 'Longitude',
-// user
+            // user
             "field_user_username": 'Username',
             "field_user_password": 'Password',
             "field_user_contact": 'Contact',
             "field_user_roles": 'Roles',
             "field_user_tokens": 'Tokens',
-// token
+            // token
             "field_token_name": 'Name',
             "field_token_value": 'Value',
             "field_token_lastRefresh": 'Last refresh',
-// brand
+            // brand
             "field_brand_name": 'Name',
             "field_brand_logo": 'Logo',
             "field_brand_company": 'Company',
-// cart
+            // cart
             "field_cart_user": 'User',
             "field_cart_items": 'Items',
             "field_cart_creationDate": 'Creation date',
             "field_cart_lastUpdate": 'Last update',
             "field_cart_active": 'Active',
-// cartItem
+            // cartItem
             "field_cartItem_product": 'Product',
             "field_cartItem_quantity": 'Quantity',
             "field_cartItem_variant": 'Variant',
-// discount
+            // discount
             "field_discount_code": 'Code',
             "field_discount_productSelection": 'Product selection',
             "field_discount_description": 'Description',
@@ -1633,7 +1633,7 @@ export const translations = {
             "field_discount_freeProductQuantity": 'Free product quantity',
             "field_discount_startDate": 'Start date',
             "field_discount_endDate": 'End date',
-// order
+            // order
             "field_order_orderId": 'Order ID',
             "field_order_orderDate": 'Order date',
             "field_order_status": 'Status',
@@ -1647,15 +1647,15 @@ export const translations = {
             "field_order_shippedDate": 'Shipping date',
             "field_order_deliveryDate": 'Delivery date',
             "field_order_discount": 'Discount',
-// invoice
+            // invoice
             "field_invoice_order": 'Order',
             "field_invoice_invoiceId": 'Invoice ID',
             "field_invoice_invoiceDate": 'Invoice date',
             "field_invoice_dueDate": 'Due date',
             "field_invoice_status": 'Status',
-// resource
+            // resource
             "field_resource_source": 'Source',
-// product
+            // product
             "field_product_name": 'Name',
             "field_product_description": 'Description',
             "field_product_image": 'Image',
@@ -1664,7 +1664,7 @@ export const translations = {
             "field_product_billingFrequency": 'Billing frequency',
             "field_product_brand": 'Brand',
             "field_product_category": 'Category',
-// productVariant
+            // productVariant
             "field_productVariant_product": 'Product',
             "field_productVariant_size": 'Size',
             "field_productVariant_color": 'Color',
@@ -1673,28 +1673,28 @@ export const translations = {
             "field_productVariant_currency": 'Currency',
             "field_productVariant_stock": 'Stock',
             "field_productVariant_image": 'Image',
-// stock
+            // stock
             "field_stock_product": 'Product',
             "field_stock_variant": 'Variant',
             "field_stock_warehouse": 'Warehouse',
             "field_stock_available": 'Available',
             "field_stock_reserved": 'Reserved',
-// stockAlert
+            // stockAlert
             "field_stockAlert_user": 'User',
             "field_stockAlert_stock": 'Stock',
             "field_stockAlert_threshold": 'Threshold',
-// warehouse
+            // warehouse
             "field_warehouse_name": 'Name',
             "field_warehouse_location": 'Location',
             "field_warehouse_capacity": 'Capacity',
-// shipment
+            // shipment
             "field_shipment_order": 'Order',
             "field_shipment_trackingNumber": 'Tracking number',
             "field_shipment_carrier": 'Carrier',
             "field_shipment_status": 'Status',
             "field_shipment_estimatedDeliveryDate": 'Estimated delivery date',
             "field_shipment_actualDeliveryDate": 'Actual delivery date',
-// userSubscription
+            // userSubscription
             "field_userSubscription_user": 'User',
             "field_userSubscription_product": 'Product',
             "field_userSubscription_startDate": 'Start date',
@@ -1708,7 +1708,7 @@ export const translations = {
             "field_userSubscription_lastBillingDate": 'Last billing date',
             "field_userSubscription_cancelReason": 'Cancellation reason',
             "field_userSubscription_autoRenew": 'Auto renew',
-// ticket
+            // ticket
             "field_ticket_user": 'User',
             "field_ticket_order": 'Order',
             "field_ticket_channel": 'Channel',
@@ -1718,7 +1718,7 @@ export const translations = {
             "field_ticket_priority": 'Priority',
             "field_ticket_assignedTo": 'Assigned to',
             "field_ticket_createdAt": 'Creation date',
-// campaign
+            // campaign
             "field_campaign_name": 'Name',
             "field_campaign_description": 'Description',
             "field_campaign_startDate": 'Start date',
@@ -1726,28 +1726,28 @@ export const translations = {
             "field_campaign_type": 'Type',
             "field_campaign_status": 'Status',
             "field_campaign_budget": 'Budget',
-// device
+            // device
             "field_device_location": 'Location',
             "field_device_lastLocationUpdate": 'Last location update',
-// review
+            // review
             "field_review_user": 'User',
             "field_review_comment": 'Comment',
             "field_review_score": 'Score',
             "field_review_publishedAt": 'Publication date',
-// return
+            // return
             "field_return_user": 'User',
             "field_return_reason": 'Reason',
             "field_return_status": 'Status',
             "field_return_amount": 'Amount',
             "field_return_currency": 'Currency',
             "field_return_refundDate": 'Refund date',
-//returnItem
+            //returnItem
             "field_returnItem_return": 'Return',
             "field_returnItem_product": 'Product',
             "field_returnItem_variant": 'Variant',
             "field_returnItem_quantity": 'Quantity',
             "field_returnItem_condition": 'Condition',
-//message
+            //message
             "field_message_sender": 'Sender',
             "field_message_recipient": 'Recipient',
             "field_message_subject": 'Subject',
@@ -1758,7 +1758,7 @@ export const translations = {
             "field_message_readAt": 'Read at',
             "field_message_type": 'Type',
             "field_message_priority": 'Priority',
-//channel
+            //channel
             "field_channel_name": 'Name',
             "field_channel_description": 'Description',
             "field_channel_type": 'Type',
@@ -2457,8 +2457,8 @@ export const translations = {
             "api.permission.importModel": "Cannot import models from the API",
             "api.permission.deleteModel": "Cannot delete models from the API",
             "api.permission.getModels": "Cannot get models from the API",
-            "api.permission.getModel": "Cannot get a model from the API",
-        },
+            "api.permission.getModel": "Cannot get a model from the API"
+        }
     },
     es: {
         translation: {
@@ -3640,13 +3640,13 @@ export const translations = {
             "contractor": "Contratista",
             "intern": "Becario",
             "temporary": "Temporal",
-// employee.payFrequency
+            // employee.payFrequency
             "bi_weekly": "Quincenal",
 
-// workflowTrigger.type
+            // workflowTrigger.type
             "manual": "Manual",
 
-// workflowTrigger.onEvent
+            // workflowTrigger.onEvent
             "DataAdded": "Dato añadido",
             "DataEdited": "Dato modificado",
             "DataDeleted": "Dato eliminado",
@@ -12327,44 +12327,45 @@ export const translations = {
     }
 };
 const options = {
-  // order and from where user language should be detected
-  order: [
-    "querystring",
-    "cookie",
-    "localStorage",
-    "sessionStorage",
-    "navigator",
-    "htmlTag",
-    "path",
-    "subdomain",
-  ],
+    // order and from where user language should be detected
+    order: [
+        "querystring",
+        "cookie",
+        "localStorage",
+        "sessionStorage",
+        "navigator",
+        "htmlTag",
+        "path",
+        "subdomain"
+    ],
 
-  // keys or params to lookup language from
-  lookupQuerystring: "lang",
+    // keys or params to lookup language from
+    lookupQuerystring: "lang"
 };
 
 i18n
-  // detect user language
-  // learn more: https://github.com/i18next/i18next-browser-languageDetector
-  .use(LanguageDetector)
-  // pass the i18n instance to react-i18next.
-  .use(initReactI18next)
-  // init i18next
-  // for all options read: https://www.i18next.com/overview/configuration-options
-  .init({
-    debug: false,
-    detection: options,
-    fallbackLng: "fr",
-    keySeparator: false,
-    interpolation: {
-      escapeValue: false, // not needed for react as it escapes by default
-    },
-    resources: translations,
-      react: {
-          bindI18n: 'loaded languageChanged',
-          bindI18nStore: 'added',
-          useSuspense: true,
-      }
-  });
+// detect user language
+// learn more: https://github.com/i18next/i18next-browser-languageDetector
+    .use(LanguageDetector)
+// pass the i18n instance to react-i18next.
+    .use(initReactI18next)
+// init i18next
+// for all options read: https://www.i18next.com/overview/configuration-options
+    .init({
+        debug: false,
+        detection: options,
+      
+        fallbackLng: "fr",
+        keySeparator: false,
+        interpolation: {
+            escapeValue: false // not needed for react as it escapes by default
+        },
+        resources: translations,
+        react: {
+            bindI18n: 'loaded languageChanged',
+            bindI18nStore: 'added',
+            useSuspense: true
+        }
+    });
 
 export default i18n;
