@@ -46,15 +46,15 @@ export const getCollection = (str) => {
 
 
 // New function to determine the collection name for a user
-export const getUserCollectionName = (user) => {
-    const feat = engine.userProvider.hasFeature(user, 'indexes');
-    return user?.userPlan === 'premium' ? `datas_${user.username}` : 'datas';
+export const getUserCollectionName = async (user) => {
+    const feat = await engine.userProvider.hasFeature(user, 'indexes');
+    return feat ? `datas_${user.username}` : 'datas';
 };
 
 
 // Modify existing functions to use the correct collection
-export const getCollectionForUser = (user) => {
-    const collectionName = getUserCollectionName(user);
+export const getCollectionForUser = async (user) => {
+    const collectionName = await getUserCollectionName(user);
     return getCollection(collectionName);
 };
 

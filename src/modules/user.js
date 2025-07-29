@@ -19,10 +19,10 @@ export const userInitiator = async (req, res, next) => {
     // set current lang for user
     i18n.changeLanguage(lang);
 
-    if (engine.userProvider.hasFeature(req.me, 'indexes')) {
+    if (await engine.userProvider.hasFeature(req.me, 'indexes')) {
         const collections = await MongoDatabase.listCollections().toArray();
         const collectionNames = collections.map(c => c.name);
-        const coll = getUserCollectionName(req.me);
+        const coll = await getUserCollectionName(req.me);
         if (collectionNames.includes(coll)) {
             const collection = await MongoDatabase.createCollection(coll);
             const indexes = await collection.indexes();
@@ -96,7 +96,7 @@ export async function hasPermission(permissionNames, user) {
     try {
         // Si on a une string on le transforme en tableau.
         const permissionNamesArray = Array.isArray(permissionNames) ? permissionNames : [permissionNames];
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
 
         const job = [
             {
@@ -163,7 +163,7 @@ export async function hasPermission(permissionNames, user) {
  */
 export async function calculateTotalUserStorageUsage(user) {
     const userId = user._user || user.username;
-    const datasCollection = getCollectionForUser(user);
+    const datasCollection = await getCollectionForUser(user);
     const filesCollection = getCollection("files");
 
     // Pipeline pour calculer la taille des documents de données

@@ -127,7 +127,7 @@ describe('CRUD on model definitions and integrity tests', () => {
         it('should create and drop index when field.index is toggled (premium user)', async () => {
             // --- SETUP ---
             const { currentTestUser, comprehensiveTestModelDefinition } = await setupTestContext();
-            const dataCollection = getCollectionForUser(currentTestUser);
+            const dataCollection = await getCollectionForUser(currentTestUser);
             const fieldToIndex = 'stringUnique'; // Utiliser un champ qui existe vraiment dans le modèle
 
             // --- FIX: Ensure the collection exists before any operation ---

@@ -161,7 +161,7 @@ async function handleChatRequest(message, history, provider, context, user, conf
     const envKeyName = providers[p];
     if (!envKeyName) return { success: false, message: `Fournisseur IA non supporté : ${p}` };
 
-    const envCollection = getCollectionForUser(user);
+    const envCollection = await getCollectionForUser(user);
     const userEnvVar = await envCollection.findOne({ _model: 'env', name: envKeyName, _user: user.username });
     apiKey = userEnvVar?.value || process.env[envKeyName];
 

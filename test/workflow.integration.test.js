@@ -140,7 +140,7 @@ const processWorkflowRunSpy = vi.spyOn(workflowModule, 'processWorkflowRun');
 
 beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getCollectionForUser(mockUser);
+    testDatasColInstance = await getCollectionForUser(mockUser);
     // Nettoyer les données avant chaque test
     await testDatasColInstance.deleteMany({_user: "testuserWorkflow"});
 

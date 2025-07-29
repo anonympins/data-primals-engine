@@ -90,7 +90,7 @@ export class UserProvider {
         };
     }
 
-    hasFeature(user, feature) {
+    async hasFeature(user, feature) {
         return this.plans[user.userPlan]?.features.some(f => f === feature);
     }
 
@@ -130,7 +130,7 @@ export class DefaultUserProvider extends UserProvider {
         req.me = this.users[0];
     }
 
-    async getUserPlans(){
+    getUserPlans(){
         return {
             free: {
                 features: ['indexes']

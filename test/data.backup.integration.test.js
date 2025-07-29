@@ -100,7 +100,7 @@ beforeAll(async () =>{
 })
 beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getAppUserCollection(mockUser);
+    testDatasColInstance = await getAppUserCollection(mockUser);
 });
 
 describe('Data Backup and Restore Integration', () => {

@@ -62,7 +62,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
     // Préparation avant chaque test du bloc
     beforeEach(async () => {
         testModelsColInstance = getAppModelsCollection;
-        testDatasColInstance = getAppUserCollection(mockUser);
+        testDatasColInstance = await getAppUserCollection(mockUser);
 
         // Nettoyage complet pour un état propre
         await testDatasColInstance.deleteMany({ _user: "testuserImpex"});
