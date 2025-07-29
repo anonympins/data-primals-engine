@@ -384,7 +384,7 @@ export const defaultModels = {
             { "name": "orderId", "type": "string", "required": true, "unique": true },
             { "name": "orderDate", "type": "datetime" },
             { "name": "status", "type": "enum", items: ["pending", "processing", "shipped", "delivered", "cancelled"] },
-            { "name": "products", "type": "relation", "relation": "product", "required": true, multiple: true },
+            { "name": "products", "type": "relation", "relation": "cartItem", "required": true, multiple: true },
             { "name": "customer", "type": "relation", relation: 'user' }, // Relation vers le modèle 'user'
             { "name": "totalAmount", "type": "number", "required": true },
             { "name": "currency", "type": "relation", "relation": "currency" },
