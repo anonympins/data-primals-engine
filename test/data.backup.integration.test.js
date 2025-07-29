@@ -37,7 +37,6 @@ vi.mock('data-primals-engine/engine', async(importOriginal) => {
 const mockUser = {
     username: 'testuserBackup',
     _user: 'testuserBackup',
-    userPlan: 'premium',
     email: 'testBackup@example.com',
     configS3: {
         bucketName: null

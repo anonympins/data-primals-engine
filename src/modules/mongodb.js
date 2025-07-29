@@ -47,6 +47,7 @@ export const getCollection = (str) => {
 
 // New function to determine the collection name for a user
 export const getUserCollectionName = (user) => {
+    const feat = engine.userProvider.hasFeature(user, 'indexes');
     return user?.userPlan === 'premium' ? `datas_${user.username}` : 'datas';
 };
 

@@ -1,4 +1,5 @@
 import {compare} from "bcrypt";
+import {maxTotalPrivateFilesSize} from "./constants.js";
 
 /**
  * @class UserProvider
@@ -6,11 +7,15 @@ import {compare} from "bcrypt";
  * C'est une classe de base abstraite, elle n'est pas destinée à être utilisée directement.
  */
 export class UserProvider {
+
+    plans = {};
+
     constructor(engine) {
         if (this.constructor === UserProvider) {
             throw new Error("Abstract classes can't be instantiated.");
         }
         this.engine = engine;
+        this.plans = this.getUserPlans();
     }
 
     /**
@@ -50,6 +55,45 @@ export class UserProvider {
         throw new Error("Method 'initiateUser()' must be implemented.");
     }
 
+    /**
+     * Récupère la limite de stockage d'un utilisateur.
+     * @param user
+     * @returns {Promise<number>}
+     */
+    async getUserStorageLimit(user) {
+        return maxTotalPrivateFilesSize;
+    }
+
+    /**
+     * Récupère la fréquence de sauvegarde d'un utilisateur.
+     * @param user
+     * @returns {Promise<void>}
+     */
+    async getBackupFrequency(user){
+        return 'daily';
+    }
+
+    /**
+     * Récupère les middlewares d'un utilisateur.
+     * @returns {Promise<*[]>}
+     */
+    async getMiddlewares(){
+        return [];
+    }
+
+    getUserPlans(){
+        return {
+            free: {
+                requestLimitPerHour: 10000,
+                features: ['indexes'] // Feature list : indexes is the only option for now. Use a dedicated collection for this user
+            },
+        };
+    }
+
+    hasFeature(user, feature) {
+        return this.plans[user.userPlan]?.features.some(f => f === feature);
+    }
+
     // Ajoutez ici d'autres méthodes nécessaires : findUserById, createUser, etc.
 }
 
@@ -62,6 +106,18 @@ export class DefaultUserProvider extends UserProvider {
         return this.users.find(user => user.username === username);
     }
 
+    async getUserStorageLimit(user) {
+        return maxTotalPrivateFilesSize;
+    }
+
+    async getBackupFrequency(user){
+        return 'daily';
+    }
+
+    async getMiddlewares(){
+        return []
+    }
+
     async validatePassword(user, password) {
         return true;
     }
@@ -72,5 +128,13 @@ export class DefaultUserProvider extends UserProvider {
 
     async initiateUser(req) {
         req.me = this.users[0];
+    }
+
+    async getUserPlans(){
+        return {
+            free: {
+                features: ['indexes']
+            },
+        }
     }
 }

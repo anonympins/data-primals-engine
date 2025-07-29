@@ -3,7 +3,6 @@
 import {maxPrivateFileSize, megabytes} from "../constants.js";
 import {isLocalUser} from "../data.js";
 import i18n from "data-primals-engine/i18n";
-import {getUserStorageLimit} from "../user.js";
 import {getCollection} from "./mongodb.js";
 import {getFileExtension, isGUID, uuidv4} from "../core.js";
 import path from "node:path";
@@ -14,9 +13,6 @@ import crypto from "node:crypto";
 import * as tar from "tar";
 import {promisify} from "node:util";
 import {calculateTotalUserStorageUsage, hasPermission} from "./user.js";
-import {Logger} from "../gameObject.js";
-import YAML from "yaml";
-import swaggerUi from "swagger-ui-express";
 
 const pbkdf2Async = promisify(crypto.pbkdf2);
 
@@ -56,7 +52,7 @@ export const addFile = async (file, user) => {
 
     const incomingDataSize = file.size;
 
-    const userStorageLimit = getUserStorageLimit(user);
+    const userStorageLimit = await engine.userProvider.getUserStorageLimit(user);
     const currentStorageUsage = await calculateTotalUserStorageUsage(user);
 
     if (currentStorageUsage + incomingDataSize > userStorageLimit) {
@@ -194,6 +190,7 @@ export async function decryptFile(filePath, password) {
     }
 }
 
+let engine;
 export async function onInit(defaultEngine) {
-
+    engine = defaultEngine;
 }

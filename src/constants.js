@@ -70,21 +70,8 @@ export const maxExecutionsByStep = 5;
 export const maxWorkflowSteps = 15;
 
 export const maxPrivateFileSize = 20 * megabytes; // Taille max par fichier privé (20 Mo)
-export const maxTotalPrivateFilesSizeFree = 125 * megabytes; // Stockage total pour les comptes gratuits (250 Mo)
-export const maxTotalPrivateFilesSizeStandard = 250 * megabytes; // Stockage total pour les comptes standard (250 Mo)
-export const maxTotalPrivateFilesSizePremium = 20000 * kilobytes * kilobytes; //
+export const maxTotalPrivateFilesSize = 250 * megabytes;
 
-export const plans = {
-    free:{
-        maxModelsPerUser,
-        maxTotalDataPerUser,
-        maxDataPerModelPerUser,
-        requestLimitPerHour: 7200,
-    },
-    premium: {
-        requestLimitPerHour: 250000,
-    }
-}
 //
 export const optionsSanitizer = {
     allowedTags: [

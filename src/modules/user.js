@@ -1,7 +1,6 @@
 import i18n from "data-primals-engine/i18n";
 import {MongoClient, MongoDatabase} from "../engine.js";
 import {getCollection, getCollectionForUser, getUserCollectionName} from "./mongodb.js";
-import {dbName, plans} from "../constants.js";
 import {isLocalUser} from "../data.js";
 import {ObjectId} from "mongodb";
 import {getAPILang} from "./data.js";
@@ -20,7 +19,7 @@ export const userInitiator = async (req, res, next) => {
     // set current lang for user
     i18n.changeLanguage(lang);
 
-    if (req.me.userPlan === 'premium') {
+    if (engine.userProvider.hasFeature(req.me, 'indexes')) {
         const collections = await MongoDatabase.listCollections().toArray();
         const collectionNames = collections.map(c => c.name);
         const coll = getUserCollectionName(req.me);
@@ -83,33 +82,11 @@ export const generateLimiter = rateLimit({
     }
 });
 
-const freeSearchLimiter = rateLimit({
-    windowMs: 1000 * 3600,
-    limit: plans.free.requestLimitPerHour,
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-const premiumSearchLimiter = rateLimit({
-    windowMs: 1000 * 3600,
-    limit: plans.premium.requestLimitPerHour,
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-export const myFreePremiumAnonymousLimiter = async function (req, res, next) {
-    const user = req.me;
-    if (user?.userPlan === "premium") {
-        return premiumSearchLimiter(req, res, next);
-    }
-    return freeSearchLimiter(req, res, next);
-};
 
 let logger,engine;
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
-
-
 }
 
 export async function hasPermission(permissionNames, user) {

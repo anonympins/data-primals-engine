@@ -127,22 +127,21 @@ describe('CRUD on model definitions and integrity tests', () => {
         it('should create and drop index when field.index is toggled (premium user)', async () => {
             // --- SETUP ---
             const { currentTestUser, comprehensiveTestModelDefinition } = await setupTestContext();
-            const premiumUser = { ...currentTestUser, userPlan: 'premium' };
-            const dataCollection = getCollectionForUser(premiumUser);
+            const dataCollection = getCollectionForUser(currentTestUser);
             const fieldToIndex = 'stringUnique'; // Utiliser un champ qui existe vraiment dans le modèle
+
+            // --- FIX: Ensure the collection exists before any operation ---
+            // By inserting and deleting a dummy document, we force MongoDB to create the
+            // collection and its default indexes. This prevents the "ns does not exist"
+            // error in asynchronous listeners (like workflow triggers).
+            const dummyDoc = await dataCollection.insertOne({ _model: 'dummy', _user: currentTestUser.username });
+            await dataCollection.deleteOne({ _id: dummyDoc.insertedId });
+
 
             // --- VERIFICATION INITIALE ---
             // S'assurer qu'aucun index n'existe au départ.
-            // On enveloppe l'appel dans un try/catch pour gérer le cas où la collection n'existe pas.
-            let initialIndexes = [];
-            try {
-                initialIndexes = await dataCollection.indexes();
-            } catch (e) {
-                // C'est normal si la collection n'existe pas encore. On considère qu'il n'y a pas d'index.
-                if (e.codeName !== 'NamespaceNotFound') {
-                    throw e; // Relancer les autres erreurs inattendues
-                }
-            }
+            // Cet appel ne plantera plus car la collection est maintenant créée.
+            const initialIndexes = await dataCollection.indexes();
             expect(initialIndexes.some(i => i.key[fieldToIndex] === 1)).toBe(false);
 
             // --- ACTION 1 : AJOUTER UN INDEX ---
@@ -152,7 +151,7 @@ describe('CRUD on model definitions and integrity tests', () => {
                     f.name === fieldToIndex ? { ...f, index: true } : f
                 ),
             };
-            await editModel(premiumUser, testModelId, modelWithIndex);
+            await editModel(currentTestUser, testModelId, modelWithIndex);
 
             // --- VERIFICATION 1 ---
             // Maintenant, la collection et l'index doivent exister.
@@ -163,7 +162,7 @@ describe('CRUD on model definitions and integrity tests', () => {
             // Le filtre partiel est crucial pour que l'index ne s'applique qu'aux bonnes données
             expect(newIndex.partialFilterExpression).toEqual({
                 _model: comprehensiveTestModelDefinition.name,
-                _user: premiumUser.username,
+                _user: currentTestUser.username,
             });
 
             // --- ACTION 2 : SUPPRIMER L'INDEX ---
@@ -173,12 +172,12 @@ describe('CRUD on model definitions and integrity tests', () => {
                     f.name === fieldToIndex ? { ...f, index: false } : f
                 ),
             };
-            await editModel(premiumUser, testModelId, modelWithoutIndex);
+            await editModel(currentTestUser, testModelId, modelWithoutIndex);
 
             // --- VERIFICATION 2 ---
             const indexesAfterDeletion = await dataCollection.indexes();
             expect(indexesAfterDeletion.some(i => i.key[fieldToIndex] === 1)).toBe(false);
-        }, 20000); // Augmenter le timeout si nécessaire pour les opérations d'index
+        }, 20000);
 
         it('should not save extra, non-defined fields in the model definition', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();

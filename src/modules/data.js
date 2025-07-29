@@ -38,7 +38,7 @@ import {
     maxStringLength,
     maxTotalDataPerUser,
     megabytes,
-    optionsSanitizer, plans,
+    optionsSanitizer,
     searchRequestTimeout, storageSafetyMargin
 } from "../constants.js";
 import {
@@ -72,7 +72,6 @@ import {
 } from "./workflow.js";
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
-import {getUserStorageLimit} from "../user.js";
 import {openaiJobModel} from "../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
 import { fileURLToPath } from 'url';
@@ -82,7 +81,6 @@ import {listS3Backups, uploadToS3} from "./bucket.js";
 import {
     calculateTotalUserStorageUsage, generateLimiter, hasPermission,
     middlewareAuthenticator,
-    myFreePremiumAnonymousLimiter,
     userInitiator
 } from "./user.js";
 import {assistantGlobalLimiter} from "./assistant.js";
@@ -1151,7 +1149,7 @@ export const editModel = async (user, id, data) => {
         const coll = getCollectionForUser(user);
         // Update indexes
 // Update indexes
-        if (user.userPlan === 'premium') {
+        if (engine.userProvider.hasFeature(user, 'indexes')) {
             let indexes = [];
             try {
                 // On essaie de récupérer les index existants
@@ -1233,6 +1231,8 @@ export async function onInit(defaultEngine) {
             "$dateSubtract", "$dateAdd", "$dateToString",
             '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond',
     ]}));
+
+    let userMiddlewares = await engine.userProvider.getMiddlewares();
 
     let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection;
 
@@ -1505,7 +1505,7 @@ export async function onInit(defaultEngine) {
         });
     });
 
-    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, [...userMiddlewares], setTimeoutMiddleware(60000)], async (req, res) => {
         // ... (vérifications de permissions existantes) ...
         const result = await importData(req.fields, req.files, req.me);
         if( result.success ){
@@ -1572,7 +1572,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/restore', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/restore', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
 
         if (!((user?.roles || []).includes("admin"))) {
             return res.status(403).json({success: false, error: 'Cannot backup data. Contact an administrator to get back your data'})
@@ -1587,7 +1587,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/dump', [throttle, middlewareAuthenticator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/dump', [throttle, middlewareAuthenticator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
 
         if (!((req.me?.roles || []).includes("admin"))) {
             return res.status(403).json({success: false, error: 'Cannot dump data.'})
@@ -1606,7 +1606,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
+    engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         const body = req.files ? req.fields : req.fields;
         const modelName = body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
         const data = body.data || (body._data && JSON.parse(body._data));
@@ -1622,7 +1622,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
+    engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(30000)], async (req, res) => {
         const { pack } = req.fields;
 
         try {
@@ -1669,7 +1669,7 @@ export async function onInit(defaultEngine) {
     });
 
 // --- Export Endpoint ---
-    engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
         try {
             const results = await exportData({...req.fields, depth:req.query.depth, lang: req.query.lang}, req.me);
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1764,7 +1764,7 @@ export async function onInit(defaultEngine) {
             logger.error(error);
         }
     });
-    engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares], async (req, res) => {
 
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_ADD_MODEL"], req.me) ){
             return res.status(403).json({success: false, error: i18n.t('api.permission.addModel')})
@@ -1786,7 +1786,7 @@ export async function onInit(defaultEngine) {
                     $and: [{_user: {$exists: true}}, {_user: req.me.username}]
                 });
                 if( count < maxModelsPerUser) {
-                    if( req.me.userPlan === 'premium' ){
+                    if(engine.userProvider.hasFeature(req.me, 'indexes')){
                         for (const field of modelData.fields) {
                             if( field.index ) {
                                 await datasCollection.createIndex({[field.name]: 1}, {
@@ -1818,7 +1818,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/models/import', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger,myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/models/import', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares], async (req, res) => {
 
         if( isLocalUser(req.me) && !await hasPermission(["API_ADMIN","API_IMPORT_MODEL"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.importModels')})
@@ -1888,7 +1888,7 @@ export async function onInit(defaultEngine) {
                 return res.status(404).json({error: i18n.t( "api.model.notFound", { model: modelName})});
             }
 
-            if( req.me.userPlan === 'premium' ) {
+            if( engine.userProvider.hasFeature(req.me, 'indexes') ) {
                 const indexes = await datasCollection.indexes();
                 for (const index of indexes) {
                     if (index.partialFilterExpression?._model === model.name &&
@@ -2128,7 +2128,7 @@ export async function onInit(defaultEngine) {
 
 // ... (autres imports et code)
 
-    engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
+    engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         // --- Récupérer groupByLabelField ---
         const { model: modelName, type, xAxis, yAxis, groupBy, aggregationType, groupByLabelField, filter: chartFilter } = req.fields;
 
@@ -2350,7 +2350,7 @@ export async function onInit(defaultEngine) {
     });
 
 
-    engine.post('/api/data/removeFromPack', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/data/removeFromPack', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.createPack')})
         }
@@ -2483,7 +2483,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/addToPack', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/data/addToPack', [throttle, middlewareAuthenticator, userInitiator,...userMiddlewares], async (req, res) => {
         const { packName, itemIds } = req.fields;
         const user = req.me;
 
@@ -2552,7 +2552,7 @@ export async function onInit(defaultEngine) {
         }
     });
     /*
-    engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
 
         const { pack } = req.fields;
         const initialModelName = req.query.model; // The starting model
@@ -2937,7 +2937,7 @@ function normalizeInputData(data) {
  */
 async function checkLimits(datas, model, collection, me) {
     const incomingDataSize = calculateDataSize(datas);
-    const userStorageLimit = getUserStorageLimit(me);
+    const userStorageLimit = await engine.userProvider.getUserStorageLimit(me);
 
     // Vérification des limites utilisateur
     const currentStorageUsage = await calculateTotalUserStorageUsage(me);
@@ -5081,19 +5081,7 @@ export const dumpUserData = async (user) => {
 
     try {
         // Déterminer la fréquence de la sauvegarde
-        let backupFrequency;
-        switch (user.userPlan) {
-            case 'premium':
-                backupFrequency = 'daily';
-                break;
-            case 'standard':
-                backupFrequency = 'weekly';
-                break;
-            case 'free':
-            default:
-                backupFrequency = 'monthly';
-                break;
-        }
+        const backupFrequency = await engine.userProvider.getBackupFrequency(user);
 
         logger.info(`Fréquence de sauvegarde : ${backupFrequency}.`);
 
