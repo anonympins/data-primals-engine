@@ -121,10 +121,10 @@ export const openaiJobModel = async (lang, txt, history, existingModels = []) =>
                 },
                 {
                     role: "user",
-                    content: typeof(txt) === 'string' ? txt.substring(0, 4096) : '',
+                    content: typeof(txt) === 'string' ? txt.substring(0, 4096) : ''
                 },
                 ...history
-            ],
+            ]
         });
 
         const aiResponse = completion.choices[0].message.content;

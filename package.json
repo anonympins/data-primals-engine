@@ -5,8 +5,11 @@
   "main": "src/engine.js",
   "type": "module",
   "scripts": {
-    "test": "cross-env MONGO_DB_URL=\"mongodb://localhost:27017\" PORT=7635 vitest --no-file-parallelism",
     "preinstall": "npx force-resolutions",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "cross-env MONGO_DB_URL=\"mongodb://localhost:27017\" PORT=7635 vitest --no-file-parallelism",
+    "audit": "npm audit --audit-level=high",
     "devserver": "cross-env NODE_ENV=development node server.js",
     "server": "cross-env NODE_ENV=production node server.js",
     "migrate:create": "node src/migrate.js create",
@@ -69,15 +72,16 @@
     "swagger-ui-express": "^5.0.1",
     "tar": "^7.4.3",
     "uniqid": "^5.4.0",
-    "vitest": "^3.2.3",
     "yaml": "^2.8.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "cross-env": "^7.0.3",
-    "eslint": "^9.17.0",
+    "eslint": "^9.32.0",
     "globals": "^15.14.0",
-    "process": "^0.11.10"
+    "prettier": "^3.3.3",
+    "process": "^0.11.10",
+    "vitest": "^3.2.3"
   },
   "keywords": [
     "mongodb",

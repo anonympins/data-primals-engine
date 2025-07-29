@@ -1,5 +1,5 @@
 import i18n from "data-primals-engine/i18n";
-import {MongoClient, MongoDatabase} from "../engine.js";
+import {MongoDatabase} from "../engine.js";
 import {getCollection, getCollectionForUser, getUserCollectionName} from "./mongodb.js";
 import {isLocalUser} from "../data.js";
 import {ObjectId} from "mongodb";
@@ -108,39 +108,39 @@ export async function hasPermission(permissionNames, user) {
                             $match: {
                                 $expr: {
                                     $and: [
-                                        { $in: ['$_id', '$$rolesIds'] },
-                                    ],
-                                },
-                            },
+                                        { $in: ['$_id', '$$rolesIds'] }
+                                    ]
+                                }
+                            }
                         },
                         {
                             $lookup: {
                                 from: 'datas',
                                 let: { rolePermissions: {
-                                        "$map": {
-                                            "input": "$permissions",
-                                            "in": { "$toObjectId": "$$this" }
-                                        }
-                                    } },
+                                    "$map": {
+                                        "input": "$permissions",
+                                        "in": { "$toObjectId": "$$this" }
+                                    }
+                                } },
                                 pipeline: [
                                     {
                                         $match: {
                                             $expr: {
                                                 $and: [
-                                                    { $in: ['$_id', '$$rolePermissions'] },
-                                                ],
-                                            },
-                                        },
+                                                    { $in: ['$_id', '$$rolePermissions'] }
+                                                ]
+                                            }
+                                        }
                                     },
-                                    { $limit: 1 },
+                                    { $limit: 1 }
                                 ],
-                                as: 'permissions',
-                            },
+                                as: 'permissions'
+                            }
                         },
-                        { $unwind: { path: '$permissions', preserveNullAndEmptyArrays: true } },
+                        { $unwind: { path: '$permissions', preserveNullAndEmptyArrays: true } }
                     ],
-                    as: 'roles',
-                },
+                    as: 'roles'
+                }
             },
             { $unwind: { path: '$roles', preserveNullAndEmptyArrays: true } },
             { $match: { 'roles.permissions.name': { $in: permissionNamesArray } } }, // Match if permissions.name in array

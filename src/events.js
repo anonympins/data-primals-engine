@@ -1,4 +1,3 @@
-import {createModel, getModels, validateModelStructure} from "./modules/data.js";
 
 const events = {};
 
@@ -77,5 +76,5 @@ export const Event = {
         if (events[system]) {
             delete events[system];
         }
-    },
+    }
 }

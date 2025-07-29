@@ -131,7 +131,7 @@ export async function scheduleWorkflowTriggers() {
         // Trouver tous les workflows actifs avec une cronExpression définie
         const workflowsToSchedule = await datasCollection.find({
             _model: 'workflowTrigger',
-            cronExpression: { $exists: true, $ne: "" },
+            cronExpression: { $exists: true, $ne: "" }
             // Ajoutez d'autres conditions si nécessaire (ex: active: true)
         }).toArray();
 
@@ -270,7 +270,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
         // 4. Prepare Fetch Options
         const fetchOptions = {
             method: method.toUpperCase(),
-            headers: headersObject, // Native fetch accepts an object directly
+            headers: headersObject // Native fetch accepts an object directly
         };
 
         if (bodyObject !== null && ['POST', 'PUT', 'PATCH'].includes(fetchOptions.method)) {
@@ -649,32 +649,33 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
     try {
         let result;
         switch (actionDef.type) {
-            case 'Log':
-                logger.info(`[Workflow Log Action] Action: ${actionDef.name}. Contexte:`, contextData);
-                result = { success: true, message: 'Log action executed successfully.' }; // <--- CORRECTION
-                break;
-            case 'Webhook':
-                result = await handleWebhookAction(actionDef, contextData, user, dbCollection);
-                break;
-            case 'CreateData':
-                result = await handleCreateDataAction(actionDef, contextData, user, dbCollection);
-                break;
-            case 'UpdateData':
-                result = await handleUpdateDataAction(actionDef, contextData, user);
-                break;
-            case 'DeleteData':
-                result = await handleDeleteDataAction(actionDef, contextData, user, dbCollection);
-                break;
-            case 'GenerateAIContent':
-                result = await executeGenerateAIContentAction(actionDef, contextData, user);
-                break;
-            case 'SendEmail':
-                result = await handleSendEmailAction(actionDef, contextData, user);
-                break;
+        case 'Log':
+            logger.info(`[Workflow Log Action] Action: ${actionDef.name}. Contexte:`, contextData);
+            result = { success: true, message: 'Log action executed successfully.' }; // <--- CORRECTION
+            break;
+        case 'Webhook':
+            result = await handleWebhookAction(actionDef, contextData, user, dbCollection);
+            break;
+        case 'CreateData':
+            result = await handleCreateDataAction(actionDef, contextData, user, dbCollection);
+            break;
+        case 'UpdateData':
+            result = await handleUpdateDataAction(actionDef, contextData, user);
+            break;
+        case 'DeleteData':
+            result = await handleDeleteDataAction(actionDef, contextData, user, dbCollection);
+            break;
+        case 'GenerateAIContent':
+            result = await executeGenerateAIContentAction(actionDef, contextData, user);
+            break;
+        case 'SendEmail':
+            result = await handleSendEmailAction(actionDef, contextData, user);
+            break;
+                
             // ... autres cases à venir ...
-            default:
-                logger.error(`[executeStepAction] Unknown action type: ${actionDef.type}`);
-                return { success: false, message: `Unknown action type: ${actionDef.type}` };
+        default:
+            logger.error(`[executeStepAction] Unknown action type: ${actionDef.type}`);
+            return { success: false, message: `Unknown action type: ${actionDef.type}` };
         }
         return result;
     } catch (error) {
@@ -1008,29 +1009,29 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
                         continue; // Passer au trigger suivant si le filtre est invalide
                     }
 
-                        try {
-                            const finalFilter = {
-                                '$and': [
-                                    dataFilterCondition                      // Applique la condition du trigger
-                                ]
-                            };
+                    try {
+                        const finalFilter = {
+                            '$and': [
+                                dataFilterCondition                      // Applique la condition du trigger
+                            ]
+                        };
 
-                            console.debug(`[Workflow Trigger] Vérification dataFilter pour trigger ${trigger._id} avec filtre combiné:`, JSON.stringify(finalFilter));
+                        console.debug(`[Workflow Trigger] Vérification dataFilter pour trigger ${trigger._id} avec filtre combiné:`, JSON.stringify(finalFilter));
 
-                            // Exécuter la vérification dans la base de données
-                            // Utilisation de countDocuments pour une vérification rapide
-                            const matchCount = await searchData({ user, query: { model: targetModelName, filter: finalFilter, limit: 1 } });
+                        // Exécuter la vérification dans la base de données
+                        // Utilisation de countDocuments pour une vérification rapide
+                        const matchCount = await searchData({ user, query: { model: targetModelName, filter: finalFilter, limit: 1 } });
 
-                            if (!matchCount.count) {
-                                console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
-                                continue; // Passer au trigger suivant
-                            } else {
-                                console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter satisfait par la donnée ${dataId}.`);
-                            }
-                        } catch (filterError) {
-                            console.error(`[Workflow Trigger] Erreur lors de la conversion ou de l'exécution du dataFilter pour le trigger ${trigger._id}:`, filterError);
-                            continue; // Ne pas créer en cas d'erreur de filtre
+                        if (!matchCount.count) {
+                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
+                            continue; // Passer au trigger suivant
+                        } else {
+                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter satisfait par la donnée ${dataId}.`);
                         }
+                    } catch (filterError) {
+                        console.error(`[Workflow Trigger] Erreur lors de la conversion ou de l'exécution du dataFilter pour le trigger ${trigger._id}:`, filterError);
+                        continue; // Ne pas créer en cas d'erreur de filtre
+                    }
                 } // Fin de la vérification dataFilter
 
                 // 4. Si les filtres (eventType, dataFilter) sont passés, créer l'instance workflowRun
@@ -1087,9 +1088,9 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
     }
 
     return new Promise((resolve) => setTimeout(async () => {
-           await trigger(triggerData, user, eventType);
-           resolve();
-        }, 0)
+        await trigger(triggerData, user, eventType);
+        resolve();
+    }, 0)
     );
 }
 
@@ -1290,7 +1291,7 @@ async function executeGenerateAIContentAction(action, context, user) {
 
     const providers = {
         "OpenAI" : "OPENAI_API_KEY",
-        "Google": "GOOGLE_API_KEY",
+        "Google": "GOOGLE_API_KEY"
     }
     const envKeyName = providers[aiProvider];
     if( !envKeyName ) {
@@ -1319,14 +1320,14 @@ async function executeGenerateAIContentAction(action, context, user) {
     let llm;
     try {
         switch (aiProvider) {
-            case 'OpenAI':
-                llm = new ChatOpenAI({ apiKey, modelName: aiModel, temperature: 0.7 });
-                break;
-            case 'GoogleGemini':
-                llm = new ChatGoogleGenerativeAI({ apiKey, modelName: aiModel, temperature: 0.7 });
-                break;
-            default:
-                throw new Error(`Fournisseur IA non supporté : ${aiProvider}`);
+        case 'OpenAI':
+            llm = new ChatOpenAI({ apiKey, modelName: aiModel, temperature: 0.7 });
+            break;
+        case 'GoogleGemini':
+            llm = new ChatGoogleGenerativeAI({ apiKey, modelName: aiModel, temperature: 0.7 });
+            break;
+        default:
+            throw new Error(`Fournisseur IA non supporté : ${aiProvider}`);
         }
     } catch (initError) {
         const message = `Échec de l'initialisation du client IA pour ${aiProvider}: ${initError.message}`;
@@ -1413,7 +1414,7 @@ async function handleSendEmailAction(action, triggerData, user) {
         // 3. Préparer les données pour sendEmail
         const emailData = {
             title: rsubject,
-            content: rbody,
+            content: rbody
         };
 
         await sendEmail(rto, emailData, smtpConfig, user.lang);

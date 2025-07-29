@@ -1,4 +1,3 @@
-import { translations } from "data-primals-engine/i18n";
 import process from "node:process";
 import nodemailer from "nodemailer";
 import juice from "juice";
@@ -12,8 +11,8 @@ const defaultTransporter = nodemailer.createTransport({
     secure: false,
     auth: {
         user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-    },
+        pass: process.env.MAIL_PASS
+    }
 });
 
 /**
@@ -31,8 +30,8 @@ const createTransporter = (smtpConfig) => {
         secure: smtpConfig.secure === true, // Par défaut à false si non défini
         auth: {
             user: smtpConfig.user,
-            pass: smtpConfig.pass,
-        },
+            pass: smtpConfig.pass
+        }
     });
 };
 
@@ -67,7 +66,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
             from: contactEmail,
             to: e,
             subject: data.title,
-            html,
+            html
         };
         return transporter.sendMail(mailOptions);
     });
@@ -108,8 +107,8 @@ export const ebutton = (content = "", attrs = {}, style = {}) => {
             estyle(style) +
             '">' +
             content +
-            "</a>",
-        ),
+            "</a>"
+        )
     );
 };
 
@@ -138,7 +137,7 @@ export const erow = (content = "", style = {}) => {
                     estyle(style) +
                     '" valign="top">' +
                     c +
-                    "</td>",
+                    "</td>"
             )
             .join("") +
         "</tr>"

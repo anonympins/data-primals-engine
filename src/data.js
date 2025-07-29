@@ -183,39 +183,40 @@ export function getDefaultForType(field) {
     if(field.default)
         return typeof(field.default) === 'function' ? field.default() : field.default;
     switch (field.type) {
-        case 'string':
-        case 'string_t':
-        case 'richtext':
-        case 'password':
-        case 'email':
-        case 'phone':
-        case 'url':
-            return '';
-        case 'model':
-            return '';
-        case 'modelField':
-            return { model: '', field: '' };
-        case 'color':
-            return null;
-        case 'number':
-            return 0;
-        case 'date':
-        case 'datetime':
-            return null;
-        case 'boolean':
-            return false;
-        case 'file':
-            return null;
-        case 'array':
-            return [];
-        case 'enum':
-            return field.required && field.items && field.items.length > 0 ? field.items[0] : null;
-        case 'object':
-            return {};
-        case 'relation':
-            return field.multiple ? [] : null;
-        default:
-            return undefined;
+    case 'string':
+    case 'string_t':
+    case 'richtext':
+    case 'password':
+    case 'email':
+    case 'phone':
+    case 'url':
+        return '';
+    case 'model':
+        return '';
+    case 'modelField':
+        return { model: '', field: '' };
+    case 'color':
+        return null;
+    case 'number':
+        return 0;
+    case 'date':
+    case 'datetime':
+        return null;
+    case 'boolean':
+        return false;
+    case 'file':
+        return null;
+    case 'array':
+        return [];
+    case 'enum':
+        return field.required && field.items && field.items.length > 0 ? field.items[0] : null;
+    case 'object':
+        return {};
+    case 'relation':
+        return field.multiple ? [] : null;
+    default:
+            
+        return undefined;
     }
 }
 
@@ -319,54 +320,54 @@ function buildApiConditionPayloadRecursive(conditionNode) {
 
         // --- Build the specific $expr based on the operator ---
         switch (exprOperator) {
-            case '$nin':
-                const ninValueArray = Array.isArray(value) ? value : String(value).split(',').map(s => s.trim()).filter(Boolean);
-                // Note: $nin at the top level is often better handled *outside* $expr
-                // but for consistency with $find, we keep it inside $expr here.
-                // If segmentsForNesting.length === 0, a standard query { field: { $nin: [...] } } might be more efficient.
-                exprPayload = { '$not': { '$in': [fieldPathForExpr, ninValueArray] } };
-                break;
-            case '$in':
-                const inValueArray = Array.isArray(value) ? value : String(value).split(',').map(s => s.trim()).filter(Boolean);
-                // Similar note as $nin regarding top-level efficiency.
-                exprPayload = { '$in': [fieldPathForExpr, inValueArray] };
-                break;
-            case '$regexMatch':
-                exprPayload = {
-                    '$regexMatch': {
-                        input: fieldPathForExpr,
-                        regex: String(value),
-                        options: 'i'
-                    }
-                };
-                break;
-            case '$exists':
-                const shouldExist = typeof value === 'boolean' ? value : String(value).toLowerCase() === 'true';
-                // Using $ne/$eq with $type is a common way to check existence in $expr
-                exprPayload = {
-                    [shouldExist ? '$ne' : '$eq']: [ { $type: fieldPathForExpr }, "undefined" ]
-                };
-                // Note: For top-level, { field: { $exists: true/false } } is standard.
-                break;
-            default:
-                // Standard binary operators ($eq, $ne, $gt, $gte, $lt, $lte)
-                let processedValue = value;
-                // Basic type guessing for common string values
-                if (operator === '$eq' || operator === '$ne') {
-                    if (value === 'true') processedValue = true;
-                    else if (value === 'false') processedValue = false;
-                    else if (value === 'null') processedValue = null;
-                    // Avoid automatic number conversion for eq/ne unless explicitly needed
-                } else if (['$gt', '$gte', '$lt', '$lte'].includes(operator)) {
-                    // Attempt number conversion for comparison operators
-                    const num = Number(value);
-                    if (!isNaN(num) && String(value).trim() !== '') {
-                        processedValue = num;
-                    }
-                    // TODO: Consider adding date conversion if field type is known
+        case '$nin':
+            const ninValueArray = Array.isArray(value) ? value : String(value).split(',').map(s => s.trim()).filter(Boolean);
+            // Note: $nin at the top level is often better handled *outside* $expr
+            // but for consistency with $find, we keep it inside $expr here.
+            // If segmentsForNesting.length === 0, a standard query { field: { $nin: [...] } } might be more efficient.
+            exprPayload = { '$not': { '$in': [fieldPathForExpr, ninValueArray] } };
+            break;
+        case '$in':
+            const inValueArray = Array.isArray(value) ? value : String(value).split(',').map(s => s.trim()).filter(Boolean);
+            // Similar note as $nin regarding top-level efficiency.
+            exprPayload = { '$in': [fieldPathForExpr, inValueArray] };
+            break;
+        case '$regexMatch':
+            exprPayload = {
+                '$regexMatch': {
+                    input: fieldPathForExpr,
+                    regex: String(value),
+                    options: 'i'
                 }
-                exprPayload = { [exprOperator]: [fieldPathForExpr, processedValue] };
-                break;
+            };
+            break;
+        case '$exists':
+            const shouldExist = typeof value === 'boolean' ? value : String(value).toLowerCase() === 'true';
+            // Using $ne/$eq with $type is a common way to check existence in $expr
+            exprPayload = {
+                [shouldExist ? '$ne' : '$eq']: [ { $type: fieldPathForExpr }, "undefined" ]
+            };
+            // Note: For top-level, { field: { $exists: true/false } } is standard.
+            break;
+        default:
+            // Standard binary operators ($eq, $ne, $gt, $gte, $lt, $lte)
+            let processedValue = value;
+            // Basic type guessing for common string values
+            if (operator === '$eq' || operator === '$ne') {
+                if (value === 'true') processedValue = true;
+                else if (value === 'false') processedValue = false;
+                else if (value === 'null') processedValue = null;
+                // Avoid automatic number conversion for eq/ne unless explicitly needed
+            } else if (['$gt', '$gte', '$lt', '$lte'].includes(operator)) {
+                // Attempt number conversion for comparison operators
+                const num = Number(value);
+                if (!isNaN(num) && String(value).trim() !== '') {
+                    processedValue = num;
+                }
+                // TODO: Consider adding date conversion if field type is known
+            }
+            exprPayload = { [exprOperator]: [fieldPathForExpr, processedValue] };
+            break;
         }
 
         // The final payload for the innermost level is the $expr object

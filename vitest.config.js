@@ -11,6 +11,6 @@ export default defineConfig({
         testTimeout: 25000, // 20 seconds
 
         // Tell Vitest where to find your global setup and teardown files
-        globalTeardown: './test/globalTeardown.js',
-    },
+        globalTeardown: './test/globalTeardown.js'
+    }
 });

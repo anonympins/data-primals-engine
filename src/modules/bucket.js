@@ -24,7 +24,7 @@ export const requestRestore = async (user, lang) => {
     restoreRequests[user?.username] = {
         fullToken: fullRestoreToken,
         modelsToken: modelsRestoreToken,
-        expiresAt: expiration,
+        expiresAt: expiration
     };
 
     i18n.changeLanguage(lang);
@@ -51,7 +51,7 @@ const getDefaultS3Config = () => {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY, // Utiliser la clé déchiffrée
         region: process.env.AWS_REGION || awsDefaultConfig.region,
-        bucketName: process.env.AWS_BUCKET || awsDefaultConfig.bucketName,
+        bucketName: process.env.AWS_BUCKET || awsDefaultConfig.bucketName
     };
 }
 const getS3Client = (s3Config) => {
@@ -77,7 +77,7 @@ export const uploadToS3 = async (s3Config, filePath, remoteFilename) => {
     const params = {
         Bucket: s3Config.bucketName,
         Key: bucketPath,
-        Body: fileContent,
+        Body: fileContent
     };
 
     try {
@@ -96,7 +96,7 @@ export const listS3Backups = async (s3Config) => {
 
     const params = {
         Bucket: s3Config.bucketName,
-        Prefix: bucketPathPrefix,
+        Prefix: bucketPathPrefix
     };
 
     try {
@@ -119,7 +119,7 @@ export const downloadFromS3 = async (s3Config, s3FileKey, downloadPath) => {
     const s3 = getS3Client(s3Config);
     const params = {
         Bucket: s3Config.bucketName,
-        Key: s3FileKey,
+        Key: s3FileKey
     };
 
     try {
@@ -193,7 +193,7 @@ export async function onInit(defaultEngine) {
                 's3Config.bucketName': bucketName,
                 's3Config.accessKeyId': accessKeyId, // Stocké en clair (généralement acceptable)
                 's3Config.region': region,
-                's3Config.pathPrefix': pathPrefix || '', // S'assurer qu'il y a une valeur par défaut si vide
+                's3Config.pathPrefix': pathPrefix || '' // S'assurer qu'il y a une valeur par défaut si vide
             };
 
             // Chiffrer et mettre à jour la clé secrète uniquement si elle est fournie

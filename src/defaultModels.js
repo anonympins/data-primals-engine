@@ -20,8 +20,8 @@ export const defaultModels = {
         "description": "",
         fields: [
             { name: 'name', type: 'string_t', required: true, unique: true, color: '#363636' },
-            { name: 'permissions', type: 'relation', multiple: true, relation: 'permission' },
-        ],
+            { name: 'permissions', type: 'relation', multiple: true, relation: 'permission' }
+        ]
     },
     user: {
         name: 'user',
@@ -33,7 +33,7 @@ export const defaultModels = {
             {
                 "name": "gender",
                 "type": "enum",
-                "items": ["male", "female", "other", "prefer_not_to_say"],
+                "items": ["male", "female", "other", "prefer_not_to_say"]
             },
             { name: 'contact', type: 'relation', relation: 'contact' },
             { name: 'roles', type: 'relation', multiple: true, relation: 'role' },
@@ -41,10 +41,10 @@ export const defaultModels = {
             {
                 "name": "profilePicture",
                 "type": "file",
-                "mimeTypes": ["image/jpeg", "image/png"],
+                "mimeTypes": ["image/jpeg", "image/png"]
             },
-            { name: 'tokens', type: 'relation', multiple: true, relation: 'token' },
-        ],
+            { name: 'tokens', type: 'relation', multiple: true, relation: 'token' }
+        ]
     },
     token: {
         name: 'token',
@@ -53,7 +53,7 @@ export const defaultModels = {
             { name: 'name', type: 'string' },
             { name: 'value', type: 'password' },
             { name: 'lastRefresh', type: 'datetime' }
-        ],
+        ]
     },
     translation: {
         name: 'translation',
@@ -62,7 +62,7 @@ export const defaultModels = {
         fields: [
             { name: 'lang', type: 'relation', 'relation': 'lang', required: true, color: '#4CACCD' },
             { name: 'key', type: 'string', maxlength: 200, required: true },
-            { name: 'value', type: 'string' },
+            { name: 'value', type: 'string' }
         ]
     },
     lang: {
@@ -71,7 +71,7 @@ export const defaultModels = {
         "description": "",
         fields: [
             { name: 'name', unique: true, type: 'string_t', maxlength: 200, color: '#4CACCD' },
-            { name: 'code', type: 'string', maxlength: 5 },
+            { name: 'code', type: 'string', maxlength: 5 }
         ]
     },
     currency: {
@@ -84,7 +84,7 @@ export const defaultModels = {
             { name: 'name', type: 'string_t', required: true, color: '#AE6FA3' },
             { name: 'exchangeRate', type: 'number', required: false },
             { name: 'default', type: 'boolean', default: false }
-        ],
+        ]
     },
     channel: {
         name: 'channel',
@@ -92,8 +92,8 @@ export const defaultModels = {
         fields: [
             { name: 'name', type: 'string_t', required: true, unique: true }, // Nom du canal (ex: "email", "SMS")
             { name: 'description', type: 'string_t' },
-            { name: 'type', type: 'enum', items: ['web', 'mobile', 'email', 'sms', 'push'], required: true }, // Type de canal
-        ],
+            { name: 'type', type: 'enum', items: ['web', 'mobile', 'email', 'sms', 'push'], required: true } // Type de canal
+        ]
     },
     message: {
         name: 'message',
@@ -110,8 +110,8 @@ export const defaultModels = {
             { name: 'sentAt', type: 'datetime' },
             { name: 'readAt', type: 'datetime' },
             { name: 'type', type: 'string' }, // Type de notification (ex: "commande.miseAJour", "messageForum")
-            { name: 'priority', type: 'enum', items: ['low', 'medium', 'high']},
-        ],
+            { name: 'priority', type: 'enum', items: ['low', 'medium', 'high']}
+        ]
     },
     alert: {
         name: "alert",
@@ -148,7 +148,7 @@ export const defaultModels = {
                 type: "datetime",
                 required: false, // Important: ce champ est géré par le système
                 hint: "Timestamp de la dernière notification envoyée pour cette alerte."
-            },
+            }
         ]
     },
     env: {
@@ -172,8 +172,8 @@ export const defaultModels = {
             { name: 'description', type: 'string' },
             { name: 'keywords', type: 'relation', relation: 'taxonomy', multiple: true },
             { name: 'image', type: 'url' },
-            { name: 'category', type: 'relation', relation: 'taxonomy' },
-        ],
+            { name: 'category', type: 'relation', relation: 'taxonomy' }
+        ]
     },
     content: {
         name: 'content',
@@ -188,22 +188,22 @@ export const defaultModels = {
             { name: 'publishedAt', type: 'datetime' },
             { name: 'author', type: 'relation', relation: 'user' },
             { name: 'category', type: 'relation', relation: 'taxonomy', "relationFilter": {
-                    "path": [
-                        "type"
-                    ],
-                    "op": "$eq",
-                    "value": "category"
-                } },
+                "path": [
+                    "type"
+                ],
+                "op": "$eq",
+                "value": "category"
+            } },
             { name: 'keywords', type: 'relation', relation: 'taxonomy', multiple: true, "relationFilter": {
-                    "path": [
-                        "type"
-                    ],
-                    "op": "$eq",
-                    "value": "keyword"
-                } },
+                "path": [
+                    "type"
+                ],
+                "op": "$eq",
+                "value": "keyword"
+            } },
             { name: 'order', type: 'number', step: 1, default: 0 },
-            { name: 'inSitemap', type: 'boolean', default: false },
-        ],
+            { name: 'inSitemap', type: 'boolean', default: false }
+        ]
     },
     resource: {
         name: 'resource',
@@ -222,8 +222,8 @@ export const defaultModels = {
             { name: 'type', type: 'enum', items: ['keyword', 'category'], color: '#BFBFBF' },
             { name: 'identifier', type: 'string' },
             { name: 'order', type: 'number', step: 1, default: 0 },
-            { name: 'description', type: 'richtext' },
-        ],
+            { name: 'description', type: 'richtext' }
+        ]
     },
     contact: {
         locked: true,
@@ -235,7 +235,7 @@ export const defaultModels = {
             { name: 'lastName', type: 'string', asMain: true },
             { name: 'email', type: 'email', color: '#F4ECE2' },
             { name: 'phone', type: 'phone', color: '#B4A693' },
-            { name: 'location', type: 'relation', relation: 'location' },
+            { name: 'location', type: 'relation', relation: 'location' }
         ]
     },
 
@@ -293,7 +293,7 @@ export const defaultModels = {
                 "name": "longitude",
                 "type": "number",
                 "unit": "°"
-            },
+            }
         ]
     },
 
@@ -303,8 +303,8 @@ export const defaultModels = {
         fields: [
             { name: 'name', type: 'string', required: true },
             { name: 'logo', type: 'file' },
-            { name: 'company', type: 'relation', relation: 'contact' },
-        ],
+            { name: 'company', type: 'relation', relation: 'contact' }
+        ]
     },
 
     product: {
@@ -321,8 +321,8 @@ export const defaultModels = {
             { name: 'brand', type: 'relation', relation: 'brand' },
             { name: 'category', type: 'relation', relation: 'taxonomy' },
             { name: 'seoTitle', type: 'string_t' },
-            { name: 'seoDescription', type: 'string_t' },
-        ],
+            { name: 'seoDescription', type: 'string_t' }
+        ]
     },
     productVariant: {
         name: 'productVariant',
@@ -336,8 +336,8 @@ export const defaultModels = {
             { name: 'currency', type: 'relation', relation: 'currency', required: true },
             { name: 'stock', type: 'number', default: 0 },
             { name: 'description', type: 'richtext' },
-            { name: 'image', type: 'url' },
-        ],
+            { name: 'image', type: 'url' }
+        ]
     },
     cart: {
         name: 'cart',
@@ -347,8 +347,8 @@ export const defaultModels = {
             { name: 'items', type: 'relation', relation: 'cartItem', multiple: true },
             { name: 'creationDate', type: 'datetime', required: true },
             { name: 'lastUpdate', type: 'datetime', required: true },
-            { name: 'active', type: 'boolean', default: true },
-        ],
+            { name: 'active', type: 'boolean', default: true }
+        ]
     },
     cartItem: {
         name: 'cartItem',
@@ -356,8 +356,8 @@ export const defaultModels = {
         fields: [
             { name: 'product', type: 'relation', relation: 'product', required: true },
             { name: 'quantity', type: 'number', required: true, min: 1, step: 1 },
-            { name: 'variant', type: 'relation', relation: 'productVariant' }, // Optionnel, si vous avez des variantes
-        ],
+            { name: 'variant', type: 'relation', relation: 'productVariant' } // Optionnel, si vous avez des variantes
+        ]
     },
     discount: {
         name: "discount",
@@ -373,7 +373,7 @@ export const defaultModels = {
             { "name": "minProductQuantity", "type": "number", min: 0 }, // Montant minimum pour la promotion
             { "name": "freeProductQuantity", "type": "number", default: null, min: 0 }, // Quantité de produits offerts
             { "name": "startDate", "type": "datetime" },
-            { "name": "endDate", "type": "datetime" },
+            { "name": "endDate", "type": "datetime" }
         ]
     },
     order: {
@@ -404,8 +404,8 @@ export const defaultModels = {
             { name: 'invoiceId', type: 'string', required: true, unique: true },
             { name: 'invoiceDate', type: 'datetime', required: true },
             { name: 'dueDate', type: 'datetime' },
-            { name: 'status', type: 'enum', items: ['paid', 'unpaid', 'partially_paid', 'cancelled'] },
-        ],
+            { name: 'status', type: 'enum', items: ['paid', 'unpaid', 'partially_paid', 'cancelled'] }
+        ]
     },
     userSubscription: {
         name: 'userSubscription',
@@ -424,8 +424,8 @@ export const defaultModels = {
             { name: 'nextBillingDate', type: 'datetime' },
             { name: 'lastBillingDate', type: 'datetime' },
             { name: 'cancelReason', type: 'string' },
-            { name: 'autoRenew', type: 'boolean', default: false },
-        ],
+            { name: 'autoRenew', type: 'boolean', default: false }
+        ]
     },
     stock: {
         name: 'stock',
@@ -435,8 +435,8 @@ export const defaultModels = {
             { name: 'variant', type: 'relation', relation: 'productVariant' }, // Optionnel
             { name: 'warehouse', type: 'relation', relation: 'warehouse', required: true },
             { name: 'available', type: 'number', default: 0 },
-            { name: 'reserved', type: 'number', default: 0 }, // Quantité réservée (pour les commandes en cours)
-        ],
+            { name: 'reserved', type: 'number', default: 0 } // Quantité réservée (pour les commandes en cours)
+        ]
     },
     stockAlert: {
         name: 'stockAlert',
@@ -444,8 +444,8 @@ export const defaultModels = {
         fields: [
             { name: 'user', type: 'relation', relation: 'user', required: true },
             { name: 'stock', type: 'relation', relation: 'stock', required: true },
-            { name: 'threshold', type: 'number', required: true, min: 0 },
-        ],
+            { name: 'threshold', type: 'number', required: true, min: 0 }
+        ]
         // how to implement unique fields on COMBINATION of multiple columns ?
     },
     shipment: {
@@ -458,7 +458,7 @@ export const defaultModels = {
             { name: 'status', type: 'enum', items: ['pending', 'in_transit', 'delivered', 'issue'] },
             { name: 'estimatedDeliveryDate', type: 'datetime' },
             { name: 'actualDeliveryDate', type: 'datetime' }
-        ],
+        ]
     },
     warehouse: {
         name: 'warehouse',
@@ -466,8 +466,8 @@ export const defaultModels = {
         fields: [
             { name: 'name', type: 'string_t', required: true },
             { name: 'location', type: 'relation', relation: 'location' },
-            { name: 'capacity', type: 'number' },
-        ],
+            { name: 'capacity', type: 'number' }
+        ]
     },
     'return': {
         name: "return",
@@ -479,7 +479,7 @@ export const defaultModels = {
             { "name": "status", "type": "enum", items: ["pending", "approved", "refunded", "refused"] },
             { name: 'amount', type: 'number', min: 0 },
             { name: 'currency', type: 'relation', relation: 'currency' },
-            { name: 'refundDate', type: 'datetime' },
+            { name: 'refundDate', type: 'datetime' }
         ]
     },
     returnItem: {
@@ -491,7 +491,7 @@ export const defaultModels = {
             { name: 'variant', type: 'relation', relation: 'productVariant' },
             { name: 'quantity', type: 'number', required: true, min: 1 },
             { name: 'condition', type: 'enum', items: ['new', 'very_good', 'good', 'degraded', 'damaged', 'unusable'] }
-        ],
+        ]
     },
     ticket: {
         name: 'ticket',
@@ -508,7 +508,7 @@ export const defaultModels = {
             { name: 'priority', type: 'enum', items: ['low', 'medium', 'high', 'urgent'] },
             { name: 'assignedTo', type: 'relation', relation: 'user' },
             { name: 'createdAt', type: 'datetime', required: true }
-        ],
+        ]
     },
     campaign: {
         name: 'campaign',
@@ -521,7 +521,7 @@ export const defaultModels = {
             { name: 'type', type: 'enum', items: ['email', 'sms', 'advertisement', 'promotion'] },
             { name: 'status', type: 'enum', items: ['planified', 'in_progress', 'finished', 'cancelled'] },
             { name: 'budget', type: 'number' }
-        ],
+        ]
     },
     review: {
         name: "review",
@@ -532,7 +532,7 @@ export const defaultModels = {
             { "name": "productVariant", "type": "relation", relation: 'productVariant' },
             { "name": "comment", "type": "richtext", maxlength: 2048, required: true },
             { "name": "score", "type": "number" },
-            { "name": "publishedAt", "type": "datetime", required: true },
+            { "name": "publishedAt", "type": "datetime", required: true }
         ]
     },
     device: {
@@ -552,7 +552,7 @@ export const defaultModels = {
             { name: 'companyContact', type: 'relation', relation: 'contact', 'required': true, hint: "Désignation de l'entreprise" },
             { name: 'companyIdentifier', type: 'string', asMain: true, hint: "SIRET de l'entreprise", unique: true },
             { name: 'startDate', type: 'date', required: true, asMain: true, hint: "Date de début de l'exercice" },
-            { name: 'endDate', type: 'date', required: true, asMain: true, hint: "Date de clôture de l'exercice" },
+            { name: 'endDate', type: 'date', required: true, asMain: true, hint: "Date de clôture de l'exercice" }
         ]
     },
 
@@ -573,7 +573,7 @@ export const defaultModels = {
                     'effectifs_valeur_ajoutee',
                     'capital_social',
                     'filiales_participations',
-                    'resultat_fiscal'],
+                    'resultat_fiscal']
             },
             { name: 'section', type: 'string_t', required: true, hint: "Section principale (ex: ACTIF IMMOBILISÉ)" },
             { name: 'subSection', type: 'string_t', hint: "Sous-section (ex: IMMOBILISATIONS INCORPORELLES)" },
@@ -594,7 +594,7 @@ export const defaultModels = {
                 "name": "exercise",
                 "type": "relation",
                 "relation": "accountingExercise",
-                "required": true,
+                "required": true
             },
             {
                 "name": "label",
@@ -606,7 +606,7 @@ export const defaultModels = {
             {
                 "name": "entryDate",
                 "type": "date",
-                "required": true,
+                "required": true
             },
             {
                 "name": "amount",
@@ -617,7 +617,7 @@ export const defaultModels = {
                 "name": "currency",
                 "type": "relation",
                 "relation": "currency",
-                "required": true,
+                "required": true
             },
             {
                 "name": "referenceNumber",
@@ -674,21 +674,21 @@ export const defaultModels = {
             {
                 "name": "jobTitle",
                 "type": "string",
-                "required": true,
+                "required": true
             },
             {
                 "name": "department",
-                "type": "string",
+                "type": "string"
             },
             {
                 "name": "manager",
                 "type": "relation",
-                "relation": "employee",
+                "relation": "employee"
             },
             {
                 "name": "workLocation",
                 "type": "relation",
-                "relation": "location",
+                "relation": "location"
             },
             {
                 "name": "employmentType",
@@ -703,7 +703,7 @@ export const defaultModels = {
             {
                 "name": "homeAddress",
                 "type": "relation",
-                "relation": "location",
+                "relation": "location"
             },
             {
                 "name": "dateOfBirth",
@@ -719,7 +719,7 @@ export const defaultModels = {
             },
             {
                 "name": "socialSecurityNumber",
-                "type": "string",
+                "type": "string"
             },
             {
                 "name": "taxId",
@@ -728,11 +728,11 @@ export const defaultModels = {
             {
                 "name": "startDate",
                 "type": "date",
-                "required": true,
+                "required": true
             },
             {
                 "name": "endDate",
-                "type": "date",
+                "type": "date"
             },
             {
                 "name": "contractType",
@@ -740,25 +740,25 @@ export const defaultModels = {
             },
             {
                 "name": "salary",
-                "type": "number",
+                "type": "number"
             },
             {
                 "name": "salaryCurrency",
                 "type": "relation",
-                "relation": "currency",
+                "relation": "currency"
             },
             {
                 "name": "payFrequency",
                 "type": "enum",
-                "items": ["weekly", "bi_weekly", "monthly"],
+                "items": ["weekly", "bi_weekly", "monthly"]
             },
             {
                 "name": "bankAccountNumber",
-                "type": "string",
+                "type": "string"
             },
             {
                 "name": "bankName",
-                "type": "string",
+                "type": "string"
             },
             {
                 "name": "iban",
@@ -787,7 +787,7 @@ export const defaultModels = {
             {
                 "name": "skills",
                 "type": "array",
-                "itemsType": "string",
+                "itemsType": "string"
             },
             {
                 "name": "notes",
@@ -801,7 +801,7 @@ export const defaultModels = {
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Unique name for the workflow (e.g., 'Order Validation', 'Low Stock Notification')." },
             { name: 'description', type: 'richtext', hint: "Detailed explanation of the workflow's purpose." },
-            { name: 'startStep', type: 'relation', relation: 'workflowStep', required: false, hint: "The first step to execute when the workflow starts." },
+            { name: 'startStep', type: 'relation', relation: 'workflowStep', required: false, hint: "The first step to execute when the workflow starts." }
         ]
     },
     workflowTrigger: {
@@ -814,26 +814,26 @@ export const defaultModels = {
                 name: 'type',
                 type: 'enum',
                 items: ['manual', 'scheduled'],
-                required: true,
+                required: true
             },
             {
                 name: 'onEvent',
                 type: 'enum',
                 items: ['DataAdded', 'DataEdited', 'DataDeleted', 'ModelAdded', 'ModelEdited', 'ModelDeleted'],
-                condition: { $eq: ["$type", "manual"] },
+                condition: { $eq: ["$type", "manual"] }
             },
             { name: 'targetModel', type: 'model', condition: { // Condition pour afficher le champ
-                    $and: [
-                        {$eq: ["$type", "manual"]},
-                        {
-                            $or: [
-                                { path: "onEvent", op: "$eq", value: "DataAdded" },
-                                { path: "onEvent", op: "$eq", value: "DataEdited" },
-                                { path: "onEvent", op: "$eq", value: "DataDeleted" }
-                            ]
-                        }
-                    ]
-                },},
+                $and: [
+                    {$eq: ["$type", "manual"]},
+                    {
+                        $or: [
+                            { path: "onEvent", op: "$eq", value: "DataAdded" },
+                            { path: "onEvent", op: "$eq", value: "DataEdited" },
+                            { path: "onEvent", op: "$eq", value: "DataDeleted" }
+                        ]
+                    }
+                ]
+            }},
             { name: 'dataFilter', type: 'code',  language: 'json', targetModel: '$targetModel', conditionBuilder: true, hint: "Optional conditions checked before executing the step's action.",
                 condition: { // Condition pour afficher le champ
                     $and: [
@@ -846,7 +846,7 @@ export const defaultModels = {
                             ]
                         }
                     ]
-                },
+                }
             },
             { name: 'env', type: 'code', language: 'json', hint: "Environment variables (JSON key/value pairs)",default: {} },
             { name: 'isActive', type: 'boolean' },
@@ -882,21 +882,20 @@ export const defaultModels = {
             },
             // For UpdateData / CreateData / DeleteData
             { name: 'targetModel', condition: {
-                    $or: [
-
-                        {$eq: ["$type", "CreateData"]},
-                        {$eq: ["$type", "UpdateData"]},
-                        {$eq: ["$type", "DeleteData"]},
-                    ]
-                }, type: 'model', hint: "Model to target" },
+                $or: [
+                    {$eq: ["$type", "CreateData"]},
+                    {$eq: ["$type", "UpdateData"]},
+                    {$eq: ["$type", "DeleteData"]}
+                ]
+            }, type: 'model', hint: "Model to target" },
 
             // For UpdateData / DeleteData
             { name: 'targetSelector', targetModel: "$targetModel", conditionBuilder: true, condition: {
-                    $or: [
-                        {$eq: ["$type", "UpdateData"]},
-                        {$eq: ["$type", "DeleteData"]},
-                    ]
-                }, type: 'code', language: 'json', hint: "Expression to filter to the target document(s)." },
+                $or: [
+                    {$eq: ["$type", "UpdateData"]},
+                    {$eq: ["$type", "DeleteData"]}
+                ]
+            }, type: 'code', language: 'json', hint: "Expression to filter to the target document(s)." },
 
             // For UpdateData
             { name: 'fieldsToUpdate', condition: {$eq: ["$type", "UpdateData"]}, type: 'code', language: 'json', default: {}, hint: "Key-value pairs of fields to update (e.g., { status: 'Validé', lastUpdated: '{now}' })" },
@@ -958,7 +957,7 @@ export const defaultModels = {
                 condition: { $eq: ["$type", "GenerateAIContent"] },
                 type: 'richtext', // richtext est bien pour les longs prompts
                 hint: "Le modèle de prompt. Utilise des variables comme {triggerData.field} ou {context.variable}."
-            },
+            }
 
         ]
     },
@@ -982,7 +981,7 @@ export const defaultModels = {
             { name: 'owner', type: 'relation', relation: 'user', required: false },
             { name: 'startedAt', type: 'datetime', required: true, hint: "Timestamp when the workflow run began." },
             { name: 'completedAt', type: 'datetime', hint: "Timestamp when the workflow run finished (successfully or failed)." },
-            { name: 'error', type: 'string', maxlength: 4096, hint: "Error message if the workflow run failed." },
+            { name: 'error', type: 'string', maxlength: 4096, hint: "Error message if the workflow run failed." }
         ]
     },
     dashboard:{
@@ -1153,9 +1152,9 @@ export const defaultModels = {
                 "required": false,
                 "default": "{}",
                 condition: { "$or": [
-                        {$eq: ["$showTotal", true]},
-                        {$eq: ["$showPercentTotal", true]},
-                    ]}
+                    {$eq: ["$showTotal", true]},
+                    {$eq: ["$showPercentTotal", true]}
+                ]}
             },
             {
                 name: 'unit', // Optionnel: Unité à afficher avec la valeur
@@ -1281,7 +1280,7 @@ export const defaultModels = {
                 type: 'array',
                 itemsType: 'file', // Pour joindre des reçus, factures, etc.
                 hint: "Pièces jointes (reçus, factures)."
-            },
+            }
         ]
     },
     event: {

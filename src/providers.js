@@ -86,7 +86,7 @@ export class UserProvider {
             free: {
                 requestLimitPerHour: 10000,
                 features: ['indexes'] // Feature list : indexes is the only option for now. Use a dedicated collection for this user
-            },
+            }
         };
     }
 
@@ -134,7 +134,7 @@ export class DefaultUserProvider extends UserProvider {
         return {
             free: {
                 features: ['indexes']
-            },
+            }
         }
     }
 }

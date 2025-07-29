@@ -10,7 +10,7 @@ import {
 
 import {
     modelsCollection as getAppModelsCollection,
-    getCollectionForUser as getAppUserCollection,
+    getCollectionForUser as getAppUserCollection
 } from 'data-primals-engine/modules/mongodb';
 import {sleep} from "data-primals-engine/core";
 import fs from "node:fs";
@@ -33,8 +33,8 @@ const impexTestModel = {
         { name: 'name', type: 'string', required: true },
         { name: 'sku', type: 'string', unique: true },
         { name: 'price', type: 'number', required: true },
-        { name: 'inStock', type: 'boolean', default: true },
-    ],
+        { name: 'inStock', type: 'boolean', default: true }
+    ]
 };
 
 // --- Setup de l'environnement de test ---
@@ -74,7 +74,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
         await insertData(impexTestModel.name, [
             { name: 'Produit A', sku: 'SKU-A', price: 10.50, inStock: true },
             { name: 'Produit B', sku: 'SKU-B', price: 25.00, inStock: false },
-            { name: 'Produit C', sku: 'SKU-C', price: 99.99, inStock: true },
+            { name: 'Produit C', sku: 'SKU-C', price: 99.99, inStock: true }
         ], {}, mockUser, false);
     });
 
@@ -82,7 +82,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
         it('devrait exporter les données en format JSON', async () => {
             const res= await exportData({
                 models: [impexTestModel.name],
-                depth: 1,
+                depth: 1
             }, mockUser);
 
             expect(res.success).toBeTruthy();
