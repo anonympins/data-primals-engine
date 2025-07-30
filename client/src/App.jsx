@@ -56,6 +56,8 @@ import { translations as allTranslations} from "data-primals-engine/i18n";
 import {getRandom} from "data-primals-engine/core";
 import {getUserHash} from "data-primals-engine/data";
 import {seoTitle} from "./constants.js";
+import i18next from "i18next";
+import {websiteTranslations} from "./translations.js";
 
 let queryClient = new QueryClient();
 
@@ -175,13 +177,13 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     const changeLanguage = (newLang) => {
         if (typeof(newLang) === 'string' && newLang) {
 
-            i18n.removeResourceBundle(lang, "translations");
-            i18n.addResourceBundle(newLang, "translations", translations);
             i18n.changeLanguage(newLang, (err)=>{
+
+                i18next.removeResourceBundle(lang, "translation");
+                i18next.addResourceBundle(newLang, 'translation', {...websiteTranslations[newLang]['translation'], ...translations[newLang]?.['translation']});
 
                 gtag("event", "change_language "+newLang);
             });
-
         }
     };
 
