@@ -1,0 +1,54 @@
+// client/src/RichTextEditorModal.scss
+.richtext-editor-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 80vh;
+  background-color: #fff;
+  z-index: 2000; // Doit être au-dessus de tout le reste
+  display: flex;
+  flex-direction: column;
+
+  .editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f8f9fa;
+
+    h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 10px;
+    }
+  }
+
+  .editor-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; // Empêche le double scroll
+
+    .ql-toolbar {
+      border-left: none;
+      border-right: none;
+      border-top: none;
+    }
+
+    .ql-container {
+      flex-grow: 1;
+      border: none;
+      font-size: 16px;
+      overflow-y: auto; // Permet le scroll dans l'éditeur
+    }
+    .ql-editor {
+      padding: 2rem; // Un peu d'air
+    }
+  }
+}

@@ -2,7 +2,7 @@ import {getRandom} from "data-primals-engine/core";
 import process from "node:process";
 import {Engine} from "./index.js";
 
-let ports = [], engineInstance, mongod;
+let ports = [], engineInstance;
 export const getUniquePort = () =>{
     let d, it=0;
     do{

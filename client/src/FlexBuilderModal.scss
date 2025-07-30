@@ -1,0 +1,109 @@
+// src/components/FlexBuilderModal.scss
+
+.flex-builder-config-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1040; // Un peu moins que la modale de type de widget si elle reste ouverte
+  padding: 10px; // Pour petits écrans
+}
+
+.flex-builder-config-modal-content {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  width: 95vw; // Très large pour accommoder FlexBuilder
+  height: 90vh; // Très haut
+  max-width: 1400px; // Limite maximale
+  overflow: hidden; // Le scroll sera géré par les enfants
+
+  .flex-builder-config-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f7f7f7;
+
+    h3 {
+      margin: 0;
+      font-size: 1.4em;
+      color: #333;
+    }
+
+    .btn-close-x {
+      background: none;
+      border: none;
+      font-size: 1.8em;
+      cursor: pointer;
+      color: #777;
+      padding: 0 5px;
+      line-height: 1;
+      &:hover {
+        color: #333;
+      }
+    }
+  }
+
+  .flex-builder-config-modal-body {
+    flex-grow: 1;
+    overflow-y: auto; // Permettre le scroll si FlexBuilder est plus grand
+    padding: 0; // FlexBuilder a son propre padding
+
+    // Le composant FlexBuilder prendra toute la place ici
+    .flex-builder {
+      height: 100%; // Essayer de faire en sorte que FlexBuilder remplisse la modale
+      border: none; // Enlever la bordure par défaut de FlexBuilder s'il est dans une modale
+      border-radius: 0;
+      box-shadow: none;
+
+      .flex-builder-controls {
+        // Ajustements potentiels pour les contrôles dans la modale
+        height: 100%; // S'assurer qu'il prend toute la hauteur
+      }
+      .flex-builder-preview-area {
+         // Ajustements potentiels pour l'aperçu dans la modale
+         height: 100%;
+      }
+    }
+  }
+
+  .flex-builder-config-modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background-color: #f7f7f7;
+
+    button {
+      padding: 10px 20px;
+      font-size: 1em;
+      border-radius: 5px;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+      &:hover {
+        background-color: #5a6268;
+      }
+    }
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+      &:hover {
+        background-color: #0056b3;
+      }
+    }
+  }
+}

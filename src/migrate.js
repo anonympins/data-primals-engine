@@ -30,30 +30,30 @@ engine.start(port, async () => {
         const { executedNames, allMigrationFiles } = await getMigrationStatus(db);
 
         switch (command) {
-            case 'create':
-                if (!target) throw new Error("Please provide a name for the migration.");
-                await createMigrationFile(target, logger);
-                break;
-            case 'status':
-                displayStatus(executedNames, allMigrationFiles, logger);
-                break;
-            case 'up':
-                await runMigrations('up', null, logger, db, executedNames, allMigrationFiles);
-                break;
-            case 'down':
-                // Annule la dernière migration
-                await runMigrations('down', 'last', logger, db, executedNames, allMigrationFiles);
-                break;
-            case 'to':
-                if (!target) throw new Error("Please specify a target migration file for the 'to' command.");
-                await runMigrations('up', target, logger, db, executedNames, allMigrationFiles);
-                break;
-            case 'revert':
-                if (!target) throw new Error("Please specify a target migration file for the 'revert' command. Use '0' to revert all.");
-                await runMigrations('down', target, logger, db, executedNames, allMigrationFiles);
-                break;
-            default:
-                throw new Error(`Unknown command: ${command}. Use 'up', 'down', 'create', 'status', 'to', 'revert'.`);
+        case 'create':
+            if (!target) throw new Error("Please provide a name for the migration.");
+            await createMigrationFile(target, logger);
+            break;
+        case 'status':
+            displayStatus(executedNames, allMigrationFiles, logger);
+            break;
+        case 'up':
+            await runMigrations('up', null, logger, db, executedNames, allMigrationFiles);
+            break;
+        case 'down':
+            // Annule la dernière migration
+            await runMigrations('down', 'last', logger, db, executedNames, allMigrationFiles);
+            break;
+        case 'to':
+            if (!target) throw new Error("Please specify a target migration file for the 'to' command.");
+            await runMigrations('up', target, logger, db, executedNames, allMigrationFiles);
+            break;
+        case 'revert':
+            if (!target) throw new Error("Please specify a target migration file for the 'revert' command. Use '0' to revert all.");
+            await runMigrations('down', target, logger, db, executedNames, allMigrationFiles);
+            break;
+        default:
+            throw new Error(`Unknown command: ${command}. Use 'up', 'down', 'create', 'status', 'to', 'revert'.`);
         }
     } catch (error) {
         logger.error(chalk.red("Migration process failed:"), error.message);

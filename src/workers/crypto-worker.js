@@ -46,29 +46,30 @@ parentPort.on('message', async ({ action, payload }) => {
     try {
         let result;
         switch (action) {
-            case 'encrypt':
-                console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
-                await encryptFile(payload.filePath, payload.password);
-                parentPort.postMessage({ success: true }); // Pas de données à retourner
-                break;
+        case 'encrypt':
+            console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
+            await encryptFile(payload.filePath, payload.password);
+            parentPort.postMessage({ success: true }); // Pas de données à retourner
+            break;
 
-            case 'decrypt':
-                console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
-                await decryptFile(payload.filePath, payload.password);
-                parentPort.postMessage({ success: true }); // Pas de données à retourner
-                break;
+        case 'decrypt':
+            console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
+            await decryptFile(payload.filePath, payload.password);
+            parentPort.postMessage({ success: true }); // Pas de données à retourner
+            break;
+                
 
-            case 'hash':
-                console.log(`[Worker] Received action: hash`);
-                if (!payload.data) throw new Error('Data to hash is missing in payload.');
-                // Le worker gère à la fois la génération du "salt" et le hachage
-                const salt = await bcrypt.genSalt(10);
-                result = await bcrypt.hash(payload.data, salt);
-                parentPort.postMessage({ success: true, data: result }); // On retourne le hash
-                break;
+        case 'hash':
+            console.log(`[Worker] Received action: hash`);
+            if (!payload.data) throw new Error('Data to hash is missing in payload.');
+            // Le worker gère à la fois la génération du "salt" et le hachage
+            const salt = await bcrypt.genSalt(10);
+            result = await bcrypt.hash(payload.data, salt);
+            parentPort.postMessage({ success: true, data: result }); // On retourne le hash
+            break;
 
-            default:
-                throw new Error(`Unknown crypto action: ${action}`);
+        default:
+            throw new Error(`Unknown crypto action: ${action}`);
         }
     } catch (error) {
         // Envoie l'erreur au thread principal

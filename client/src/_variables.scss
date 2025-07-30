@@ -1,0 +1,21 @@
+// Variables de couleurs
+$primary-color: #3498db;
+$secondary-color: #2ecc71;
+$primary-color-darker: darken($primary-color, 10%); // Un peu plus foncé pour hover/active
+$light-color: #ecf0f1;
+$dark-color: #333;
+$input-background-color: #f8f8f8; // Gris très clair
+$input-border-color: #ddd; // Gris clair
+$input-focus-border-color: #4CAF50; // Vert clair (couleur d'accentuation)
+
+$light-gray: #f8f8f8;
+$medium-gray: #ddd;
+$dark-gray: #555;
+
+$danger-color: #ff1e00;
+
+$shadow-color: rgba(0, 0, 0, 0.15);
+$shadow-color-hover: rgba(0, 0, 0, 0.25);
+
+
+// Appliquer cette palette aux différents éléments

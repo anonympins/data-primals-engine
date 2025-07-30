@@ -38,7 +38,7 @@ import {
     maxStringLength,
     maxTotalDataPerUser,
     megabytes,
-    optionsSanitizer, plans,
+    optionsSanitizer,
     searchRequestTimeout, storageSafetyMargin
 } from "../constants.js";
 import {
@@ -72,7 +72,6 @@ import {
 } from "./workflow.js";
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
-import {getUserStorageLimit} from "../user.js";
 import {openaiJobModel} from "../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
 import { fileURLToPath } from 'url';
@@ -82,7 +81,6 @@ import {listS3Backups, uploadToS3} from "./bucket.js";
 import {
     calculateTotalUserStorageUsage, generateLimiter, hasPermission,
     middlewareAuthenticator,
-    myFreePremiumAnonymousLimiter,
     userInitiator
 } from "./user.js";
 import {assistantGlobalLimiter} from "./assistant.js";
@@ -176,7 +174,7 @@ export const dataTypes = {
     },
     cronSchedule: {
         validate: (value, field) => {
-            if( value == null )
+            if( value === null )
                 return true;
             try {
                 cronstrue.toString(value, { throwExceptionOnParseError: true });
@@ -186,7 +184,7 @@ export const dataTypes = {
             }
         },
         filter: async (value, field)=>{
-            if( value == null )
+            if( value === null )
                 return null;
             if (field.cronMask && field.default) {
                 return applyCronMask(value, field.cronMask, field.default);
@@ -242,7 +240,7 @@ export const dataTypes = {
     },
     'string_t': {
         validate: (value, field) => {
-            if( value == null )
+            if( value === null )
                 return true;
             const ml = Math.min(Math.max(field.maxlength, 0), maxStringLength);
             // La valeur peut être une chaîne de caractères...
@@ -430,7 +428,7 @@ export const dataTypes = {
             }
             return value === null || value === undefined || isObjectId(value) || typeof(value) === 'object';
         },
-        anonymize: () => null,
+        anonymize: () => null
     },
     file: {
         validate: (value, field) => {
@@ -467,7 +465,7 @@ export const dataTypes = {
 
             return value;
         },
-        anonymize: () => null,
+        anonymize: () => null
     },
     color: {
         validate: (value) => {
@@ -513,7 +511,7 @@ export const dataTypes = {
             return sanitizedObject;
         },
         anonymize: () => ({}) // Anonymisation en objet vide
-    },
+    }
 };
 
 export const getAPILang = (langs) => {
@@ -660,138 +658,138 @@ const validateField = (field) => {
 
     // Check for specific field types
     switch (field.type) {
-        case 'relation':
-            allowedFieldTest(['relation', 'multiple', 'relationFilter']);
-            if (!field.relation || typeof field.relation !== 'string' || field.relation.length > maxModelNameLength) {
-                throw new Error(i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["relation"]));
-            }
-            if (field.multiple !== undefined && typeof field.multiple !== 'boolean') {
-                throw new Error(i18n.t('api.validate.fieldBoolean', "L'attribut '{{0}}' doit être un booléen.", ["multiple"]));
-            }
-            if( field.relationFilter && typeof field.relationFilter !== 'object'){
-                throw new Error(i18n.t('api.validate.fieldObject', "L'attribut '{{0}}' doit être un objet.", ["relationFilter"]));
-            }
-            break;
-        case 'enum':
-        {
-            allowedFieldTest(['items']);
-            if (!field.items || !Array.isArray(field.items) || field.items.length === 0) {
-                throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["items"]));
-            }
-            let id = field.items.findIndex(item => typeof item !== 'string');
-            if( id !== -1 ){
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["items["+id+"]"]));
-            }
-            break;
+    case 'relation':
+        allowedFieldTest(['relation', 'multiple', 'relationFilter']);
+        if (!field.relation || typeof field.relation !== 'string' || field.relation.length > maxModelNameLength) {
+            throw new Error(i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["relation"]));
         }
-        case 'number':
-            allowedFieldTest(['min', 'max', 'step', 'unit']);
-            if (field.min !== undefined && typeof field.min !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["min"]));
-            }
-            if (field.max !== undefined && typeof field.max !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["max"]));
-            }
-            if (field.max < field.min ){
-                throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
-            }
-            if (field.step !== undefined && typeof field.step !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["step"]));
-            }
-            if (field.unit !== undefined && typeof field.unit !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["unit"]));
-            }
-            break;
-        case 'string':
-        case 'string_t':
-        case 'richtext':
-        case 'richtext_t':
-        case 'url':
-        case 'email':
-        case 'phone':
-        case 'password':
-        case 'code':
-            if (field.type === 'code')
-                allowedFieldTest(['maxlength', 'language', 'conditionBuilder', 'targetModel']);
-            else if( ['string_t', 'string'].includes(field.type))
-                allowedFieldTest(['maxlength', 'multiline']);
-            else
-                allowedFieldTest(['maxlength']);
-            if (field.maxlength !== undefined && typeof field.maxlength !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxlength"]));
-            }
-            break;
-        case 'model':
-        case 'modelField':
-            allowedFieldTest([]);
-            break;
-        case 'object':
-            allowedFieldTest([]);
-            break;
-        case 'boolean':
-            allowedFieldTest([]);
-            break;
-        case 'date':
-        case 'datetime':
-        {
-            allowedFieldTest(['min','max']);
-            if (field.min !== undefined && typeof field.min !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["min"]));
-            }
-            if (field.max !== undefined && typeof field.max !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["max"]));
-            }
-            const dtMin = field.min ? new Date(field.min) : null;
-            const dtMax = field.max ? new Date(field.max) : null;
-            if( dtMin && dtMax && dtMin > dtMax){
-                throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
-            }
-            break;
+        if (field.multiple !== undefined && typeof field.multiple !== 'boolean') {
+            throw new Error(i18n.t('api.validate.fieldBoolean', "L'attribut '{{0}}' doit être un booléen.", ["multiple"]));
         }
-        case 'image':
-        case 'file':
-        {
-            allowedFieldTest(['mimeTypes', 'maxSize']);
-            if (field.mimeTypes !== undefined && !Array.isArray(field.mimeTypes)) {
-                throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["mimeTypes"]));
-            }
-            let id;
-            if (field.mimeTypes !== undefined && (id = field.mimeTypes.findIndex(item => typeof item !== 'string')) !== -1) {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["mimeTypes["+id+"]"]));
-            }
-            if (field.maxSize !== undefined && typeof field.maxSize !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxSize"]));
-            }
-            if (field.maxSize !== undefined && field.maxSize > maxFileSize) {
-                throw new Error(i18n.t('api.validate.fileSize', `L'attribut 'maxSize' ne doit pas dépasser {{0}} octets.`, [maxFileSize]));
-            }
-            break;
+        if( field.relationFilter && typeof field.relationFilter !== 'object'){
+            throw new Error(i18n.t('api.validate.fieldObject', "L'attribut '{{0}}' doit être un objet.", ["relationFilter"]));
         }
-        case 'color':
-            allowedFieldTest([]);
-            return true;
-        case 'cronSchedule':
-            allowedFieldTest(['cronMask']);
-            return true;
-        case 'calculated':
-            allowedFieldTest(['calculation']);
-            return true;
-        case 'array':
-            if (!field.itemsType || typeof field.itemsType !== 'string') {
-                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["itemsType"]));
-            }
-            if (!dataTypes[field.itemsType]) {
-                throw new Error(i18n.t('api.validate.invalidField', `Champ(s) non valide(s): '{{0}}'`, ["itemsType"]));
-            }
-            if (field.minItems !== undefined && typeof field.minItems !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["minItems"]));
-            }
-            if (field.maxItems !== undefined && typeof field.maxItems !== 'number') {
-                throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxItems"]));
-            }
-            break;
-        default:
-            throw new Error(i18n.t('api.validate.unknowType',`Le type '{{0}}' n'est pas reconnu.`, [field.type]));
+        break;
+    case 'enum':
+    {
+        allowedFieldTest(['items']);
+        if (!field.items || !Array.isArray(field.items) || field.items.length === 0) {
+            throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["items"]));
+        }
+        let id = field.items.findIndex(item => typeof item !== 'string');
+        if( id !== -1 ){
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["items["+id+"]"]));
+        }
+        break;
+    }
+    case 'number':
+        allowedFieldTest(['min', 'max', 'step', 'unit']);
+        if (field.min !== undefined && typeof field.min !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["min"]));
+        }
+        if (field.max !== undefined && typeof field.max !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["max"]));
+        }
+        if (field.max < field.min ){
+            throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
+        }
+        if (field.step !== undefined && typeof field.step !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["step"]));
+        }
+        if (field.unit !== undefined && typeof field.unit !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["unit"]));
+        }
+        break;
+    case 'string':
+    case 'string_t':
+    case 'richtext':
+    case 'richtext_t':
+    case 'url':
+    case 'email':
+    case 'phone':
+    case 'password':
+    case 'code':
+        if (field.type === 'code')
+            allowedFieldTest(['maxlength', 'language', 'conditionBuilder', 'targetModel']);
+        else if( ['string_t', 'string'].includes(field.type))
+            allowedFieldTest(['maxlength', 'multiline']);
+        else
+            allowedFieldTest(['maxlength']);
+        if (field.maxlength !== undefined && typeof field.maxlength !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxlength"]));
+        }
+        break;
+    case 'model':
+    case 'modelField':
+        allowedFieldTest([]);
+        break;
+    case 'object':
+        allowedFieldTest([]);
+        break;
+    case 'boolean':
+        allowedFieldTest([]);
+        break;
+    case 'date':
+    case 'datetime':
+    {
+        allowedFieldTest(['min','max']);
+        if (field.min !== undefined && typeof field.min !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["min"]));
+        }
+        if (field.max !== undefined && typeof field.max !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["max"]));
+        }
+        const dtMin = field.min ? new Date(field.min) : null;
+        const dtMax = field.max ? new Date(field.max) : null;
+        if( dtMin && dtMax && dtMin > dtMax){
+            throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
+        }
+        break;
+    }
+    case 'image':
+    case 'file':
+    {
+        allowedFieldTest(['mimeTypes', 'maxSize']);
+        if (field.mimeTypes !== undefined && !Array.isArray(field.mimeTypes)) {
+            throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["mimeTypes"]));
+        }
+        let id;
+        if (field.mimeTypes !== undefined && (id = field.mimeTypes.findIndex(item => typeof item !== 'string')) !== -1) {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["mimeTypes["+id+"]"]));
+        }
+        if (field.maxSize !== undefined && typeof field.maxSize !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxSize"]));
+        }
+        if (field.maxSize !== undefined && field.maxSize > maxFileSize) {
+            throw new Error(i18n.t('api.validate.fileSize', `L'attribut 'maxSize' ne doit pas dépasser {{0}} octets.`, [maxFileSize]));
+        }
+        break;
+    }
+    case 'color':
+        allowedFieldTest([]);
+        return true;
+    case 'cronSchedule':
+        allowedFieldTest(['cronMask']);
+        return true;
+    case 'calculated':
+        allowedFieldTest(['calculation']);
+        return true;
+    case 'array':
+        if (!field.itemsType || typeof field.itemsType !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["itemsType"]));
+        }
+        if (!dataTypes[field.itemsType]) {
+            throw new Error(i18n.t('api.validate.invalidField', `Champ(s) non valide(s): '{{0}}'`, ["itemsType"]));
+        }
+        if (field.minItems !== undefined && typeof field.minItems !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["minItems"]));
+        }
+        if (field.maxItems !== undefined && typeof field.maxItems !== 'number') {
+            throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxItems"]));
+        }
+        break;
+    default:
+        throw new Error(i18n.t('api.validate.unknowType',`Le type '{{0}}' n'est pas reconnu.`, [field.type]));
     }
 
     // Check for optional fields
@@ -846,80 +844,80 @@ function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                 }
 
                 switch (field.type) {
-                    case 'number':
-                        if (typeof value !== 'number') { // Convertir si ce n'est pas déjà un nombre
-                            const num = parseFloat(value);
-                            if (!isNaN(num)) {
-                                convertedRecord[field.name] = num;
-                            } else {
-                                logger.warn(`Import: Impossible de parser le nombre pour le champ ${field.name}, valeur: ${value}. Utilisation de la valeur par défaut/null.`);
-                                convertedRecord[field.name] = getDefaultForType(field);
-                            }
-                        }
-                        break;
-                    case 'boolean':
-                        if (typeof value !== 'boolean') {
-                            convertedRecord[field.name] = ['true', '1', 'yes', 'on'].includes(String(value).toLowerCase());
-                        }
-                        break;
-                    case 'date':
-                    case 'datetime':
-                        if (String(value).toLowerCase() === 'now') {
-                            convertedRecord[field.name] = 'now';
+                case 'number':
+                    if (typeof value !== 'number') { // Convertir si ce n'est pas déjà un nombre
+                        const num = parseFloat(value);
+                        if (!isNaN(num)) {
+                            convertedRecord[field.name] = num;
                         } else {
-                            const parsedDate = new Date(value);
-                            if (!isNaN(parsedDate.getTime())) {
-                                convertedRecord[field.name] = field.type === 'date' ? parsedDate.toISOString().split("T")[0] : parsedDate.toISOString();
-                            } else if (value) { // Ne pas logger si la valeur était initialement vide/null
-                                logger.warn(`Import: Impossible de parser la date pour le champ ${field.name}, valeur: ${value}. La validation ulture s'en chargera.`);
-                            }
-                        }
-                        break;
-                    case 'array':
-                        if (sourceType === 'csv' && typeof value === 'string') {
-                            const arrayValues = value.split(/[,;]/).map(item => item.trim()).filter(item => item !== '');
-                            if (field.itemsType === 'number') {
-                                convertedRecord[field.name] = arrayValues.map(v => parseFloat(v)).filter(v => !isNaN(v));
-                            } else {
-                                convertedRecord[field.name] = arrayValues;
-                            }
-                        } else if (sourceType === 'json' && typeof value === 'string') {
-                            try {
-                                const parsedArray = JSON.parse(value);
-                                if (Array.isArray(parsedArray)) {
-                                    convertedRecord[field.name] = parsedArray;
-                                    // TODO: Potentiellement convertir les éléments de parsedArray ici si nécessaire
-                                } else {
-                                    logger.warn(`Import: La chaîne JSON pour le champ tableau ${field.name} n'a pas été parsée en tableau. Valeur: ${value}.`);
-                                }
-                            } catch (e) {
-                                logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ tableau ${field.name}. Valeur: ${value}.`);
-                            }
-                        }
-                            // Si c'est déjà un tableau (cas JSON typique), on suppose que les types des éléments sont corrects
-                        // ou seront validés par pushDataUnsecure.
-                        else if (!Array.isArray(convertedRecord[field.name])) {
+                            logger.warn(`Import: Impossible de parser le nombre pour le champ ${field.name}, valeur: ${value}. Utilisation de la valeur par défaut/null.`);
                             convertedRecord[field.name] = getDefaultForType(field);
                         }
-                        break;
-                    case 'object':
-                        if (typeof value === 'string') {
-                            try {
-                                convertedRecord[field.name] = JSON.parse(value);
-                            } catch (e) {
-                                logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ objet ${field.name}. Valeur: ${value}.`);
-                            }
+                    }
+                    break;
+                case 'boolean':
+                    if (typeof value !== 'boolean') {
+                        convertedRecord[field.name] = ['true', '1', 'yes', 'on'].includes(String(value).toLowerCase());
+                    }
+                    break;
+                case 'date':
+                case 'datetime':
+                    if (String(value).toLowerCase() === 'now') {
+                        convertedRecord[field.name] = 'now';
+                    } else {
+                        const parsedDate = new Date(value);
+                        if (!isNaN(parsedDate.getTime())) {
+                            convertedRecord[field.name] = field.type === 'date' ? parsedDate.toISOString().split("T")[0] : parsedDate.toISOString();
+                        } else if (value) { // Ne pas logger si la valeur était initialement vide/null
+                            logger.warn(`Import: Impossible de parser la date pour le champ ${field.name}, valeur: ${value}. La validation ulture s'en chargera.`);
                         }
-                        break;
-                    case 'code':
-                        if (field.language === 'json' && typeof value === 'string') {
-                            try {
-                                convertedRecord[field.name] = JSON.parse(value);
-                            } catch (e) {
-                                logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ code (json) ${field.name}. Valeur: ${value}.`);
-                            }
+                    }
+                    break;
+                case 'array':
+                    if (sourceType === 'csv' && typeof value === 'string') {
+                        const arrayValues = value.split(/[,;]/).map(item => item.trim()).filter(item => item !== '');
+                        if (field.itemsType === 'number') {
+                            convertedRecord[field.name] = arrayValues.map(v => parseFloat(v)).filter(v => !isNaN(v));
+                        } else {
+                            convertedRecord[field.name] = arrayValues;
                         }
-                        break;
+                    } else if (sourceType === 'json' && typeof value === 'string') {
+                        try {
+                            const parsedArray = JSON.parse(value);
+                            if (Array.isArray(parsedArray)) {
+                                convertedRecord[field.name] = parsedArray;
+                                // TODO: Potentiellement convertir les éléments de parsedArray ici si nécessaire
+                            } else {
+                                logger.warn(`Import: La chaîne JSON pour le champ tableau ${field.name} n'a pas été parsée en tableau. Valeur: ${value}.`);
+                            }
+                        } catch (e) {
+                            logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ tableau ${field.name}. Valeur: ${value}.`);
+                        }
+                    }
+                    // Si c'est déjà un tableau (cas JSON typique), on suppose que les types des éléments sont corrects
+                    // ou seront validés par pushDataUnsecure.
+                    else if (!Array.isArray(convertedRecord[field.name])) {
+                        convertedRecord[field.name] = getDefaultForType(field);
+                    }
+                    break;
+                case 'object':
+                    if (typeof value === 'string') {
+                        try {
+                            convertedRecord[field.name] = JSON.parse(value);
+                        } catch (e) {
+                            logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ objet ${field.name}. Valeur: ${value}.`);
+                        }
+                    }
+                    break;
+                case 'code':
+                    if (field.language === 'json' && typeof value === 'string') {
+                        try {
+                            convertedRecord[field.name] = JSON.parse(value);
+                        } catch (e) {
+                            logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ code (json) ${field.name}. Valeur: ${value}.`);
+                        }
+                    }
+                    break;
                 }
             }
         }
@@ -1122,15 +1120,15 @@ export const editModel = async (user, id, data) => {
 
     const dataModel = data;
     try {
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
         validateModelStructure(dataModel);
 
         const el = await modelsCollection.findOne({ $and: [
-                {_user: {$exists: true}},
-                { _id: new ObjectId(id) },
-                {$and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]
-                }
-            ]});
+            {_user: {$exists: true}},
+            { _id: new ObjectId(id) },
+            {$and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]
+            }
+        ]});
 
         if( !el ){
             return ({success: false, statusCode: 404, error: i18n.t("api.model.notFound", { model: dataModel.name })});
@@ -1140,18 +1138,18 @@ export const editModel = async (user, id, data) => {
         if (typeof (data.name)==='string'&&el.name !== data.name && data.name ){
             await collection.updateMany({ _model: el.name }, { $set: { _model: data.name }});
             await modelsCollection.updateMany({ 'fields' : {
-                    '$elemMatch' : { relation: el.name }
-                }}, {
+                '$elemMatch' : { relation: el.name }
+            }}, {
                 $set : {
                     'fields.$.relation' : data.name
                 }
             })
         }
 
-        const coll = getCollectionForUser(user);
+        const coll = await getCollectionForUser(user);
         // Update indexes
-// Update indexes
-        if (user.userPlan === 'premium') {
+        // Update indexes
+        if (await engine.userProvider.hasFeature(user, 'indexes')) {
             let indexes = [];
             try {
                 // On essaie de récupérer les index existants
@@ -1224,15 +1222,17 @@ export async function onInit(defaultEngine) {
 
     engine.use(middleware({ whitelist: [
         "$$NOW", "$in", "$eq", "$gt", "$gte", "$in", "$lt", "$lte", "$ne", "$nin", "$type", "$size",
-            "$and", "$not", "$nor", "$or", "$regexMatch", "$find", "$elemMatch", "$filter", "$toString", "$toObjectId",
-            "$concat",
-            '$add', '$subtract', '$multiply', '$divide', '$mod', '$pow', "$sqrt",
-            "$rand",
-            "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
-            "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
-            "$dateSubtract", "$dateAdd", "$dateToString",
-            '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond',
+        "$and", "$not", "$nor", "$or", "$regexMatch", "$find", "$elemMatch", "$filter", "$toString", "$toObjectId",
+        "$concat",
+        '$add', '$subtract', '$multiply', '$divide', '$mod', '$pow', "$sqrt",
+        "$rand",
+        "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
+        "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
+        "$dateSubtract", "$dateAdd", "$dateToString",
+        '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
     ]}));
+
+    let userMiddlewares = await engine.userProvider.getMiddlewares();
 
     let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection;
 
@@ -1322,9 +1322,8 @@ export async function onInit(defaultEngine) {
     await scheduleWorkflowTriggers();
 
     await scheduleAlerts();
-
-// Dans onInit(defaultEngine) { ... }
-// ...
+    // Dans onInit(defaultEngine) { ... }
+    // ...
 
     const saveUser = async (user, data) => {
 
@@ -1369,11 +1368,12 @@ export async function onInit(defaultEngine) {
             });
             await modelsCollection.insertMany(newModels);
 
+            const coll = await getCollectionForUser(user);
             // 2. Copier les données associes marquer
             // C'est la partie la plus complexe à cause des relations
             const idMap = {}; // Map: old_id -> new_id
             for (const model of modelsToCopy) {
-                const datasToCopy = await getCollectionForUser(user).find({
+                const datasToCopy = await coll.find({
                     _model: model.name,
                     _user: user.username
                 }).limit(maxMagnetsDataPerModel).toArray();
@@ -1391,7 +1391,8 @@ export async function onInit(defaultEngine) {
                         _user: null
                     };
                 });
-                await getCollectionForUser(user).insertMany(newDatas);
+                const coll = await getCollectionForUser(user);
+                await coll.insertMany(newDatas);
 
                 // Passe 2: Mettre à jour les relations dans les documents fraîchement copiés
                 for (const newDoc of newDatas) {
@@ -1409,7 +1410,8 @@ export async function onInit(defaultEngine) {
                         }
                     }
                     if (Object.keys(updatePayload).length > 0) {
-                        await getCollectionForUser(user).updateOne({ _id: newDoc._id }, { $set: updatePayload });
+                        const coll = await getCollectionForUser(user);
+                        await coll.updateOne({ _id: newDoc._id }, { $set: updatePayload });
                     }
                 }
             }
@@ -1505,7 +1507,7 @@ export async function onInit(defaultEngine) {
         });
     });
 
-    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
         // ... (vérifications de permissions existantes) ...
         const result = await importData(req.fields, req.files, req.me);
         if( result.success ){
@@ -1572,7 +1574,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/restore', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/restore', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
 
         if (!((user?.roles || []).includes("admin"))) {
             return res.status(403).json({success: false, error: 'Cannot backup data. Contact an administrator to get back your data'})
@@ -1587,7 +1589,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/dump', [throttle, middlewareAuthenticator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    engine.post('/api/data/dump', [throttle, middlewareAuthenticator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
 
         if (!((req.me?.roles || []).includes("admin"))) {
             return res.status(403).json({success: false, error: 'Cannot dump data.'})
@@ -1606,7 +1608,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
+    engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         const body = req.files ? req.fields : req.fields;
         const modelName = body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
         const data = body.data || (body._data && JSON.parse(body._data));
@@ -1622,7 +1624,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
+    engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(30000)], async (req, res) => {
         const { pack } = req.fields;
 
         try {
@@ -1668,8 +1670,8 @@ export async function onInit(defaultEngine) {
         }
     });
 
-// --- Export Endpoint ---
-    engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(60000)], async (req, res) => {
+    // --- Export Endpoint ---
+    engine.post('/api/data/export', [middlewareAuthenticator, throttle, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
         try {
             const results = await exportData({...req.fields, depth:req.query.depth, lang: req.query.lang}, req.me);
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1697,7 +1699,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.patch('/api/data/:id?', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+    engine.patch('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
         const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
@@ -1709,7 +1711,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.put('/api/data/:id?', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+    engine.put('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         try {
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
@@ -1724,6 +1726,53 @@ export async function onInit(defaultEngine) {
         }
     });
 
+    engine.patch('/api/data/:id', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+        const filter = req.fields.filter;
+        const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
+        const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+        const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
+        if (r.error) {
+            res.status(400).json(r);
+        } else {
+            res.status(200).json(r);
+        }
+    });
+
+    engine.put('/api/data/:id', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
+        try {
+            const filter = req.fields.filter;
+            const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
+            const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+            const r = await editData(req.fields.model, filter || hash, data, req.files, req.me)
+            if (r.error)
+                res.status(400).json(r);
+            else
+                res.status(200).json(r);
+        } catch (e) {
+            res.status(500).json({error: e.message});
+        }
+    });
+
+    engine.get('/api/model', [throttle, middlewareAuthenticator, userInitiator,middlewareLogger], async (req, res) => {
+
+        // get by name
+        try {
+            const modelName = req.query.name; // Récupérer le nom du modèle depuis les paramètres de la requête
+            if (!modelName) {
+                return res.status(400).json({error: "Le paramètre 'name' est requis."});
+            }
+
+            if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODEL"], req.me) && !await hasPermission("API_GET_MODEL_"+modelName, req.me)){
+                return res.json({success: false, error: i18n.t('api.permission.getModel')})
+            }
+
+            const model = await getModel(modelName, req.me);
+            res.json(model);
+        } catch (error) {
+            logger.error(error);
+            res.status(404).json({ success: false, error: error.message });
+        }
+    });
     engine.get('/api/models', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
 
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODELS"], req.me)){
@@ -1743,28 +1792,10 @@ export async function onInit(defaultEngine) {
         } catch (error) {
             console.log(error);
             logger.error(error);
+            res.status(500).json({ success: false, error: error.message });
         }
     });
-    engine.get('/api/model', [throttle, middlewareAuthenticator, userInitiator,middlewareLogger], async (req, res) => {
-
-        // get by name
-        try {
-            const modelName = req.query.name; // Récupérer le nom du modèle depuis les paramètres de la requête
-            if (!modelName) {
-                return res.status(400).json({error: "Le paramètre 'name' est requis."});
-            }
-
-            if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_GET_MODEL"], req.me) && !await hasPermission("API_GET_MODEL_"+modelName, req.me)){
-                return res.json({success: false, error: i18n.t('api.permission.getModel')})
-            }
-
-            const model = await getModel(modelName, req.me);
-            res.json(model);
-        } catch (error) {
-            logger.error(error);
-        }
-    });
-    engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/model', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares], async (req, res) => {
 
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_ADD_MODEL"], req.me) ){
             return res.status(403).json({success: false, error: i18n.t('api.permission.addModel')})
@@ -1786,7 +1817,7 @@ export async function onInit(defaultEngine) {
                     $and: [{_user: {$exists: true}}, {_user: req.me.username}]
                 });
                 if( count < maxModelsPerUser) {
-                    if( req.me.userPlan === 'premium' ){
+                    if(await engine.userProvider.hasFeature(req.me, 'indexes')){
                         for (const field of modelData.fields) {
                             if( field.index ) {
                                 await datasCollection.createIndex({[field.name]: 1}, {
@@ -1818,7 +1849,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/models/import', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger,myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/models/import', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares], async (req, res) => {
 
         if( isLocalUser(req.me) && !await hasPermission(["API_ADMIN","API_IMPORT_MODEL"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.importModels')})
@@ -1846,7 +1877,7 @@ export async function onInit(defaultEngine) {
                 try {
                     files.forEach(file =>removeFile(file.guid, req.me));
                 } catch (e) {
-                    
+
                 }
 
                 await cancelAlerts(req.me);
@@ -1888,7 +1919,7 @@ export async function onInit(defaultEngine) {
                 return res.status(404).json({error: i18n.t( "api.model.notFound", { model: modelName})});
             }
 
-            if( req.me.userPlan === 'premium' ) {
+            if( await engine.userProvider.hasFeature(req.me, 'indexes') ) {
                 const indexes = await datasCollection.indexes();
                 for (const index of indexes) {
                     if (index.partialFilterExpression?._model === model.name &&
@@ -1958,7 +1989,7 @@ export async function onInit(defaultEngine) {
             if (result.modifiedCount !== 1)
                 return res.status(404).json({ error: i18n.t('api.model.notFound', {model: model.name})});
 
-            const collection = getCollectionForUser(req.me);
+            const collection = await getCollectionForUser(req.me);
 
             await collection.updateMany(
                 { _model: model.name },
@@ -1983,7 +2014,7 @@ export async function onInit(defaultEngine) {
     });
 
 
-// Endpoint pour calculer la valeur d'UN KPI spécifique par son ID
+    // Endpoint pour calculer la valeur d'UN KPI spécifique par son ID
     engine.get('/api/kpis/calculate/:id', [throttle, middlewareAuthenticator, userInitiator], async (req, res) => {
         const { id } = req.params;
 
@@ -2124,11 +2155,11 @@ export async function onInit(defaultEngine) {
     // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
 
     // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
-// C:/Dev/hackersonline-engine/server/src/modules/data.js
+    // C:/Dev/hackersonline-engine/server/src/modules/data.js
 
-// ... (autres imports et code)
+    // ... (autres imports et code)
 
-    engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter, setTimeoutMiddleware(15000)], async (req, res) => {
+    engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         // --- Récupérer groupByLabelField ---
         const { model: modelName, type, xAxis, yAxis, groupBy, aggregationType, groupByLabelField, filter: chartFilter } = req.fields;
 
@@ -2173,7 +2204,7 @@ export async function onInit(defaultEngine) {
             const isMultipleRelation = isRelationGroupBy && groupByFieldDefinition?.multiple === true;
 
             // --- Build Aggregation Pipeline ---
-            const collection = getCollectionForUser(req.me);
+            const collection = await getCollectionForUser(req.me);
 
             // --- MODIFICATION ICI pour inclure chartFilter ---
             let initialMatchStage = { $and : [{
@@ -2198,7 +2229,7 @@ export async function onInit(defaultEngine) {
                 sum: '$sum',
                 avg: '$avg',
                 min: '$min',
-                max: '$max',
+                max: '$max'
                 // median needs special handling later
                 // *** AJOUT: 'value' sera géré par $first (ou $last) ***
             };
@@ -2350,7 +2381,7 @@ export async function onInit(defaultEngine) {
     });
 
 
-    engine.post('/api/data/removeFromPack', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/data/removeFromPack', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
         if( !(isDemoUser(req.me) && Config.Get("useDemoAccounts")) && isLocalUser(req.me) && !await hasPermission(["API_ADMIN", "API_CREATE_PACK"], req.me)){
             return res.status(403).json({success: false, error: i18n.t('api.permission.createPack')})
         }
@@ -2359,7 +2390,7 @@ export async function onInit(defaultEngine) {
             return res.status(400).json({ success: false, error: 'itemIds must be a non-empty array of valid ObjectIds.' });
         }
         const objectIds = itemIds.map(id => new ObjectId(id));
-        const collection = getCollectionForUser(req.me); // Obtenir la collection de l'utilisateur
+        const collection = await getCollectionForUser(req.me); // Obtenir la collection de l'utilisateur
 
         const results = await collection.find({
             _id: { $in: objectIds },
@@ -2456,7 +2487,7 @@ export async function onInit(defaultEngine) {
             }
 
             // --- Logique de suppression ---
-            const collection = getCollectionForUser(user); // Obtenir la collection spécifique à l'utilisateur
+            const collection = await getCollectionForUser(user); // Obtenir la collection spécifique à l'utilisateur
 
             const deleteFilter = {
                 _pack: packName,
@@ -2483,7 +2514,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
-    engine.post('/api/data/addToPack', [throttle, middlewareAuthenticator, userInitiator,myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/data/addToPack', [throttle, middlewareAuthenticator, userInitiator,...userMiddlewares], async (req, res) => {
         const { packName, itemIds } = req.fields;
         const user = req.me;
 
@@ -2500,13 +2531,13 @@ export async function onInit(defaultEngine) {
 
         // --- Logique Métier ---
         try {
-            const collection = getCollectionForUser(user); // Récupère la collection de l'utilisateur
+            const collection = await getCollectionForUser(user); // Récupère la collection de l'utilisateur
             const objectIds = itemIds.map(id => new ObjectId(id)); // Convertit les strings en ObjectIds
 
             // Met à jour le champ _pack pour les documents sélectionnés appartenant à l'utilisateur
             const copyData = await collection.find({
                 _id: { $in: objectIds },
-                _user: user.username,
+                _user: user.username
             }).toArray();
 
 
@@ -2552,12 +2583,12 @@ export async function onInit(defaultEngine) {
         }
     });
     /*
-    engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, myFreePremiumAnonymousLimiter], async (req, res) => {
+    engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {
 
         const { pack } = req.fields;
         const initialModelName = req.query.model; // The starting model
         const user = req.me;
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
 
         try {
             // --- Permission Check ---
@@ -2616,6 +2647,7 @@ export async function onInit(defaultEngine) {
         }
     });
 
+    logger.info("Data module loaded");
 }
 
 export const createModel = async (data) => {
@@ -2740,7 +2772,7 @@ export async function checkServerCapacity(incomingDataSize = 0) {
             return {
                 isSufficient: false,
                 free,
-                total: size,
+                total: size
             };
         }
         return { isSufficient: true, free, total: size };
@@ -2761,7 +2793,7 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
         return { success: false, error: i18n.t('api.permission.addData'), statusCode: 403 };
     }
 
-    const collection = getCollectionForUser(user);
+    const collection = await getCollectionForUser(user);
     let insertedIds = []; // Pour stocker les IDs retourn par pushDataUnsecure
 
     try {
@@ -2917,7 +2949,7 @@ async function initializeAndValidate(data, modelName, me) {
     if (datas.length === 0) return { datas: [], model: null, collection: null };
 
     const model = await getModel(modelName, me);
-    const collection = getCollectionForUser(me);
+    const collection = await getCollectionForUser(me);
     validateModelStructure(model);
 
     return { datas, model, collection };
@@ -2937,7 +2969,7 @@ function normalizeInputData(data) {
  */
 async function checkLimits(datas, model, collection, me) {
     const incomingDataSize = calculateDataSize(datas);
-    const userStorageLimit = getUserStorageLimit(me);
+    const userStorageLimit = await engine.userProvider.getUserStorageLimit(me);
 
     // Vérification des limites utilisateur
     const currentStorageUsage = await calculateTotalUserStorageUsage(me);
@@ -2989,7 +3021,7 @@ async function processDocuments(datas, model, collection, me) {
             }
         } catch (error) {
             // Modification clé ici : on ne catch plus les erreurs de validation
-           throw error;s
+            throw error;
         }
     }
 
@@ -3351,7 +3383,7 @@ async function handleFilesIfNeeded(insertedIds, files, model, collection) {
     // Ex: association des fichiers uploadés aux documents insérés
 }
 const checkHash = async (me, model, hash, excludeId = null) => {
-    const collection = getCollectionForUser(me);
+    const collection = await getCollectionForUser(me);
     const query = {
         _model: model.name,
         _hash: hash,
@@ -3406,7 +3438,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             throw new Error(i18n.t("api.permission.editData"));
         }
 
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
         const model = await modelsCollection.findOne({name: modelName, _user: user.username});
         if (!model) {
             throw new Error(i18n.t("api.model.notFound", {model: modelName}));
@@ -3590,7 +3622,7 @@ async function handleScheduledJobs(modelName, existingDocs, collection, updateDa
 export const deleteData = async (modelName, ids = [], filter, user ={}, triggerWorkflow, waitForWorkflow = false) => {
 
     try {
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
 
         // --- Début de la logique de suppression ---
 
@@ -3698,9 +3730,9 @@ export const deleteData = async (modelName, ids = [], filter, user ={}, triggerW
                                     $and: [
                                         {_user: {$exists: true}},
                                         { $or: [
-                                                {_user: {$eq:user._user}},
-                                                {_user: {$eq:user.username}}
-                                            ]}
+                                            {_user: {$eq:user._user}},
+                                            {_user: {$eq:user.username}}
+                                        ]}
                                     ]
                                 }
                             ]
@@ -3811,7 +3843,7 @@ export const searchData = async ({user, query}) => {
         throw new Error(i18n.t('api.permission.searchData'));
     }
 
-    const collection = getCollectionForUser(user);
+    const collection = await getCollectionForUser(user);
     const modelElement = await getModel(model, user);
 
     const allIds = (ids || '').split(",").map(m => m.trim()).filter(Boolean).map(m => {
@@ -3925,10 +3957,10 @@ export const searchData = async ({user, query}) => {
                 ++i;
                 const lookup = {
                     $lookup: {
-                        from: getUserCollectionName(user),
+                        from: await getUserCollectionName(user),
                         as: "items" + i,
                         let: {
-                            dtid: {'$toString': '$_id'}, convertedId: '$' + fi.name,
+                            dtid: {'$toString': '$_id'}, convertedId: '$' + fi.name
                         },
                         pipeline: [
                             {
@@ -4057,7 +4089,7 @@ export const searchData = async ({user, query}) => {
                                             $in: ['$guid', { $ifNull: ['$$localGuidsArray', []] }] // Handle null or missing array
                                         }
                                     }
-                                },
+                                }
                                 // Optional: Project only necessary fields from the "files" collection if needed
                                 // {
                                 //     $project: {
@@ -4141,7 +4173,7 @@ export const searchData = async ({user, query}) => {
                         // et vous faites 'continue'. C'est bien.
 
                         // Si tout va bien, on construit le lookup :
-                        const targetCollectionName = getUserCollectionName(user);
+                        const targetCollectionName = await getUserCollectionName(user);
                         const localFieldValueInPipeline = `$${lookupDef.localField}`;
 
                         // Vérification basique du localField (déjà présente dans votre code précédent)
@@ -4168,7 +4200,7 @@ export const searchData = async ({user, query}) => {
                                                 ]
                                             }
                                         }
-                                    },
+                                    }
                                     // Optionnel: Projeter uniquement les champs nécessaires
                                 ],
                                 as: lookupDef.as
@@ -4778,14 +4810,14 @@ function isValidFieldReference(fieldName, modelElement) {
 function isValidAggregationOperator(operator) {
     const arithmeticOperators = [
         '$add', '$subtract', '$multiply', '$divide', '$mod', '$pow',
-        '$abs', '$ceil', '$floor', '$round', '$trunc', '$exp', '$log', '$log10',
+        '$abs', '$ceil', '$floor', '$round', '$trunc', '$exp', '$log', '$log10'
     ];
     const comparisonOperators = [
-        '$eq', '$gt', '$gte', '$lt', '$lte', '$ne',
+        '$eq', '$gt', '$gte', '$lt', '$lte', '$ne'
         // ... (others like $cmp, $strcasecmp, etc.)
     ];
     const stringOperators = [
-        '$concat', '$strLenCP', '$substrCP', '$toLower', '$toUpper',
+        '$concat', '$strLenCP', '$substrCP', '$toLower', '$toUpper'
         // ... (others)
     ];
     const conditionalOperators = ['$cond', '$ifNull'];
@@ -4873,47 +4905,49 @@ const handleFields = async (model, data, user, isRecursiveCall = false) => {
 
 
         try {
-                // 1. Récupérer l'ID du document de langue de l'utilisateur pour la langue actuelle.
-                const userLangDoc = await getCollectionForUser(user).findOne({
-                    _model: 'lang',
-                    code: lang,
-                    _user: user.username
-                });
+            const coll = await getCollectionForUser(user);
+            // 1. Récupérer l'ID du document de langue de l'utilisateur pour la langue actuelle.
+            const userLangDoc = await coll.findOne({
+                _model: 'lang',
+                code: lang,
+                _user: user.username
+            });
 
-                if (userLangDoc) {
-                    // 2. Récupérer les traductions de l'utilisateur pour cette langue.
-                    const userTranslationsArray = await getCollectionForUser(user).find({
-                        _model: 'translation',
-                        _user: user.username,
-                        lang: userLangDoc._id.toString()
-                    }).toArray();
+            if (userLangDoc) {
+                // 2. Récupérer les traductions de l'utilisateur pour cette langue.
+                const userTranslationsArray = await coll.find({
+                    _model: 'translation',
+                    _user: user.username,
+                    lang: userLangDoc._id.toString()
+                }).toArray();
 
-                    if (userTranslationsArray.length > 0) {
-                        // 3. Préparer le "bundle" de ressources pour i18n.
-                        const newResourceBundle = userTranslationsArray.reduce((acc, tr) => {
-                            if (tr.key && tr.value) {
-                                acc[tr.key] = tr.value;
-                            }
-                            return acc;
-                        }, {});
-
-                        // 4. Charger temporairement les traductions de l'utilisateur.
-                        if (Object.keys(newResourceBundle).length > 0) {
-                            // Sauvegarder les traductions originales si elles existent
-                            if (i18n.store.data[lang] && i18n.store.data[lang].translation) {
-                                originalTranslations = {...i18n.store.data[lang].translation};
-                            }
-                            // Ajoute/remplace les clés de traduction pour la langue et le namespace courants.
-                            i18n.addResourceBundle(lang, 'translation', newResourceBundle, true, true);
-                            userTranslationsLoaded = true;
-                            logger.debug(`Chargement de ${userTranslationsArray.length} traductions personnalisées pour l'utilisateur '${user.username}' en '${lang}'.`);
+                if (userTranslationsArray.length > 0) {
+                    // 3. Préparer le "bundle" de ressources pour i18n.
+                    const newResourceBundle = userTranslationsArray.reduce((acc, tr) => {
+                        if (tr.key && tr.value) {
+                            acc[tr.key] = tr.value;
                         }
+                        return acc;
+                    }, {});
+
+
+                    // 4. Charger temporairement les traductions de l'utilisateur.
+                    if (Object.keys(newResourceBundle).length > 0) {
+                        // Sauvegarder les traductions originales si elles existent
+                        if (i18n.store.data[lang] && i18n.store.data[lang].translation) {
+                            originalTranslations = {...i18n.store.data[lang].translation};
+                        }
+                        // Ajoute/remplace les clés de traduction pour la langue et le namespace courants.
+                        i18n.addResourceBundle(lang, 'translation', newResourceBundle, true, true);
+                        userTranslationsLoaded = true;
+                        logger.debug(`Chargement de ${userTranslationsArray.length} traductions personnalisées pour l'utilisateur '${user.username}' en '${lang}'.`);
                     }
                 }
+            }
 
-                // 5. Traiter les données avec les traductions (personnalisées ou par défaut).
-                const processedData = await _processItems(dataArray);
-                return wasArray ? processedData : processedData[0];
+            // 5. Traiter les données avec les traductions (personnalisées ou par défaut).
+            const processedData = await _processItems(dataArray);
+            return wasArray ? processedData : processedData[0];
         } finally {
             // 6. Nettoyage : décharger les traductions de l'utilisateur et restaurer les originales.
             // Ce bloc s'exécute toujours, même en cas d'erreur, garantissant l'isolation des requêtes.
@@ -5081,19 +5115,7 @@ export const dumpUserData = async (user) => {
 
     try {
         // Déterminer la fréquence de la sauvegarde
-        let backupFrequency;
-        switch (user.userPlan) {
-            case 'premium':
-                backupFrequency = 'daily';
-                break;
-            case 'standard':
-                backupFrequency = 'weekly';
-                break;
-            case 'free':
-            default:
-                backupFrequency = 'monthly';
-                break;
-        }
+        const backupFrequency = await engine.userProvider.getBackupFrequency(user);
 
         logger.info(`Fréquence de sauvegarde : ${backupFrequency}.`);
 
@@ -5115,7 +5137,7 @@ export const dumpUserData = async (user) => {
         let col;
         for (const collection of collections) {
 
-            const colls = [getUserCollectionName(user), 'models'];
+            const colls = [await getUserCollectionName(user), 'models'];
             if( colls.includes(collection.name) ){
 
                 // Exécuter mongodump avec les filtres appropriés
@@ -5215,16 +5237,16 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
     let maxFilesToKeep;
     // ... (ta logique existante pour maxFilesToKeep basée sur backupFrequency)
     switch (backupFrequency) {
-        case 'daily': // Premium
-            maxFilesToKeep = 7; // Garder 7 jours
-            break;
-        case 'weekly': // Standard
-            maxFilesToKeep = 4; // Garder 4 semaines
-            break;
-        case 'monthly': // Free
-        default:
-            maxFilesToKeep = 2; // Garder 2 mois
-            break;
+    case 'daily': // Premium
+        maxFilesToKeep = 7; // Garder 7 jours
+        break;
+    case 'weekly': // Standard
+        maxFilesToKeep = 4; // Garder 4 semaines
+        break;
+    case 'monthly': // Free
+    default:
+        maxFilesToKeep = 2; // Garder 2 mois
+        break;
     }
     logger.info(`Rotation pour ${userId}: fréquence ${backupFrequency}, garde ${maxFilesToKeep} sauvegardes.`);
 
@@ -5266,12 +5288,20 @@ const middlewareLogger = async (req, res, next) => {
     };
 
     res.on('finish', async () => {
-        await logApiRequest(req, res, req.me, startTime, ( !req.hideApiLogs ) ? JSON.parse(responseBodyChunk) : { message: "The request log has been encrypted because of a clear password in the request."}, res.locals.error); // req.user et res.locals.error dépendent de tes autres middlewares
+        try {
+            await logApiRequest(req, res, req.me, startTime, ( !req.hideApiLogs ) ? JSON.parse(responseBodyChunk) : { message: "The request log has been encrypted because of a clear password in the request."}, res.locals.error);
+        } catch (e) {
+
+        }
     });
 
     res.on('error', async (err) => {
         // Logger aussi en cas d'erreur avant 'finish'
-        await logApiRequest(req, res, req.me, startTime, null, err);
+        try{
+            await logApiRequest(req, res, req.me, startTime, null, err);
+        } catch (e) {
+
+        }
     });
 
     next();
@@ -5350,7 +5380,7 @@ export async function installPack(logger, packId, user, lang) {
         datas: { inserted: 0, updated: 0, skipped: 0, failed: 0 }
     };
     const errors = [];
-    const collection = getCollectionForUser(user);
+    const collection = await getCollectionForUser(user);
     const tempIdToNewIdMap = {};
     const linkCache = new Map();
 

@@ -1,0 +1,197 @@
+@import "_variables.scss";
+
+.btn {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  border-radius: 24px;
+  padding: 4px 8px;
+  @media only screen and (min-width: 480px){
+    padding: 0.6em 1.2em;
+  }
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.25s;
+  color: #979797;
+  border: 1px solid #B2BBC2;
+  span {
+    display: inline-block;
+    width: 100%;
+    margin: 0 auto;
+  }
+  &.active {
+    background-color: #3498db;
+  }
+}
+
+
+.btn {
+  &.btn-ellipsis {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  &.btn-nav {
+    @media only screen and (max-width: 479px){
+      padding: 10px 22px;
+      margin: 7px;
+    }
+  }
+}
+
+
+// --- Styles Généraux pour les Boutons ---
+.btn, button { // Cible les .btn et les <button> au cas où
+  box-shadow: 0 3px 6px $shadow-color; // Ombre subtile pour la profondeur
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-out, filter 0.2s ease-out; // Transitions douces
+  will-change: transform, box-shadow; // Optimisation pour les animations
+
+  &:hover {
+    transform: translateY(-3px) scale(1.03); // Effet de soulèvement et léger zoom
+    box-shadow: 0 6px 12px $shadow-color-hover; // Ombre plus prononcée
+    //background-color: $primary-color-darker; // Assombrir légèrement
+    // filter: brightness(110%); // Alternative: éclaircir légèrement
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(1.01); // Effet d'appui léger
+    box-shadow: 0 2px 4px $shadow-color; // Ombre réduite
+    filter: brightness(95%); // Assombrir un peu plus
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  // Style spécifique pour les boutons primaires (Ex: Démo, Connexion)
+  &.btn-primary {
+    background-color: #3498db;
+    color: #f8f8f8;
+    &:hover {
+      color: white;
+    }
+  }
+
+  &.btn-big {
+    padding: 4px 24px;
+    font-size: 130%;
+  }
+
+  // Style pour les boutons "danger" (Ex: Supprimer)
+  &.btn-danger {
+    background-color: #e74c3c; // Rouge
+    &:hover {
+      background-color: darken(#e74c3c, 10%);
+    }
+  }
+
+  // Style pour les boutons secondaires/discrets (si nécessaire)
+  &.btn-secondary {
+    background-color: $light-gray;
+    color: $dark-gray;
+    border: 1px solid $medium-gray;
+    box-shadow: none;
+    &:hover {
+      background-color: $medium-gray;
+      border-color: darken($medium-gray, 10%);
+      transform: translateY(-2px); // Soullus discret
+      box-shadow: 0 4px 8px $shadow-color;
+    }
+    &:active {
+      background-color: darken($medium-gray, 5%);
+      transform: translateY(0);
+      box-shadow: none;
+    }
+  }
+}
+
+
+.dark .btn {
+  color: #f1f1f1;
+  background-color: black;
+}
+
+.btn:hover {
+  border-color: $primary-color;
+}
+
+.btn:focus,
+.btn:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+.btn-disabled:hover {
+  border-color: transparent;
+}
+
+.btn-disabled:focus,
+.btn-disabled:focus-visible {
+  outline: none;
+}
+
+.btn-disabled {
+  color: #575757;
+  background-color: #f9f9f9;
+  cursor: not-allowed;
+}
+.dark .btn-disabled {
+    background-color:black;
+}
+.btn-group {
+  display: flex;
+  width: fit-content;
+  gap: 8px;
+  padding: 4px;
+}
+
+.btn {
+  &:has(.alignment-left) {
+    flex-direction: row;
+  }
+
+  &:has(.alignment-right) {
+    flex-direction: row-reverse;
+  }
+
+  &:has(.alignment-top) {
+    flex-direction: column;
+  }
+
+  &:has(.alignment-bottom) {
+    flex-direction: column-reverse;
+  }
+
+  svg.alignment-left {
+    margin-right: 8px;
+  }
+
+  svg.alignment-right {
+    margin-left: 8px;
+  }
+
+  svg.alignment-top {
+  }
+
+  svg.alignment-bottom {
+    margin-top: 8px;
+  }
+}
+
+
+.btn-form  {
+  padding: 4px 8px;
+  height: auto;
+
+  &.btn-last {
+    border-radius: 0;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+}

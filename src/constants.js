@@ -14,12 +14,13 @@ export const availableLangs = [
     "el",
     "ru",
     "cs",
-    "sv",
+    "sv"
 ];
+
 
 export const awsDefaultConfig = {
     bucketName : 'bucket-primals',
-    region: 'eu-north-1',
+    region: 'eu-north-1'
 }
 
 export const emailDefaultConfig = {
@@ -70,21 +71,8 @@ export const maxExecutionsByStep = 5;
 export const maxWorkflowSteps = 15;
 
 export const maxPrivateFileSize = 20 * megabytes; // Taille max par fichier privé (20 Mo)
-export const maxTotalPrivateFilesSizeFree = 125 * megabytes; // Stockage total pour les comptes gratuits (250 Mo)
-export const maxTotalPrivateFilesSizeStandard = 250 * megabytes; // Stockage total pour les comptes standard (250 Mo)
-export const maxTotalPrivateFilesSizePremium = 20000 * kilobytes * kilobytes; //
+export const maxTotalPrivateFilesSize = 250 * megabytes;
 
-export const plans = {
-    free:{
-        maxModelsPerUser,
-        maxTotalDataPerUser,
-        maxDataPerModelPerUser,
-        requestLimitPerHour: 7200,
-    },
-    premium: {
-        requestLimitPerHour: 250000,
-    }
-}
 //
 export const optionsSanitizer = {
     allowedTags: [
@@ -103,9 +91,9 @@ export const optionsSanitizer = {
         code: ['class'],
         img: [ 'src', "alt","width","height","style" ]
     },
-// Lots of these won't come up by default because we don't allow them
+    // Lots of these won't come up by default because we don't allow them
     selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],
-// URL schemes we permit
+    // URL schemes we permit
     allowedSchemes: [ 'http', 'https', 'ftp', 'mailto', 'tel' ],
     allowedSchemesByTag: {},
     allowedSchemesAppliedToAttributes: [ 'href', 'src', 'cite' ],
@@ -123,12 +111,13 @@ metaModels['i18n'] = { load: ['translation','lang']};
 metaModels['website'] = { load: ['webpage', 'content', 'taxonomy', 'contact', 'event', 'resource'], 'require': ['i18n'] };
 metaModels['messaging'] = { load: ['alert','ticket', 'message', 'channel'], 'require': ['i18n'] };
 metaModels['eshopping'] = { load: [
-        'order', 'currency', 'product', 'productVariant', 'discount', 'cart', 'cartItem',
-        'brand', 'return', 'review', 'stock', 'returnItem', 'userSubscription',
-        'warehouse', 'shipment', 'campaign', 'stockAlert', 'invoice'],
-    'require': ['i18n', 'users', 'messaging'] };
+    'order', 'currency', 'product', 'productVariant', 'discount', 'cart', 'cartItem',
+    'brand', 'return', 'review', 'stock', 'returnItem', 'userSubscription',
+    'warehouse', 'shipment', 'campaign', 'stockAlert', 'invoice'],
+'require': ['i18n', 'users', 'messaging'] };
 metaModels['workflow'] = { load: ['env', 'workflow', 'workflowRun', 'workflowAction', 'workflowStep', 'workflowTrigger']};
 metaModels['erp'] = { load: [ 'accountingExercise', 'accountingLineItem', 'accountingEntry', 'employee', 'dashboard', 'kpi'] };
+
 
 
 export const allowedFields = ['locked', 'hiddenable', 'anonymized', 'condition', 'color', 'index', 'type', 'required', 'hint', 'default', 'validate', 'unique', 'name', 'placeholder', 'asMain'];

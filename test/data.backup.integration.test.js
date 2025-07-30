@@ -6,25 +6,21 @@ import { Config } from '../src/config.js';
 import { ObjectId } from 'mongodb';
 import {expect, describe, it, beforeAll, afterAll, beforeEach} from 'vitest';
 import { vi } from 'vitest'
-import { Buffer } from 'node:buffer'; // Explicitly import Buffer
-import crypto from 'node:crypto';  //Explicitly import crypto
 
 import {
     createModel,
-    getModel, insertData
+    insertData
 } from 'data-primals-engine/modules/data';
 
 import {
     modelsCollection as getAppModelsCollection,
-    getCollectionForUser as getAppUserCollection,
+    getCollectionForUser as getAppUserCollection
 } from 'data-primals-engine/modules/mongodb';
-import { Engine } from "data-primals-engine/engine";
 import process from "node:process";
 
-import { dumpUserData, loadFromDump, getUserHash } from 'data-primals-engine/modules/data';
+import { dumpUserData, loadFromDump } from 'data-primals-engine/modules/data';
 import fs from "node:fs";
-import {getRandom} from "data-primals-engine/core";
-import {getUniquePort, initEngine, stopEngine} from "../src/setenv.js";
+import {initEngine} from "../src/setenv.js";
 
 vi.mock('data-primals-engine/engine', async(importOriginal) => {
     const mod = await importOriginal() // type is inferred
@@ -37,7 +33,6 @@ vi.mock('data-primals-engine/engine', async(importOriginal) => {
 const mockUser = {
     username: 'testuserBackup',
     _user: 'testuserBackup',
-    userPlan: 'premium',
     email: 'testBackup@example.com',
     configS3: {
         bucketName: null
@@ -50,9 +45,9 @@ const testModelDefinition = {
     description: 'Model for testing backup/restore',
     fields: [
         { name: 'testField', type: 'string', required: true },
-        { name: 'optionalField', type: 'number' },
+        { name: 'optionalField', type: 'number' }
     ],
-    maxRequestData: 10,
+    maxRequestData: 10
 };
 
 let testModelsColInstance;
@@ -101,7 +96,7 @@ beforeAll(async () =>{
 })
 beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getAppUserCollection(mockUser);
+    testDatasColInstance = await getAppUserCollection(mockUser);
 });
 
 describe('Data Backup and Restore Integration', () => {

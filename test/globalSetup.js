@@ -4,7 +4,7 @@ import {getCollection} from "../src/modules/mongodb.js";
 
 export default async function () {
 
-// --- Configuration initiale ---
+    // --- Configuration initiale ---
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
 
     console.log('\n--- Global Setup: Initializing engine and database for all tests ---');

@@ -1,4 +1,5 @@
 import {compare} from "bcrypt";
+import {maxTotalPrivateFilesSize} from "./constants.js";
 
 /**
  * @class UserProvider
@@ -6,11 +7,15 @@ import {compare} from "bcrypt";
  * C'est une classe de base abstraite, elle n'est pas destinée à être utilisée directement.
  */
 export class UserProvider {
+
+    plans = {};
+
     constructor(engine) {
         if (this.constructor === UserProvider) {
             throw new Error("Abstract classes can't be instantiated.");
         }
         this.engine = engine;
+        this.plans = this.getUserPlans();
     }
 
     /**
@@ -50,6 +55,45 @@ export class UserProvider {
         throw new Error("Method 'initiateUser()' must be implemented.");
     }
 
+    /**
+     * Récupère la limite de stockage d'un utilisateur.
+     * @param user
+     * @returns {Promise<number>}
+     */
+    async getUserStorageLimit(user) {
+        return maxTotalPrivateFilesSize;
+    }
+
+    /**
+     * Récupère la fréquence de sauvegarde d'un utilisateur.
+     * @param user
+     * @returns {Promise<void>}
+     */
+    async getBackupFrequency(user){
+        return 'daily';
+    }
+
+    /**
+     * Récupère les middlewares d'un utilisateur.
+     * @returns {Promise<*[]>}
+     */
+    async getMiddlewares(){
+        return [];
+    }
+
+    getUserPlans(){
+        return {
+            free: {
+                requestLimitPerHour: 10000,
+                features: ['indexes'] // Feature list : indexes is the only option for now. Use a dedicated collection for this user
+            }
+        };
+    }
+
+    async hasFeature(user, feature) {
+        return this.plans[user.userPlan]?.features.some(f => f === feature);
+    }
+
     // Ajoutez ici d'autres méthodes nécessaires : findUserById, createUser, etc.
 }
 
@@ -58,19 +102,73 @@ export class DefaultUserProvider extends UserProvider {
 
     users= [{ username: "demo", password: "demo" }];
 
+    /**
+     * Trouve un utilisateur. Gère spécifiquement les utilisateurs de démo.
+     */
     async findUserByUsername(username) {
+        // Si le nom d'utilisateur commence par "demo", on le considère comme un utilisateur de démo valide et volatile.
+        if (typeof username === 'string' && username.startsWith('demo')) {
+            // On retourne un objet utilisateur de démo avec la structure attendue.
+            return { username: username, password: "demo", userPlan: 'free' }; // Ajout de userPlan pour la cohérence
+        }
+        // Logique pour les vrais utilisateurs (si vous en ajoutez plus tard)
         return this.users.find(user => user.username === username);
     }
 
+    async getUserStorageLimit(user) {
+        return maxTotalPrivateFilesSize;
+    }
+
+    async getBackupFrequency(user){
+        return 'daily';
+    }
+
+    async getMiddlewares(){
+        return []
+    }
+
     async validatePassword(user, password) {
-        return true;
+        // Pour un utilisateur de démo, le mot de passe est toujours valide.
+        if (user.username.startsWith('demo')) {
+            return true;
+        }
+        // Logique pour les vrais utilisateurs
+        return true; // ou votre logique de comparaison bcrypt
     }
 
     async updateUser(user, data) {
         this.users = this.users.map(user => user.username === user.username ? {...user, ...data} : user);
     }
-
+    /**
+     * Initialise l'utilisateur sur la requête. C'est ici que la magie opère.
+     */
     async initiateUser(req) {
-        req.me = this.users[0];
+        // Priorité 1: Un utilisateur est déjà authentifié via une session (pour les vrais comptes).
+        if (req.session?.user?.username) {
+            const user = await this.findUserByUsername(req.session.user.username);
+            if (user) {
+                req.me = user;
+                return; // L'utilisateur est trouvé, on s'arrête là.
+            }
+        }
+
+        // Priorité 2: PasF de session, mais on vérifie la présence d'un cookie "username" pour la démo.
+        const demoUsername = req.cookies?.username;
+        if (demoUsername && typeof demoUsername === 'string' && demoUsername.startsWith('demo')) {
+            // On a trouvé un cookie de démo. On crée l'objet utilisateur correspondant.
+            const demoUser = await this.findUserByUsername(demoUsername);
+            if (demoUser) {
+                req.me = demoUser;
+                return;
+            }
+        }
+    }
+
+    getUserPlans(){
+        return {
+            free: {
+                features: ['indexes']
+            }
+        }
     }
 }

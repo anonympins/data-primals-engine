@@ -1,18 +1,11 @@
 import { ObjectId } from 'mongodb';
-import { expect, describe, it, beforeEach, afterAll, beforeAll, vi } from 'vitest';
+import { expect, describe, it, beforeEach, beforeAll, vi } from 'vitest';
 import { Config } from "data-primals-engine/config";
-
-// --- Configuration initiale (similaire à workflow.integration.test.js) ---
-let mongod;
-let testDbUri;
-const testDbName = 'testRobustnessDbHO_Workflow';
-
 // --- Importations des modules de l'application ---
-import { Engine } from "data-primals-engine/engine";
 import { insertData, editData } from 'data-primals-engine/modules/data';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser, getCollection } from 'data-primals-engine/modules/mongodb';
 import * as workflowModule from 'data-primals-engine/modules/workflow';
-import {getUniquePort, initEngine} from "../src/setenv.js";
+import {initEngine} from "../src/setenv.js";
 import {maxExecutionsByStep} from "data-primals-engine/constants";
 
 vi.mock('data-primals-engine/modules/workflow', { spy: true })
@@ -44,7 +37,7 @@ beforeAll(async () =>{
 
 beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = getCollectionForUser(mockUser);
+    testDatasColInstance = await getCollectionForUser(mockUser);
     await testDatasColInstance.deleteMany({ _user: mockUser.username });
     await getCollection('job_locks').deleteMany({}); // Nettoyer les verrous
     const mods = await testModelsColInstance.find({ $and: [{_user: mockUser.username}, {$or: [{name: targetDataModel.name}, ...workflowMetaModels.map(m =>({name: m.name}))] }]}).toArray();
@@ -71,7 +64,7 @@ describe('Tests de robustesse et des cas limites du module Workflow', () => {
             const now = new Date();
             await jobsCollection.insertOne({
                 jobId: jobId,
-                lockedUntil: new Date(now.getTime() + 10 * 60 * 1000), // Verrouillé pour 10 min
+                lockedUntil: new Date(now.getTime() + 10 * 60 * 1000) // Verrouillé pour 10 min
             });
 
             // 2. Act: Tenter de lancer le job
@@ -89,7 +82,7 @@ describe('Tests de robustesse et des cas limites du module Workflow', () => {
             // 1. Arrange: Insérer un verrou qui a déjà expiré (simule un crash)
             await jobsCollection.insertOne({
                 jobId: jobId,
-                lockedUntil: new Date(Date.now() - 1000), // Expiré depuis 1 seconde
+                lockedUntil: new Date(Date.now() - 1000) // Expiré depuis 1 seconde
             });
 
             // 2. Act: Lancer le job
@@ -155,7 +148,7 @@ describe('Tests de robustesse et des cas limites du module Workflow', () => {
                 // Cette condition est conçue pour échouer car la donnée n'existera pas
                 conditions: { status: 'must-be-this-to-succeed' },
                 onSuccessStep: successStep.toString(),
-                onFailureStep: failureStep.toString(),
+                onFailureStep: failureStep.toString()
             };
             const startStep = (await insertData('workflowStep', startStepDef, {}, mockUser)).insertedIds[0];
             const workflow = (await insertData('workflow', { name: 'Failure Path Workflow', startStep: startStep.toString() }, {}, mockUser)).insertedIds[0];

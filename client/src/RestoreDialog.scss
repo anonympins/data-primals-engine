@@ -1,0 +1,67 @@
+
+.restore-dialog-container {
+  padding: 2rem;
+  max-width: 600px;
+  margin: 4rem auto;
+  background-color: var(--bg-color-lighter, #f9f9f9);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+
+  h2 {
+    margin-bottom: 1.5rem;
+    color: var(--text-color-strong, #333);
+  }
+
+  .restore-status {
+    padding: 1.5rem;
+    border-radius: 5px;
+    margin-top: 1rem;
+
+    svg {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    &.loading {
+      color: var(--text-color, #555);
+      .spinner {
+        animation: spin 1.5s linear infinite;
+      }
+    }
+
+    &.error {
+      // Utilise les styles de .msg-error si définis globalement
+      // Sinon, ajoute des styles spécifiques ici
+      // background-color: #ffebee;
+      // border: 1px solid #e57373;
+      // color: #c62828;
+      svg { color: var(--color-error, #d32f2f); }
+    }
+
+    &.success {
+      // Utilise les styles de .msg-success si définis globalement
+      // Sinon, ajoute des styles spécifiques ici
+      // background-color: #e8f5e9;
+      // border: 1px solid #81c784;
+      // color: #2e7d32;
+      svg { color: var(--color-success, #388e3c); }
+    }
+
+    p {
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    button {
+      margin-top: 1rem;
+    }
+  }
+}
+
+// Animation du spinner
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

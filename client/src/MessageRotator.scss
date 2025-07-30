@@ -1,0 +1,14 @@
+/* src/components/MessageRotator.css */
+.message-rotator-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50px; /* Ajustez selon vos besoins */
+  overflow: hidden; /* Empêche le texte de déborder pendant la transition si les tailles varient */
+  position: relative; /* Utile si vous voulez positionner des éléments absolument à l'intérieur */
+}
+
+.message-rotator-text {
+  text-align: center;
+  /* Styles supplémentaires pour le texte si nécessaire */
+}

@@ -25,13 +25,13 @@ export const assistantGlobalLimiter = rateLimit({
 });
 
 const createSystemPrompt = (modelDefs) => {
-const cond1 = JSON.stringify({ "model": "event", "sort": "startDate:ASC", "limit": 0, "filter": { "$and": [{ "$nin": ["$tags", "festival"] }, { "$lt": ["$endDate", "$$NOW"] }] }}, null, 2);
+    const cond1 = JSON.stringify({ "model": "event", "sort": "startDate:ASC", "limit": 0, "filter": { "$and": [{ "$nin": ["$tags", "festival"] }, { "$lt": ["$endDate", "$$NOW"] }] }}, null, 2);
     const cond2 = JSON.stringify({ "model": "contact", "sort": "legalName:ASC", "limit": 5,"filter": {"$ne": [{ "$type": "$legalName"}, "missing"] }}, null, 2);
     const cond3 = JSON.stringify({ "model": "order", "sort": "_id:DESC", "limit": 10,"filter": {"lang": { "$find": [{ "$eq": ["$$this.code", "fr"] }] } }}, null, 2);
     const cond4 = JSON.stringify({ "model": "order", "sort": "updatedAt:DESC", "limit": 0,"filter": {"user": { "$find": { "roles": { "$find": [{ "$in": ["$$this.name", ["admin", "moderator"]] }] } }}}}, null, 2);
 
     return `
-Tu es "Prior", un assistant expert en analyse de données pour la plateforme data.primals.net.
+Tu es "Prior", un assistant expert en analyse de données pour le moteur data-primals-engine..
 Ta mission est d'aider l'utilisateur en répondant à ses questions sur ses données.
 
 STRICTEMENT INTERDIT :
@@ -161,7 +161,7 @@ async function handleChatRequest(message, history, provider, context, user, conf
     const envKeyName = providers[p];
     if (!envKeyName) return { success: false, message: `Fournisseur IA non supporté : ${p}` };
 
-    const envCollection = getCollectionForUser(user);
+    const envCollection = await getCollectionForUser(user);
     const userEnvVar = await envCollection.findOne({ _model: 'env', name: envKeyName, _user: user.username });
     apiKey = userEnvVar?.value || process.env[envKeyName];
 
@@ -214,54 +214,54 @@ async function handleChatRequest(message, history, provider, context, user, conf
             };
         }
 
-// Exécution IMMÉDIATE des actions sans confirmation (sauf pour post/update/delete)
+        // Exécution IMMÉDIATE des actions sans confirmation (sauf pour post/update/delete)
         switch (parsedResponse.action) {
-            case 'search': {
-                const searchResult = await searchData({
-                    user,
-                    query: {
-                        model: parsedResponse.params.model,
-                        filter: parsedResponse.params.filter,
-                        limit: parsedResponse.params.limit || 10
-                    }
-                });
-
-                const resultString = searchResult.data.length > 0
-                    ? i18n.t('assistant.searchResults', "Voici les résultats :") +
+        case 'search': {
+            const searchResult = await searchData({
+                user,
+                query: {
+                    model: parsedResponse.params.model,
+                    filter: parsedResponse.params.filter,
+                    limit: parsedResponse.params.limit || 10
+                }
+            });
+                
+            const resultString = searchResult.data.length > 0
+                ? i18n.t('assistant.searchResults', "Voici les résultats :") +
                     searchResult.data.map(item =>
                         `\n- ${getDataAsString(allModels.find(m => m.name === parsedResponse.params.model), item, i18n.t, allModels, true)}`
                     ).join('')
-                    : i18n.t('assistant.noResults', "Aucun résultat trouvé.");
+                : i18n.t('assistant.noResults', "Aucun résultat trouvé.");
 
-                return { success: true, displayMessage: resultString };
-            }
-            case 'displayMessage':
-                return { success: true, displayMessage: parsedResponse.params.message };
-            case 'code':
-                return { success: true, displayMessage: "Voici le code : " + parsedResponse.params.code };
-            case 'post':
-            case 'update':
-            case 'delete': {
-                const { model, filter, data } = parsedResponse.params;
+            return { success: true, displayMessage: resultString };
+        }
+        case 'displayMessage':
+            return { success: true, displayMessage: parsedResponse.params.message };
+        case 'code':
+            return { success: true, displayMessage: "Voici le code : " + parsedResponse.params.code };
+        case 'post':
+        case 'update':
+        case 'delete': {
+            const { model, filter, data } = parsedResponse.params;
 
-                // Un message générique. Les détails seront affichés par le front-end.
-                const confirmationMessage = i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :");
+            // Un message générique. Les détails seront affichés par le front-end.
+            const confirmationMessage = i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :");
 
-                return {
-                    success: true,
-                    model,
-                    filter,
-                    data,
-                    displayMessage: confirmationMessage, // Message détaillé pour l'utilisateur
-                    confirmationRequest: parsedResponse // Action complète pour l'exécution
-                };
-            }
+            return {
+                success: true,
+                model,
+                filter,
+                data,
+                displayMessage: confirmationMessage, // Message détaillé pour l'utilisateur
+                confirmationRequest: parsedResponse // Action complète pour l'exécution
+            };
+        }
 
-            default:
-                return {
-                    success: true,
-                    displayMessage: i18n.t('assistant.unknownAction', "Commande non reconnue.")
-                };
+        default:
+            return {
+                success: true,
+                displayMessage: i18n.t('assistant.unknownAction', "Commande non reconnue.")
+            };
         }
     }
 
@@ -278,16 +278,16 @@ async function handleChatRequest(message, history, provider, context, user, conf
 async function executeConfirmedAction(action, params, user) {
     logger.info(`[Assistant] Exécution de l'action confirmée par l'utilisateur: ${action}`);
     switch (action) {
-        case 'post':
-            // Note : on passe false pour ne pas redéclencher de workflow ici
-            return await insertData(params.model, params.data, {}, user, false, false);
-        case 'update':
-            return await patchData(params.model, params.filter, params.data, {}, user);
-        case 'delete':
-            // Le modèle est dans les params, pas besoin de le passer en argument sparé
-            return await deleteData(params.model, [], params.filter, user);
-        default:
-            throw new Error(`Action confirmée non supportée: ${action}`);
+    case 'post':
+        // Note : on passe false pour ne pas redéclencher de workflow ici
+        return await insertData(params.model, params.data, {}, user, false, false);
+    case 'update':
+        return await patchData(params.model, params.filter, params.data, {}, user);
+    case 'delete':
+        // Le modèle est dans les params, pas besoin de le passer en argument sparé
+        return await deleteData(params.model, [], params.filter, user);
+    default:
+        throw new Error(`Action confirmée non supportée: ${action}`);
     }
 }
 

@@ -1,0 +1,672 @@
+/* ConditionBuilder.css ou votre fichier CSS global */
+/* Styles pour le conteneur et le bouton de bascule */
+.condition-builder-container {
+  position: relative; /* Permet de positionner le bouton en absolu par rapport à ce conteneur */
+  margin-bottom: 10px; /* Espace sous le composant */
+}
+.condition-builder {
+  width: 100%;
+  position: relative;
+  z-index: 100;
+  border: 1px solid #ccc;
+  padding: 10px;
+  padding-top: 2Opx;
+  margin-top: 10px;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+/* Optionnel: Ajouter une marge au CodeField quand il est affiché via le toggle */
+.condition-builder-container .code-field { /* Assurez-vous que CodeField a une classe racine .code-field */
+  margin-top: 5px; /* Espace entre le bouton toggle et l'éditeur de code */
+}
+.condition-builder > label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: bold;
+  color: #555;
+}
+
+.condition-node {
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  position: relative; /* Pour positionner le bouton supprimer */
+}
+
+.condition-group {
+  border-left: 3px solid;
+  padding-left: 15px;
+  margin-left: 5px; /* Lr décalage pour la ligne */
+}
+
+.condition-group .group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #333;
+  font-size: 0.9em;
+  background-color: #eee;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.condition-group .group-header span {
+  flex-grow: 1;
+}
+
+
+.condition-and {
+  border-left-color: #4CAF50; /* Vert pour AND */
+}
+.condition-and > .group-header {
+  background-color: #e8f5e9; /* Vert clair */
+}
+
+
+.condition-or {
+  border-left-color: #2196F3; /* Bleu pour OR */
+}
+.condition-or > .group-header {
+  background-color: #e3f2fd; /* Bleu clair */
+}
+
+.condition-group .group-content {
+  padding-top: 5px;
+}
+
+.condition-simple {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  background-color: #fff;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+}
+
+.condition-simple select,
+.condition-simple input {
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.condition-simple input {
+  flex-grow: 1;
+}
+
+
+.condition-simple {
+  // ... (styles existants) ...
+  align-items: center; /* Aligner les éléments verticalement */
+}
+
+.path-separator {
+  color: #aaa;
+  margin: 0 3px; /* Un peu d'espace autour */
+}
+
+/* Style pour le message d'avertissement */
+.client-eval-warning {
+  font-size: 0.8em;
+  color: #777;
+  font-style: italic;
+  flex-basis: 100%; /* Prend toute la largeur */
+  margin-top: 5px;
+  text-align: left;
+}
+
+// Ajustement potentiel pour les selects dans la condition simple
+.condition-simple select {
+  min-width: 120px; /* Largeur minimale pour la lisibilité */
+  }
+
+.condition-builder-toggle {
+  button {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 3px 7px; /* Un peu de padding */
+    cursor: pointer;
+    font-size: 0.9em;  /* Taille de l'icône/texte */
+    color: #555;
+    line-height: 1;    /* Empêche une hauteur excessive */
+    display: flex;     /* Pour bien centrer l'icône */
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background-color: #e0e0e0;
+      border-color: #bbb;
+      color: #333;
+    }
+  }
+}
+.condition-node .delete-button {
+  background: none;
+  border: none;
+  color: #f44336; /* Rouge pour supprimer */
+  cursor: pointer;
+  padding: 0 5px;
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+.condition-node .delete-button:hover {
+  opacity: 1;
+  color: #d32f2f;
+}
+/* Positionnement spécifique pour le bouton supprimer d'une condition simple */
+.condition-simple .delete-button {
+  margin-left: 5px;
+}
+
+
+.condition-empty {
+  padding: 10px;
+  text-align: center;
+  color: #777;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.add-buttons {
+  display: flex;
+  margin-top: 10px;
+  padding-top: 5px;
+  border-top: 1px dashed #ccc;
+  gap: 5px;
+}
+
+.add-buttons .button,
+.condition-empty .button {
+  background-color: #e0e0e0;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.add-buttons .button:hover,
+.condition-empty .button:hover {
+  background-color: #d5d5d5;
+}
+
+.condition-group .group-header {
+  /* ... (styles existants) ... */
+  /* Ajuster si nécessaire pour faire de la place au nouveau bouton */
+}
+
+.condition-group .group-header .ungroup-button {
+  background: none;
+  border: none;
+  color: #ff9800; /* Orange pour dégroup */
+  cursor: pointer;
+  padding: 0 5px;
+  font-size: 0.9em;
+  opacity: 0.7;
+  margin-right: 5px; /* Espace avant le texte ET/OU */
+}
+.condition-group .group-header .ungroup-button:hover {
+  opacity: 1;
+  color: #f57c00;
+}
+
+.condition-value-input,
+.math-operation,
+.date-operation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; // espace entre select/input
+  margin-top: 0.3rem;
+  font-size: 0.9em;
+}
+
+.math-operation, .date-operation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+  font-size: 0.9em;
+}
+.date-offset-line {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+.date-offset-line input[type="number"] {
+  width: 4em;
+}
+.calc-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f9f9f9;
+
+  .calc-operator-select {
+    padding: 0.3rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+
+  .calc-args {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .calc-arg-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nested-calc-editor {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+  }
+
+  .simple-arg {
+    display: flex;
+    gap: 0.3rem;
+
+    input {
+      flex: 1;
+      padding: 0.3rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+  }
+
+  .arg-actions {
+    display: flex;
+    gap: 0.3rem;
+
+    button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #666;
+
+      &:hover {
+        color: #333;
+      }
+    }
+  }
+
+  .add-arg-button {
+    align-self: flex-start;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .icon-btn {
+    cursor: pointer;
+    color: #666;
+
+    &:hover {
+      color: #333;
+    }
+  }
+}
+
+.constant-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  select, input {
+    padding: 0.3rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  input[type="number"] {
+    width: 80px;
+  }
+}
+
+.calc-editor {
+  .calc-operator-select {
+    margin-bottom: 0.5rem;
+  }
+  .add-arg-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.converter-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+
+  .converter-arg {
+    display: flex;
+    gap: 0.3rem;
+
+    input {
+      flex: 1;
+      padding: 0.3rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+  }
+}
+
+.calc-editor {
+  // ... autres styles ...
+
+  optgroup {
+    font-style: normal;
+    font-weight: bold;
+    color: #555;
+  }
+
+  optgroup[label="Conversions"] {
+    border-top: 1px solid #ddd;
+    padding-top: 0.2rem;
+    margin-top: 0.2rem;
+  }
+}
+
+.expr-builder {
+  width: 100%;
+  position: relative;
+}
+.converter-block {
+  border-left: 3px solid #4CAF50;
+  padding-left: 10px;
+}
+
+.converter-arg {
+  margin-top: 5px;
+  margin-left: 20px;
+}.single-arg-block {
+   border-left: 3px solid #2196F3;
+   padding-left: 10px;
+ }
+
+.single-arg {
+  margin-top: 5px;
+  margin-left: 20px;
+}
+.json-preview {
+  margin-top: 20px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.json-preview pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.find-block {
+  border-left: 3px solid #4a90e2;
+  background-color: #f0f7ff;
+  margin-bottom: 15px;
+}
+
+.find-nesting-actions {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.find-nesting-actions button {
+  padding: 2px 5px;
+  font-size: 0.8em;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.remove-expr {
+  background: none;
+  border: 1px solid #ddd;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.remove-expr:hover {
+  background-color: #ffeeee;
+  color: #d32f2f;
+  border-color: #ffcdd2;
+}
+
+.expr-builder {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.expression-group {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 2px;
+  margin-bottom: 10px;
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+
+.group-content {
+  padding-left: 20px;
+}
+
+.group-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.group-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.expression-block {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 10px;
+  flex-grow: 1;
+}
+
+.expression-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.operator {
+  font-weight: bold;
+}
+
+.expression-args {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 4px;
+}
+
+.operator-selector-overlay {
+  position: absolute;
+  left:0;
+  background: white;
+  border: 1px solid #ddd;
+  padding: 10px;
+  z-index: 10;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.operator-selector {
+  max-width: 300px;
+}
+
+.operator-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.operator-item {
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+.operator-item:hover {
+  background: #f0f0f0;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 10px;
+}
+.simple-value-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.simple-value input {
+  flex-grow: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.switch-to-expr {
+  background: none;
+  border: none;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.switch-to-expr:hover {
+  color: #1a73e8;
+  background-color: #e8f0fe;
+}
+.expression-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Ajout pour aligner verticalement */
+  margin-bottom: 5px;
+}
+
+.expression-actions {
+  display: flex;
+  gap: 8px; /* Espace entre les boutons */
+}
+
+.switch-to-expr {
+  background: none;
+  border: 1px solid #ddd;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.switch-to-expr:hover {
+  background-color: #f5f5f5;
+}
+.field-input-container {
+  position: relative;
+  flex-grow: 1;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.suggestion-item:hover {
+  background-color: #f0f0f0;
+}
+.suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.relation-info {
+  font-size: 0.8em;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.relation-info svg {
+  font-size: 0.9em;
+}
+.field-with-find {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 4px;
+}
+
+.field-with-find .field-name-selector {
+  margin-bottom: 10px;
+}
+
+.field-with-find .find-block {
+  margin-left: 20px;
+  border-left: 2px solid #eee;
+  padding-left: 10px;
+}

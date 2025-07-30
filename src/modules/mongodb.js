@@ -1,9 +1,7 @@
 
 import process from "process";
-import {MongoClient as InternalMongoClient} from "mongodb";
 import {Logger} from "../gameObject.js";
-import {MongoClient, MongoDatabase} from "../engine.js";
-import * as tls from "node:tls";
+import {MongoDatabase} from "../engine.js";
 import fs from "node:fs";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
@@ -46,14 +44,15 @@ export const getCollection = (str) => {
 
 
 // New function to determine the collection name for a user
-export const getUserCollectionName = (user) => {
-    return user?.userPlan === 'premium' ? `datas_${user.username}` : 'datas';
+export const getUserCollectionName = async (user) => {
+    const feat = await engine.userProvider.hasFeature(user, 'indexes');
+    return feat ? `datas_${user.username}` : 'datas';
 };
 
 
 // Modify existing functions to use the correct collection
-export const getCollectionForUser = (user) => {
-    const collectionName = getUserCollectionName(user);
+export const getCollectionForUser = async (user) => {
+    const collectionName = await getUserCollectionName(user);
     return getCollection(collectionName);
 };
 

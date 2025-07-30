@@ -1,7 +1,6 @@
 import i18n from "data-primals-engine/i18n";
-import {MongoClient, MongoDatabase} from "../engine.js";
+import {MongoDatabase} from "../engine.js";
 import {getCollection, getCollectionForUser, getUserCollectionName} from "./mongodb.js";
-import {dbName, plans} from "../constants.js";
 import {isLocalUser} from "../data.js";
 import {ObjectId} from "mongodb";
 import {getAPILang} from "./data.js";
@@ -20,10 +19,10 @@ export const userInitiator = async (req, res, next) => {
     // set current lang for user
     i18n.changeLanguage(lang);
 
-    if (req.me.userPlan === 'premium') {
+    if (await engine.userProvider.hasFeature(req.me, 'indexes')) {
         const collections = await MongoDatabase.listCollections().toArray();
         const collectionNames = collections.map(c => c.name);
-        const coll = getUserCollectionName(req.me);
+        const coll = await getUserCollectionName(req.me);
         if (collectionNames.includes(coll)) {
             const collection = await MongoDatabase.createCollection(coll);
             const indexes = await collection.indexes();
@@ -83,33 +82,11 @@ export const generateLimiter = rateLimit({
     }
 });
 
-const freeSearchLimiter = rateLimit({
-    windowMs: 1000 * 3600,
-    limit: plans.free.requestLimitPerHour,
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-const premiumSearchLimiter = rateLimit({
-    windowMs: 1000 * 3600,
-    limit: plans.premium.requestLimitPerHour,
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-export const myFreePremiumAnonymousLimiter = async function (req, res, next) {
-    const user = req.me;
-    if (user?.userPlan === "premium") {
-        return premiumSearchLimiter(req, res, next);
-    }
-    return freeSearchLimiter(req, res, next);
-};
 
 let logger,engine;
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
-
-
 }
 
 export async function hasPermission(permissionNames, user) {
@@ -119,7 +96,7 @@ export async function hasPermission(permissionNames, user) {
     try {
         // Si on a une string on le transforme en tableau.
         const permissionNamesArray = Array.isArray(permissionNames) ? permissionNames : [permissionNames];
-        const collection = getCollectionForUser(user);
+        const collection = await getCollectionForUser(user);
 
         const job = [
             {
@@ -131,39 +108,39 @@ export async function hasPermission(permissionNames, user) {
                             $match: {
                                 $expr: {
                                     $and: [
-                                        { $in: ['$_id', '$$rolesIds'] },
-                                    ],
-                                },
-                            },
+                                        { $in: ['$_id', '$$rolesIds'] }
+                                    ]
+                                }
+                            }
                         },
                         {
                             $lookup: {
                                 from: 'datas',
                                 let: { rolePermissions: {
-                                        "$map": {
-                                            "input": "$permissions",
-                                            "in": { "$toObjectId": "$$this" }
-                                        }
-                                    } },
+                                    "$map": {
+                                        "input": "$permissions",
+                                        "in": { "$toObjectId": "$$this" }
+                                    }
+                                } },
                                 pipeline: [
                                     {
                                         $match: {
                                             $expr: {
                                                 $and: [
-                                                    { $in: ['$_id', '$$rolePermissions'] },
-                                                ],
-                                            },
-                                        },
+                                                    { $in: ['$_id', '$$rolePermissions'] }
+                                                ]
+                                            }
+                                        }
                                     },
-                                    { $limit: 1 },
+                                    { $limit: 1 }
                                 ],
-                                as: 'permissions',
-                            },
+                                as: 'permissions'
+                            }
                         },
-                        { $unwind: { path: '$permissions', preserveNullAndEmptyArrays: true } },
+                        { $unwind: { path: '$permissions', preserveNullAndEmptyArrays: true } }
                     ],
-                    as: 'roles',
-                },
+                    as: 'roles'
+                }
             },
             { $unwind: { path: '$roles', preserveNullAndEmptyArrays: true } },
             { $match: { 'roles.permissions.name': { $in: permissionNamesArray } } }, // Match if permissions.name in array
@@ -186,7 +163,7 @@ export async function hasPermission(permissionNames, user) {
  */
 export async function calculateTotalUserStorageUsage(user) {
     const userId = user._user || user.username;
-    const datasCollection = getCollectionForUser(user);
+    const datasCollection = await getCollectionForUser(user);
     const filesCollection = getCollection("files");
 
     // Pipeline pour calculer la taille des documents de données

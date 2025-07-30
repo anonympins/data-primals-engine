@@ -1,0 +1,445 @@
+@import "_variables.scss"; // Importer tes variables
+.dashboards-page {
+  padding: 16px;
+}
+.dashboard-view {
+  .kpi-grid {
+    display: grid;
+    // Ajuste minmax pour la largeur minimale/maximale des KPIs
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px; // Espace entre les KPIs
+    margin-top: 20px;
+  }
+
+  .add-buttons-inline {
+    display: flex;
+    gap: 8px;
+    align-self: center;
+  }
+  .add-chart-button, .add-kpi-button {
+    // Style pour le bouton d'ajout
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 15px;
+    border: 2px dashed $medium-gray; // Style pointillé
+    border-radius: 8px;
+    background-color: $light-gray;
+    color: $dark-gray;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+
+    &:hover {
+      background-color: darken($light-gray, 5%);
+      border-color: $primary-color;
+      color: $primary-color;
+    }
+  }
+}
+
+// ... (styles existants du KPIWidget) ...
+
+.kpi-widget {
+  position: relative; // Nécessaire pour positionner le bouton remove
+  text-align: right;
+  padding: 24px;
+
+  min-width: 240px;
+  .kpi-title {
+    display: flex; /* Aligner nom et icône info */
+    align-items: center;
+  }
+  .kpi-content {
+    padding-left: 24px;
+  }
+  .kpi-title {
+    display: flex;
+    justify-content: right;
+  }
+  .kpi-info {
+    outline: 1px solid transparent;
+    margin-left: 5px;
+    cursor: help;
+    opacity: 0.7;
+    &:hover {
+      outline: 1px solid gray;
+    }
+    width: 24px;
+    height: 24px;
+    text-align: center;
+  }
+  .kpi-remove-button {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 3px;
+    line-height: 1;
+    border-radius: 50%;
+    opacity: 0.5; // Moins visible par défaut
+    transition: opacity 0.2s, color 0.2s;
+
+    &:hover {
+      color: $danger-color; // Rouge au survol
+      opacity: 1;
+    }
+  }
+
+  &:hover .kpi-remove-button {
+    opacity: 1; // Rendre visible au survol du widget
+  }
+
+  .kpi-value-number {
+    font-size: 240%;
+    padding: 4px;
+  }
+
+  .kpi-icon {
+    position: absolute;
+    font-size: 340%;
+    bottom: 6px;
+    left: 24px;
+  }
+
+  /* Dans votre fichier CSS global ou spécifique aux composants */
+
+  .kpi-value-with-total .kpi-main-value {
+    /* Style pour la valeur principale si nécessaire */
+    font-weight: bold; /* Exemple */
+  }
+
+  .kpi-value-with-total .kpi-separator {
+    opacity: 0.8;
+    margin: 0 0.2em; /* Un peu d'espace autour du slash */
+  }
+
+  .kpi-value-with-total .kpi-total-value {
+    font-size: 0.85em; /* Rur le total */
+    opacity: 0.9;
+  }
+
+  .kpi-percentage {
+    font-weight: bold; /* Mettre le pourcentage en gras par exemple */
+  }
+
+  .kpi-value-simple .kpi-value-number {
+    /* Style pour le nombre seul si nécessaire */
+  }
+
+  .kpi-unit-suffix {
+    margin-left: 0.2em; /* Espace avant l'unité */
+    font-size: 1.4em;
+    opacity: 0.8;
+  }
+
+  .kpi-error {
+    color: red; /* Ou une couleur adaptée à votre thème */
+    font-weight: bold;
+  }
+
+  .kpi-loading {
+    opacity: 0.7;
+  }
+
+  .kpi-value-nodata {
+    opacity: 0.7;
+  }
+
+  .kpi-widget:hover .kpi-remove-button {
+    opacity: 1;
+  }
+
+  .kpi-remove-button:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+}
+
+.dashboard-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+      .dashboard-section {
+        border: 1px solid #e0e0e0;
+        padding: 1rem;
+        border-radius: 4px;
+        position: relative; // Pour positionner le bouton de suppression
+    
+          .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+      
+              .section-title {
+                flex-grow: 1;
+                margin: 0;
+                padding: 0.25rem 0; // Un peu d'espace pour cliquer/éditer
+                border-radius: 3px;
+                cursor: text; // Indique qu'on peut cliquer
+        
+                  &:focus, &.editing {
+                    outline: 2px solid dodgerblue; // Mise en évidence lors de l'édition
+                    background-color: #f0f8ff;
+                    cursor: initial;
+                  }
+              }
+      
+              .edit-section-name-button {
+                background: none;
+                border: none;
+                color: #666;
+                cursor: pointer;
+                padding: 0.25rem;
+                  &:hover {
+                    color: #333;
+                  }
+              }
+          }
+    
+          .kpi-grid {
+            // ... (styles existants pour kpi-grid)
+          }
+    
+          .remove-section-button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.9em;
+            padding: 0.25rem;
+      
+              &:hover {
+                color: red;
+              }
+          }
+    
+          .empty-section-message {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 1rem 0;
+          }
+      }
+}
+// C:/Dev/hackersonline-engine/client/src/Dashboard.scss
+// ... (autres styles existants) ...
+
+// Styles pour les badges de données dans FlexView
+.flex-view-content-wrapper {
+  // Style pour le conteneur de chaque "carte" répétée
+  // Chaque DisplayFlexNodeRenderer généré par le .map() sera un enfant direct ici.
+  // Vous pouvez ajouter des styles pour espacer les cartes, leur donner des bordures, etc.
+  // Par exemple, pour que chaque carte (chaque instance de flexStructure) soit distincte :
+  & > .flex-node.preview-container { // Cible la racine de chaque structure Flex répétée
+    border: 1px solid #e0e0e0;
+    padding: 15px;
+    border-radius: 4px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.preview-item.is-data-badge-item {
+  // Styles spécifiques pour les cases qui contiennent un data-badge
+  // Par défaut, preview-item a déjà display: flex, align-items: center, justify-content: center
+  // On peut vouloir ajuster ça pour les badges
+  align-items: flex-start; // Aligner les badges en haut de la case
+  justify-content: flex-start; // Aligner les badges à gauche de la case
+  padding: 5px; // Réduire un peu le padding interne de la case si besoin
+}
+
+.data-badge {
+  display: inline-flex; // Pour que le label et la valeur soient sur la même ligne par défaut
+  align-items: baseline; // Aligner le texte du label et de la valeur
+  padding: 4px 8px;
+  border: 1px solid #d1d5db; // Gris clair
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  background-color: #f9fafb; // Fond très clair
+  font-size: 0.9em;
+  margin: 2px; // Petit espacement si plusieurs badges sont dans la même case (si la case elle-même est un flex container)
+  width: 100%; // Pour que le badge prenne la largeur de la case
+  box-sizing: border-box;
+
+  .data-badge-label {
+    font-weight: 600; // Semi-bold pour le libellé
+    color: #374151; // Gris foncé
+    margin-right: 6px; // Espace entre le libellé et la valeur
+    white-space: nowrap; // Empêcher le libellé de passer à la ligne trop vite
+  }
+
+  .data-badge-value {
+    color: #1f2937; // Gris un peu plus foncé pour la valeur
+    word-break: break-word; // Permettre à la valeur de passer à la ligne si elle est longue
+
+    .data-badge-novalue,
+    .data-badge-nodata {
+      color: #9ca3af; // Gris plus clair pour les messages d'absence de données
+      font-style: italic;
+    }
+  }
+}
+
+// Si vous voulez que les badges s'empilent verticalement dans une case,
+// et que chaque badge prenne toute la largeur :
+.preview-item.is-data-badge-item {
+  // Si la case (preview-item) est un conteneur flex pour ses enfants (les data-badges)
+  // et que vous voulez que les badges s'empilent verticalement :
+  // display: flex; // Déjà défini sur preview-item
+  // flex-direction: column; // Empiler verticalement
+  // align-items: stretch; // Étirer les badges sur la largeur
+
+  // Si la case n'est pas un conteneur flex pour ses enfants directs (les data-badges)
+  // ou si vous voulez simplement que chaque badge soit sur sa propre ligne :
+  .data-badge {
+    display: flex; // Pour un meilleur contrôle interne du badge
+    // width: 100%; // Déjà défini ci-dessus, assure que le badge prend la largeur
+    margin-bottom: 5px; // Espace entre les badges s'ils s'empilent
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+
+.empty-data-message {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280; // Gris moyen
+  font-style: italic;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.loading-overlay-flexview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  font-size: 1.2em;
+  color: #333;
+  .spin {
+    margin-right: 10px;
+  }
+}
+
+.flex-view-placeholder {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &.error {
+    color: #ef4444; // Rouge pour les erreurs
+    border-color: #ef4444;
+  }
+  .spin {
+    margin-right: 8px;
+  }
+}
+
+.flex-view-content-wrapper{
+  display: flex;
+  flex-wrap: wrap;
+  gap:16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-node{
+  margin: 0;
+  max-width: 480px;
+  .relation-value{
+      padding: 6px 10px;
+      border-radius: 20px;
+  }
+}
+// Styles pour les wrappers d'items dans le dashboard
+.dashboard-item-wrapper {
+  position: relative; // Pour les boutons d'action
+  border: 1px solid #e5e7eb; // Bordure légère
+  border-radius: 6px;
+  // box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); // Ombre subtile
+  display: flex; // Pour que le contenu flex s'ende bien
+  flex-direction: column; // Empiler le contenu et les actions
+  min-width: 280px; // Largeur minimale pour une carte
+
+  &.flex-view-wrapper {
+    // Styles spécifiques si un flex-view a besoin de plus d'espace ou d'un traitement différent
+    // Par exemple, si la structure flex interne doit gérer son propre défilement :
+    // overflow: auto; // Attention, cela peut cacher les ombres ou les bordures si mal géré
+  }
+
+  .flex-view-content-wrapper {
+    flex-grow: 1; // Permettre au contenu de la vue flex de prendre l'espace disponible
+    // padding: 10px; // Padding autour du contenu de la vue flex si nécessaire
+    // Si vous avez déjà un padding sur .flex-node.preview-container, ce n'est peut-as nécessaire ici.
+  }
+
+  .item-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 8px;
+
+    button {
+      background: none;
+      border: none;
+      color: #6b7280; // Gris
+      cursor: pointer;
+      padding: 6px;
+      margin-left: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      font-size: 0.9rem;
+
+      &:hover {
+        color: #1f2937; // Noir/Gris foncé
+        background-color: #e5e7eb; // Fond au survol
+      }
+      &:disabled {
+        color: #d1d5db;
+        cursor: not-allowed;
+        background-color: transparent;
+      }
+    }
+  }
+}
+
+// Assurez-vous que les items flex dans la grille du dashboard s'affichent correctement
+.items-grid.flex {
+  display: grid; // Ou flex si vous préférez une disposition en ligne
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); // Exemple de grille responsive
+  gap: 1rem; // Espace entre les items
+}
+
+.preview-item {
+  text-align: center;
+}
+
+.dashboard-selector {
+  label {
+    text-align: right;
+  }
+}
