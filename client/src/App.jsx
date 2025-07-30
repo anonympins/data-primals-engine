@@ -37,7 +37,7 @@ import {
     DocumentationPageLayout,
     ContentView,
     AssistantChat
-} from 'data-primals-engine/client';
+} from '../index.js';
 
 import {
     FaBell,
