@@ -1,8 +1,116 @@
-# React + Vite
+This guide explains how to integrate and use the client-side part of the `data-primals-engine` library in an external React application (such as hackersonline).  
+The library provides a set of context Providers, Hooks, and UI components to interact with the `data-primals-engine` backend.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# Table of Contents
+## Prerequisites
+Your React application must have the following dependencies installed:
+- react & react-dom (version >= 18.0.0)
+- react-query (version >= 3.0.0)
+- react-router-dom
+- react-cookie
 
-Currently, two official plugins are available:
+## Installation
+Install the library:
+```shell
+npm install ../../data-primals-engine
+```
+Install peer dependencies:
+```shell
+npm install react-query react-router-dom react-cookie
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Basic Setup
+
+The setup mainly occurs in your application's root file (typically App.jsx or main.jsx).
+
+It consists of initializing a single QueryClient instance and wrapping your app with the required Providers.
+
+### Set the QueryClient (Singleton)
+For react-query caching to work correctly across your app (including inside the library), it is crucial to instantiate QueryClient only once.
+
+The data-primals-engine library needs to know which QueryClient instance you're using. It exports a setQueryClient function for that purpose.
+
+### Set up the Providers
+Your app must be wrapped by several Providers in the correct order so the contexts are available to all child components.
+
+## Full example (App.jsx)
+Here's what your main application file should look like:
+```jsx
+// In your main App.jsx file (e.g., hackersonline/client/src/App.jsx)
+
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { CookiesProvider } from 'react-cookie';
+
+// 1. Import QueryClient and its Provider from react-query
+import { QueryClient, QueryClientProvider } from 'react-query';
+
+// 2. Import Providers and the config function from data-primals-engine
+import {
+   ModelProvider,
+   AuthProvider,
+   UIProvider,
+   NotificationProvider,
+   setQueryClient // <-- Important config function
+} from 'data-primals-engine/client';
+
+// 3. Import the i18n config (see dedicated section)
+import 'data-primals-engine/i18n';
+
+// 4. (CRUCIAL) Create a unique instance of QueryClient
+const queryClient = new QueryClient();
+
+// 5. (CRUCIAL) Pass the instance to the shared library
+setQueryClient(queryClient);
+
+// Your page components
+import HomePage from './pages/HomePage';
+import UserDashboard from './pages/UserDashboard';
+
+function App() {
+   return (
+           // 6. Wrap the app with all required providers
+           <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                 <CookiesProvider>
+                    <ModelProvider>
+                       <BrowserRouter>
+                          <UIProvider>
+                             <NotificationProvider>
+
+                                {/* Your app content */}
+                                <Routes>
+                                   <Route path="/" element={<HomePage />} />
+                                   <Route path="/dashboard" element={<UserDashboard />} />
+                                   {/* ... other routes */}
+                                </Routes>
+
+                             </NotificationProvider>
+                          </UIProvider>
+                       </BrowserRouter>
+                    </ModelProvider>
+                 </CookiesProvider>
+              </AuthProvider>
+           </QueryClientProvider>
+   );
+}
+
+export default App;
+```
+
+## Internationalization (i18n)
+The library comes with its own i18next configuration and translation files.
+To enable it in your app, you just need to import the config module once in your main file (App.jsx or main.jsx):
+
+```jsx
+// In App.jsx or main.jsx
+import 'data-primals-engine/i18n';
+```
+
+This simple import will:
+
+- Initialize i18next.
+- Load default translations (French, English, etc.).
+- Enable automatic browser language detection.
+
+You can then use react-i18next components and hooks (useTranslation, Trans) as usual in your application.
