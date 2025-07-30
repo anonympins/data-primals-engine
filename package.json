@@ -44,10 +44,7 @@
   },
   "peerDependencies": {
     "react": ">=18.0.0",
-    "react-query": ">=3.0.0",
-    "react-router-dom": ">=18.0.0",
-    "react-dom": ">=18.0.0",
-    "react-cookie": "^5.0.0"
+    "react-query": ">=3.0.0"
   },
   "dependencies": {
     "@langchain/core": "^0.3.66",
