@@ -1,0 +1,73 @@
+/* client/src/index.css ou un fichier CSS dédié à DataImporter */
+
+.import-progress-container {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.import-progress-container h3 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.import-progress-container p {
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.progress-bar-wrapper {
+  width: 100%;
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 15px;
+  height: 25px; /* Hauteur de la barre de progression */
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #4CAF50; /* Couleur verte pour la progression */
+  text-align: center;
+  color: white;
+  line-height: 25px; /* Centrer le texte verticalement */
+  transition: width 0.5s ease-in-out; /* Transition douce pour l'animation de la barre */
+  border-radius: 5px;
+}
+
+.import-errors {
+  margin-top: 20px;
+  padding: 10px;
+  border: 1px solid #f44336; /* Bordure rouge pour les erreurs */
+  background-color: #ffebee; /* Fond rouge clair */
+  border-radius: 5px;
+}
+
+.import-errors h4 {
+  color: #d32f2f; /* Rouge plus foncé pour le titre des erreurs */
+  margin-bottom: 10px;
+}
+
+.import-errors ul {
+  list-style-type: disc;
+  margin-left: 20px;
+  color: #c62828; /* Rouge pour les éléments de liste */
+}
+
+.import-errors li {
+  margin-bottom: 5px;
+}
+
+/* Ajustements pour le bouton de fermeture */
+.flex.justify-end.mt-4 button {
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.flex.justify-end.mt-4 button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}

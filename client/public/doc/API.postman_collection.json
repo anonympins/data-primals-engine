@@ -1,0 +1,214 @@
+{
+	"info": {
+		"_postman_id": "4cafd155-48e1-4b6d-84a5-15290eee57af",
+		"name": "PROD",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "42951162"
+	},
+	"item": [
+		{
+			"name": "Create a model",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"name\": \"dashboard\",\r\n  \"description\": \"Configuration d'un tableau de bord personnalisé par l'utilisateur.\",\r\n  \"maxRequestData\": 50,\r\n  \"fields\": [\r\n    {\r\n      \"name\": \"name\",\r\n      \"type\": \"string\",\r\n      \"required\": true,\r\n      \"hint\": \"Nom affiché et personnalisable du tableau de bord.\",\r\n      \"locked\": null\r\n    },\r\n    {\r\n      \"name\": \"description\",\r\n      \"type\": \"string\",\r\n      \"hint\": \"Description facultative pour donner plus de contexte au tableau de bord.\",\r\n      \"locked\": null\r\n    },\r\n    {\r\n      \"name\": \"layout\",\r\n      \"type\": \"code\",\r\n      \"language\": \"json\",\r\n      \"required\": true,\r\n      \"default\": \"{ \\\"type\\\": \\\"columns\\\", \\\"columns\\\": [] }\",\r\n      \"hint\": \"Structure JSON décrivant l'organisation des KPIs. Exemple : { \\\"type\\\": \\\"columns\\\", \\\"columns\\\": [ [\\\"kpi_id_1\\\"], [\\\"kpi_id_2\\\", \\\"kpi_id_3\\\"] ] }.\",\r\n      \"locked\": null\r\n    },\r\n    {\r\n      \"name\": \"settings\",\r\n      \"type\": \"code\",\r\n      \"language\": \"json\",\r\n      \"default\": \"{ \\\"defaultTimeRange\\\": \\\"last_7_days\\\", \\\"refreshInterval\\\": null }\",\r\n      \"hint\": \"Paramètres JSON pour le tableau de bord, comme la plage de temps par défaut ('defaultTimeRange') ou l'intervalle de rafraîchissement en secondes ('refreshInterval').\",\r\n      \"locked\": null\r\n    },\r\n    {\r\n      \"name\": \"isDefault\",\r\n      \"type\": \"boolean\",\r\n      \"default\": false,\r\n      \"hint\": \"Si 'true', ce tableau de bord est affiché par défaut pour l'utilisateur.\",\r\n      \"locked\": null\r\n    }\r\n  ]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://data.primals.net/api/model?_user=demo",
+					"protocol": "https",
+					"host": [
+						"data",
+						"primals",
+						"net"
+					],
+					"path": [
+						"api",
+						"model"
+					],
+					"query": [
+						{
+							"key": "_user",
+							"value": "demo"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Import a list of models",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{ \"models\" : [ \"translation\" ]}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://data.primals.net/api/models/import?_user=demo",
+					"protocol": "https",
+					"host": [
+						"data",
+						"primals",
+						"net"
+					],
+					"path": [
+						"api",
+						"models",
+						"import"
+					],
+					"query": [
+						{
+							"key": "_user",
+							"value": "demo"
+						},
+						{
+							"key": "",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add data to a model",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"model\": \"dashboard\",\r\n  \"data\": {\r\n    \"name\": \"Dashboard 1\",\r\n    \"layout\": {}\r\n  }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://data.primals.net/api/data?_user=demo",
+					"protocol": "https",
+					"host": [
+						"data",
+						"primals",
+						"net"
+					],
+					"path": [
+						"api",
+						"data"
+					],
+					"query": [
+						{
+							"key": "_user",
+							"value": "demo"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Raw filtering",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"filter\":{\r\n    \"key\": \"createaccount.content\",\r\n   \"lang\": {\"$find\":{\"$and\":[\r\n                {\"$or\":[\r\n                    {\"$and\":[\r\n                        {\"$regexMatch\":{\"input\":\"$$this.name\",\"regex\":\"en\"}}\r\n                ]},{\"$regexMatch\":{\"input\":\"$$this.code\",\"regex\":\"en\"}}\r\n            ]}\r\n            ]}}     \r\n}}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://data.primals.net/api/data/search?model=translation&_user=demo&depth=1",
+					"protocol": "https",
+					"host": [
+						"data",
+						"primals",
+						"net"
+					],
+					"path": [
+						"api",
+						"data",
+						"search"
+					],
+					"query": [
+						{
+							"key": "model",
+							"value": "translation"
+						},
+						{
+							"key": "_user",
+							"value": "demo"
+						},
+						{
+							"key": "depth",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Big data filtering",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"filter\": {\r\n    \"$find\": [\"recipient\", \r\n        {\"$find\": [\"roles\", {\"$eq\": [\"$$this.name\", \"reg\"]}]}\r\n    ]\r\n  }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://data.primals.net/api/data/search?model=message&_user=demo&depth=6",
+					"protocol": "https",
+					"host": [
+						"data",
+						"primals",
+						"net"
+					],
+					"path": [
+						"api",
+						"data",
+						"search"
+					],
+					"query": [
+						{
+							"key": "model",
+							"value": "message"
+						},
+						{
+							"key": "_user",
+							"value": "demo"
+						},
+						{
+							"key": "depth",
+							"value": "6"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

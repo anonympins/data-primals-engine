@@ -1,0 +1,217 @@
+// --- Variables de Design ---
+// Palette de couleurs moderne et accessible pour une personnalisation facile.
+$color-bg-light: #f8f9fa; // Fond général très clair
+$color-item-bg: #ffffff; // Fond des cartes de tutoriel
+$color-border: #e9ecef; // Bordures subtiles
+$color-shadow: rgba(0, 0, 0, 0.05); // Ombre portée douce
+
+$color-text-primary: #212529; // Titres et textes importants
+$color-text-secondary: #6c757d; // Descriptions et textes secondaires
+$color-text-tertiary: #8a949e; // Conditions et textes moins importants
+
+// Couleurs d'accentuation pour les états
+$color-accent-primary: #007bff; // Bleu pour les boutons d'action
+$color-accent-primary-hover: #0056b3;
+
+$color-inprogress-bg: #fff3cd; // Jaune doux pour "en cours"
+$color-inprogress-border: #ffeeba;
+$color-inprogress-text: #856404;
+$color-inprogress-accent: #ffc107; // Jaune plus vif pour les accents
+
+$color-completed-bg: #e2f0d9; // Vert doux pour "terminé"
+$color-completed-border: #d4edda;
+$color-completed-text: #155724;
+$color-completed-accent: #28a745; // Vert plus vif
+
+// --- Styles Généraux ---
+.tutorials-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; // Espacement plus généreux entre les items
+
+  .tutorial-item {
+    background-color: $color-item-bg;
+    border: 1px solid $color-border;
+    z-index: -1;
+    border-radius: 12px; // Coins plus arrondis pour un look moderne
+    box-shadow: 0 4px 12px $color-shadow;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column; // Les sections (header, détails) sont empilées
+    gap: 1rem;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+    &:hover {
+      transform: translateY(-3px); // Effet de lévitation au survol
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    // --- Header du Tutoriel ---
+    .tutorial-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start; // Aligner au début pour les descriptions longues
+      gap: 1rem;
+
+      .tutorial-info {
+        flex-grow: 1;
+        h4 {
+          margin: 0 0 0.5rem 0;
+          font-size: 1.2rem;
+          font-weight: 600;
+          color: $color-text-primary;
+        }
+        p {
+          margin: 0;
+          font-size: 0.95rem;
+          color: $color-text-secondary;
+          line-height: 1.5;
+        }
+      }
+
+      .tutorial-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.75rem;
+        min-width: 140px;
+        text-align: right;
+
+        .status-badge {
+          font-size: 0.8rem;
+          font-weight: 600;
+          padding: 0.3rem 0.8rem;
+          border-radius: 16px;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .start-button {
+          background-color: $color-accent-primary;
+          color: white;
+          border: none;
+          padding: 0.6rem 1.2rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          transition: background-color 0.2s, transform 0.1s;
+
+          &:hover:not(:disabled) {
+            background-color: $color-accent-primary-hover;
+            transform: scale(1.03);
+          }
+
+          &:disabled {
+            background-color: #a0aec0;
+            cursor: not-allowed;
+            opacity: 0.7;
+          }
+        }
+      }
+    }
+
+    // --- Section de Progression (pour l'étape en cours) ---
+    .tutorial-progress-details {
+      border-top: 1px solid $color-border;
+      padding-top: 1.25rem;
+      margin-top: 0.5rem;
+      animation: fadeIn 0.5s ease-in-out; // Animation d'apparition
+
+      h5 {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: $color-inprogress-text;
+        margin: 0 0 1rem 0;
+
+        svg {
+          color: $color-inprogress-accent;
+        }
+      }
+
+      .stage-description {
+        font-size: 1rem;
+        color: $color-text-secondary;
+        margin-bottom: 0.75rem;
+        font-style: italic;
+      }
+
+      .stage-condition {
+        font-size: 0.9rem;
+        color: $color-text-tertiary;
+        background-color: #f8f9fa;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        border-left: 4px solid $color-inprogress-accent;
+      }
+
+      // Barre de progression pour les étapes
+      .progress-bar-container {
+        background-color: #e9ecef;
+        border-radius: 10px;
+        height: 10px;
+        width: 100%;
+        overflow: hidden;
+        margin-top: 1rem;
+
+        .progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, $color-inprogress-accent, lighten($color-inprogress-accent, 15%));
+          border-radius: 10px;
+          transition: width 0.5s ease-out;
+        }
+      }
+    }
+
+    // --- Modificateurs de Statut ---
+    &.is-in-progress {
+      border-color: $color-inprogress-accent;
+      background-color: lighten($color-inprogress-bg, 5%);
+
+      .tutorial-actions .status-badge {
+        background-color: $color-inprogress-bg;
+        color: $color-inprogress-text;
+        border: 1px solid $color-inprogress-border;
+      }
+    }
+
+    &.is-completed {
+      background-color: $color-bg-light;
+      opacity: 0.8;
+
+      .tutorial-info h4 {
+        text-decoration: line-through;
+        color: $color-text-secondary;
+      }
+
+      .tutorial-actions .status-badge {
+        background-color: $color-completed-bg;
+        color: $color-completed-text;
+        border: 1px solid $color-completed-border;
+      }
+    }
+  }
+}
+
+// Animation d'apparition pour la section des détails
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

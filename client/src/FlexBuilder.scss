@@ -1,0 +1,226 @@
+// src/components/FlexBuilder.scss
+
+.flex-builder {
+  display: flex;
+  font-family: sans-serif;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-height: 600px; // Give it some space
+  background-color: #f9f9f9;
+
+  .flex-builder-controls {
+    width: 350px;
+    padding: 15px;
+    background-color: #fff;
+    border-right: 1px solid #ccc;
+    overflow-y: auto;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+
+    h3, h4 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+    h4 {
+      font-size: 1em;
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-group {
+      margin-bottom: 12px;
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.9em;
+        color: #555;
+        font-weight: 500;
+      }
+      input[type="text"],
+      input[type="number"],
+      select,
+      .select-field-container .select-field { // Target your SelectField specifically
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 0.9em;
+      }
+      button {
+        padding: 6px 10px;
+        margin-right: 5px;
+        margin-top: 5px;
+        border: 1px solid #ccc;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+        color: #575757;
+        &:hover {
+          background-color: #e0e0e0;
+        }
+        &.btn-delete-node {
+          background-color: transparent;
+          border: none;
+          color: #dc3545;
+          padding: 2px 5px;
+          &:hover {
+            color: #c82333;
+            background-color: rgba(220, 53, 69, 0.1);
+          }
+        }
+      }
+      &.actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+    }
+    .selected-node-controls {
+      border-top: 2px solid #007bff;
+      padding-top: 10px;
+      margin-top: 15px;
+    }
+    .no-node-selected-hint {
+      color: #777;
+      font-style: italic;
+      text-align: center;
+      margin-top: 20px;
+    }
+  }
+
+  .flex-builder-preview-area {
+    flex-grow: 1;
+    padding: 15px;
+    overflow: auto; // Important for deeply nested structures
+
+    h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+    }
+
+    .flex-node { // Common styles for both container and item in preview
+      transition: outline 0.2s ease-in-out;
+      background-color: #f5f5f5;
+      &.is-selected {
+        outline: 2px solid #007bff !important; // Force outline for selected
+        box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
+      }
+    }
+
+    .preview-container {
+      // Default styles are applied via JS, this is for base and selection
+      border: 1px dashed #aaa; // Default border for all containers
+      padding: 8px; // Default padding
+      min-height: 40px; // Minimum height to be clickable
+      position: relative; // For placeholder text
+
+      &.is-selected {
+        border-style: solid;
+        border-color: #007bff;
+      }
+      &:hover:not(.is-selected) {
+        border-color: #66afe9;
+      }
+      .empty-container-placeholder {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #aaa;
+        font-size: 0.9em;
+        pointer-events: none; // Allow clicks to pass through to the container
+      }
+    }
+
+    .preview-item {
+      border: 1px solid #ccc;
+      padding: 8px;
+      min-height: 30px; // Minimum height
+      display: flex; // To center content by default
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+      word-break: break-word;
+      cursor: pointer;
+      background-color: #fff;
+
+      &.is-selected {
+        border-color: #007bff;
+        background-color: #e7f3ff;
+      }
+      &:hover:not(.is-selected) {
+        border-color: #66afe9;
+        background-color: #f8f9fa;
+      }
+
+      .preview-item-content {
+        font-size: 0.9em;
+        color: #333;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap; // Prevent content from wrapping and breaking layout
+      }
+
+      // When an item contains a nested container
+      & > .preview-container { // Direct child container
+        margin: -8px; // Offset parent item's padding
+        width: calc(100% + 16px); // Expand to fill parent item, accounting for offset padding
+        height: calc(100% + 16px);
+        min-height: calc(100% + 16px); // Ensure it fills
+      }
+    }
+  }
+}
+
+// Styles for FieldSelectorModal (can be reused or adapted from previous version)
+.flex-builder-modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1050; padding: 15px;
+}
+.flex-builder-modal-content {
+  background-color: white; padding: 25px; border-radius: 8px;
+  min-width: 320px; max-width: 600px; width: 90%; max-height: 85vh;
+  display: flex; flex-direction: column; box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+  h4 {
+    margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 15px; font-size: 1.2em; color: #333;
+  }
+  .field-selector-list {
+    list-style: none; padding: 0; margin: 0 0 20px 0;
+    overflow-y: auto; flex-grow: 1;
+    li {
+      padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      display: flex; justify-content: space-between; align-items: center;
+      &:last-child { border-bottom: none; }
+      &:hover {
+        background-color: #007bff; color: white;
+        .field-path { color: #e0e0e0; }
+      }
+      em { font-style: italic; color: #6c757d; }
+      .field-path { font-size: 0.85em; color: #6c757d; margin-left: 10px; white-space: nowrap; }
+    }
+  }
+  .btn-cancel {
+    margin-top: auto; padding: 10px 18px; background-color: #6c757d;
+    color: white; border: none; border-radius: 4px; cursor: pointer;
+    align-self: flex-end;
+    &:hover { background-color: #5a6268; }
+  }
+}
+
+// Styles for ConditionBuilder integration
+.flex-builder-controls .control-group .condition-builder {
+  border: 1px solid #e0e0e0; padding: 10px; border-radius: 4px;
+  background-color: #fdfdfd; margin-top: 5px;
+}

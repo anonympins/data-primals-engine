@@ -1,4 +1,3 @@
-
 const TEST_REGEX = /^\$|\./;
 const TEST_REGEX_WITHOUT_DOT = /^\$/;
 const REPLACE_REGEX = /^\$|\./g;
@@ -115,8 +114,11 @@ export function middleware(options = {}) {
     return function (req, res, next) {
         ['body', 'params', 'headers', 'query'].forEach(function (key) {
             if (req[key]) {
-                const { target, isSanitized } = _sanitize(req[key], options);
-                req[key] = target;
+                // The _sanitize function mutates the req[key] object in-place.
+                // We only need to capture whether it was sanitized to call the hook.
+                const { isSanitized } = _sanitize(req[key], options);
+
+                // The problematic assignment `req[key] = target;` is removed.
                 if (isSanitized && hasOnSanitize) {
                     options.onSanitize({
                         req,

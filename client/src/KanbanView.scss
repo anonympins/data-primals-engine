@@ -1,0 +1,107 @@
+// C:/Dev/hackersonline-engine/client/src/KanbanView.scss
+
+// --- Variables pour une personnalisation facile ---
+$board-bg: #f4f5f7;       // Fond gris clair pour le tableau
+$column-bg: #ebecf0;      // Fond légèrement plus foncé pour les colonnes
+$card-bg: #ffffff;        // Fond blanc pour les cartes
+$subitems-bg: #f9f9f9;    // Fond très clair pour la liste des sous-éléments
+$text-color-dark: #172b4d;  // Couleur de texte principale
+$text-color-light: #5e6c84; // Couleur de texte secondaire
+$border-color: #dcdfe4;   // Couleur de bordure subtile
+$primary-color: #007bff;     // Couleur d'accentuation (pour le survol)
+$border-radius: 5px;
+$column-width: 300px;
+$spacing-unit: 8px;
+
+// --- Styles globaux du tableau Kanban ---
+.kanban-board {
+  display: flex;
+  align-items: flex-start; // Aligne les colonnes en haut
+  gap: $spacing-unit * 2;
+  padding: $spacing-unit * 2;
+  background-color: $board-bg;
+  height: calc(100vh - 100px); // Ajustez cette valeur selon la hauteur de votre barre de navigation
+  overflow-x: auto; // Permet le défilement horizontal si les colonnes débordent
+  overflow-y: hidden;
+}
+
+// --- Style pour une Colonne ---
+.kanban-column {
+  flex: 0 0 $column-width; // Empêche la colonne de s'étirer/rétrécir
+  width: $column-width;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: $column-bg;
+  border-radius: $border-radius;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  .kanban-column-title {
+    padding: $spacing-unit * 1.5;
+    font-size: 1rem;
+    font-weight: 600;
+    color: $text-color-dark;
+    border-bottom: 1px solid $border-color;
+  }
+
+  .kanban-column-content {
+    padding: $spacing-unit;
+    overflow-y: auto; // Défilement vertical pour les cartes
+    flex-grow: 1;
+
+    // Stylisation de la barre de défilement
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: #c4c9d2;
+      border-radius: 3px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+}
+
+// --- Style pour une Carte ---
+.kanban-card {
+  background-color: $card-bg;
+  border-radius: $border-radius;
+  box-shadow: 0 1px 3px rgba(9, 30, 66, 0.15), 0 0 1px rgba(9, 30, 66, 0.2);
+  padding: $spacing-unit * 1.5;
+  margin-bottom: $spacing-unit;
+  color: $text-color-dark;
+  font-size: 0.9rem;
+  border-left: 4px solid transparent; // Pour une future indication de couleur/priorité
+  transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+
+  &:hover {
+    box-shadow: 0 4px 8px rgba(9, 30, 66, 0.2), 0 0 1px rgba(9, 30, 66, 0.25);
+    border-left-color: $primary-color; // Couleur bleue au survol
+  }
+
+  .kanban-card-title {
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  // --- Style pour la liste des Sous-Cartes ---
+  .kanban-card-subitems {
+    margin-top: $spacing-unit * 1.5;
+    padding: $spacing-unit;
+    background-color: $subitems-bg;
+    border: 1px solid #e9e9e9;
+    border-radius: $border-radius;
+
+    .kanban-card-subitem {
+      padding: $spacing-unit / 2;
+      font-size: 0.85rem;
+      color: $text-color-light;
+      border-bottom: 1px solid #e9e9e9;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+}
