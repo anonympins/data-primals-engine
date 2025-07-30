@@ -43,6 +43,21 @@ Possibly create a `.env` file:
 ```env
 MONGO_DB_URL=mongodb://127.0.0.1:27017
 ```
+| Variable              | 	Description                                                            | 	Example                                 |
+|:----------------------|:------------------------------------------------------------------------|:-----------------------------------------| 
+| MONGO_DB_URL          | Connection URL for your MongoDB database.                               | 	mongodb://user:pass@host:27017/db       |
+| PORT                  | 	Port on which the Express server will listen.	                         | 7633                                     |
+| JWT_SECRET            | 	Secret key for signing JWT authentication tokens.	                     | a_long_random_secret_string              |
+| OPENAI_API_KEY        | 	Your optional OpenAI API key for AI features.	                         | sk-xxxxxxxxxxxxxxxxxxxx                  |
+| GOOGLE_API_KEY        | 	Your optional Google (Gemini) API key for AI features.	                | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
+| AWS_ACCESS_KEY_ID     | 	AWS access key for S3 storage (files, backups). Keep empty to disable	 | AKIAIOSFODNN7EXAMPLE                     |
+| AWS_SECRET_ACCESS_KEY | 	AWS secret access key.	                                                | wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY |                                 |
+| AWS_REGION            | 	Region for your S3 bucket.                                             | 	eu-west-3                               |                                                                 |
+| AWS_S3_BUCKET_NAME    | 	Name of the S3 bucket to use.                                          | 	my-backup-bucket                        |                                                                             |
+| SMTP_HOST             | 	SMTP server host for sending emails.	                                  | smtp.example.com                         |
+| SMTP_PORT             | 	SMTP server port.	                                                     | 587                                      |
+| SMTP_USER             | 	Username for SMTP authentication.                                      | 	user@example.com                        |
+| SMTP_PASS             | 	Password for SMTP authentication.                                      | 	password                                |
 
 Start the server:
 ```bash
@@ -73,6 +88,25 @@ Define schemas using JSON:
   ]
 }
 ```
+| Type        | Description                                         | 	Properties/Notes                                                         | 
+|:------------|:----------------------------------------------------|:--------------------------------------------------------------------------| 
+| string	     | Character string.                                   | 	minLength, maxLength, i18n (for translation)                             |
+| number	     | Numeric value (integer or float).                   | 	min, max                                                                 |
+| boolean	    | Boolean value (true/false).	                        | –                                                                         |
+| date	       | Stores a ISO date.	                                 | –                                                                         |
+| datetime	   | Stores an ISO date and time.	                       | –                                                                         |
+| richtext	   | Rich text field (HTML) for WYSIWYG editors.	        | i18n                                                                      |
+| email	      | String validated as an email address.	              | –                                                                         |
+| password	   | String that will be automatically hashed.	          | –                                                                         |
+| enum	       | Allows selecting a value from a predefined list.	   | items: ["value1", "value2"]                                               |
+| relation	   | Creates a link to a document in another model.      | 	relation: "target_model_name", multiple: true/false                      |
+| file	       | For uploading a file (stored on S3 if configured).	 | allowedTypes:['image/jpeg', 'image/png', 'image/bmp'], maxSize: 1024*1000 |
+| image	      | Specialized file type for images, with preview.	    | –                                                                         |
+| array	      | Stores a list of values.	                           | itemsType: 'enum' // any type except relations                            |
+| object	     | Stores a nested JSON object.	–                      |                                                                           |
+| json	       | Stores an arbitrary JSON structure.	                | –                                                                         |                                            
+| model	      | Stores a model by name                              | –                                                                         |                                            
+| modelField	 | Stores a model field path	                          | –                                                                         |                                            
 
 ### 2. Modules
 Activatable features:
