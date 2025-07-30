@@ -5,11 +5,7 @@
 //set ES modules to be loaded by the script
 import process from "node:process";
 import {Config, Engine, BenchmarkTool, GameObject, Logger} from "./src/index.js";
-import path from "node:path";
 import sirv from "sirv";
-import {searchData} from "data-primals-engine/modules/data";
-import util from "node:util";
-import {middlewareAuthenticator} from "data-primals-engine/modules/user";
 
 Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "swagger"])
 Config.Set("middlewares", []);

@@ -4,9 +4,7 @@ import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/styles.css";
 import "./App.scss";
 import {QueryClient, QueryClientProvider, useMutation, useQuery} from "react-query";
-import DataLayout from "./DataLayout.jsx";
-import {ModelProvider, useModelContext} from "./contexts/ModelContext.jsx";
-import Webpage from "./Webpage.jsx";
+
 import {
     BrowserRouter,
     Outlet,
@@ -21,7 +19,26 @@ import {Trans, useTranslation} from "react-i18next";
 import "../../src/i18n.js"
 import "../src/i18n.js"
 
-import {SelectField, TextField} from "./Field.jsx";
+import {
+    ModelProvider, useModelContext,
+    AuthProvider, useAuthContext,
+    UIProvider, useUI,
+    NotificationProvider, useNotificationContext,
+    useLocalStorage,
+    DataLayout,
+    Webpage,
+    SelectField, TextField,
+    Button,
+    APIInfo,
+    NotificationList,
+    DashboardsPage,
+    RestoreDialog,
+    MessageRotator,
+    DocumentationPageLayout,
+    ContentView,
+    AssistantChat
+} from 'data-primals-engine/client';
+
 import {
     FaBell,
     FaDatabase, FaDiscord, FaFacebook, FaGithub,
@@ -32,28 +49,19 @@ import {
     FaMobile,
     FaStar
 } from "react-icons/fa";
-import Button from "./Button.jsx";
-import {AuthProvider, useAuthContext} from "./contexts/AuthContext.jsx";
 import {Helmet} from "react-helmet";
 import {useCookies, CookiesProvider} from "react-cookie";
-import APIInfo from "./APIInfo.jsx";
 
 import { translations as allTranslations} from "data-primals-engine/i18n";
-import {UIProvider, useUI} from "./contexts/UIContext.jsx";
-import {NotificationList} from "./Notification.jsx";
-import {NotificationProvider, useNotificationContext} from "./NotificationProvider.jsx";
-import {DashboardsPage} from "./Dashboard.jsx";
-import useLocalStorage from "./hooks/useLocalStorage.js";
-import RestoreDialog from "./RestoreDialog.jsx";
-import MessageRotator from "./MessageRotator.jsx";
-import DocumentationPageLayout from "./DocumentationPageLayout.jsx";
-import ContentView from "./ContentView.jsx";
 import {getRandom} from "data-primals-engine/core";
 import {getUserHash} from "data-primals-engine/data";
-import AssistantChat from "./AssistantChat.jsx";
 import {seoTitle} from "./constants.js";
 
-const queryClient = new QueryClient();
+let queryClient = new QueryClient();
+
+export const setQueryClient = (q) => {
+    queryClient = q;
+};
 
 function TopBar({header}) {
 

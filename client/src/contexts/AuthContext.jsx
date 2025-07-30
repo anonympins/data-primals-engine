@@ -1,8 +1,5 @@
 // ModelContext.jsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useQueries, useQuery } from 'react-query';
-import {elementsPerPage} from "data-primals-engine/constants";
-import {getObjectHash} from "data-primals-engine/core"; // Assurez-vous que le chemin est correct
+import React, { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
