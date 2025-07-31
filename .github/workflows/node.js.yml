@@ -14,7 +14,7 @@ jobs:
 
     runs-on: ubuntu-latest
     container:
-      image: node:18  # Specify the Docker version you needx
+      image: node:20  # Specify the Docker version you needx
       env:
         NODE_OPTIONS: "--max_old_space_size=4096"
         NODE_ENV: development
@@ -23,7 +23,7 @@ jobs:
         - 27017
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [20.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
     services:
       mongodb:
@@ -44,11 +44,6 @@ jobs:
         echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list
         apt-get update
         apt-get install -y mongodb-org-tools
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '18.18.2'
 
     - name: Install dependencies
       run: npm install
