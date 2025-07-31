@@ -7,7 +7,7 @@ import {getFieldPathValue} from "data-primals-engine/data";
 import {getFieldDefinitionFromPath} from "./core/data.js";
 import {Dialog, DialogProvider} from "./Dialog.jsx";
 import {FaPlay} from "react-icons/fa";
-import {substituteVariables} from "data-primals-engine/modules/workflow";
+
 
 /**
  * Récupère une valeur imbriquée dans un objet (ex: 'user.address.city').
