@@ -180,6 +180,50 @@ export async function scheduleWorkflowTriggers() {
 }
 
 
+/* Remplacement de la fonction executeSafeJavascript
+async function executeWithIsolatedVm(actionDef, context) {
+    const code = actionDef.script;
+    const isolate = new ivm.Isolate({ memoryLimit: 128 }); // Limite de 128MB de mémoire
+
+    try {
+        const vmContext = await isolate.createContext();
+        const jail = vmContext.global;
+
+        // On expose une fonction 'log' sécurisée à l'intérieur de la VM.
+        // C'est une référence, pas la fonction elle-même.
+        await jail.set('log', new ivm.Reference(function(...args) {
+            // On peut préfixer les logs pour savoir qu'ils viennent de la VM
+            logger.info('[VM Script Log]', ...args);
+        }));
+
+        // On injecte les données du contexte. Elles sont COPIÉES, pas référencées.
+        // C'est une caractéristique de sécurité clé.
+        await jail.set('contextData', new ivm.ExternalCopy(context).copyInto());
+        // On peut aussi exposer des fonctions spécifiques de votre application
+        // await jail.set('myApiFunction', new ivm.Reference(async (params) => { ... }));
+
+        // On compile le script
+        const script = await isolate.compileScript(code);
+
+        // On exécute le script avec un timeout
+        const result = await script.run(vmContext, { timeout: 1000 });
+
+        // Le résultat est une référence, on le copie pour l'utiliser dans notre contexte principal.
+        return result;
+
+    } catch (error) {
+        logger.error("Error executing script with isolated-vm:", error.stack);
+        // On propage une erreur propre
+        throw new Error(`Script execution failed: ${error.message}`);
+    } finally {
+        // TRÈS IMPORTANT : Toujours libérer l'isolate pour éviter les fuites de mémoire.
+        if (isolate && !isolate.isDisposed) {
+            isolate.dispose();
+        }
+    }
+}
+REQUIRES NODE >=20
+ */
 async function executeSafeJavascript(actionDef, context) {
     const code = actionDef.script;
     const vm = new VM({

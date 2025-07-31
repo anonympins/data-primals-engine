@@ -1,5 +1,5 @@
 
-export const seoTitle = '';
+export const seoTitle = 'Your data is here';
 
 
 // Dans ConditionBuilder.jsx ou un fichier de constantes partagé
