@@ -1,7 +1,32 @@
+/**
+ * Enables auto-installation at startup
+ * @type {boolean}
+ */
+export const install = true;
+
+/**
+ * Database name
+ * @type {string}
+ */
 export const dbName = "engine";
 
+/**
+ * Web server host (for cookie domain)
+ * @type {string}
+ */
+export const host = 'localhost'; // or myhost.tld
+
+/**
+ * Cookie secret key (if COOKIES_SECRET is set, it will override this variable)
+ * @type {string}
+ */
 export const cookiesSecret = 'hoaivuymzovyoznllmafivpzaovphlejvalwjvelfhqochakfesv';
 
+/**
+ * Available languages of the system
+ * You need to translate the i18n file, or translations ones.
+ * @type {string[]}
+ */
 export const availableLangs = [
     "en",
     "fa",
@@ -17,63 +42,180 @@ export const availableLangs = [
     "sv"
 ];
 
-
+/**
+ * AWS default configuration (overrided by AWS_* environment variables)
+ * @type {{bucketName: string, region: string}}
+ */
 export const awsDefaultConfig = {
     bucketName : 'bucket-primals',
     region: 'eu-north-1'
 }
 
+/**
+ * Email default configuration (overrided by SMTP_* environment variables)
+ * @type {{from: string}}
+ */
 export const emailDefaultConfig = {
-    from: "Support - data@primals.net <data@primals.net>"
+    from: "Support - data@primals.net <data@primals.net>",
+    host: 'smtp.mydomain.tld',
+    port: 2500,
+    secure: false,
+    user: 'user',
+    pass: 'password'
 }
 
-// 10000 tiny users
-// 1000 modern users
-// 100 mega utilisateurs potentiality
-// 250 000 entrées par utilisateur
+/**
+ * Maximum number of models per user
+ * @type {number}
+ */
 export const maxModelsPerUser = 1000;
+
+/**
+ * Maximum number of data per user
+ * @type {number}
+ */
 export const maxTotalDataPerUser = 500000;
-export const maxDataPerModelPerUser = 10000;
+
+/**
+ * Maximum length of a string
+ * @type {number}
+ */
 export const maxStringLength = 4096;
+
+/**
+ * Maximum length of a password
+ * @type {number}
+ */
 export const maxPasswordLength = 100000;
+
+/**
+ * Maximum length of a rich text
+ * @type {number}
+ */
 export const maxRichTextLength = 100000;
+
+/**
+ * Maximum number of exportable data per user per request
+ * @type {number}
+ */
 export const maxExportCount = 50000;
+
 export const maxMagnetsDataPerModel = 100;
 export const maxMagnetsModels = 20;
-export const defaultMaxRequestData = 500;
+
+/**
+ * Maximum number of data per request
+ * @type {number}
+ */
 export const maxRequestData = 2500;
+
+/**
+ * Maximum number of data per post
+ * @type {number}
+ */
 export const maxPostData = 500;
+
+
+/**
+ * Maximum number of relations per data
+ * @type {number}
+ */
 export const maxRelationsPerData = 1500;
-export const install = true;
+
+/**
+ * Maximum number of filters per request
+ * @type {number}
+ */
 export const maxFilterDepth = 8;
 export const elementsPerPage = 30;
 
-
+/**
+ * Maximum number of alerts per user
+ * @type {number}
+ */
 export const maxAlertsPerUser = 15;
+
+/**
+ * Storage safety margin (between 0 and 1)
+ * @type {number}
+ */
 export const storageSafetyMargin = 0.95;
+
+/**
+ * Number of bytes in Kilobytes constant
+ * @type {number}
+ */
 export const kilobytes = 1024;
+
+/**
+ * Number of bytes in Megabytes constant
+ * @type {number}
+ */
 export const megabytes = 1024*1024;
 
-export const maxBytesPerSecondThrottleFile = 800*kilobytes;  // 800ko/s
+/**
+ * Maximum bytes per second for data throttling
+ * @type {number}
+ */
 export const maxBytesPerSecondThrottleData = 200*kilobytes; // 200Ko/s
 
+/**
+ * Search request timeout (in milliseconds)
+ * @type {number}
+ */
 export const searchRequestTimeout = 15000;
 
-export const maxModelsInCache = 100000;
+/**
+ * Maximum model name length
+ * @type {number}
+ */
 export const maxModelNameLength = 150;
 
-export const maxDataSize = '20mb';
+/**
+ * Maximum file size (in bytes)
+ * @type {number}
+ */
 export const maxFileSize = 20 * 1024 * 1024; // 20 Mo
 
+/**
+ * Main fields types
+ * @type {string[]}
+ */
 export const mainFieldsTypes = ['string_t', 'string', 'url', 'enum', 'email', 'phone', 'date', 'datetime'];
 
+/**
+ * Maximum number of executions per step in workflows
+ * @type {number}
+ */
 export const maxExecutionsByStep = 5;
+/**
+ * Maximum number of steps per workflow
+ * @type {number}
+ */
 export const maxWorkflowSteps = 15;
 
+/**
+ * Maximum number of private files per user
+ * @type {number}
+ */
 export const maxPrivateFileSize = 20 * megabytes; // Taille max par fichier privé (20 Mo)
+
+/**
+ * Maximum total size of private files (in bytes)
+ * @type {number}
+ */
 export const maxTotalPrivateFilesSize = 250 * megabytes;
 
-//
+/**
+ * Timeout for Javacript execution in VMs (in milliseconds)
+ * @type {number}
+ */
+export const timeoutVM = 5000;
+
+/**
+ * Options for the HTML sanitizer
+ * @type {{allowedSchemesByTag: {}, selfClosing: string[], allowedSchemes: string[], enforceHtmlBoundary: boolean, disallowedTagsMode: string, allowProtocolRelative: boolean, allowedAttributes: {a: string[], img: string[], code: string[]}, allowedTags: string[], allowedSchemesAppliedToAttributes: string[]}}
+ */
 export const optionsSanitizer = {
     allowedTags: [
         "img",
@@ -102,8 +244,12 @@ export const optionsSanitizer = {
 }
 
 
+/**
+ * Meta models are arranging models in groups
+ * May evolve in the future with the use of packs
+ * @type {{}}
+ */
 export const metaModels = {};
-
 metaModels['common'] = { load: ['contact', 'location', 'request'] };
 metaModels['personal'] = { load: ['budget', 'imageGallery'] };
 metaModels['users'] = { load: ['permission', 'role', 'user', 'token'], 'require': ['i18n', 'common'] };
@@ -119,7 +265,10 @@ metaModels['workflow'] = { load: ['env', 'workflow', 'workflowRun', 'workflowAct
 metaModels['erp'] = { load: [ 'accountingExercise', 'accountingLineItem', 'accountingEntry', 'employee', 'dashboard', 'kpi'] };
 
 
-
+/**
+ * Available model field attributes
+ * @type {string[]}
+ */
 export const allowedFields = ['locked', 'hiddenable', 'anonymized', 'condition', 'color', 'index', 'type', 'required', 'hint', 'default', 'validate', 'unique', 'name', 'placeholder', 'asMain'];
 
 

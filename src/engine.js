@@ -12,6 +12,7 @@ import {createModel, deleteModels, getModels, validateModelStructure} from "./mo
 import {defaultModels} from "./defaultModels.js";
 import {DefaultUserProvider} from "./providers.js";
 import formidableMiddleware from 'express-formidable';
+import sirv from "sirv";
 
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
@@ -36,6 +37,7 @@ export const Engine = {
             engine.userProvider = providerInstance;
             engine.getComponent(Logger).info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
         };
+
 
         const app = express();
         // Allows you to set port in the project properties.
@@ -67,6 +69,9 @@ export const Engine = {
         };
         engine.put = (...args) => {
             return app.put(...args);
+        };
+        engine.all = (...args) => {
+            return app.all(...args);
         };
         engine.getModule = (module) => {
             return engine._modules.find(m => m.module === module);
@@ -102,6 +107,12 @@ export const Engine = {
             return Promise.resolve();
         });
         let server;
+
+        app.use(sirv('client/dist', {
+            single: true,
+            dev: process.env.NODE_ENV === 'development'
+        }));
+
         engine.start = async (port, cb) =>{
             // Use connect method to connect to the server
 
@@ -160,6 +171,12 @@ export const Engine = {
         engine.resetModels = async () => {
             await deleteModels();
         };
+        engine.get('/api/health', (req, res) => {
+            res.status(200).json({
+                status: 'ok',
+                timestamp: new Date().toISOString()
+            });
+        });
         return engine;
     }
 }

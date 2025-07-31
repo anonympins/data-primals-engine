@@ -46,8 +46,8 @@ import {
     FaInfo,
     FaKey,
     FaLanguage,
-    FaMobile,
-    FaStar
+    FaMobile, FaQuestion, FaSignInAlt, FaSignOutAlt,
+    FaStar, FaUser
 } from "react-icons/fa";
 import {Helmet} from "react-helmet";
 import {useCookies, CookiesProvider} from "react-cookie";
@@ -55,9 +55,12 @@ import {useCookies, CookiesProvider} from "react-cookie";
 import { translations as allTranslations} from "data-primals-engine/i18n";
 import {getRandom} from "data-primals-engine/core";
 import {getUserHash} from "data-primals-engine/data";
-import {promotionalMessages, seoTitle} from "./constants.js";
+import {seoTitle} from "./constants.js";
+import {host} from "../../src/constants.js";
 import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
+
+import { Tooltip } from 'react-tooltip';
 
 let queryClient = new QueryClient();
 
@@ -90,6 +93,14 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     // 2. NOUVEAU : État pour stocker la configuration de l'assistant
     const [assistantConfig, setAssistantConfig] = useState(null);
 
+    const promotionalMessages = [
+        { text: t('promo.rotation.6') },
+        { text: t('promo.rotation.1') },
+        { text: t('promo.rotation.2') },
+        { text: t('promo.rotation.1') },
+        { text: t('promo.rotation.4') },
+        { text: t('promo.rotation.5') }
+    ];
     useQuery(
         'assistantConfig', // La clé de la requête reste la même
         () => {
@@ -168,14 +179,6 @@ function Layout ({header, translationMutation, routes, body, footer}) {
         }
     ];
 
-    const promotionalMessages = [
-        { text: t('promo.rotation.6') },
-        { text: t('promo.rotation.1') },
-        { text: t('promo.rotation.2') },
-        { text: t('promo.rotation.1') },
-        { text: t('promo.rotation.4') },
-        { text: t('promo.rotation.5') }
-    ];
     const { setCurrentTourSteps, setAllTourSteps, currentTour, setCurrentTour } = useUI();
     const [translations, setTranslations] = useState([]);
 
@@ -253,7 +256,7 @@ function Layout ({header, translationMutation, routes, body, footer}) {
         setCurrentProfile(null);
         const username = 'demo'+getRandom(1, 99);
         setMe({username});
-        setCookie('username', username, { path : "/", domain: isProd ? 'primals.net' : 'localhost'});
+        setCookie('username', username, { path : "/", domain: isProd ? host : 'localhost'});
         nav('/user/'+username, { state: { startTour: true } });
     }}><Trans i18nKey={"links.demo"}>Demo</Trans></Button>)}</>
 
@@ -272,8 +275,11 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     };
 
     useEffect(() => {
-        if( !cookies.username)
-            onAuthenticated({username: 'demo'+getRandom(1, 99)}, true);
+        if( !cookies.username) {
+            const username ='demo' + getRandom(1, 99);
+            setCookie("username", username, { path : "/", domain: isProd ? host : 'localhost'});
+            onAuthenticated({username}, true);
+        }
     }, [cookies.username]);
 
 
@@ -358,7 +364,7 @@ function Layout ({header, translationMutation, routes, body, footer}) {
         setMe({username});
 
         setPromptResult(null);
-        setCookie('username', username, { path : "/", domain: isProd ? 'primals.net' : 'localhost'});
+        setCookie('username', username, { path : "/", domain: isProd ? host : 'localhost'});
         nav('/user/'+username, { state: { startTour: false } });
     };
 
@@ -564,6 +570,17 @@ function UserPage({notifs,triggerSignin, onAuthenticated}) {
                 données</p>}</>;
 }
 
+const BaseLayout=()=>{
+    return <Layout header={<header className={"flex"}>
+        <Tooltip id={"header"}/>
+        <h1 className="flex-1">{seoTitle}</h1>
+        <div className="flex">
+            <FaQuestion data-tooltip-id="header" data-tooltip-content="Documentation" onClick={()=> {
+                window.open("https://data.primals.net/en/documentation/", "_blank");
+            }} />
+        </div>
+    </header>} />
+}
 function App() {
 
     return (
@@ -574,7 +591,7 @@ function App() {
                             <BrowserRouter>
                                 <UIProvider>
                                     <NotificationProvider>
-                                        <Layout />
+                                        <BaseLayout></BaseLayout>x
                                     </NotificationProvider>
                                 </UIProvider>
                             </BrowserRouter>
