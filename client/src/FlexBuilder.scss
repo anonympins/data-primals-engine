@@ -106,6 +106,7 @@
 
     .flex-node { // Common styles for both container and item in preview
       transition: outline 0.2s ease-in-out;
+      display: flex;
       background-color: #f5f5f5;
       &.is-selected {
         outline: 2px solid #007bff !important; // Force outline for selected
@@ -223,4 +224,8 @@
 .flex-builder-controls .control-group .condition-builder {
   border: 1px solid #e0e0e0; padding: 10px; border-radius: 4px;
   background-color: #fdfdfd; margin-top: 5px;
+}
+
+.flex-node-cta {
+  pointer-events: none;
 }

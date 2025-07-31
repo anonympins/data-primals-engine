@@ -66,6 +66,7 @@ import schedule from "node-schedule";
 import {middleware} from "../middlewares/middleware-mongodb.js";
 import i18n from "data-primals-engine/i18n";
 import {
+    executeSafeJavascript,
     runScheduledJobWithDbLock,
     scheduleWorkflowTriggers,
     triggerWorkflows
@@ -87,6 +88,7 @@ import {assistantGlobalLimiter} from "./assistant.js";
 import {getAllPacks} from "../packs.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
 import {Config} from "../config.js";
+import {profiles} from "../../client/src/constants.js";
 
 // Obtenir le chemin du répertoire courant de manière fiable avec ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -1216,6 +1218,80 @@ export const editModel = async (user, id, data) => {
 };
 
 
+export async function handleCustomEndpointRequest(req, res) {
+    const { path } = req.params;
+    const method = req.method.toUpperCase();
+
+    const user = req.me;
+    if (!user) {
+        return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    try {
+        // 1. Trouver l'endpoint correspondant dans la base de données
+        const endpointSearch = await searchData({
+            user,
+            query: {
+                model: 'endpoint',
+                filter: {
+                    path: path,
+                    method: method,
+                    isActive: true
+                },
+                limit: 1
+            }
+        });
+
+        if (endpointSearch.count === 0) {
+            logger.warn(`[Endpoint] 404 - No active endpoint found for user '${user.username}', path '${path}', method '${method}'.`);
+            return res.status(404).json({ success: false, message: 'Endpoint not found.' });
+        }
+
+        const endpointDef = endpointSearch.data[0];
+
+        // 2. Préparer le contexte pour le script
+        // On donne au script accès au corps, aux paramètres de la requête, etc.
+        const contextData = {
+            request:{
+                body: req.fields,
+                query: req.query,
+                params: req.params,
+                headers: req.headers
+            }
+        };
+
+        // 3. Exécuter le code de l'endpoint en utilisant notre sandbox sécurisé
+        logger.info(`[Endpoint] Executing endpoint '${endpointDef.name}' for user '${user.username}'.`);
+        const result = await executeSafeJavascript(
+            { script: endpointDef.code }, // On passe la définition du script
+            contextData,
+            user
+        );
+
+        // 4. Envoyer la réponse
+        if (result.success) {
+            // Le script a réussi, on retourne sa sortie
+            res.status(200).json(result.data);
+        } else {
+            // Le script a échoué, on retourne une erreur 500 avec les logs
+            logger.error(`[Endpoint] Execution failed for '${endpointDef.name}'. Error: ${result.message}`);
+
+            const r = {
+                success: false,
+                message: 'Endpoint script execution failed.',
+                // On peut choisir d'exposer les logs pour le débogage
+                details: result.message
+            };
+            r.logs = result.logs;
+            res.status(500).json(r);
+        }
+
+    } catch (error) {
+        logger.error(`[Endpoint] Critical error handling request for path '${path}': ${error.message}`, process.env.NODE_ENV === 'development'? error.stack : error.stack[0]);
+        res.status(500).json({ success: false, message: 'An internal server error occurred.' });
+    }
+}
+
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
@@ -1322,18 +1398,9 @@ export async function onInit(defaultEngine) {
     await scheduleWorkflowTriggers();
 
     await scheduleAlerts();
-    // Dans onInit(defaultEngine) { ... }
-    // ...
 
-    const saveUser = async (user, data) => {
-
-        const primalsDb = MongoClient.db("primals");
-
-        let usersCollection = primalsDb.collection("users");
-        return await usersCollection.updateOne({ username: user.username }, { $set: data }, { upsert: true })
-    }
-
-    // Dans C:/Dev/hackersonline-engine/server/src/modules/data.js, dans onInit()
+    engine.all('/api/actions/:path', [middlewareAuthenticator, userInitiator], handleCustomEndpointRequest);
+    engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
 
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
         const user = req.me;
@@ -2567,7 +2634,7 @@ export async function onInit(defaultEngine) {
                 return res.status(403).json({ success: false, error: i18n.t('api.permission.installPack') });
             }
 
-            const result = await installPack(logger, id, user, lang);
+            const result = await installPack(id, user, lang);
 
             if (result.success) {
                 res.status(200).json({ success: true, message: `Pack installed successfully.`, summary: result.summary });
@@ -5365,7 +5432,7 @@ async function logApiRequest(req, res, user, startTime, responseBody = null, err
  * @param {string} lang - Le code de langue pour les données spécifiques.
  * @returns {Promise<{success: boolean, summary: object, errors: Array, modifiedCount: number}>}
  */
-export async function installPack(logger, packId, user, lang) {
+export async function installPack(packId, user, lang) {
     const packsCollection = getCollection('packs');
     const pack = await packsCollection.findOne({ _id: new ObjectId(packId) });
 
@@ -5603,4 +5670,70 @@ export const installAllPacks = async () => {
     console.log(util.inspect(packs, false, 20, true));
     await packsCollection.deleteMany({ _user: { $exists : false }});
     await packsCollection.insertMany(packs);
+}
+
+// Dans C:/Dev/data-primals-engine/src/modules/data.js
+// Dans C:/Dev/data-primals-engine/src/modules/data.js
+
+// ... (imports inchangés)
+
+export async function handleDemoInitialization(req, res) {
+    const user = req.me;
+    const body = req.fields;
+    const models = (Object.keys(profiles).includes(body.profile) && profiles[body.profile]) || '';
+    if (!isDemoUser(user)) {
+        return res.status(403).json({ success: false, error: "This action is only for demo users." });
+    }
+    if (!Array.isArray(models) || models.length === 0) {
+        return res.status(400).json({ success: false, error: "A valid 'models' array is required." });
+    }
+
+    logger.info(`[Demo Init] Starting initialization for user '${user.username}' with ${models.length} models.`);
+
+    try {
+        // 1. Nettoyage de l'environnement (inchangé)
+        const datasCollection = getCollection("datas");
+        const modelsCollection = getCollection("models");
+        const filesCollection = getCollection("files");
+
+        await datasCollection.deleteMany({ _user: user.username });
+        await modelsCollection.deleteMany({ _user: user.username });
+        const files = await filesCollection.find({ user: user.username }).toArray();
+        for (const file of files) {
+            await removeFile(file.guid, user).catch(e => logger.error(e.message));
+        }
+        await cancelAlerts(user);
+        logger.info(`[Demo Init] Environment cleaned for user '${user.username}'.`);
+
+        const packToInstall = {
+            name: `dynamic-pack-for-${user.username}-${Date.now()}`,
+            description: `Dynamically generated pack for profile models.`,
+            models: models,
+            data: {}
+        };
+
+        logger.info(`[Demo Init] Installing dynamically generated pack with models: [${models.join(', ')}].`);
+
+        // Create and install pack
+        const packsCollection = getCollection('packs');
+        const tempPack = { ...packToInstall, _user: 'system_temp' };
+        const tempInsert = await packsCollection.insertOne(tempPack);
+        const packId = tempInsert.insertedId;
+
+        const result = await installPack(packId, user, req.query.lang || 'en');
+
+        await packsCollection.deleteOne({ _id: packId });
+
+        if (result.success || result.modifiedCount > 0) {
+            logger.info(`[Demo Init] Pack installed successfully for user '${user.username}'.`);
+            res.status(200).json({ success: true, message: "Demo environment initialized successfully.", summary: result.summary });
+        } else {
+            logger.error(`[Demo Init] Pack installation failed for user '${user.username}'.`);
+            res.status(500).json({ success: false, error: 'Demo pack installation failed.', errors: result.errors });
+        }
+
+    } catch (error) {
+        logger.error(`[Demo Init] Critical error during initialization for user '${user.username}':`, error);
+        res.status(500).json({ success: false, error: 'An internal server error occurred during initialization.' });
+    }
 }

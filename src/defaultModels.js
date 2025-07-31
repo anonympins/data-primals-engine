@@ -1394,5 +1394,54 @@ export const defaultModels = {
                 "hint": "List of sponsors or partners involved in the event."
             }
         ]
+    },
+    endpoint: {
+        name: "endpoint",
+        description: "Defines custom API endpoints that execute a server-side script.",
+        fields: [
+            {
+                name: "name",
+                type: "string",
+                required: true,
+                asMain: true,
+                hint: "A human-readable name to identify the endpoint."
+            },
+            {
+                name: "isActive",
+                type: "boolean",
+                default: true,
+                hint: "If checked, the endpoint is active and can be called."
+            },
+            {
+                name: "path",
+                type: "string",
+                required: true,
+                hint: "The URL path after /api/actions/ (e.g., 'send-welcome-email'). Do not include '/'.",
+                placeholder: "my-custom-action"
+            },
+            {
+                name: "method",
+                type: "enum",
+                items: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+                required: true,
+                default: "POST",
+                hint: "The HTTP method required to call this endpoint."
+            },
+            {
+                name: "code",
+                type: "code",
+                language: "javascript",
+                required: true,
+                hint: "The script to execute. Must return a value or an object that will be the JSON response.",
+                default: `// The script can access 'db', 'logger', 'env'.
+// request.body, request.query, request.params, request.headers available
+// The returned value will be the API's JSON response.
+
+logger.info('Custom endpoint executed with body:', request.body);
+
+return { success: true, message: 'Endpoint executed!', received: request.body };
+`
+            }
+        ]
     }
 };

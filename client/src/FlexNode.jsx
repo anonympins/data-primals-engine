@@ -1,7 +1,17 @@
 // C:/Dev/hackersonline-engine/client/src/FlexNode.jsx
-import React, { useEffect, useRef } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import PropTypes from 'prop-types';
-import { FaPlus, FaTrash, FaEdit, FaRegSquare, FaRegCheckSquare, FaBox, FaExpandArrowsAlt, FaObjectGroup } from 'react-icons/fa';
+import {
+    FaPlus,
+    FaTrash,
+    FaEdit,
+    FaRegSquare,
+    FaRegCheckSquare,
+    FaBox,
+    FaExpandArrowsAlt,
+    FaObjectGroup,
+    FaPlay
+} from 'react-icons/fa';
 // Remove Droppable, Draggable from '@hello-pangea/dnd' if no longer used
 import { useTranslation } from 'react-i18next';
 // Supprimer l'import de useDragAndDrop s'il n'est plus utilisé localement
@@ -55,10 +65,44 @@ FieldSelectorModal.propTypes = {
 };
 
 export const FlexNodeRenderer = React.forwardRef((props, ref) => {
+
     const {
-        node, path, onSelectNode, selectedNodeId, data, dataIndexRef, modelFields, t, onMoveNode,
-        dnd, // Recevoir l'objet dnd en tant que prop
+        node,
+        path,
+        onSelectNode,
+        selectedNodeId,
+        data,
+        dataIndexRef,
+        modelFields,
+        t,
+        onMoveNode,
+        dnd,
+        onCtaClick, // <-- On récupère la fonction du parent
     } = props;
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [result, setResult] = useState(null);
+
+    // --- NOUVELLE FONCTION POUR EXÉCUTER LE CTA ---
+    const handleCtaClick = async (endpointPath) => {
+        if (!endpointPath) {
+            alert("Cet endpoint n'est pas configuré.");
+            return;
+        }
+        setIsLoading(true);
+        setResult(null);
+
+        try {
+            const response = await fetch(`/api/actions/${endpointPath}`, { method: 'GET' });
+            const data = await response.json();
+            setResult({ status: response.status, data });
+        } catch (error) {
+            setResult({ error: error.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     // Déstructurer les valeurs et gestionnaires du prop dnd
     const {
@@ -141,7 +185,29 @@ export const FlexNodeRenderer = React.forwardRef((props, ref) => {
     //     console.log(`FlexNode (${node.id} - ${node.type}): onMoveNode type:`, typeof onMoveNode);
     // }, [onMoveNode, node.id, node.type]);
 
-
+    if (node.type === 'cta') {
+        return (
+            <div
+                ref={ref} // Important pour le D&D
+                className={`flex-node-wrapper ${dnd.isDragging && dnd.draggedItemRef.current === node.id ? 'is-dragging-dnd' : ''}`}
+                draggable
+                onDragStart={(e) => dnd.handleNodeDragStart(node.id)}
+                onDragEnd={dnd.handleItemDragEnd}
+                onClick={(e) => { e.stopPropagation(); props.onSelectNode(node.id); }}
+            >
+                <div className={`flex-node flex-node-cta ${props.selectedNodeId === node.id ? 'is-selected' : ''}`}>
+                    <button
+                        className="btn btn-primary btn-sm"
+                        // On appelle la fonction du parent
+                        onClick={(e) => { e.stopPropagation(); onCtaClick(node); }}
+                    >
+                        <FaPlay className="mr-2" />
+                        {node.label || 'Execute'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
     if (node.type === 'container' || (node.type === 'item' && node.content?.type === 'nestedContainer')) {
         const containerNode = node.type === 'container' ? node : node.content.nestedContainer;
         const children = containerNode.children || [];
@@ -181,6 +247,7 @@ export const FlexNodeRenderer = React.forwardRef((props, ref) => {
                             key={childNode.id}
                             node={childNode}
                             path={[...path, index]}
+                            onCtaClick={onCtaClick}
                             onSelectNode={onSelectNode}
                             selectedNodeId={selectedNodeId}
                             data={data}
@@ -192,6 +259,25 @@ export const FlexNodeRenderer = React.forwardRef((props, ref) => {
                         />
                     ))}
                 </div>
+            </div>
+        );
+    } else if (node.type === 'cta') {
+        return (
+            <div className="flex-node flex-node-cta">
+                <button
+                    className="btn btn-primary btn-sm" // Utilisez vos classes de bouton
+                    onClick={() => handleCtaClick(node.endpointPath)}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                        <>
+                            <FaPlay className="mr-2" />
+                            {node.label || 'Execute'}
+                        </>
+                    )}
+                </button>
             </div>
         );
     } else if (node.type === 'item') {
@@ -283,8 +369,10 @@ FlexNodeRenderer.propTypes = {
     modelFields: PropTypes.array,
     t: PropTypes.func.isRequired,
     onMoveNode: PropTypes.func,
+
     dnd: PropTypes.object.isRequired, // dnd est maintenant requis
 };
 FlexNodeRenderer.defaultProps = {
+    onCtaClick: () => {},
     data: [], modelFields: [], onMoveNode: null,
 };
