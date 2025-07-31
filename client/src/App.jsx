@@ -55,7 +55,7 @@ import {useCookies, CookiesProvider} from "react-cookie";
 import { translations as allTranslations} from "data-primals-engine/i18n";
 import {getRandom} from "data-primals-engine/core";
 import {getUserHash} from "data-primals-engine/data";
-import {seoTitle} from "./constants.js";
+import {promotionalMessages, seoTitle} from "./constants.js";
 import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
 
@@ -70,6 +70,7 @@ function TopBar({header}) {
     const location = useLocation();
     const { i18n, t } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
+
 
     useEffect(() => {
         if( location.pathname ){
@@ -167,6 +168,14 @@ function Layout ({header, translationMutation, routes, body, footer}) {
         }
     ];
 
+    const promotionalMessages = [
+        { text: t('promo.rotation.6') },
+        { text: t('promo.rotation.1') },
+        { text: t('promo.rotation.2') },
+        { text: t('promo.rotation.1') },
+        { text: t('promo.rotation.4') },
+        { text: t('promo.rotation.5') }
+    ];
     const { setCurrentTourSteps, setAllTourSteps, currentTour, setCurrentTour } = useUI();
     const [translations, setTranslations] = useState([]);
 
@@ -279,15 +288,6 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     const [lightboxOpened, setLightboxOpened] = React.useState(false);
     const [lightboxIndex, setLightboxIndex] = React.useState(0);
 
-    const myMessages = [
-        { text: t('promo.rotation.6') },
-        { text: t('promo.rotation.1') },
-        { text: t('promo.rotation.2') },
-        { text: t('promo.rotation.1') },
-        { text: t('promo.rotation.4') },
-        { text: t('promo.rotation.5') },
-    ];
-
     const slides = [{src: "/prez1.jpg", title: t('prez1')},{src: "/prez6.jpg", title: i18n.t('prez3')},{src: "/prez2.jpg", title: t('prez2')},{src: "/prez4.jpg", title: i18n.t('prez4')},{src: "/prez5.jpg", title: i18n.t('prez5')}];
 
     const { addNotification } = useNotificationContext();
@@ -391,8 +391,8 @@ function Layout ({header, translationMutation, routes, body, footer}) {
                                     width={250}
                                 />
                                 <div className="bubble flex-1">
-                                    <h1><Trans i18nKey={"prez.title"}>F</Trans></h1>
-                                    <div className="inner"><MessageRotator messages={myMessages} fadeDuration={200} defaultDelay={7500}/></div>
+                                    <h1><Trans i18nKey={"prez.title"}>{seoTitle}</Trans></h1>
+                                    <div className="inner"><MessageRotator messages={promotionalMessages} fadeDuration={200} defaultDelay={7500}/></div>
                                 </div>
                             </div>
                             <div className="flex flex-row">

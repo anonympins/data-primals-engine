@@ -89,7 +89,7 @@ Define schemas using JSON:
 }
 ```
 | Type        | Description                                                                         | 	Properties/Notes                                                         | 
-|:------------|:------------------------------------------------------------------------------------|:--------------------------------------------------------------------------| 
+|:------------|:------------------------------------------------------------------------------------|:--------------------------------------------------------------------------|
 | string	     | Character string.                                                                   | 	minLength, maxLength                                                     |
 | string_t	   | International character string ID.                                                  | 	same as string, translated in { key, value }                             |
 | number	     | Numeric value (integer or float).                                                   | 	min, max                                                                 |
