@@ -4,17 +4,16 @@ import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
 import crypto from "node:crypto";
 
+import {VM, VMScript} from 'vm2';
 import {Logger} from "../gameObject.js";
-import {deleteData, editData, insertData, patchData, searchData} from "./data.js";
+import {deleteData, insertData, patchData, searchData} from "./data.js";
 import {maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import {ChatOpenAI} from "@langchain/openai";
+import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
+import {ChatPromptTemplate} from "@langchain/core/prompts";
 import i18n from "data-primals-engine/i18n";
 import {sendEmail} from "../email.js";
 
-// 1. ADD THIS IMPORT AT THE TOP OF THE FILE
-// This allows the module to call its own exported functions.
 import * as workflowModule from './workflow.js';
 
 let logger = null;
@@ -180,6 +179,69 @@ export async function scheduleWorkflowTriggers() {
     }
 }
 
+
+/* Remplacement de la fonction executeSafeJavascript
+async function executeWithIsolatedVm(actionDef, context) {
+    const code = actionDef.script;
+    const isolate = new ivm.Isolate({ memoryLimit: 128 }); // Limite de 128MB de mémoire
+
+    try {
+        const vmContext = await isolate.createContext();
+        const jail = vmContext.global;
+
+        // On expose une fonction 'log' sécurisée à l'intérieur de la VM.
+        // C'est une référence, pas la fonction elle-même.
+        await jail.set('log', new ivm.Reference(function(...args) {
+            // On peut préfixer les logs pour savoir qu'ils viennent de la VM
+            logger.info('[VM Script Log]', ...args);
+        }));
+
+        // On injecte les données du contexte. Elles sont COPIÉES, pas référencées.
+        // C'est une caractéristique de sécurité clé.
+        await jail.set('contextData', new ivm.ExternalCopy(context).copyInto());
+        // On peut aussi exposer des fonctions spécifiques de votre application
+        // await jail.set('myApiFunction', new ivm.Reference(async (params) => { ... }));
+
+        // On compile le script
+        const script = await isolate.compileScript(code);
+
+        // On exécute le script avec un timeout
+        const result = await script.run(vmContext, { timeout: 1000 });
+
+        // Le résultat est une référence, on le copie pour l'utiliser dans notre contexte principal.
+        return result;
+
+    } catch (error) {
+        logger.error("Error executing script with isolated-vm:", error.stack);
+        // On propage une erreur propre
+        throw new Error(`Script execution failed: ${error.message}`);
+    } finally {
+        // TRÈS IMPORTANT : Toujours libérer l'isolate pour éviter les fuites de mémoire.
+        if (isolate && !isolate.isDisposed) {
+            isolate.dispose();
+        }
+    }
+}
+REQUIRES NODE >=20
+ */
+async function executeSafeJavascript(actionDef, context) {
+    const code = actionDef.script;
+    const vm = new VM({
+        timeout: 1000, // Time out after 1 second
+        sandbox: context, // Pass the context object
+        console: 'redirect', // Redirect console output
+        require: false, // Disable require
+        wasm: false // disable WebAssembly
+    });
+
+    try {
+        const script = new VMScript(code);
+        return vm.run(script);
+    } catch (error) {
+        console.error("Error executing script:", error);
+        throw error; // or return an error object
+    }
+}
 
 /**
  * Handles the 'Webhook' workflow action.
@@ -671,7 +733,10 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
         case 'SendEmail':
             result = await handleSendEmailAction(actionDef, contextData, user);
             break;
-                
+        case 'ExecuteScript':
+            result = await executeSafeJavascript(actionDef, contextData);
+            break;
+
             // ... autres cases à venir ...
         default:
             logger.error(`[executeStepAction] Unknown action type: ${actionDef.type}`);

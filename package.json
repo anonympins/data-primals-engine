@@ -1,6 +1,6 @@
 {
   "name": "data-primals-engine",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "data-primals-engine is the package responsible from handling large amount of data in a practical and performant way. It can handle large amount of data in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation.",
   "main": "src/engine.js",
   "type": "module",
@@ -76,9 +76,9 @@
     "node-cache": "^5.1.2",
     "node-schedule": "^2.1.1",
     "nodemailer": "^7.0.5",
-    "prop-types": "^15.8.1",
     "openai": "^5.10.2",
     "process": "^0.11.10",
+    "prop-types": "^15.8.1",
     "randomcolor": "^0.6.2",
     "react-helmet": "^6.1.0",
     "react-i18next": "^15.6.1",
@@ -90,6 +90,7 @@
     "tar": "^7.4.3",
     "uniqid": "^5.4.0",
     "vitest": "^3.2.4",
+    "vm2": "^3.9.19",
     "yaml": "^2.8.0"
   },
   "devDependencies": {
@@ -99,7 +100,9 @@
     "eslint": "^9.32.0",
     "globals": "^16.3.0"
   },
-  "subPackages": ["client"],
+  "subPackages": [
+    "client"
+  ],
   "keywords": [
     "mongodb",
     "data",
