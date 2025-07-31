@@ -4,7 +4,8 @@ import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
 import crypto from "node:crypto";
 
-import {NodeVM, VM, VMScript} from 'vm2';
+import ivm from 'isolated-vm';
+
 import {Logger} from "../gameObject.js";
 import {deleteData, insertData, patchData, searchData} from "./data.js";
 import {maxExecutionsByStep, maxWorkflowSteps, timeoutVM} from "../constants.js";
@@ -180,144 +181,100 @@ export async function scheduleWorkflowTriggers() {
 }
 
 
-/* Remplacement de la fonction executeSafeJavascript
-async function executeWithIsolatedVm(actionDef, context) {
+export async function executeSafeJavascript(actionDef, context, user) {
     const code = actionDef.script;
-    const isolate = new ivm.Isolate({ memoryLimit: 128 }); // Limite de 128MB de mémoire
+    const collectedLogs = [];
+    const isolate = new ivm.Isolate({ memoryLimit: 128 }); // 128MB memory limit
 
     try {
         const vmContext = await isolate.createContext();
         const jail = vmContext.global;
 
-        // On expose une fonction 'log' sécurisée à l'intérieur de la VM.
-        // C'est une référence, pas la fonction elle-même.
-        await jail.set('log', new ivm.Reference(function(...args) {
-            // On peut préfixer les logs pour savoir qu'ils viennent de la VM
-            logger.info('[VM Script Log]', ...args);
-        }));
+        // Helper to create a secure reference for our API functions
+        const createJailFunction = (fn) => new ivm.Reference(fn);
 
-        // On injecte les données du contexte. Elles sont COPIÉES, pas référencées.
-        // C'est une caractéristique de sécurité clé.
-        await jail.set('contextData', new ivm.ExternalCopy(context).copyInto());
-        // On peut aussi exposer des fonctions spécifiques de votre application
-        // await jail.set('myApiFunction', new ivm.Reference(async (params) => { ... }));
-
-        // On compile le script
-        const script = await isolate.compileScript(code);
-
-        // On exécute le script avec un timeout
-        const result = await script.run(vmContext, { timeout: 1000 });
-
-        // Le résultat est une référence, on le copie pour l'utiliser dans notre contexte principal.
-        return result;
-
-    } catch (error) {
-        logger.error("Error executing script with isolated-vm:", error.stack);
-        // On propage une erreur propre
-        throw new Error(`Script execution failed: ${error.message}`);
-    } finally {
-        // TRÈS IMPORTANT : Toujours libérer l'isolate pour éviter les fuites de mémoire.
-        if (isolate && !isolate.isDisposed) {
-            isolate.dispose();
-        }
-    }
-}
-REQUIRES NODE >=20
- */
-
-export async function executeSafeJavascript(actionDef, context, user) {
-    const code = actionDef.script;
-    const collectedLogs = []; // Tableau pour capturer les logs de cette exécution
-
-    // 1. Construire l'API qui sera exposée au script
-    const scriptApi = {
-        db: {
+        // 1. Build the sandboxed API
+        await jail.set('db', createJailFunction({
             create: (modelName, dataObject) => insertData(modelName, dataObject, {}, user),
             find: async (modelName, filter) => {
                 const result = await searchData({ user, query: { model: modelName, filter } });
-                return result.data;
+                return new ivm.ExternalCopy(result.data).copyInto();
             },
             findOne: async (modelName, filter) => {
                 const result = await searchData({ user, query: { model: modelName, filter, limit: 1 } });
-                return result.data?.[0] || null;
+                return new ivm.ExternalCopy(result.data?.[0] || null).copyInto();
             },
             update: (modelName, filter, updateObject) => patchData(modelName, filter, updateObject, {}, user),
             delete: (modelName, filter) => deleteData(modelName, null, filter, user)
-        },
-        logger: {
-            // Chaque fonction de log utilise maintenant logger.trace() pour générer le message final
-            info: (...args) => {
-                // On génère le message final formaté une seule fois avec trace()
-                const finalMessage = logger.trace('info', '[VM Script]', ...args);
-                // On l'affiche en couleur dans la console du serveur
-                // On stocke ce même message final dans les logs collectés
+        }));
+
+        const createLoggerFunction = (level) => {
+            return (...args) => {
+                const finalMessage = logger.trace(level, '[VM Script]', ...args);
                 collectedLogs.push({
-                    level: 'info',
-                    message: finalMessage, // Le message complet est stocké
-                    timestamp: new Date().toISOString()
-                });
-            },
-            warn: (...args) => {
-                const finalMessage = logger.trace('warn', '[VM Script]', ...args);
-                collectedLogs.push({
-                    level: 'warn',
+                    level: level,
                     message: finalMessage,
                     timestamp: new Date().toISOString()
                 });
-            },
-            error: (...args) => {
-                const finalMessage = logger.trace('error', '[VM Script]', ...args);
-                collectedLogs.push({
-                    level: 'error',
-                    message: finalMessage,
-                    timestamp: new Date().toISOString()
-                });
-            }
-        },
-        env: {
+            };
+        };
+
+        await jail.set('logger', createJailFunction({
+            info: createLoggerFunction('info'),
+            warn: createLoggerFunction('warn'),
+            error: createLoggerFunction('error')
+        }));
+
+        await jail.set('env', createJailFunction({
             get: async (variableName) => {
                 if (!variableName) return null;
                 const result = await searchData({ user, query: { model: 'env', filter: { name: variableName }, limit: 1 } });
-                return result.data?.[0]?.value || null;
+                return new ivm.ExternalCopy(result.data?.[0]?.value || null).copyInto();
             },
             getAll: async () => {
                 const result = await searchData({ user, query: { model: 'env' } });
-                // Retourne un objet { NOM: valeur, ... } plus pratique
-                return result.data.reduce((acc, v) => {
+                const envObject = result.data.reduce((acc, v) => {
                     acc[v.name] = v.value;
                     return acc;
                 }, {});
+                return new ivm.ExternalCopy(envObject).copyInto();
             }
-        },
-        ...context
-    };
+        }));
 
-    const vm = new NodeVM({
-        timeout: timeoutVM,
-        sandbox: scriptApi,
-        console: 'off',
-        require: false,
-        wasm: false
-    });
+        // Inject the context data securely
+        await jail.set('context', new ivm.ExternalCopy(context).copyInto());
 
-    try {
-        const script = new VMScript(`const script = () => {${code}}; module.exports = script();`);
-        const result= vm.run(script);
+        // 2. Prepare and run the script
+        // The script is wrapped in an async IIFE to handle promises correctly
+        const fullScript = `
+            (async () => {
+                ${code}
+            })();
+        `;
+
+        const script = await isolate.compileScript(fullScript);
+        const result = await script.run(vmContext, { timeout: timeoutVM, promise: true });
+
+        // The result is returned as an ExternalCopy, we need to copy it out
         return { success: true, data: result, logs: collectedLogs };
+
     } catch (error) {
         const errorMessage = `Script execution failed: ${error.message}`;
-
-        // On utilise aussi trace() pour l'erreur critique
         const finalErrorMessage = logger.trace('critical', `[VM Script] ${errorMessage}\n${error.stack}`);
         collectedLogs.push({
             level: 'critical',
             message: finalErrorMessage,
             timestamp: new Date().toISOString()
         });
-
         return { success: false, message: errorMessage, logs: collectedLogs };
+    } finally {
+        // 3. CRUCIAL: Dispose of the isolate to prevent memory leaks
+        if (isolate && !isolate.isDisposed) {
+            isolate.dispose();
+        }
     }
 }
+
 /**
  * Handles the 'Webhook' workflow action.
  * Sends an HTTP request to a specified URL with substituted data using native fetch.
