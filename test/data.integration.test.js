@@ -723,7 +723,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const packId = packInsertResult.insertedId;
 
             // 3. Appeler la fonction à tester avec la nouvelle signature
-            const result = await installPack(console, packId, currentTestUser, 'en');
+            const result = await installPack(packId, currentTestUser, 'en');
 
             // 4. Assertions sur le résumé de l'installation
             expect(result.success, `L'installation du pack a échoué: ${result.errors?.join('; ')}`).toBe(true);
@@ -776,7 +776,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const packInsertResult = await testPacksColInstance.insertOne(mockPackWithInvalidModel);
             const packId = packInsertResult.insertedId;
 
-            const result = await installPack(console, packId, currentTestUser, 'en');
+            const result = await installPack(packId, currentTestUser, 'en');
 
             // Le succès global est faux s'il y a des erreurs
             expect(result.success).toBe(false);

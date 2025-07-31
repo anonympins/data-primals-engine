@@ -1,5 +1,5 @@
 
-export const seoTitle = 'Your data is here';
+export const seoTitle = 'Self Data Hosting';
 
 
 // Dans ConditionBuilder.jsx ou un fichier de constantes partagé
@@ -51,9 +51,9 @@ export const MONGO_OPERATORS = {
 
 export const profiles = {
     'personal': ['contact', 'location', 'imageGallery', 'budget', 'currency', 'taxonomy'], // budget,
-    'developer': ['alert','request','webpage', 'content', 'taxonomy', 'resource', 'translation', 'contact', 'location', 'channel', 'lang', 'token', 'message', 'ticket', 'user', 'permission', 'role'],
+    'developer': ['alert','endpoint','request','webpage', 'content', 'taxonomy', 'resource', 'translation', 'contact', 'location', 'channel', 'lang', 'token', 'message', 'ticket', 'user', 'permission', 'role'],
     'company': ['alert','request','location', 'campaign', 'order', 'currency', 'product', 'cart', 'cartItem', 'invoice', 'messaging', 'user', 'role', 'permission', 'token','translation', 'lang', 'webpage', 'content', 'taxonomy', 'contact', 'resource', 'accountingExercise', 'accountingLineItem', 'accountingEntry', 'employee', 'kpi', 'dashboard'],
-    'engineer': ['alert','request','dashboard', 'kpi', 'user', 'role', 'token', 'permission', 'workflow', 'workflowRun', 'workflowStep', "channel", "message", 'workflowAction', 'workflowTrigger']
+    'engineer': ['alert','endpoint','request','dashboard', 'kpi', 'user', 'role', 'token', 'permission', 'workflow', 'workflowRun', 'workflowStep', "channel", "message", 'workflowAction', 'workflowTrigger']
 }
 
 export const OPERAND_TYPES = {
@@ -64,5 +64,5 @@ export const OPERAND_TYPES = {
 
 
 export const getHost = () => {
-    return process.env.HOST || 'localhost';
+    return process.env.HOST || host || 'localhost';
 }

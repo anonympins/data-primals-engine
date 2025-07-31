@@ -14,6 +14,27 @@ body {
   padding: 0;
 }
 
+header {
+  background-color: #3498db;
+  color: white;
+  align-items: center;
+  h1 {
+    font-size: 100%;
+    line-height: 100%;
+    color: white;
+    padding: 0;
+  }
+  > div.flex {
+    gap: 16px;
+    padding: 8px;
+    font-size: 20px;
+  }
+  svg {
+    cursor: pointer;
+  }
+  height: 50px;
+  overflow: hidden;
+}
 .flex {
   display: flex;
   flex-wrap: wrap;

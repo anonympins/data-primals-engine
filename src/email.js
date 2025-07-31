@@ -50,7 +50,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
     if (emails.length === 0) return;
 
     // Choisir le transporteur à utiliser
-    const transporter = smtpConfig ? createTransporter(smtpConfig) : defaultTransporter;
+    const transporter = smtpConfig ? createTransporter(smtpConfig||emailDefaultConfig) : defaultTransporter;
 
     if (tpl === null) tpl = event_trigger("sendEmail:template",data, lang);
     let html = tpl;

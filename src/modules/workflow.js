@@ -4,10 +4,10 @@ import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
 import crypto from "node:crypto";
 
-import {VM, VMScript} from 'vm2';
+import {NodeVM, VM, VMScript} from 'vm2';
 import {Logger} from "../gameObject.js";
 import {deleteData, insertData, patchData, searchData} from "./data.js";
-import {maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
+import {maxExecutionsByStep, maxWorkflowSteps, timeoutVM} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
@@ -224,25 +224,100 @@ async function executeWithIsolatedVm(actionDef, context) {
 }
 REQUIRES NODE >=20
  */
-async function executeSafeJavascript(actionDef, context) {
+
+export async function executeSafeJavascript(actionDef, context, user) {
     const code = actionDef.script;
-    const vm = new VM({
-        timeout: 1000, // Time out after 1 second
-        sandbox: context, // Pass the context object
-        console: 'redirect', // Redirect console output
-        require: false, // Disable require
-        wasm: false // disable WebAssembly
+    const collectedLogs = []; // Tableau pour capturer les logs de cette exécution
+
+    // 1. Construire l'API qui sera exposée au script
+    const scriptApi = {
+        db: {
+            create: (modelName, dataObject) => insertData(modelName, dataObject, {}, user),
+            find: async (modelName, filter) => {
+                const result = await searchData({ user, query: { model: modelName, filter } });
+                return result.data;
+            },
+            findOne: async (modelName, filter) => {
+                const result = await searchData({ user, query: { model: modelName, filter, limit: 1 } });
+                return result.data?.[0] || null;
+            },
+            update: (modelName, filter, updateObject) => patchData(modelName, filter, updateObject, {}, user),
+            delete: (modelName, filter) => deleteData(modelName, null, filter, user)
+        },
+        logger: {
+            // Chaque fonction de log utilise maintenant logger.trace() pour générer le message final
+            info: (...args) => {
+                // On génère le message final formaté une seule fois avec trace()
+                const finalMessage = logger.trace('info', '[VM Script]', ...args);
+                // On l'affiche en couleur dans la console du serveur
+                // On stocke ce même message final dans les logs collectés
+                collectedLogs.push({
+                    level: 'info',
+                    message: finalMessage, // Le message complet est stocké
+                    timestamp: new Date().toISOString()
+                });
+            },
+            warn: (...args) => {
+                const finalMessage = logger.trace('warn', '[VM Script]', ...args);
+                collectedLogs.push({
+                    level: 'warn',
+                    message: finalMessage,
+                    timestamp: new Date().toISOString()
+                });
+            },
+            error: (...args) => {
+                const finalMessage = logger.trace('error', '[VM Script]', ...args);
+                collectedLogs.push({
+                    level: 'error',
+                    message: finalMessage,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        },
+        env: {
+            get: async (variableName) => {
+                if (!variableName) return null;
+                const result = await searchData({ user, query: { model: 'env', filter: { name: variableName }, limit: 1 } });
+                return result.data?.[0]?.value || null;
+            },
+            getAll: async () => {
+                const result = await searchData({ user, query: { model: 'env' } });
+                // Retourne un objet { NOM: valeur, ... } plus pratique
+                return result.data.reduce((acc, v) => {
+                    acc[v.name] = v.value;
+                    return acc;
+                }, {});
+            }
+        },
+        ...context
+    };
+
+    const vm = new NodeVM({
+        timeout: timeoutVM,
+        sandbox: scriptApi,
+        console: 'off',
+        require: false,
+        wasm: false
     });
 
     try {
-        const script = new VMScript(code);
-        return vm.run(script);
+        const script = new VMScript(`const script = () => {${code}}; module.exports = script();`);
+        const result= vm.run(script);
+        return { success: true, data: result, logs: collectedLogs };
     } catch (error) {
-        console.error("Error executing script:", error);
-        throw error; // or return an error object
+        const errorMessage = `Script execution failed: ${error.message}`;
+
+        // On utilise aussi trace() pour l'erreur critique
+        const finalErrorMessage = logger.trace('critical', `[VM Script] ${errorMessage}\n${error.stack}`);
+        collectedLogs.push({
+            level: 'critical',
+            message: finalErrorMessage,
+            timestamp: new Date().toISOString()
+        });
+
+        return { success: false, message: errorMessage, logs: collectedLogs };
     }
 }
-
 /**
  * Handles the 'Webhook' workflow action.
  * Sends an HTTP request to a specified URL with substituted data using native fetch.
@@ -734,10 +809,8 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
             result = await handleSendEmailAction(actionDef, contextData, user);
             break;
         case 'ExecuteScript':
-            result = await executeSafeJavascript(actionDef, contextData);
+            result = await executeSafeJavascript(actionDef, contextData, user);
             break;
-
-            // ... autres cases à venir ...
         default:
             logger.error(`[executeStepAction] Unknown action type: ${actionDef.type}`);
             return { success: false, message: `Unknown action type: ${actionDef.type}` };
@@ -1244,7 +1317,7 @@ export async function processWorkflowRun(workflowRunId, user) {
             );
 
             let stepSucceeded = true;
-            let stepError = null;
+            let logInfo = null;
             let conditionsMet = true;
 
             try {
@@ -1266,8 +1339,10 @@ export async function processWorkflowRun(workflowRunId, user) {
                             const actionResult = await workflowModule.executeStepAction(actionDef, contextData, user, dbCollection);
                             if (!actionResult.success) {
                                 stepSucceeded = false;
-                                stepError = actionResult.message || `Action ${actionDef.name || actionId} failed.`;
+                                logInfo = actionResult.message || `Action ${actionDef.name || actionId} failed.`;
                                 break;
+                            }else{
+                                logInfo = `Action ${actionDef.name || actionId} : ${actionResult.message}`;
                             }
                             if (actionResult.updatedContext) {
                                 contextData = { ...contextData, ...actionResult.updatedContext };
@@ -1281,7 +1356,7 @@ export async function processWorkflowRun(workflowRunId, user) {
             } catch (error) {
                 logger.error(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Error during condition/action execution: ${error.message}`);
                 stepSucceeded = false;
-                stepError = error.message;
+                logInfo = error.message;
             }
 
             // --- 9. Détermination de la prochaine étape ---
@@ -1298,13 +1373,13 @@ export async function processWorkflowRun(workflowRunId, user) {
                 }
             } else {
                 // CHEMIN ÉCHEC/BRANCHE : Une action a échoué OU les conditions n'ont pas été remplies.
-                const reason = stepError ? `Action failed: ${stepError}` : 'Step conditions not met.';
+                const reason = logInfo ? `Action failed: ${logInfo}` : 'Step conditions not met.';
                 logger.warn(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Taking failure/branching path. Reason: ${reason}`);
                 nextStepId = currentStepDef.onFailureStep;
 
                 if (!nextStepId || !isObjectId(nextStepId)) {
                     // Fin du workflow. Le statut est 'failed' seulement si une vraie erreur s'est produite.
-                    finalStatusForRun = stepError ? 'failed' : 'completed';
+                    finalStatusForRun = logInfo ? 'failed' : 'completed';
                     nextStepId = null;
                 }
             }
@@ -1317,9 +1392,7 @@ export async function processWorkflowRun(workflowRunId, user) {
                 updatePayload.status = finalStatusForRun;
                 updatePayload.completedAt = new Date();
                 updatePayload.currentStep = null;
-                if (finalStatusForRun === 'failed' && stepError) {
-                    updatePayload.error = stepError;
-                }
+                updatePayload.log = logInfo;
             } else {
                 updatePayload.currentStep = currentStepId;
             }

@@ -47,28 +47,41 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
         }
     };
 
-    const importModelsMutation = useMutation((profile) => {
-        return fetch('/api/models/import', { method: 'POST', headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ install: true, models: ['request', ...profiles[profile]] })
-        })
+    const demoInitMutation = useMutation((profile) => {
+        return fetch('/api/demo/initialize', {
+            method: 'POST',
+            headers: { "Content-Type": "application/json"},
+            body: JSON.stringify({profile: profile}),
+        });
     });
-    const handleProfile = (profile) => {
-       importModelsMutation.mutateAsync(profile).then(e => {
-           setCurrentProfile(profile);
-           gtag('event', 'profile ' + profile);
-           queryClient.invalidateQueries('api/models');
 
-           const profileSteps = allTourSteps[profile];
-           if (profileSteps) {
-               setCurrentTourSteps(profileSteps);
-               setTourStepIndex(0);
-               setIsTourOpen(true); // Start the tour
-           } else {
-               console.warn(`No tour steps defined for profile: ${profile}`);
-           }
-       });
+    const handleProfile = (profile) => {
+        // --- CHANGEMENT ICI : On appelle la nouvelle mutation sans argument ---
+        demoInitMutation.mutateAsync(profile).then(response => {
+            // On vérifie que la réponse est OK avant de continuer
+            if (!response.ok) {
+                // Gérer l'erreur si l'initialisation échoue
+                console.error("L'initialisation de la démo a échoué.");
+                // Vous pourriez afficher une notification à l'utilisateur ici.
+                return;
+            }
+
+            // Le reste de la logique est parfait et ne change pas
+            setCurrentProfile(profile);
+            gtag('event', 'profile ' + profile);
+            queryClient.invalidateQueries('api/models');
+
+            const profileSteps = allTourSteps[profile];
+            if (profileSteps) {
+                setCurrentTourSteps(profileSteps);
+                setTourStepIndex(0);
+                setIsTourOpen(true); // Start the tour
+            } else {
+                console.warn(`No tour steps defined for profile: ${profile}`);
+            }
+        }).catch(error => {
+            console.error("Erreur critique lors de l'appel d'initialisation de la démo:", error);
+        });
     };
 
     const [mods, setMods] = useState([]);

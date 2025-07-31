@@ -407,14 +407,14 @@ await loadFromDump(currentUser, { modelsOnly: false });
 
 ## Pack Management
 
-### installPack(logger, packId, user, lang)
+### installPack(packId, user, lang)
 
 > Installs a predefined data pack.
 
 Example:
 
 ```javascript
-const result = await installPack(logger, "61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
+const result = await installPack("61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
 // Returns installation summary
 ```
 
