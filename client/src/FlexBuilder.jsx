@@ -18,7 +18,7 @@ import {
     deleteNodeRecursive,
     clearMappingsRecursive
 } from './FlexTreeUtils.js';
-import {DialogProvider} from "./Dialog.jsx";
+import {Dialog, DialogProvider} from "./Dialog.jsx";
 
 const FlexBuilder = ({ initialConfig = null, models = [], onChange, data = [], lang = 'fr' }) => {
     const { me: user } = useAuthContext();
@@ -35,7 +35,6 @@ const FlexBuilder = ({ initialConfig = null, models = [], onChange, data = [], l
         dataLimit: 3, refreshInterval: 60000,
     }), [createNewNode]);
 
-    // --- CORRECTION ---
     // Fonction utilitaire pour construire l'état à partir de la configuration chargée.
     // Elle fusionne correctement les données par défaut, les métadonnées et la structure de la vue.
     const buildStateFromConfig = useCallback((config) => {
@@ -253,6 +252,7 @@ const FlexBuilder = ({ initialConfig = null, models = [], onChange, data = [], l
                     onSave={handleSaveHtmlContent}
                 />
             )}
+
             </DialogProvider>
         </div>
     );

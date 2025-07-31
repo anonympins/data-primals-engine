@@ -3,27 +3,50 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Crée un nouveau nœud de type 'container' ou 'item'.
  */
+
 export const createNewNode = (type) => {
-    const baseStyle = { border: '1px solid #ddd', padding: '5px' };
-    if (type === 'container') {
+    const baseNode = { id: `${type}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}` };
+
+    switch (type) {
+    case 'container':
         return {
-            id: uuidv4(), type: 'container',
-            containerStyle: { ...baseStyle, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '5px', minHeight: '50px'},
-            children: [],
+            ...baseNode,
+            type: 'container',
+            containerStyle: { /* ... styles ... */ },
+            children: []
+        };
+
+        // --- AJOUTER CE BLOC ---
+    case 'cta':
+        return {
+            ...baseNode,
+            type: 'cta',
+            label: 'Mon Bouton',
+            endpointPath: '',
+            itemStyle: { width: 'auto', height: 'auto' },
+            // --- AJOUTS POUR LA CONFIGURATION DE LA REQUÊTE ---
+            httpMethod: 'GET',
+            requestBodyTemplate: '',
+            requestQueryTemplate: ''
+        };
+        // --- FIN DE L'AJOUT ---
+
+    case 'item':
+    default: // Le 'cta' tombait ici, créant un 'item' par défaut
+        return {
+            ...baseNode,
+            type: 'item',
+            itemStyle: { width: '100px', height: '50px' },
+            content: { type: 'placeholder' }
         };
     }
-    return {
-        id: uuidv4(), type: 'item',
-        itemStyle: { ...baseStyle, width: '', height: '', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        content: { type: 'placeholder' },
-    };
 };
 
 /**
  * Nettoie un nœud pour la sauvegarde.
  */
 export const cleanNodeForOutput = (node) => {
-    const { id, type, children, content, containerStyle, itemStyle } = node;
+    const { id, type, children, content, containerStyle, itemStyle, label, endpointPath, httpMethod, requestBodyTemplate, requestQueryTemplate } = node;
     const outputNode = { id, type };
 
     if (type === 'container') {
@@ -43,6 +66,14 @@ export const cleanNodeForOutput = (node) => {
         } else {
             outputNode.content = { type: 'placeholder' };
         }
+    } else if (type === 'cta') {
+        // On sauvegarde les propriétés spécifiques au CTA
+        outputNode.label = label || 'Execute';
+        outputNode.itemStyle = node.itemStyle || { width: 'auto', height: 'auto' };
+        outputNode.httpMethod = httpMethod || 'GET';
+        outputNode.requestBodyTemplate = requestBodyTemplate || '';
+        outputNode.requestQueryTemplate = requestQueryTemplate || '';
+        outputNode.endpointPath = endpointPath || '';
     }
     return outputNode;
 };

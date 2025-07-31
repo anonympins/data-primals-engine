@@ -83,8 +83,7 @@ const DashboardFlexViewItem = ({ flexViewConfig, allModels }) => {
         return <div className="flex-view-placeholder error" title={error.message}>{t('dashboards.error.displayFlexData', 'Erreur d\'affichage')}</div>;
     }
 
-    console.log(flexStructure)
-    if (!flexStructure || (!selectedModelName && !flexStructure.htmlContent)) {
+    if (!flexStructure) {
         return <div className="flex-view-placeholder">{t('dashboards.flexViewNotConfigured', 'Vue Flex non configurée ou modèle manquant.')}</div>;
     }
 
