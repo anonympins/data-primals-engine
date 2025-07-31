@@ -4,17 +4,16 @@ import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
 import crypto from "node:crypto";
 
+import {VM, VMScript} from 'vm2';
 import {Logger} from "../gameObject.js";
-import {deleteData, editData, insertData, patchData, searchData} from "./data.js";
+import {deleteData, insertData, patchData, searchData} from "./data.js";
 import {maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import {ChatOpenAI} from "@langchain/openai";
+import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
+import {ChatPromptTemplate} from "@langchain/core/prompts";
 import i18n from "data-primals-engine/i18n";
 import {sendEmail} from "../email.js";
 
-// 1. ADD THIS IMPORT AT THE TOP OF THE FILE
-// This allows the module to call its own exported functions.
 import * as workflowModule from './workflow.js';
 
 let logger = null;
@@ -180,6 +179,25 @@ export async function scheduleWorkflowTriggers() {
     }
 }
 
+
+async function executeSafeJavascript(actionDef, context) {
+    const code = actionDef.script;
+    const vm = new VM({
+        timeout: 1000, // Time out after 1 second
+        sandbox: context, // Pass the context object
+        console: 'redirect', // Redirect console output
+        require: false, // Disable require
+        wasm: false // disable WebAssembly
+    });
+
+    try {
+        const script = new VMScript(code);
+        return vm.run(script);
+    } catch (error) {
+        console.error("Error executing script:", error);
+        throw error; // or return an error object
+    }
+}
 
 /**
  * Handles the 'Webhook' workflow action.
@@ -671,7 +689,10 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
         case 'SendEmail':
             result = await handleSendEmailAction(actionDef, contextData, user);
             break;
-                
+        case 'ExecuteScript':
+            result = await executeSafeJavascript(actionDef, contextData);
+            break;
+
             // ... autres cases à venir ...
         default:
             logger.error(`[executeStepAction] Unknown action type: ${actionDef.type}`);
