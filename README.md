@@ -88,25 +88,27 @@ Define schemas using JSON:
   ]
 }
 ```
-| Type        | Description                                         | 	Properties/Notes                                                         | 
-|:------------|:----------------------------------------------------|:--------------------------------------------------------------------------| 
-| string	     | Character string.                                   | 	minLength, maxLength, i18n (for translation)                             |
-| number	     | Numeric value (integer or float).                   | 	min, max                                                                 |
-| boolean	    | Boolean value (true/false).	                        | –                                                                         |
-| date	       | Stores a ISO date.	                                 | –                                                                         |
-| datetime	   | Stores an ISO date and time.	                       | –                                                                         |
-| richtext	   | Rich text field (HTML) for WYSIWYG editors.	        | i18n                                                                      |
-| email	      | String validated as an email address.	              | –                                                                         |
-| password	   | String that will be automatically hashed.	          | –                                                                         |
-| enum	       | Allows selecting a value from a predefined list.	   | items: ["value1", "value2"]                                               |
-| relation	   | Creates a link to a document in another model.      | 	relation: "target_model_name", multiple: true/false                      |
-| file	       | For uploading a file (stored on S3 if configured).	 | allowedTypes:['image/jpeg', 'image/png', 'image/bmp'], maxSize: 1024*1000 |
-| image	      | Specialized file type for images, with preview.	    | –                                                                         |
-| array	      | Stores a list of values.	                           | itemsType: 'enum' // any type except relations                            |
-| object	     | Stores a nested JSON object.	–                      |                                                                           |
-| json	       | Stores an arbitrary JSON structure.	                | –                                                                         |                                            
-| model	      | Stores a model by name                              | –                                                                         |                                            
-| modelField	 | Stores a model field path	                          | –                                                                         |                                            
+| Type        | Description                                                                         | 	Properties/Notes                                                         | 
+|:------------|:------------------------------------------------------------------------------------|:--------------------------------------------------------------------------| 
+| string	     | Character string.                                                                   | 	minLength, maxLength                                                     |
+| string_t	   | International character string ID.                                                  | 	same as string, translated in { key, value }                             |
+| number	     | Numeric value (integer or float).                                                   | 	min, max                                                                 |
+| boolean	    | Boolean value (true/false).	                                                        | –                                                                         |
+| date	       | Stores a ISO date.	                                                                 | –                                                                         |
+| datetime	   | Stores an ISO date and time.	                                                       | –                                                                         |
+| richtext	   | Rich text field (HTML) for WYSIWYG editors.	                                        |                                                                           |
+| richtext_t	 | International rich text field (HTML) for WYSIWYG editors.	                          | i18n                                                                      |
+| email	      | String validated as an email address.	                                              | –                                                                         |
+| password	   | String that will be automatically hashed.	                                          | –                                                                         |
+| enum	       | Allows selecting a value from a predefined list.	                                   | items: ["value1", "value2"]                                               |
+| relation	   | Creates a link to a document in another model.                                      | 	relation: "target_model_name", multiple: true/false                      |
+| file	       | For uploading a file (stored on S3 if configured).	                                 | allowedTypes:['image/jpeg', 'image/png', 'image/bmp'], maxSize: 1024*1000 |
+| image	      | Specialized file type for images, with preview.	                                    | –                                                                         |
+| array	      | Stores a list of values.	                                                           | itemsType: 'enum' // any type except relations                            |
+| object	     | Stores a nested JSON object.	–                                                      |                                                                           |
+| code	       | Stores language="*" as string, stores language="json" as arbitrary JSON structure.	 | language="json" conditionBuilder=true                                     |                                            
+| model	      | Stores a model by name                                                              | –                                                                         |                                            
+| modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
 ### 2. Modules
 Activatable features:
