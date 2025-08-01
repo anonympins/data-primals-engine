@@ -24,7 +24,7 @@ import {
     maxBytesPerSecondThrottleData,
     maxFileSize,
     maxRequestData
-} from "data-primals-engine/constants";
+} from "../../src/constants.js";
 import Button from "./Button.jsx";
 import {Dialog, DialogProvider} from "./Dialog.jsx";
 import {

@@ -14,7 +14,7 @@ import {
     mainFieldsTypes, maxFileSize,
     maxModelNameLength,
     maxRequestData
-} from "data-primals-engine/constants";
+} from "../../src/constants.js";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import {getUserHash, getUserId, isLocalUser} from "data-primals-engine/data";
 import {useNotificationContext} from "./NotificationProvider.jsx";

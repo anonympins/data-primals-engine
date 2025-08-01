@@ -7,7 +7,7 @@ import { CheckboxField } from './Field.jsx';
 import Button from './Button.jsx';
 import { useQueryClient } from 'react-query';
 import { useNotificationContext } from './NotificationProvider.jsx';
-import {metaModels} from "data-primals-engine/constants";
+import {metaModels} from "../../src/constants.js";
 
 
 const ModelImporter = ({ onImport }) => {

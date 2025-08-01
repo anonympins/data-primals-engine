@@ -3,7 +3,7 @@ import { FaPlus, FaTrash, FaEquals } from 'react-icons/fa';
 import {object_equals} from "data-primals-engine/core"; // Assuming this is a deep equality check
 import CalculationStepRow from "./CalculationStepRow.jsx";
 import {getFieldDefinitionFromPath, isAtomicDateOperator} from "./core/data.js";
-import {MONGO_OPERATORS, OPERAND_TYPES} from "../src/constants.js";
+import {MONGO_OPERATORS, OPERAND_TYPES} from "./constants.js";
 
 // --- Helper Functions & Constants ---
 const generateId = () => `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

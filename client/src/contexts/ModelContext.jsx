@@ -1,7 +1,6 @@
 // ModelContext.jsx
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
 import { useQueries, useQuery } from 'react-query';
-import {elementsPerPage} from "data-primals-engine/constants";
 import {getObjectHash} from "data-primals-engine/core";
 import {useAuthContext} from "./AuthContext.jsx";
 import {getUserHash, getUserId} from "data-primals-engine/data";

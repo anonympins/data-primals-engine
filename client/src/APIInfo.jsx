@@ -5,14 +5,11 @@ import Button from "./Button.jsx";
 import {Trans, useTranslation} from "react-i18next";
 import {getDefaultForType} from "data-primals-engine/data";
 import { CodeBlock, tomorrowNightBright } from 'react-code-blocks';
-import {getObjectHash, shuffle} from "data-primals-engine/core";
-import {mainFieldsTypes} from "data-primals-engine/constants";
-import {end} from "express-mongo-sanitize";
+import {mainFieldsTypes} from "../../src/constants.js";
 import {FaFile, FaPlay, FaRunning} from "react-icons/fa";
 import {Tooltip} from "react-tooltip";
 import {CodeField} from "./Field.jsx";
 import {useMutation} from "react-query";
-import {FaF} from "react-icons/fa6";
 import {getHost} from "./constants.js";
 
 const Test= ({endpoint, lang, index, headers= {}}) =>  {

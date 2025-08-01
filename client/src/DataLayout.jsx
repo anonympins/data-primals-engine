@@ -14,7 +14,7 @@ import {
     maxBytesPerSecondThrottleData,
     maxFileSize,
     maxRequestData, metaModels
-} from "data-primals-engine/constants";
+} from "../../src/constants.js";
 import {
     FaArrowDown,
     FaArrowUp, FaBell,

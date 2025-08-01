@@ -7,7 +7,7 @@ import { useNotificationContext } from './NotificationProvider.jsx';
 import { useModelContext } from './contexts/ModelContext.jsx';
 
 import './PackGallery.scss';
-import {elementsPerPage} from "data-primals-engine/constants";
+import {elementsPerPage} from "../../src/constants.js";
 
 // --- API Fetching Functions ---
 const fetchPacks = async (sortBy, lang) => {

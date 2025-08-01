@@ -6,7 +6,7 @@ import { useAuthContext } from './contexts/AuthContext.jsx';
 import {conditionToApiSearchFilter, getDataAsString, getUserId} from 'data-primals-engine/data';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import Button from './Button.jsx';
-import {mainFieldsTypes} from "data-primals-engine/constants";
+import {mainFieldsTypes} from "../../src/constants.js";
 import Draggable from "./Draggable.jsx";
 import {useTranslation} from "react-i18next";
 

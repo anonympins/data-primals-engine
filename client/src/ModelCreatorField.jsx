@@ -10,7 +10,7 @@ import {FaArrowDown, FaArrowUp, FaEdit, FaMinus, FaPlus, FaTrash} from "react-ic
 import CalculationBuilder from "./CalculationBuilder.jsx";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import Draggable from "./Draggable.jsx";
-import {mainFieldsTypes} from "data-primals-engine/constants";
+import {mainFieldsTypes} from "../../src/constants.js";
 
 function RelationModelSelector({relation, onChange, ...rest}) {
     const {models} = useModelContext()
