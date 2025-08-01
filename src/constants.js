@@ -212,6 +212,7 @@ export const maxTotalPrivateFilesSize = 250 * megabytes;
  */
 export const timeoutVM = 5000;
 
+export const defaultMaxRequestData = 500;
 /**
  * Options for the HTML sanitizer
  * @type {{allowedSchemesByTag: {}, selfClosing: string[], allowedSchemes: string[], enforceHtmlBoundary: boolean, disallowedTagsMode: string, allowProtocolRelative: boolean, allowedAttributes: {a: string[], img: string[], code: string[]}, allowedTags: string[], allowedSchemesAppliedToAttributes: string[]}}
