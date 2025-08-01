@@ -107,6 +107,7 @@ Define schemas using JSON:
 | array	      | Stores a list of values.	                                                           | itemsType: 'enum' // any type except relations                            |
 | object	     | Stores a nested JSON object.	–                                                      |                                                                           |
 | code	       | Stores language="*" as string, stores language="json" as arbitrary JSON structure.	 | language="json" conditionBuilder=true                                     |                                            
+| color	      | Stores an hexadecimal value of an RGB color	                                        | '#FF0000'                                                                 |                                            
 | model	      | Stores a model by name                                                              | –                                                                         |                                            
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
