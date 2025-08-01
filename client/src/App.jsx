@@ -138,8 +138,8 @@ function Layout ({header, translationMutation, routes, body, footer}) {
                 const availableKeys = response.data;
 
                 const newConfig = {
-                    openai: availableKeys.find(key => key.name === 'OPENAI_API_KEY')?.value,
-                    google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value
+                    openai: availableKeys.find(key => key.name === 'OPENAI_API_KEY')?.value || process.env.OPENAI_API_KEY,
+                    google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value || process.env.GOOGLE_API_KEY,
                 };
 
 
