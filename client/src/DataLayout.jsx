@@ -14,7 +14,7 @@ import {
     maxBytesPerSecondThrottleData,
     maxFileSize,
     maxRequestData, metaModels
-} from "data-primals-engine/constants";
+} from "../../src/constants.js";
 import {
     FaArrowDown,
     FaArrowUp, FaBell,
@@ -27,20 +27,14 @@ import {
     FaPlus,
     FaTrash
 } from "react-icons/fa";
-import {getDefaultForType, getUserId} from "data-primals-engine/data";
+import {getDefaultForType, getUserId} from "../../src/data.js";
 import {Trans, useTranslation} from "react-i18next";
 
-import {debounce, escapeRegExp, event_trigger, getObjectHash, isGUID} from "data-primals-engine/core";
+import {debounce, escapeRegExp, event_trigger, getObjectHash, isGUID} from "../../src/core.js";
 import Button from "./Button.jsx";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-import {RTE} from "./RTE.jsx";
 import APIInfo from "./APIInfo.jsx";
-import {xt256} from "react-code-blocks";
-import {isList} from "@tiptap/react";
 import {useNotificationContext} from "./NotificationProvider.jsx";
-import modelCreator from "./ModelCreator.jsx";
-import RelationField from "./RelationField.jsx";
-import RelationValue from "./RelationValue.jsx";
 import {ModelImporter} from "./ModelImporter.jsx";
 import {DataTable} from "./DataTable.jsx";
 import {ModelList} from "./ModelList.jsx";

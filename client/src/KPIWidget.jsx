@@ -3,7 +3,7 @@ import { useQuery } from 'react-query';
 import * as FaIcons from 'react-icons/fa'; // Importer toutes les icônes Fa
 import * as Fa6Icons from 'react-icons/fa6'; // Importer Fa6
 import { FaInfo, FaTimes } from 'react-icons/fa';
-import { isLightColor } from "data-primals-engine/core"; // Pour le bouton supprimer
+import { isLightColor } from "../../src/core.js"; // Pour le bouton supprimer
 import { Tooltip } from 'react-tooltip';
 
 // Fonction pour récupérer la valeur calculée d'un KPI (MODIFIÉE)

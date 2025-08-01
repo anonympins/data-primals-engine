@@ -1,9 +1,9 @@
 // C:/Dev/hackersonline-engine/client/src/DisplayFlexNodeRenderer.jsx
 import {useTranslation} from "react-i18next";
-import {cssProps} from "data-primals-engine/core";
+import {cssProps} from "../../src/core.js";
 import FlexDataRenderer from "./FlexDataRenderer.jsx";
 import React, {useState} from "react";
-import {getFieldPathValue} from "data-primals-engine/data";
+import {getFieldPathValue} from "../../src/data.js";
 import {getFieldDefinitionFromPath} from "./core/data.js";
 import {Dialog, DialogProvider} from "./Dialog.jsx";
 import {FaPlay} from "react-icons/fa";

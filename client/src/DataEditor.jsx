@@ -1,5 +1,5 @@
 import React, {forwardRef, useEffect, useState} from "react"; // Ajout de useEffect
-import {conditionToApiSearchFilter, getDefaultForType} from "data-primals-engine/data";
+import {conditionToApiSearchFilter, getDefaultForType} from "../../src/data.js";
 import { Trans, useTranslation } from "react-i18next";
 import {FaCode, FaLanguage, FaMinus, FaPlus, FaSitemap} from "react-icons/fa";
 import Button from "./Button.jsx";
@@ -15,7 +15,7 @@ import {
     SelectField,
     TextField
 } from "./Field.jsx";
-import i18n from "data-primals-engine/i18n";
+import i18n from "../../src/i18n.js";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useAuthContext} from "./contexts/AuthContext.jsx";

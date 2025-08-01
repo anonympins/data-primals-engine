@@ -11,8 +11,8 @@ import { recursiveMap, useRefs } from "./Utils.jsx";
 import {useTranslation} from "react-i18next";
 import { CodeiumEditor } from "@codeium/react-code-editor";
 
-import {debounce, escapeRegExp, isGUID, isLightColor} from "data-primals-engine/core";
-import {mainFieldsTypes, maxFileSize} from "data-primals-engine/constants";
+import {debounce, escapeRegExp, isGUID, isLightColor} from "../../src/core.js";
+import {mainFieldsTypes, maxFileSize} from "../../src/constants.js";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useQueryClient} from "react-query";
 import {

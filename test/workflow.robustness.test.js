@@ -6,7 +6,7 @@ import { insertData, editData } from 'data-primals-engine/modules/data';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser, getCollection } from 'data-primals-engine/modules/mongodb';
 import * as workflowModule from 'data-primals-engine/modules/workflow';
 import {initEngine} from "../src/setenv.js";
-import {maxExecutionsByStep} from "data-primals-engine/constants";
+import {maxExecutionsByStep} from "../src/constants.js";
 
 vi.mock('data-primals-engine/modules/workflow', { spy: true })
 

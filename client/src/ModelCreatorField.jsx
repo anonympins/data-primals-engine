@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-import {isLocalUser} from "data-primals-engine/data";
+import {isLocalUser} from "../../src/data.js";
 import {Trans, useTranslation} from "react-i18next";
 import {FaCircleInfo} from "react-icons/fa6";
 import {CheckboxField, CodeField, ColorField, NumberField, SelectField, TextField} from "./Field.jsx";
@@ -10,7 +10,7 @@ import {FaArrowDown, FaArrowUp, FaEdit, FaMinus, FaPlus, FaTrash} from "react-ic
 import CalculationBuilder from "./CalculationBuilder.jsx";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import Draggable from "./Draggable.jsx";
-import {mainFieldsTypes} from "data-primals-engine/constants";
+import {mainFieldsTypes} from "../../src/constants.js";
 
 function RelationModelSelector({relation, onChange, ...rest}) {
     const {models} = useModelContext()

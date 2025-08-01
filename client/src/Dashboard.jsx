@@ -10,8 +10,8 @@ import { SelectField } from "./Field.jsx";
 import {DashboardView} from "./DashboardView.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useParams, useSearchParams} from "react-router-dom";
-import {getObjectHash} from "data-primals-engine/core";
-import {getUserHash, getUserId} from "data-primals-engine/data";
+import {getObjectHash} from "../../src/core.js";
+import {getUserHash, getUserId} from "../../src/data.js";
 
 // --- DashboardsPage (Reste inchangé) ---
 export function DashboardsPage() {

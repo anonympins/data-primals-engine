@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { RTE } from './RTE.jsx';
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useQuery} from "react-query";
-import {getUserId} from "data-primals-engine/data";
+import {getUserId} from "../../src/data.js";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 
 const RTETrans = ({ value, onChange, field }) => {

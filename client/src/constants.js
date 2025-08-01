@@ -1,3 +1,4 @@
+import {host} from "../../src/constants.js";
 
 export const seoTitle = 'Self Data Hosting';
 

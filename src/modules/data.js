@@ -64,7 +64,7 @@ import {
 import fs from "node:fs";
 import schedule from "node-schedule";
 import {middleware} from "../middlewares/middleware-mongodb.js";
-import i18n from "data-primals-engine/i18n";
+import i18n from "../i18n.js";
 import {
     executeSafeJavascript,
     runScheduledJobWithDbLock,
