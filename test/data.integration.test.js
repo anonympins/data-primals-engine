@@ -1,14 +1,13 @@
 // __tests__/data.integration.test.js
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeEach, afterEach, beforeAll, afterAll, vi} from 'vitest';
+import {expect, describe, it, beforeEach, beforeAll} from 'vitest';
 import { Config } from '../src/config.js';
 
-// --- Importations des modules de votre application ---
 import {
     insertData,
     editData,
     deleteData,
-    getModel, searchData, installPack
+    searchData, installPack
 } from 'data-primals-engine/modules/data';
 
 import {
@@ -16,13 +15,8 @@ import {
     getCollection,
     getCollectionForUser as getAppUserCollection
 } from 'data-primals-engine/modules/mongodb';
-import { Engine } from "data-primals-engine/engine";
-import process from "node:process";
-import fs from "node:fs";
-import util from "node:util";
-import {getRandom} from "data-primals-engine/core";
-import {generateUniqueName, getUniquePort, initEngine} from "../src/setenv.js";
-import {MongoDatabase} from "../src/engine.js";
+import {getRandom} from "../src/core.js";
+import {generateUniqueName, initEngine} from "../src/setenv.js";
 
 let testModelsColInstance;
 let testDatasColInstance;

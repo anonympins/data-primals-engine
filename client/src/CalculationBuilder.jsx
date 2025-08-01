@@ -1,6 +1,6 @@
 import React, {useState, useEffect, useCallback, useRef} from 'react';
 import { FaPlus, FaTrash, FaEquals } from 'react-icons/fa';
-import {object_equals} from "data-primals-engine/core"; // Assuming this is a deep equality check
+import {object_equals} from "../../src/core.js"; // Assuming this is a deep equality check
 import CalculationStepRow from "./CalculationStepRow.jsx";
 import {getFieldDefinitionFromPath, isAtomicDateOperator} from "./core/data.js";
 import {MONGO_OPERATORS, OPERAND_TYPES} from "./constants.js";

@@ -1,9 +1,9 @@
 // ModelContext.jsx
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
 import { useQueries, useQuery } from 'react-query';
-import {getObjectHash} from "data-primals-engine/core";
+import {getObjectHash} from "../../../src/core.js";
 import {useAuthContext} from "./AuthContext.jsx";
-import {getUserHash, getUserId} from "data-primals-engine/data";
+import {getUserHash, getUserId} from "../../../src/data.js";
 import {useTranslation} from "react-i18next";
 import useLocalStorage from "../hooks/useLocalStorage.js";
 

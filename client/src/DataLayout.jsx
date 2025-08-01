@@ -27,10 +27,10 @@ import {
     FaPlus,
     FaTrash
 } from "react-icons/fa";
-import {getDefaultForType, getUserId} from "data-primals-engine/data";
+import {getDefaultForType, getUserId} from "../../src/data.js";
 import {Trans, useTranslation} from "react-i18next";
 
-import {debounce, escapeRegExp, event_trigger, getObjectHash, isGUID} from "data-primals-engine/core";
+import {debounce, escapeRegExp, event_trigger, getObjectHash, isGUID} from "../../src/core.js";
 import Button from "./Button.jsx";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import APIInfo from "./APIInfo.jsx";

@@ -1,4 +1,4 @@
-import i18n from "data-primals-engine/i18n";
+import i18n from "../i18n.js";
 import {MongoDatabase} from "../engine.js";
 import {getCollection, getCollectionForUser, getUserCollectionName} from "./mongodb.js";
 import {isLocalUser} from "../data.js";

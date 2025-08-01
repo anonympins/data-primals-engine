@@ -12,7 +12,7 @@ import {maxExecutionsByStep, maxWorkflowSteps, timeoutVM} from "../constants.js"
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
-import i18n from "data-primals-engine/i18n";
+import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';

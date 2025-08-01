@@ -15,7 +15,7 @@ import { useAuthContext } from "./contexts/AuthContext.jsx";
 import { DialogProvider } from "./Dialog.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import FlexDataRenderer from "./FlexDataRenderer.jsx";
-import {conditionToApiSearchFilter} from "data-primals-engine/data";
+import {conditionToApiSearchFilter} from "../../src/data.js";
 // --- MODIFICATION : Import de la fonction cssProps ---
 import { cssProps } from 'data-primals-engine/core';
 import {DashboardFlexViewItem} from "./DashboardFlexViewItem.jsx";

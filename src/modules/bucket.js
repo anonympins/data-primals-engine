@@ -9,7 +9,7 @@ import {Logger} from "../gameObject.js";
 import {middlewareAuthenticator, userInitiator} from "./user.js";
 import {awsDefaultConfig, maxBytesPerSecondThrottleData} from "../constants.js";
 import crypto from "node:crypto";
-import i18n from "data-primals-engine/i18n";
+import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
 

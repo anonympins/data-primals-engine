@@ -3,7 +3,7 @@ import {useModelContext} from './contexts/ModelContext';
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import Button from "./Button.jsx";
 import {Trans, useTranslation} from "react-i18next";
-import {getDefaultForType} from "data-primals-engine/data";
+import {getDefaultForType} from "../../src/data.js";
 import { CodeBlock, tomorrowNightBright } from 'react-code-blocks';
 import {mainFieldsTypes} from "../../src/constants.js";
 import {FaFile, FaPlay, FaRunning} from "react-icons/fa";

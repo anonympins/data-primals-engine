@@ -14,7 +14,7 @@ import i18n from 'i18next';
 
 import 'chartjs-adapter-date-fns';
 import {useModelContext} from "./contexts/ModelContext.jsx";
-import {isDate} from "data-primals-engine/core";
+import {isDate} from "../../src/core.js";
 import useWindowSize from "./hooks/useWindowSize.js";
 import useDebounce from "./hooks/useDebounce.js";
 

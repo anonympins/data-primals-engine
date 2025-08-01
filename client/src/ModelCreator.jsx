@@ -16,13 +16,13 @@ import {
     maxRequestData
 } from "../../src/constants.js";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-import {getUserHash, getUserId, isLocalUser} from "data-primals-engine/data";
+import {getUserHash, getUserId, isLocalUser} from "../../src/data.js";
 import {useNotificationContext} from "./NotificationProvider.jsx";
 import ConditionBuilder from './ConditionBuilder.jsx';
 import './ConditionBuilder.scss';
 import {Tooltip} from "react-tooltip";
 import {FaCircleInfo} from "react-icons/fa6";
-import i18n from "data-primals-engine/i18n";
+import i18n from "../../src/i18n.js";
 import Draggable from "./Draggable.jsx";
 import FlexBuilder from "./FlexBuilder.jsx";
 import {NavLink} from "react-router";

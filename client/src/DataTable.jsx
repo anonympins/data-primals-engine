@@ -4,7 +4,7 @@ import {Trans, useTranslation} from "react-i18next";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import React, {useEffect, useMemo, useRef, useState} from "react";
-import {getUserId} from "data-primals-engine/data";
+import {getUserId} from "../../src/data.js";
 import cronstrue from 'cronstrue/i18n';
 import {
     FaBook,
@@ -40,7 +40,7 @@ import {
 import RelationValue from "./RelationValue.jsx";
 import {FaPencil, FaTriangleExclamation} from "react-icons/fa6";
 import RestoreConfirmationModal from "./RestoreConfirmationModal.jsx";
-import {event_trigger, isLightColor} from "data-primals-engine/core";
+import {event_trigger, isLightColor} from "../../src/core.js";
 import {isConditionMet} from "./DataEditor.jsx";
 import {Tooltip} from "react-tooltip";
 import ExportDialog from "./ExportDialog.jsx";

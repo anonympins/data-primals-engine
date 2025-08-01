@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import './FlexBuilder.scss';
 import { useAuthContext } from "./contexts/AuthContext.jsx";
 import { useTranslation } from "react-i18next";
-import { applyFilter } from "data-primals-engine/data";
+import { applyFilter } from "../../src/data.js";
 import { FieldSelectorModal } from "./FlexNode.jsx";
 import { deepInsertNode, deepRemoveNode } from "./FlexBuilderUtils.js";
 import useDragAndDrop from './hooks/useDragAndDrop.js';

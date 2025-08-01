@@ -6,7 +6,7 @@ import { tutorialsConfig } from '../tutorials.js';
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import useLocalStorage from "./useLocalStorage.js";
-import { event_off, event_on } from "data-primals-engine/core";
+import { event_off, event_on } from "../../../src/core.js";
 
 /**
  * Hook pour gérer la logique des tutoriels multi-étapes.

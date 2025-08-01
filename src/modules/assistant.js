@@ -7,7 +7,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {searchData,  patchData, deleteData, insertData} from "./data.js";
 import { getDataAsString } from "../data.js";
-import i18n from "data-primals-engine/i18n";
+import i18n from "../../src/i18n.js";
 import {generateLimiter} from "./user.js";
 import rateLimit from "express-rate-limit";
 

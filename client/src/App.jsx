@@ -52,9 +52,9 @@ import {
 import {Helmet} from "react-helmet";
 import {useCookies, CookiesProvider} from "react-cookie";
 
-import { translations as allTranslations} from "data-primals-engine/i18n";
-import {getRandom} from "data-primals-engine/core";
-import {getUserHash} from "data-primals-engine/data";
+import { translations as allTranslations} from "../../src/i18n.js";
+import {getRandom} from "../../src/core.js";
+import {getUserHash} from "../../src/data.js";
 import {seoTitle} from "./constants.js";
 import {host} from "../../src/constants.js";
 import i18next from "i18next";

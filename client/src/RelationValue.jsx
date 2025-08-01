@@ -8,7 +8,7 @@ import {FaMagnifyingGlass} from "react-icons/fa6";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import {CodeField, ColorField} from "./Field.jsx";
 import { randomColor } from "randomcolor";
-import {getObjectHash, getRand, isLightColor, setSeed} from "data-primals-engine/core";
+import {getObjectHash, getRand, isLightColor, setSeed} from "../../src/core.js";
 
 const RelationValue = ({ field, data, align }) => {
     const { models, relations, setRelations, dataByModel, relationIds, setRelationIds, setDatasToLoad, datasToLoad } = useModelContext();

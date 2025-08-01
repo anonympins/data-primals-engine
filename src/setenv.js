@@ -1,4 +1,4 @@
-import {getRandom} from "data-primals-engine/core";
+import {getRandom} from "./core.js";
 import process from "node:process";
 import {Engine} from "./index.js";
 

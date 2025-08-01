@@ -5,10 +5,10 @@ import {useQuery} from "react-query";
 import {useLocation} from "react-router-dom";
 import {Helmet} from "react-helmet";
 import {useTranslation} from "react-i18next";
-import {getObjectHash} from "data-primals-engine/core";
+import {getObjectHash} from "../../src/core.js";
 import {useData} from "./hooks/data.js";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-import {getUserHash, getUserId} from "data-primals-engine/data";
+import {getUserHash, getUserId} from "../../src/data.js";
 
 
 function Webpage({children}) {

@@ -3,7 +3,7 @@
 import React from 'react';
 import {useTranslation} from "react-i18next";
 import {useModelContext} from "./contexts/ModelContext.jsx";
-import {getDataAsString} from "data-primals-engine/data";
+import {getDataAsString} from "../../src/data.js";
 
 
 const KanbanCard = ({ card, model, subItemsField }) => {

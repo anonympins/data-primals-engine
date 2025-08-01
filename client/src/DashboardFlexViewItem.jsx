@@ -4,7 +4,7 @@ import {useTranslation} from "react-i18next";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import React, {useEffect, useMemo, useRef} from "react";
 import {useQuery} from "react-query";
-import {conditionToApiSearchFilter} from "data-primals-engine/data";
+import {conditionToApiSearchFilter} from "../../src/data.js";
 import {FaSpinner} from "react-icons/fa";
 import {DisplayFlexNodeRenderer} from "./DisplayFlexNodeRenderer.jsx";
 
