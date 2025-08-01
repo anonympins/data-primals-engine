@@ -35,7 +35,6 @@ $color-completed-accent: #28a745; // Vert plus vif
   .tutorial-item {
     background-color: $color-item-bg;
     border: 1px solid $color-border;
-    z-index: -1;
     border-radius: 12px; // Coins plus arrondis pour un look moderne
     box-shadow: 0 4px 12px $color-shadow;
     padding: 1.5rem;

@@ -234,11 +234,14 @@ curl -X DELETE http://localhost:7633/api/data?_user=demo \
 
 Make sure you use the code below to initialize the user : 
 ```javascript
+import express from "express";
 import { Engine } from 'data-primals-engine/engine';
 import { insertData, searchData } from 'data-primals-engine/modules/data';
 
 // Ensure the engine is initialized
-const engine = await Engine.Create();
+
+const app = express();
+const engine = await Engine.Create({ app });
 const currentUser = await engine.userProvider.findUserByUsername('demo');
 if (!currentUser) {
     throw new Error("Could not retrieve the user. Please check credentials or user provider.");

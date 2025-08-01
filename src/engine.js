@@ -38,8 +38,7 @@ export const Engine = {
             engine.getComponent(Logger).info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
         };
 
-
-        const app = express();
+        const { app }  = options;
         // Allows you to set port in the project properties.
         app.set('port', process.env.PORT || 3000);
         app.set('engine', engine);
@@ -106,12 +105,8 @@ export const Engine = {
             engine._modules = e;
             return Promise.resolve();
         });
-        let server;
 
-        app.use(sirv('client/dist', {
-            single: true,
-            dev: process.env.NODE_ENV === 'development'
-        }));
+        let server;
 
         engine.start = async (port, cb) =>{
             // Use connect method to connect to the server
@@ -131,6 +126,18 @@ export const Engine = {
 
             if (cb)
                 await cb();
+
+            engine.get('/api/health', (req, res) => {
+                res.status(200).json({
+                    status: 'ok',
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            app.use(sirv('client/dist', {
+                single: true,
+                dev: process.env.NODE_ENV === 'development'
+            }));
 
             process.on('uncaughtException', function (exception) {
                 console.error(exception);
@@ -171,12 +178,6 @@ export const Engine = {
         engine.resetModels = async () => {
             await deleteModels();
         };
-        engine.get('/api/health', (req, res) => {
-            res.status(200).json({
-                status: 'ok',
-                timestamp: new Date().toISOString()
-            });
-        });
         return engine;
     }
 }
