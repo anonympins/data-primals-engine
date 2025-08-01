@@ -26,7 +26,7 @@ export const MongoDatabase = MongoClient.db(dbName);
 
 
 export const Engine = {
-    Create: async (options) => {
+    Create: async (options = { app : null}) => {
         const engine = GameObject.Create("Engine");
         console.log("Creating engine", Config.Get('modules'));
         engine.addComponent(Logger);
@@ -37,6 +37,10 @@ export const Engine = {
             engine.userProvider = providerInstance;
             engine.getComponent(Logger).info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
         };
+
+        if (!options.app) {
+            options.app = express();
+        }
 
         const { app }  = options;
         // Allows you to set port in the project properties.
