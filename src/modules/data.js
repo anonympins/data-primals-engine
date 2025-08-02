@@ -4042,7 +4042,7 @@ export const searchData = async ({user, query}) => {
                                                         $map: {
                                                             input: { $ifNull: ["$$convertedId", []] }, // On utilise le tableau d'IDs, ou un tableau vide s'il est null
                                                             as: "relationId",
-                                                            in: { convert: { input: '$$relationId', to: "string", onError: '' } }
+                                                            in: { $toString: "$$relationId" }
                                                         }
                                                     }]
                                                 } : {
