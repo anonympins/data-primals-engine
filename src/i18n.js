@@ -5,6 +5,9 @@ import LanguageDetector from "i18next-browser-languagedetector";
 export const translations = {
     fr: {
         translation: {
+            "datatable.advancedFilter.title": "Filtre avancé (MongoDB)",
+            "datatable.advancedFilter.desc": "Créez de toute pièce vos filtres avancés, avec les opérateurs d'aggrégation de MongoDB disponibles ici.",
+
             "editData": "Éditer dans {{0}}",
             "btns.duplicate": "Dupliquer",
             "btns.edit": "Modifier",
@@ -1237,6 +1240,10 @@ export const translations = {
     },
     en: {
         translation: {
+
+            "datatable.advancedFilter.title": "Advanced Filter (MongoDB)",
+            "datatable.advancedFilter.desc": "Create your own advanced filters from scratch, using MongoDB's aggregation operators available here.",
+
             "editData": "Edit in {{0}}",
             "btns.duplicate": "Duplicate",
             "btns.edit": "Edit",
@@ -2468,6 +2475,9 @@ export const translations = {
     },
     es: {
         translation: {
+            "datatable.advancedFilter.title": "Filtro avanzado (MongoDB)",
+            "datatable.advancedFilter.desc": "Cree sus propios filtros avanzados desde cero, utilizando los operadores de agregación de MongoDB disponibles aquí.",
+
             "editData": "Editar en {{0}}",
             "btns.duplicate": "Duplicar",
             "btns.edit": "Editar",
@@ -3734,6 +3744,9 @@ export const translations = {
     },
     pt: {
         translation: {
+            "datatable.advancedFilter.title": "Filtro Avançado (MongoDB)",
+            "datatable.advancedFilter.desc": "Crie os seus próprios filtros avançados a partir do zero, utilizando os operadores de agregação do MongoDB disponíveis aqui.",
+
             "editData": "Editar em {{0}}",
             "btns.duplicate": "Duplicar",
             "btns.edit": "Editar",
@@ -3803,6 +3816,8 @@ export const translations = {
     },
     de: {
         translation: {
+            "datatable.advancedFilter.title": "Erweiterter Filter (MongoDB)",
+            "datatable.advancedFilter.desc": "Erstellen Sie Ihre eigenen erweiterten Filter von Grund auf mit den hier verfügbaren Aggregationsoperatoren von MongoDB.",
             "editData": "Bearbeiten in {{0}}",
             "btns.duplicate": "Duplizieren",
             "btns.edit": "Bearbeiten",
@@ -4949,6 +4964,8 @@ export const translations = {
     },
     it: {
         translation: {
+            "datatable.advancedFilter.title": "Filtro avanzato (MongoDB)",
+            "datatable.advancedFilter.desc": "Crea i tuoi filtri avanzati da zero, utilizzando gli operatori di aggregazione di MongoDB disponibili qui.",
             "editData": "Modifica in {{0}}",
             "btns.duplicate": "Duplica",
             "btns.edit": "Modifica",
@@ -6148,6 +6165,8 @@ export const translations = {
     },
     cs: {
         translation: {
+            "datatable.advancedFilter.title": "Rozšířený filtr (MongoDB)",
+            "datatable.advancedFilter.desc": "Vytvořte si vlastní pokročilé filtry od nuly pomocí agregačních operátorů MongoDB dostupných zde.",
             "editData": "Upravit v {{0}}",
             "btns.duplicate": "Duplikovat",
             "btns.edit": "Upravit",
@@ -6992,6 +7011,8 @@ export const translations = {
     },
     ru: {
         translation: {
+            "datatable.advancedFilter.title": "Расширенный фильтр (MongoDB)",
+            "datatable.advancedFilter.desc": "Создайте свои собственные расширенные фильтры с нуля, используя операторы агрегации MongoDB, доступные здесь",
             "editData": "Редактировать в {{0}}",
             "btns.duplicate": "Дублировать",
             "btns.edit": "Редактировать",
@@ -8191,6 +8212,8 @@ export const translations = {
     },
     ar: {
         translation: {
+            "datatable.advancedFilter.title": "مرشح متقدم (MongoDB)",
+            "datatable.advancedFilter.desc": "أنشئ مرشحاتك المتقدمة من الصفر، باستخدام عوامل تجميع MongoDB المتوفرة هنا",
             "editData": "تعديل في {{0}}",
             "btns.duplicate": "تكرار",
             "btns.edit": "تعديل",
@@ -9440,6 +9463,8 @@ export const translations = {
     },
     sv: {
         translation: {
+            "datatable.advancedFilter.title": "Avancerat filter (MongoDB)",
+            "datatable.advancedFilter.desc": "Skapa dina egna avancerade filter från grunden med hjälp av MongoDBs aggregeringsoperatorer som finns här.",
             "editData": "Redigera i {{0}}",
             "btns.duplicate": "Duplicera",
             "btns.edit": "Redigera",
@@ -10587,6 +10612,8 @@ export const translations = {
     },
     el: {
         translation: {
+            "datatable.advancedFilter.title": "Προηγμένο Φίλτρο (MongoDB)",
+            "datatable.advancedFilter.desc": "Δημιουργήστε τα δικά σας προηγμένα φίλτρα από την αρχή, χρησιμοποιώντας τους τελεστές συνάθροισης της MongoDB που είναι διαθέσιμοι εδώ.",
             "editData": "Επεξεργασία στο {{0}}",
             "btns.duplicate": "Διπλότυπο",
             "btns.edit": "Επεξεργασία",
@@ -11720,6 +11747,8 @@ export const translations = {
     },
     fa: {
         translation: {
+            "datatable.advancedFilter.title": "فیلتر پیشرفته (MongoDB)",
+            "datatable.advancedFilter.desc": "با استفاده از عملگرهای تجمیع MongoDB که در اینجا موجود است، فیلترهای پیشرفته خود را از ابتدا ایجاد کنید.",
             "editData": "ویرایش در {{0}}",
             "btns.duplicate": "کپی",
             "btns.edit": "ویرایش",

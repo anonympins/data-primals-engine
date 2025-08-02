@@ -86,6 +86,14 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
         }else if (operator === '$find') {
             // Cas spécial pour $find qui prend une expression de recherche
             newValue = { [operator]: { $eq: ["", ""] } };
+        }else if (operator === '$regexMatch') {
+            // Structure spéciale pour $regexMatch
+            newValue = {
+                [operator]: {
+                    input: "",
+                    regex: ""
+                }
+            };
         }else if (opConfig.converter || (!opConfig.multi && !opConfig.args)) {
             newValue = { [operator]: "" };
         } else {
@@ -414,6 +422,54 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                             currentModelFields={currentModelFields}
                             isInFindContext={isInFindContext}
                         />
+                    </div>
+                </div>
+            );
+        }
+
+        if (opConfig.specialStructure) {
+            // Cas spécial pour les opérateurs comme $regexMatch
+            return (
+                <div className="expression-block special-structure-block">
+                    <div className="expression-header">
+                        <span className="operator">{operator}</span>
+                        {editing && (
+                            <div className="operator-selector-overlay">
+                                <OperatorSelector onSelect={handleOperatorSelect}/>
+                                <button type="button" onClick={() => setEditing(false)}>Annuler</button>
+                            </div>
+                        )}
+                        <div className="expression-actions">
+                            <button type="button" onClick={() => setEditing(!editing)}><FaRepeat/></button>
+                            <button type="button" onClick={() => openDoc(operator.substring(1))}><FaInfoCircle/></button>
+                            <button
+                                type="button"
+                                onClick={() => onChange(null, path)}
+                                className="remove-expr"
+                                title={i18n.t("cb.deleteBlock")}
+                            >
+                                <FaTrash/>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="special-structure-args">
+                        {Object.entries(args).map(([key, val]) => (
+                            <div key={key} className="special-arg">
+                                <label>{key}</label>
+                                <ExpressionField
+                                    value={val}
+                                    onChange={(newVal) => {
+                                        const newArgs = {...args, [key]: newVal};
+                                        onChange({[operator]: newArgs}, path);
+                                    }}
+                                    fieldNames={fieldNames}
+                                    path={[...path, operator, key]}
+                                    models={models}
+                                    currentModelFields={currentModelFields}
+                                    isInFindContext={isInFindContext}
+                                />
+                            </div>
+                        ))}
                     </div>
                 </div>
             );
