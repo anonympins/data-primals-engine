@@ -4038,9 +4038,9 @@ export const searchData = async ({user, query}) => {
                                                 {$eq: ["$_model", fi.relation]},
                                                 {$eq: ["$_user", user.username]},
                                                 fi.multiple ? {
-                                                    $in: [{$toString: "$_id"}, {$ifNull: ['$$convertedId', []]}]
+                                                    $in: [{$toString: "$_id"}, {$ifNull: [{$convert:{input:'$$convertedId',to:"string", onError: null}}, []]}]
                                                 } : {
-                                                    $eq: [{$toString: "$_id"}, '$$convertedId']
+                                                    $eq: [{$toString: "$_id"}, {$convert:{input:'$$convertedId',to:"string", onError: []}}]
                                                 }
                                             ]
                                         ]
