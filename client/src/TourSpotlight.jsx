@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './TourSpotlight.scss';
 import { useUI } from "./contexts/UIContext.jsx";
 import useLocalStorage from "./hooks/useLocalStorage.js";
+import {waitForElement} from "./core/dom.js";
 
 function debounce(func, wait) {
     let timeout;
@@ -39,27 +40,30 @@ function TourSpotlight({ name, steps = [], isOpen, onComplete, onClose, initialS
         }
     }, [isOpen, initialStepIndex]);
 
-    const calculateRectAndScroll = useCallback(() => {
+    const calculateRectAndScroll = useCallback( () => {
         if (!isOpen || !currentStep?.selector) {
             setTargetRect(null);
             return;
         }
 
-        const element = document.querySelector(currentStep.selector);
-        if (element) {
-            const rect = element.getBoundingClientRect();
-            if (!targetRect || rect.top !== targetRect.top || rect.left !== targetRect.left || rect.width !== targetRect.width || rect.height !== targetRect.height) {
-                setTargetRect(rect);
+        waitForElement(currentStep.selector).then(element => {
+            if (element) {
+                const rect = element.getBoundingClientRect();
+                if (!targetRect || rect.top !== targetRect.top || rect.left !== targetRect.left || rect.width !== targetRect.width || rect.height !== targetRect.height) {
+                    setTargetRect(rect);
+                }
+            } else {
+                console.warn(`[TourSpotlight] Élément cible non trouvé : ${currentStep.selector}`);
+                setTargetRect(null);
             }
-        } else {
-            console.warn(`[TourSpotlight] Élément cible non trouvé : ${currentStep.selector}`);
-            setTargetRect(null);
-        }
+        });
     }, [isOpen, currentStep?.selector, targetRect]);
 
     useEffect(() => {
         if (!isOpen || !name) return;
 
+
+        console.log({currentStep})
         if (!currentStep?.selector) {
             console.warn(`[TourSpotlight] Élément cible non défini pour le tour ${name}`);
             return;

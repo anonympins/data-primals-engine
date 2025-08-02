@@ -539,7 +539,7 @@ function DataLayout() {
         // Si un modèle est sélectionné...
         if (selectedModel) {
             // Récupérer les étapes du tour "datapacks"
-            const datapacksSteps = allTourSteps.datapacks;
+            const datapacksSteps = allTourSteps.guides;
             // S'assurer que ce tour existe et a des étapes
             if (datapacksSteps && datapacksSteps.length > 0) {
                 // 1. Définir les étapes du tour qui doit être affiché

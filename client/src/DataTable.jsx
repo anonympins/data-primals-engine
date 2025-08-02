@@ -356,7 +356,7 @@ export function DataTable({
                 <Button className="tourStep-import-datapack" onClick={handleShowPacks} title={t("btns.addPack")}><FaPlus/><Trans
                     i18nKey="btns.addPack">Packs...</Trans></Button>
 
-                <Button className={/^demo[0-9]{1,2}$/.test(me.username) ? "btn-primary" : "btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaPlus/><Trans
+                <Button className={"tourStep-tutorials " + (/^demo[0-9]{1,2}$/.test(me.username) ? "btn-primary" : "btn")} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaPlus/><Trans
                     i18nKey="btns.showTutos">Tutoriels</Trans></Button>
                 {!/^demo[0-9]{1,2}$/.test(me.username) && (<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
                     i18nKey="btns.backup">Backup</Trans></Button>)}

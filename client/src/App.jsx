@@ -495,7 +495,12 @@ function UserPage({notifs,triggerSignin, onAuthenticated}) {
                 position: 'bottom',
             },
         ],
-        datapacks: [
+        guides: [
+            {
+                selector: '.tourStep-tutorials',
+                content: t('tourpoint.tutorials'),
+                position: 'bottom'
+            },
             {
                 selector: '.tourStep-import-datapack',
                 content: t('tourpoint.importDatapack'),
