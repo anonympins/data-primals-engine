@@ -53,7 +53,7 @@ export const MONGO_OPERATORS = {
 export const profiles = {
     'personal': ['contact', 'location', 'imageGallery', 'budget', 'currency', 'taxonomy'], // budget,
     'developer': ['alert','endpoint','request','webpage', 'content', 'taxonomy', 'resource', 'translation', 'contact', 'location', 'channel', 'lang', 'token', 'message', 'ticket', 'user', 'permission', 'role'],
-    'company': ['alert','request','location', 'campaign', 'order', 'currency', 'product', 'cart', 'cartItem', 'invoice', 'messaging', 'user', 'role', 'permission', 'token','translation', 'lang', 'webpage', 'content', 'taxonomy', 'contact', 'resource', 'accountingExercise', 'accountingLineItem', 'accountingEntry', 'employee', 'kpi', 'dashboard'],
+    'company': ['alert','request','location', 'campaign', 'order', 'currency', 'product', 'cart', 'cartItem', 'invoice', 'message', 'user', 'role', 'permission', 'token','translation', 'lang', 'webpage', 'content', 'taxonomy', 'contact', 'resource', 'accountingExercise', 'accountingLineItem', 'accountingEntry', 'employee', 'kpi', 'dashboard'],
     'engineer': ['alert','endpoint','request','dashboard', 'kpi', 'user', 'role', 'token', 'permission', 'workflow', 'workflowRun', 'workflowStep', "channel", "message", 'workflowAction', 'workflowTrigger']
 }
 

@@ -9,13 +9,13 @@ import cronstrue from 'cronstrue/i18n';
 import {
     FaBook,
     FaCopy,
-    FaDatabase,
+    FaDatabase, FaEraser,
     FaFileExport,
     FaFileImport,
     FaFilter,
     FaInfo,
     FaPlus,
-    FaTrash
+    FaTrash, FaWrench
 } from "react-icons/fa";
 import {useNotificationContext} from "./NotificationProvider.jsx";
 import {
@@ -38,7 +38,7 @@ import {
     TextField
 } from "./Field.jsx";
 import RelationValue from "./RelationValue.jsx";
-import {FaPencil, FaTriangleExclamation} from "react-icons/fa6";
+import {FaGear, FaPencil, FaTriangleExclamation} from "react-icons/fa6";
 import RestoreConfirmationModal from "./RestoreConfirmationModal.jsx";
 import {event_trigger, isLightColor} from "../../src/core.js";
 import {isConditionMet} from "./DataEditor.jsx";
@@ -54,6 +54,8 @@ import TutorialsMenu from "../src/TutorialsMenu.jsx";
 import {useTutorials} from "./hooks/useTutorials.jsx";
 import PackGallery from "./PackGallery.jsx";
 import {HiddenableCell} from "./HiddenableCell.jsx";
+import ConditionBuilder from "./ConditionBuilder.jsx";
+import {pagedFilterToMongoConds} from "./filter.js";
 
 // Ajoutez cette constante pour la clé de sessionStorage
 const SESSION_STORAGE_IMPORT_JOBS_KEY = 'activeImportJobs';
@@ -71,19 +73,29 @@ const Header = ({
                     filterValues
                 }) => {
 
+    const {t} = useTranslation()
     const { me } = useAuthContext()
     const {
         models,
         countByModel,
         selectedModel,
         setPagedFilters,
+        pagedFilters,
         page
     } = useModelContext();
     let totalCol = 0;
+
+    const [advancedFilterVisible, setAdvancedFilterVisible] = useState(false);
+
+    const handleAdvancedFilter = () => {
+        setAdvancedFilterVisible(true);
+    }
     return <><tr className={reversed ? ' reversed' : ''}>
         <th className={"mini"}>
             <div className="flex flex-row">
+
                 <Button onClick={handleFilter} className={filterActive ? ' active' : ''}><FaFilter/></Button>
+                {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
                 <CheckboxField checked={checkedItems.length === data.length} onChange={e => {
                     if (checkedItems.length === data.length) {
                         setCheckedItems([]);
@@ -91,6 +103,27 @@ const Header = ({
                         setCheckedItems(data);
                     }
                 }}/>
+
+                <DialogProvider>
+                    {advancedFilterVisible && (
+                        <Dialog title={t("datatable.advancedFilter.title")} isClosable={true} onClose={() => setAdvancedFilterVisible(false)}>
+                            <h3>Edit filter</h3>
+                            <div className="msg">
+                                <Trans i18nKey={"datatable.advancedFilter.desc"}>{t("datatable.advancedFilter.desc")}</Trans>
+                            </div>
+                            <ConditionBuilder onChange={(c) => {
+                                setPagedFilters(pagedFilters => ({
+                                    ...pagedFilters,
+                                    [model.name]: c || pagedFilters[model.name] || {} }));
+                            }} initialValue={{ $and: pagedFilterToMongoConds(pagedFilters, model)}} models={models} model={model.name} checkedItems={checkedItems} setCheckedItems={setCheckedItems} data={data} filterActive={filterActive} onChangeFilterValue={onChangeFilterValue} setFilterValues={setFilterValues}/>
+                            <Button onClick={() =>{
+                                setPagedFilters(pagedFilters => ({
+                                    ...pagedFilters,
+                                    [model.name]: {}}));
+                            }}><Trans i18nKey={"btns.reset"}>Reset</Trans></Button>
+                        </Dialog>
+                    )}
+                </DialogProvider>
             </div>
         </th>
         {model.fields.map(field => {
@@ -114,11 +147,12 @@ const Header = ({
                                 onChangeFilterValue={onChangeFilterValue}/>;
         })}
         <th><Trans i18nKey="actions">Actions</Trans>
-            {filterActive && <div>
+            {Object.keys(pagedFilters[model.name] || {})
+                .filter(f=> Object.keys(pagedFilters[model.name]?.[f] || {}).length > 0).length > 0  && <div>
                 <button onClick={() => {
                     setFilterValues({});
                     setPagedFilters(pagedFilters => ({...pagedFilters, [model.name]: {}}));
-                }}>x
+                }}><FaEraser />
                 </button>
             </div>}</th>
     </tr>
@@ -137,6 +171,7 @@ export function DataTable({
                               setCheckedItems,
                               onEdit,
                               onAddData,
+                              onDuplicateData,
                               onDelete,
                               onShowAPI,
                               filterValues,
@@ -229,7 +264,7 @@ export function DataTable({
 
     const onChangeFilterValue = (field, value, tr) => {
         setPagedFilters(pagedFilters => ({
-            [model.name]: {...pagedFilters[model.name] || {}, [field.name]: value || undefined}
+            ...pagedFilters, [model.name]: {...pagedFilters[model.name] || {}, [field.name]: value || pagedFilters[model.name]?.[field.name] || undefined}
         }));
         queryClient.invalidateQueries(['api/data', model.name, 'page', page, elementsPerPage, pagedFilters[model.name], pagedSort[model.name]]);
     }
@@ -344,6 +379,22 @@ export function DataTable({
     if (!model)
         return <></>;
 
+    // NOUVEAU : La fonction qui gère la duplication
+    const handleDuplicate = (originalData) => {
+        // 1. Créer une copie superficielle des données de la ligne
+        const dataToDuplicate = { ...originalData };
+
+        // 2. TRÈS IMPORTANT : Supprimer les champs qui ne doivent pas être copiés.
+        //    - L'_id doit être supprimé pour que le système sache qu'il s'agit d'une NOUVELLE entrée.
+        //    - Le _hash sera recalculé par le backend.
+        //    - Les dates de création/mise à jour seront gérées par le backend.
+        delete dataToDuplicate._id;
+        delete dataToDuplicate._hash;
+        delete dataToDuplicate.createdAt; // si ce champ existe
+        delete dataToDuplicate.updatedAt; // si ce champ existe
+
+        onDuplicateData(dataToDuplicate);
+    };
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
             {<div className="flex actions flex-left">
@@ -356,7 +407,7 @@ export function DataTable({
                 <Button className="tourStep-import-datapack" onClick={handleShowPacks} title={t("btns.addPack")}><FaPlus/><Trans
                     i18nKey="btns.addPack">Packs...</Trans></Button>
 
-                <Button className={/^demo[0-9]{1,2}$/.test(me.username) ? "btn-primary" : "btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaPlus/><Trans
+                <Button className={"tourStep-tutorials " + (/^demo[0-9]{1,2}$/.test(me.username) ? "btn-primary" : "btn")} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaPlus/><Trans
                     i18nKey="btns.showTutos">Tutoriels</Trans></Button>
                 {!/^demo[0-9]{1,2}$/.test(me.username) && (<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
                     i18nKey="btns.backup">Backup</Trans></Button>)}
@@ -373,6 +424,7 @@ export function DataTable({
             </div>}
             <div className="table-wrapper">
                 <Tooltip id={"tooltipFile"} clickable={true} />
+                <Tooltip id={"tooltipActions"} />
                 <Lightbox
                     inline={{
                         style: { width: "100%", maxWidth: "900px", aspectRatio: "3 / 2" },
@@ -591,8 +643,19 @@ export function DataTable({
                                             {hiddenable(item[field.name])}</td>;
                                     })}
                                     <td>
-                                        <button onClick={() => handleEdit(item)}><FaPencil/></button>
-                                        <button onClick={() => handleDelete(item)}><FaTrash/></button>
+                                        <button data-tooltip-id="tooltipActions"
+                                                data-tooltip-content={t('btns.edit', 'Modifier')}
+                                                onClick={() => handleEdit(item)}><FaPencil/></button>
+                                        <button
+                                            onClick={() => handleDuplicate(item)}
+                                            data-tooltip-id="tooltipActions"
+                                            data-tooltip-content={t('btns.duplicate', 'Dupliquer')}
+                                        >
+                                            <FaCopy/>
+                                        </button>
+                                        <button data-tooltip-id="tooltipActions"
+                                                data-tooltip-content={t('btns.delete', 'Supprimer')}
+                                                onClick={() => handleDelete(item)}><FaTrash/></button>
                                     </td>
                                 </tr>
                             </DialogProvider></>
@@ -600,7 +663,11 @@ export function DataTable({
                         </tbody>
 
                         <tfoot>
-                        {data.length > 10 && (<Header reversed={true} model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>)}
+                        {data.length > 10 && (<Header reversed={true} model={model} setCheckedItems={setCheckedItems}
+                                                      filterValues={filterValues} data={data}
+                                                      setFilterValues={setFilterValues}
+                                                      onChangeFilterValue={onChangeFilterValue}
+                                                      checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>)}
                         </tfoot>
 
                     </table>)}

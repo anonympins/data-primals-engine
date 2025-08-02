@@ -5,7 +5,13 @@ import LanguageDetector from "i18next-browser-languagedetector";
 export const translations = {
     fr: {
         translation: {
+            "datatable.advancedFilter.title": "Filtre avancé (MongoDB)",
+            "datatable.advancedFilter.desc": "Créez de toute pièce vos filtres avancés, avec les opérateurs d'aggrégation de MongoDB disponibles ici.",
 
+            "editData": "Éditer dans {{0}}",
+            "btns.duplicate": "Dupliquer",
+            "btns.edit": "Modifier",
+            "btns.delete": "Supprimer",
             "field_return_status_hint": "Le statut actuel de la demande de retour (ex: Demandé, Approuvé, Remboursé).",
             "field_workflowRun_completedAt_hint": "Horodatage de la fin de l'exécution (réussie ou échouée).",
             "field_employee_socialSecurityNumber_hint": "Numéro de sécurité sociale de l'employé.",
@@ -1235,6 +1241,13 @@ export const translations = {
     en: {
         translation: {
 
+            "datatable.advancedFilter.title": "Advanced Filter (MongoDB)",
+            "datatable.advancedFilter.desc": "Create your own advanced filters from scratch, using MongoDB's aggregation operators available here.",
+
+            "editData": "Edit in {{0}}",
+            "btns.duplicate": "Duplicate",
+            "btns.edit": "Edit",
+            "btns.delete": "Delete",
             "field_workflowRun_completedAt_hint": "Timestamp of when the execution ended (successfully or failed).",
             "field_employee_socialSecurityNumber_hint": "Employee's social security number.",
 
@@ -2462,6 +2475,13 @@ export const translations = {
     },
     es: {
         translation: {
+            "datatable.advancedFilter.title": "Filtro avanzado (MongoDB)",
+            "datatable.advancedFilter.desc": "Cree sus propios filtros avanzados desde cero, utilizando los operadores de agregación de MongoDB disponibles aquí.",
+
+            "editData": "Editar en {{0}}",
+            "btns.duplicate": "Duplicar",
+            "btns.edit": "Editar",
+            "btns.delete": "Eliminar",
             "field_return_status_hint": "El estado actual de la solicitud de devolución (ej: Solicitado, Aprobado, Reembolsado).",
             "field_workflowRun_completedAt_hint": "Marca de tiempo del final de la ejecución (exitosa o fallida).",
             "field_employee_socialSecurityNumber_hint": "Número de seguridad social del empleado.",
@@ -3724,6 +3744,13 @@ export const translations = {
     },
     pt: {
         translation: {
+            "datatable.advancedFilter.title": "Filtro Avançado (MongoDB)",
+            "datatable.advancedFilter.desc": "Crie os seus próprios filtros avançados a partir do zero, utilizando os operadores de agregação do MongoDB disponíveis aqui.",
+
+            "editData": "Editar em {{0}}",
+            "btns.duplicate": "Duplicar",
+            "btns.edit": "Editar",
+            "btns.delete": "Apagar",
             "assistant.type": "Digite sua mensagem...",
             "assistant.welcome": "Olá! Como posso ajudá-lo com seus dados?",
             "assistant.named": "Assistente {{named}}",
@@ -3789,6 +3816,12 @@ export const translations = {
     },
     de: {
         translation: {
+            "datatable.advancedFilter.title": "Erweiterter Filter (MongoDB)",
+            "datatable.advancedFilter.desc": "Erstellen Sie Ihre eigenen erweiterten Filter von Grund auf mit den hier verfügbaren Aggregationsoperatoren von MongoDB.",
+            "editData": "Bearbeiten in {{0}}",
+            "btns.duplicate": "Duplizieren",
+            "btns.edit": "Bearbeiten",
+            "btns.delete": "Löschen",
             "field_workflowRun_completedAt_hint": "Zeitstempel des Abschlusses (erfolgreich oder fehlgeschlagen).",
             "field_employee_socialSecurityNumber_hint": "Sozialversicherungsnummer des Mitarbeiters.",
             "field_shipment_order_hint": "Die mit dieser Sendung verknüpfte Bestellung.",
@@ -4931,6 +4964,12 @@ export const translations = {
     },
     it: {
         translation: {
+            "datatable.advancedFilter.title": "Filtro avanzato (MongoDB)",
+            "datatable.advancedFilter.desc": "Crea i tuoi filtri avanzati da zero, utilizzando gli operatori di aggregazione di MongoDB disponibili qui.",
+            "editData": "Modifica in {{0}}",
+            "btns.duplicate": "Duplica",
+            "btns.edit": "Modifica",
+            "btns.delete": "Elimina",
             "field_workflowRun_completedAt_hint": "Timestamp del termine dell'esecuzione (successo o fallimento).",
             "field_employee_socialSecurityNumber_hint": "Numero di previdenza sociale del dipendente.",
             "field_shipment_order_hint": "L'ordine associato a questa spedizione.",
@@ -6126,6 +6165,12 @@ export const translations = {
     },
     cs: {
         translation: {
+            "datatable.advancedFilter.title": "Rozšířený filtr (MongoDB)",
+            "datatable.advancedFilter.desc": "Vytvořte si vlastní pokročilé filtry od nuly pomocí agregačních operátorů MongoDB dostupných zde.",
+            "editData": "Upravit v {{0}}",
+            "btns.duplicate": "Duplikovat",
+            "btns.edit": "Upravit",
+            "btns.delete": "Smazat",
             "field_return_status_hint": "Aktuální stav žádosti o vrácení (např.: Požadováno, Schváleno, Vráceno).",
             "field_workflowRun_completedAt_hint": "Časové razítko dokončení provedení (úspěšného nebo neúspěšného).",
             "field_employee_socialSecurityNumber_hint": "Rodné číslo zaměstnance.",
@@ -6966,6 +7011,12 @@ export const translations = {
     },
     ru: {
         translation: {
+            "datatable.advancedFilter.title": "Расширенный фильтр (MongoDB)",
+            "datatable.advancedFilter.desc": "Создайте свои собственные расширенные фильтры с нуля, используя операторы агрегации MongoDB, доступные здесь",
+            "editData": "Редактировать в {{0}}",
+            "btns.duplicate": "Дублировать",
+            "btns.edit": "Редактировать",
+            "btns.delete": "Удалить",
             "field_workflowRun_completedAt_hint": "Метка времени завершения выполнения (успешного или неудачного).",
             "field_employee_socialSecurityNumber_hint": "Номер социального страхования сотрудника.",
             "field_shipment_order_hint": "Заказ, связанный с этой отгрузкой.",
@@ -8161,7 +8212,12 @@ export const translations = {
     },
     ar: {
         translation: {
-
+            "datatable.advancedFilter.title": "مرشح متقدم (MongoDB)",
+            "datatable.advancedFilter.desc": "أنشئ مرشحاتك المتقدمة من الصفر، باستخدام عوامل تجميع MongoDB المتوفرة هنا",
+            "editData": "تعديل في {{0}}",
+            "btns.duplicate": "تكرار",
+            "btns.edit": "تعديل",
+            "btns.delete": "حذف",
             "field_return_status_hint": "الحالة الحالية لطلب الإرجاع (مثال: مطلوب، معتمد، تم استرداده).",
             "field_workflowRun_completedAt_hint": "طابع زمني لانتهاء التنفيذ (نجاحًا أو فشلًا).",
             "field_employee_socialSecurityNumber_hint": "رقم الضمان الاجتماعي للموظف.",
@@ -9407,7 +9463,12 @@ export const translations = {
     },
     sv: {
         translation: {
-
+            "datatable.advancedFilter.title": "Avancerat filter (MongoDB)",
+            "datatable.advancedFilter.desc": "Skapa dina egna avancerade filter från grunden med hjälp av MongoDBs aggregeringsoperatorer som finns här.",
+            "editData": "Redigera i {{0}}",
+            "btns.duplicate": "Duplicera",
+            "btns.edit": "Redigera",
+            "btns.delete": "Ta bort",
             "field_return_status_hint": "Den aktuella statusen för returförfrågan (t.ex. Begärd, Godkänd, Återbetald).",
             "field_workflowRun_completedAt_hint": "Tidsstämpel för när körningen avslutades (lyckad eller misslyckad).",
             "field_employee_socialSecurityNumber_hint": "Anställds personnummer.",
@@ -10551,6 +10612,12 @@ export const translations = {
     },
     el: {
         translation: {
+            "datatable.advancedFilter.title": "Προηγμένο Φίλτρο (MongoDB)",
+            "datatable.advancedFilter.desc": "Δημιουργήστε τα δικά σας προηγμένα φίλτρα από την αρχή, χρησιμοποιώντας τους τελεστές συνάθροισης της MongoDB που είναι διαθέσιμοι εδώ.",
+            "editData": "Επεξεργασία στο {{0}}",
+            "btns.duplicate": "Διπλότυπο",
+            "btns.edit": "Επεξεργασία",
+            "btns.delete": "Διαγραφή",
             "field_workflowRun_completedAt_hint": "Χρονική σήμανση της ολοκλήρωσης της εκτέλεσης (επιτυχής ή αποτυχημένη).",
             "field_employee_socialSecurityNumber_hint": "Ο αριθμός κοινωνικής ασφάλισης του υπαλλήλου.",
             "field_shipment_order_hint": "Η παραγγελία που σχετίζεται με αυτήν την αποστολή.",
@@ -11680,6 +11747,12 @@ export const translations = {
     },
     fa: {
         translation: {
+            "datatable.advancedFilter.title": "فیلتر پیشرفته (MongoDB)",
+            "datatable.advancedFilter.desc": "با استفاده از عملگرهای تجمیع MongoDB که در اینجا موجود است، فیلترهای پیشرفته خود را از ابتدا ایجاد کنید.",
+            "editData": "ویرایش در {{0}}",
+            "btns.duplicate": "کپی",
+            "btns.edit": "ویرایش",
+            "btns.delete": "حذف",
             "field_return_status_hint": "وضعیت فعلی درخواست مرجوعی (مثال: درخواست شده، تأیید شده، مسترد شده).",
             "field_workflowRun_completedAt_hint": "مهر زمانی پایان اجرا (موفق یا ناموفق).",
             "field_employee_socialSecurityNumber_hint": "شماره تأمین اجتماعی کارمند.",

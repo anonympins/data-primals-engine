@@ -7,6 +7,12 @@ export const MONGO_CALC_OPERATORS = {
         multi: false,
         isFindOperator: true // Nouvelle propriété pour identifier les opérateurs $find
     },
+    '$regexMatch': {
+        label: 'Find by regex',
+        description: 'Find a string matching a regular expression (Ecmascript)',
+        args: 2, // input et regex
+        specialStructure: true // Indique une structure spéciale
+    },
     $and: { label: 'Et (and)', description: 'Renvoie vrai si toutes les conditions sont vérifiées', args: 1, multi: true },
     $or: { label: 'Ou (or)', description: 'Renvoie vrai si au moins une des conditions est vérifiée.', args: 1, multi: true },
     $not: { label: 'Non (not)', description: 'Inverse la condition (ex: non égal à).', args: 1, multi: true },
@@ -57,7 +63,7 @@ export const MONGO_CALC_OPERATORS = {
     $toBool: { label: 'toBool', multi: false, converter: true },
     $toString: { label: 'toString', multi: false, converter: true },
     $toInt: { label: 'toInt', multi: false, converter: true },
-    $toDouble: { label: 'toDouble', multi: false, converter: true },
+    $toDouble: { label: 'toDouble', multi: false, converter: true }
 };
 
 export const convertInputValue = (value) => {
@@ -219,4 +225,37 @@ export const buildRootFromExpr = (query) => {
     if (parsedRoot.$and || parsedRoot.$or) return parsedRoot;
 
     return { $and: [parsedRoot] };
+};
+
+export const pagedFilterToMongoConds = (pagedFilters, model) => {
+    const modelFilter = pagedFilters?.[model.name] || {};
+    const filterKeys = Object.keys(modelFilter);
+
+    // Si le filtre est vide, on retourne un tableau vide.
+    if (filterKeys.length === 0) {
+        return [];
+    }
+
+    // Détecte si c'est un filtre avancé (contient des opérateurs logiques de haut niveau comme $and, $or, etc.)
+    const isAdvancedFilter = filterKeys.some(key => key.startsWith('$'));
+
+    if (isAdvancedFilter) {
+        // C'est un filtre avancé du ConditionBuilder.
+        // Il est déjà une condition MongoDB complète. On le met dans un tableau pour l'insérer dans le $and global.
+        // Si le filtre avancé est vide (ex: { $and: [] }), on le retourne quand même pour que le ConditionBuilder puisse s'initialiser correctement.
+        return [modelFilter];
+    } else {
+        // C'est un filtre simple (par colonne).
+        // On transforme { champ1: cond1, champ2: cond2 } en [{ champ1: cond1 }, { champ2: cond2 }]
+        const c = [];
+        filterKeys.forEach(fieldName => {
+            if (model.fields.some(f => f.name === fieldName)) {
+                const condition = modelFilter[fieldName];
+                if (condition && typeof condition === 'object' && Object.keys(condition).length > 0) {
+                    c.push(condition);
+                }
+            }
+        });
+        return c;
+    }
 };

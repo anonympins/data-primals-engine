@@ -4038,9 +4038,18 @@ export const searchData = async ({user, query}) => {
                                                 {$eq: ["$_model", fi.relation]},
                                                 {$eq: ["$_user", user.username]},
                                                 fi.multiple ? {
-                                                    $in: [{$toString: "$_id"}, {$ifNull: ['$$convertedId', []]}]
+                                                    $in: [{ $toString: "$_id" }, {
+                                                        $map: {
+                                                            input: { $ifNull: ["$$convertedId", []] }, // On utilise le tableau d'IDs, ou un tableau vide s'il est null
+                                                            as: "relationId",
+                                                            in: { $toString: "$$relationId" }
+                                                        }
+                                                    }]
                                                 } : {
-                                                    $eq: [{$toString: "$_id"}, '$$convertedId']
+                                                    $eq: [
+                                                        { $toString: "$_id" },
+                                                        { $convert: { input: '$$convertedId', to: "string", onError: '' } }
+                                                    ]
                                                 }
                                             ]
                                         ]
@@ -4315,6 +4324,7 @@ export const searchData = async ({user, query}) => {
             } else if (fi.type === 'array') {
                 // Handle array filtering here
                 if (data[fi.name]) {
+                    console.log('array filtering', data[fi.name]);
                     pipelines.push({
                         $match: {
                             $expr: {
@@ -4350,6 +4360,7 @@ export const searchData = async ({user, query}) => {
 
     let pipelines = [];
     if( allIds.length ){
+        console.log({allIds});
         const id = {$in: ["$_id", allIds.map(m => new ObjectId(m))]};
         pipelines.push({
             $match: { $expr: id }

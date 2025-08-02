@@ -508,7 +508,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
         return <p>Sélectionnez un modèle pour afficher le formulaire.</p>;
     }
 
-    const title = record ? t('btns.editModel', `Edit ${model.name}`) : `${t('add_in_model')} ${t(`model_${model.name}`, model.name)}`;
+    const title = record ? t('editData', 'Edit {{0}}', [model.name]) : `${t('add_in_model')} ${t(`model_${model.name}`, model.name)}`;
 
     const hint = (model, field) => <div className="hint-icon"><FaCircleInfo data-field={t(`field_${model.name}_${field.name}`, field.name)} data-tooltip-id={`tooltipHint`} data-tooltip-content={i18n.t(`field_${model.name}_${field.name}_hint`, field.hint || '')} /></div>
 

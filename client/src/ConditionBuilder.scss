@@ -563,6 +563,8 @@
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .switch-to-expr {
@@ -669,4 +671,26 @@
   margin-left: 20px;
   border-left: 2px solid #eee;
   padding-left: 10px;
+}
+
+.special-structure-block {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 5px 0;
+}
+
+.special-structure-args {
+  margin-top: 10px;
+}
+
+.special-arg {
+  margin-bottom: 8px;
+}
+
+.special-arg label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #555;
 }
