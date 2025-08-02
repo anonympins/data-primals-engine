@@ -64,6 +64,8 @@ export const emailDefaultConfig = {
     pass: 'password'
 }
 
+export const useAI = true;
+
 /**
  * Maximum number of models per user
  * @type {number}

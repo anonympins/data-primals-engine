@@ -56,7 +56,7 @@ import { translations as allTranslations} from "../../src/i18n.js";
 import {getRandom} from "../../src/core.js";
 import {getUserHash} from "../../src/data.js";
 import {seoTitle} from "./constants.js";
-import {host} from "../../src/constants.js";
+import {host, useAI} from "../../src/constants.js";
 import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
 
@@ -138,8 +138,8 @@ function Layout ({header, translationMutation, routes, body, footer}) {
                 const availableKeys = response.data;
 
                 const newConfig = {
-                    openai: availableKeys.find(key => key.name === 'OPENAI_API_KEY')?.value || process.env.OPENAI_API_KEY,
-                    google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value || process.env.GOOGLE_API_KEY,
+                    openai: availableKeys.find(key => key.name === 'OPENAI_API_KEY')?.value || (useAI ? process.env.OPENAI_API_KEY : undefined),
+                    google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value || (useAI ? process.env.GOOGLE_API_KEY : undefined),
                 };
 
 
