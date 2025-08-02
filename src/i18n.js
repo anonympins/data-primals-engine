@@ -5,7 +5,10 @@ import LanguageDetector from "i18next-browser-languagedetector";
 export const translations = {
     fr: {
         translation: {
-
+            "editData": "Éditer dans {{0}}",
+            "btns.duplicate": "Dupliquer",
+            "btns.edit": "Modifier",
+            "btns.delete": "Supprimer",
             "field_return_status_hint": "Le statut actuel de la demande de retour (ex: Demandé, Approuvé, Remboursé).",
             "field_workflowRun_completedAt_hint": "Horodatage de la fin de l'exécution (réussie ou échouée).",
             "field_employee_socialSecurityNumber_hint": "Numéro de sécurité sociale de l'employé.",
@@ -1234,7 +1237,10 @@ export const translations = {
     },
     en: {
         translation: {
-
+            "editData": "Edit in {{0}}",
+            "btns.duplicate": "Duplicate",
+            "btns.edit": "Edit",
+            "btns.delete": "Delete",
             "field_workflowRun_completedAt_hint": "Timestamp of when the execution ended (successfully or failed).",
             "field_employee_socialSecurityNumber_hint": "Employee's social security number.",
 
@@ -2462,6 +2468,10 @@ export const translations = {
     },
     es: {
         translation: {
+            "editData": "Editar en {{0}}",
+            "btns.duplicate": "Duplicar",
+            "btns.edit": "Editar",
+            "btns.delete": "Eliminar",
             "field_return_status_hint": "El estado actual de la solicitud de devolución (ej: Solicitado, Aprobado, Reembolsado).",
             "field_workflowRun_completedAt_hint": "Marca de tiempo del final de la ejecución (exitosa o fallida).",
             "field_employee_socialSecurityNumber_hint": "Número de seguridad social del empleado.",
@@ -3724,6 +3734,10 @@ export const translations = {
     },
     pt: {
         translation: {
+            "editData": "Editar em {{0}}",
+            "btns.duplicate": "Duplicar",
+            "btns.edit": "Editar",
+            "btns.delete": "Apagar",
             "assistant.type": "Digite sua mensagem...",
             "assistant.welcome": "Olá! Como posso ajudá-lo com seus dados?",
             "assistant.named": "Assistente {{named}}",
@@ -3789,6 +3803,10 @@ export const translations = {
     },
     de: {
         translation: {
+            "editData": "Bearbeiten in {{0}}",
+            "btns.duplicate": "Duplizieren",
+            "btns.edit": "Bearbeiten",
+            "btns.delete": "Löschen",
             "field_workflowRun_completedAt_hint": "Zeitstempel des Abschlusses (erfolgreich oder fehlgeschlagen).",
             "field_employee_socialSecurityNumber_hint": "Sozialversicherungsnummer des Mitarbeiters.",
             "field_shipment_order_hint": "Die mit dieser Sendung verknüpfte Bestellung.",
@@ -4931,6 +4949,10 @@ export const translations = {
     },
     it: {
         translation: {
+            "editData": "Modifica in {{0}}",
+            "btns.duplicate": "Duplica",
+            "btns.edit": "Modifica",
+            "btns.delete": "Elimina",
             "field_workflowRun_completedAt_hint": "Timestamp del termine dell'esecuzione (successo o fallimento).",
             "field_employee_socialSecurityNumber_hint": "Numero di previdenza sociale del dipendente.",
             "field_shipment_order_hint": "L'ordine associato a questa spedizione.",
@@ -6126,6 +6148,10 @@ export const translations = {
     },
     cs: {
         translation: {
+            "editData": "Upravit v {{0}}",
+            "btns.duplicate": "Duplikovat",
+            "btns.edit": "Upravit",
+            "btns.delete": "Smazat",
             "field_return_status_hint": "Aktuální stav žádosti o vrácení (např.: Požadováno, Schváleno, Vráceno).",
             "field_workflowRun_completedAt_hint": "Časové razítko dokončení provedení (úspěšného nebo neúspěšného).",
             "field_employee_socialSecurityNumber_hint": "Rodné číslo zaměstnance.",
@@ -6966,6 +6992,10 @@ export const translations = {
     },
     ru: {
         translation: {
+            "editData": "Редактировать в {{0}}",
+            "btns.duplicate": "Дублировать",
+            "btns.edit": "Редактировать",
+            "btns.delete": "Удалить",
             "field_workflowRun_completedAt_hint": "Метка времени завершения выполнения (успешного или неудачного).",
             "field_employee_socialSecurityNumber_hint": "Номер социального страхования сотрудника.",
             "field_shipment_order_hint": "Заказ, связанный с этой отгрузкой.",
@@ -8161,7 +8191,10 @@ export const translations = {
     },
     ar: {
         translation: {
-
+            "editData": "تعديل في {{0}}",
+            "btns.duplicate": "تكرار",
+            "btns.edit": "تعديل",
+            "btns.delete": "حذف",
             "field_return_status_hint": "الحالة الحالية لطلب الإرجاع (مثال: مطلوب، معتمد، تم استرداده).",
             "field_workflowRun_completedAt_hint": "طابع زمني لانتهاء التنفيذ (نجاحًا أو فشلًا).",
             "field_employee_socialSecurityNumber_hint": "رقم الضمان الاجتماعي للموظف.",
@@ -9407,7 +9440,10 @@ export const translations = {
     },
     sv: {
         translation: {
-
+            "editData": "Redigera i {{0}}",
+            "btns.duplicate": "Duplicera",
+            "btns.edit": "Redigera",
+            "btns.delete": "Ta bort",
             "field_return_status_hint": "Den aktuella statusen för returförfrågan (t.ex. Begärd, Godkänd, Återbetald).",
             "field_workflowRun_completedAt_hint": "Tidsstämpel för när körningen avslutades (lyckad eller misslyckad).",
             "field_employee_socialSecurityNumber_hint": "Anställds personnummer.",
@@ -10551,6 +10587,10 @@ export const translations = {
     },
     el: {
         translation: {
+            "editData": "Επεξεργασία στο {{0}}",
+            "btns.duplicate": "Διπλότυπο",
+            "btns.edit": "Επεξεργασία",
+            "btns.delete": "Διαγραφή",
             "field_workflowRun_completedAt_hint": "Χρονική σήμανση της ολοκλήρωσης της εκτέλεσης (επιτυχής ή αποτυχημένη).",
             "field_employee_socialSecurityNumber_hint": "Ο αριθμός κοινωνικής ασφάλισης του υπαλλήλου.",
             "field_shipment_order_hint": "Η παραγγελία που σχετίζεται με αυτήν την αποστολή.",
@@ -11680,6 +11720,10 @@ export const translations = {
     },
     fa: {
         translation: {
+            "editData": "ویرایش در {{0}}",
+            "btns.duplicate": "کپی",
+            "btns.edit": "ویرایش",
+            "btns.delete": "حذف",
             "field_return_status_hint": "وضعیت فعلی درخواست مرجوعی (مثال: درخواست شده، تأیید شده، مسترد شده).",
             "field_workflowRun_completedAt_hint": "مهر زمانی پایان اجرا (موفق یا ناموفق).",
             "field_employee_socialSecurityNumber_hint": "شماره تأمین اجتماعی کارمند.",

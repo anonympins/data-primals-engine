@@ -211,6 +211,10 @@ function DataLayout() {
                         mainPartRef.current.scrollIntoView({behavior: "smooth"});
                         handleAddData(model);
                     }}
+                    onDuplicateData={(data) => {
+                        mainPartRef.current.scrollIntoView({behavior: "smooth"});
+                        handleAddData(selectedModel, data);
+                    }}
                     onShowAPI={() => {
                         setAPIInfoVisible(true);
                         setDataEditorVisible(false);
@@ -476,18 +480,23 @@ function DataLayout() {
         }
     };
 
-    const handleAddData = (model)=>{
+    const handleAddData = (model, data)=>{
 
         handleModelSelect(model);
-        const t = model ? [...model.fields].reduce((acc, field) => {
-            if( field.type === "relation"){
-                acc[field.name] = field.multiple ? [] : null;
-            }else {
-                acc[field.name] = getDefaultForType(field);
-            }
-            return acc;
-        }, {}) : [];
-        setFormData(t)
+
+        if( data ){
+            setFormData(data);
+        }else {
+            const t = model ? [...model.fields].reduce((acc, field) => {
+                if (field.type === "relation") {
+                    acc[field.name] = field.multiple ? [] : null;
+                } else {
+                    acc[field.name] = getDefaultForType(field);
+                }
+                return acc;
+            }, {}) : [];
+            setFormData(t)
+        }
         setEditionMode(false);
         setDataEditorVisible(true);
         setAPIInfoVisible(false);

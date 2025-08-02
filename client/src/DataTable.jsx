@@ -137,6 +137,7 @@ export function DataTable({
                               setCheckedItems,
                               onEdit,
                               onAddData,
+                              onDuplicateData,
                               onDelete,
                               onShowAPI,
                               filterValues,
@@ -344,6 +345,22 @@ export function DataTable({
     if (!model)
         return <></>;
 
+    // NOUVEAU : La fonction qui gère la duplication
+    const handleDuplicate = (originalData) => {
+        // 1. Créer une copie superficielle des données de la ligne
+        const dataToDuplicate = { ...originalData };
+
+        // 2. TRÈS IMPORTANT : Supprimer les champs qui ne doivent pas être copiés.
+        //    - L'_id doit être supprimé pour que le système sache qu'il s'agit d'une NOUVELLE entrée.
+        //    - Le _hash sera recalculé par le backend.
+        //    - Les dates de création/mise à jour seront gérées par le backend.
+        delete dataToDuplicate._id;
+        delete dataToDuplicate._hash;
+        delete dataToDuplicate.createdAt; // si ce champ existe
+        delete dataToDuplicate.updatedAt; // si ce champ existe
+
+        onDuplicateData(dataToDuplicate);
+    };
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
             {<div className="flex actions flex-left">
@@ -373,6 +390,7 @@ export function DataTable({
             </div>}
             <div className="table-wrapper">
                 <Tooltip id={"tooltipFile"} clickable={true} />
+                <Tooltip id={"tooltipActions"} />
                 <Lightbox
                     inline={{
                         style: { width: "100%", maxWidth: "900px", aspectRatio: "3 / 2" },
@@ -591,8 +609,19 @@ export function DataTable({
                                             {hiddenable(item[field.name])}</td>;
                                     })}
                                     <td>
-                                        <button onClick={() => handleEdit(item)}><FaPencil/></button>
-                                        <button onClick={() => handleDelete(item)}><FaTrash/></button>
+                                        <button data-tooltip-id="tooltipActions"
+                                                data-tooltip-content={t('btns.edit', 'Modifier')}
+                                                onClick={() => handleEdit(item)}><FaPencil/></button>
+                                        <button
+                                            onClick={() => handleDuplicate(item)}
+                                            data-tooltip-id="tooltipActions"
+                                            data-tooltip-content={t('btns.duplicate', 'Dupliquer')}
+                                        >
+                                            <FaCopy/>
+                                        </button>
+                                        <button data-tooltip-id="tooltipActions"
+                                                data-tooltip-content={t('btns.delete', 'Supprimer')}
+                                                onClick={() => handleDelete(item)}><FaTrash/></button>
                                     </td>
                                 </tr>
                             </DialogProvider></>
@@ -600,7 +629,11 @@ export function DataTable({
                         </tbody>
 
                         <tfoot>
-                        {data.length > 10 && (<Header reversed={true} model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>)}
+                        {data.length > 10 && (<Header reversed={true} model={model} setCheckedItems={setCheckedItems}
+                                                      filterValues={filterValues} data={data}
+                                                      setFilterValues={setFilterValues}
+                                                      onChangeFilterValue={onChangeFilterValue}
+                                                      checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>)}
                         </tfoot>
 
                     </table>)}
