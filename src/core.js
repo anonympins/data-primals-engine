@@ -181,9 +181,53 @@ function splitmix32(a) {
 
 export const getRand = () =>splitmix32(seed);
 
-export const getRandom = (minInclusive,maxInclusive) => {
-    return Math.floor(Math.random() * (maxInclusive - minInclusive + 1) + minInclusive);
-};
+const MAX_RANGE_SIZE = 2n ** 64n
+const buffer = new BigUint64Array(512)
+let offset = buffer.length
+
+/**
+ * Returns a cryptographically secure random integer between min and max, inclusive.
+ *
+ * @param {number} min - the lowest integer in the desired range (inclusive)
+ * @param {number} max - the highest integer in the desired range (inclusive)
+ * @returns {number} Random number
+ */
+
+export function getRandom(min, max) {
+    if (!(Number.isSafeInteger(min) && Number.isSafeInteger(max))) {
+        throw Error("min and max must be safe integers")
+    }
+    if (min > max) {
+        throw Error("min must be less than or equal to max")
+    }
+    const bmin = BigInt(min)
+    const rangeSize = BigInt(max) - bmin + 1n
+    const rejectionThreshold = MAX_RANGE_SIZE - (MAX_RANGE_SIZE % rangeSize)
+    let result;
+    do {
+        if (offset >= buffer.length) {
+            crypto.getRandomValues(buffer)
+            offset = 0
+        }
+        result = buffer[offset++]
+    } while (result >= rejectionThreshold)
+    return Number(bmin + result % rangeSize)
+}
+
+/**
+ * Returns a cryptographically secure random integer between min and max, inclusive.
+ *
+ * @param {number} minInclusive - the lowest integer in the desired range (inclusive)
+ * @param {number} maxInclusive - the highest integer in the desired range (inclusive)
+ * @returns {number} Random number
+ */
+
+export function getBrowserRandom(minInclusive, maxInclusive) {
+    const randomBuffer = new Uint32Array(1);
+    (window.crypto || window.msCrypto).getRandomValues(randomBuffer);
+    const r = ( randomBuffer[0] / (0xffffffff + 1) );
+    return Math.floor(r * (maxInclusive - minInclusive + 1) + minInclusive);
+}
 
 export function randomDate(start, end) {
     return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));

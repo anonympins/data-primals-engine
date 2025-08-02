@@ -53,7 +53,7 @@ import {Helmet} from "react-helmet";
 import {useCookies, CookiesProvider} from "react-cookie";
 
 import { translations as allTranslations} from "../../src/i18n.js";
-import {getRandom} from "../../src/core.js";
+import {getBrowserRandom, getRandom} from "../../src/core.js";
 import {getUserHash} from "../../src/data.js";
 import {seoTitle} from "./constants.js";
 import {host, useAI} from "../../src/constants.js";
@@ -254,7 +254,7 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     const menu=<>{(!me) && !loc.pathname.startsWith("/user/demo") && (<Button className={"btn btn-nav btn-ellipsis btn-primary btn-big"} onClick={() => {
         gtag("event", "nav to demo");
         setCurrentProfile(null);
-        const username = 'demo'+getRandom(1, 99);
+        const username = 'demo'+getBrowserRandom(1, 99);
         setMe({username});
         setCookie('username', username, { path : "/", domain: isProd ? host : 'localhost'});
         nav('/user/'+username, { state: { startTour: true } });
@@ -276,7 +276,7 @@ function Layout ({header, translationMutation, routes, body, footer}) {
 
     useEffect(() => {
         if( !cookies.username) {
-            const username ='demo' + getRandom(1, 99);
+            const username ='demo' + getBrowserRandom(1, 99);
             setCookie("username", username, { path : "/", domain: isProd ? host : 'localhost'});
             onAuthenticated({username}, true);
         }
@@ -360,7 +360,7 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     const handleGenerateClick = (p) => {
         gtag('event', 'homepage model generation');
         setCurrentTour(null);
-        const username = 'demo'+getRandom(0, 99);
+        const username = 'demo'+getBrowserRandom(0, 99);
         setMe({username});
 
         setPromptResult(null);
