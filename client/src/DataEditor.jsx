@@ -8,7 +8,7 @@ import RelationField from "./RelationField.jsx";
 import {
     CheckboxField,
     CodeField,
-    ColorField,
+    ColorField, EmailField,
     EnumField,
     FileField, ModelField, NumberField,
     PhoneField,
@@ -470,6 +470,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
                 return <FileField help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} name={field.name} maxSize={field.maxSize} mimeTypes={field.mimeTypes} value={value} onChange={(file) => handleChange({ name: name, value: file ? file.name : null })} />
             case 'color':
                 return <ColorField help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} name={field.name} value={value} onChange={handleChange} />
+            case 'email':
+                return <EmailField onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)} help={focusedField?.name === field.name ? t('field_'+model.name+'_'+field.name+'_hint', field.hint || '') : ''} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
             default:
                 return <TextField onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)} help={focusedField?.name === field.name ? t('field_'+model.name+'_'+field.name+'_hint', field.hint || '') : ''} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
         }

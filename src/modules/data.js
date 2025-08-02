@@ -1635,9 +1635,9 @@ export async function onInit(defaultEngine) {
     engine.put('/api/model/:id', [middlewareAuthenticator, userInitiator, setTimeoutMiddleware(15000)], async (req, res) => {
         const result = await editModel(req.me, req.params.id, req.fields);
         if( result.success){
-            return res.status(result.statusCode || '200').json(result);
+            return res.status(result.statusCode || 200).json(result);
         }else{
-            return res.status(result.statusCode || '500').json(result);
+            return res.status(result.statusCode || 500).json(result);
         }
     });
 
