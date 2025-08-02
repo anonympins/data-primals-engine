@@ -19,6 +19,7 @@ import {
     clearMappingsRecursive
 } from './FlexTreeUtils.js';
 import {Dialog, DialogProvider} from "./Dialog.jsx";
+import {safeAssignObject} from "data-primals-engine/core";
 
 const FlexBuilder = ({ initialConfig = null, models = [], onChange, data = [], lang = 'fr' }) => {
     const { me: user } = useAuthContext();
@@ -104,7 +105,8 @@ const FlexBuilder = ({ initialConfig = null, models = [], onChange, data = [], l
                     current[pathArray[i]] = current[pathArray[i]] || {};
                     current = current[pathArray[i]];
                 }
-                current[pathArray[pathArray.length - 1]] = value;
+                const key = pathArray[pathArray.length - 1];
+                safeAssignObject(current, key, value);
                 return newNode;
             };
 

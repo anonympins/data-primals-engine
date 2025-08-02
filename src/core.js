@@ -11,6 +11,11 @@ export function escapeRegex(string) {
 
 export const isDate = dt => String(new Date(dt)) !== 'Invalid Date'
 
+export const safeAssignObject = (obj, key, value) => {
+    if( !["__proto__", "constructor"].includes(key)){
+        obj[key] = value;
+    }
+}
 export function debounce(callback, delay=300){
     var timer;
     return function(){
