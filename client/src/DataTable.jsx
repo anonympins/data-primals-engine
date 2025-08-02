@@ -9,13 +9,13 @@ import cronstrue from 'cronstrue/i18n';
 import {
     FaBook,
     FaCopy,
-    FaDatabase,
+    FaDatabase, FaEraser,
     FaFileExport,
     FaFileImport,
     FaFilter,
     FaInfo,
     FaPlus,
-    FaTrash
+    FaTrash, FaWrench
 } from "react-icons/fa";
 import {useNotificationContext} from "./NotificationProvider.jsx";
 import {
@@ -38,7 +38,7 @@ import {
     TextField
 } from "./Field.jsx";
 import RelationValue from "./RelationValue.jsx";
-import {FaPencil, FaTriangleExclamation} from "react-icons/fa6";
+import {FaGear, FaPencil, FaTriangleExclamation} from "react-icons/fa6";
 import RestoreConfirmationModal from "./RestoreConfirmationModal.jsx";
 import {event_trigger, isLightColor} from "../../src/core.js";
 import {isConditionMet} from "./DataEditor.jsx";
@@ -54,6 +54,8 @@ import TutorialsMenu from "../src/TutorialsMenu.jsx";
 import {useTutorials} from "./hooks/useTutorials.jsx";
 import PackGallery from "./PackGallery.jsx";
 import {HiddenableCell} from "./HiddenableCell.jsx";
+import ConditionBuilder from "./ConditionBuilder.jsx";
+import {pagedFilterToMongoConds} from "./filter.js";
 
 // Ajoutez cette constante pour la clé de sessionStorage
 const SESSION_STORAGE_IMPORT_JOBS_KEY = 'activeImportJobs';
@@ -71,19 +73,29 @@ const Header = ({
                     filterValues
                 }) => {
 
+    const {t} = useTranslation()
     const { me } = useAuthContext()
     const {
         models,
         countByModel,
         selectedModel,
         setPagedFilters,
+        pagedFilters,
         page
     } = useModelContext();
     let totalCol = 0;
+
+    const [advancedFilterVisible, setAdvancedFilterVisible] = useState(false);
+
+    const handleAdvancedFilter = () => {
+        setAdvancedFilterVisible(true);
+    }
     return <><tr className={reversed ? ' reversed' : ''}>
         <th className={"mini"}>
             <div className="flex flex-row">
+
                 <Button onClick={handleFilter} className={filterActive ? ' active' : ''}><FaFilter/></Button>
+                {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
                 <CheckboxField checked={checkedItems.length === data.length} onChange={e => {
                     if (checkedItems.length === data.length) {
                         setCheckedItems([]);
@@ -91,6 +103,27 @@ const Header = ({
                         setCheckedItems(data);
                     }
                 }}/>
+
+                <DialogProvider>
+                    {advancedFilterVisible && (
+                        <Dialog title={t("datatable.advancedFilter.title")} isClosable={true} onClose={() => setAdvancedFilterVisible(false)}>
+                            <h3>Edit filter</h3>
+                            <div className="msg">
+                                <Trans i18nKey={"datatable.advancedFilter.desc"}>{t("datatable.advancedFilter.desc")}</Trans>
+                            </div>
+                            <ConditionBuilder onChange={(c) => {
+                                setPagedFilters(pagedFilters => ({
+                                    ...pagedFilters,
+                                    [model.name]: c || pagedFilters[model.name] || {} }));
+                            }} initialValue={{ $and: pagedFilterToMongoConds(pagedFilters, model)}} models={models} model={model.name} checkedItems={checkedItems} setCheckedItems={setCheckedItems} data={data} filterActive={filterActive} onChangeFilterValue={onChangeFilterValue} setFilterValues={setFilterValues}/>
+                            <Button onClick={() =>{
+                                setPagedFilters(pagedFilters => ({
+                                    ...pagedFilters,
+                                    [model.name]: {}}));
+                            }}><Trans i18nKey={"btns.reset"}>Reset</Trans></Button>
+                        </Dialog>
+                    )}
+                </DialogProvider>
             </div>
         </th>
         {model.fields.map(field => {
@@ -114,11 +147,12 @@ const Header = ({
                                 onChangeFilterValue={onChangeFilterValue}/>;
         })}
         <th><Trans i18nKey="actions">Actions</Trans>
-            {filterActive && <div>
+            {Object.keys(pagedFilters[model.name] || {})
+                .filter(f=> Object.keys(pagedFilters[model.name]?.[f] || {}).length > 0).length > 0  && <div>
                 <button onClick={() => {
                     setFilterValues({});
                     setPagedFilters(pagedFilters => ({...pagedFilters, [model.name]: {}}));
-                }}>x
+                }}><FaEraser />
                 </button>
             </div>}</th>
     </tr>
@@ -230,7 +264,7 @@ export function DataTable({
 
     const onChangeFilterValue = (field, value, tr) => {
         setPagedFilters(pagedFilters => ({
-            [model.name]: {...pagedFilters[model.name] || {}, [field.name]: value || undefined}
+            ...pagedFilters, [model.name]: {...pagedFilters[model.name] || {}, [field.name]: value || pagedFilters[model.name]?.[field.name] || undefined}
         }));
         queryClient.invalidateQueries(['api/data', model.name, 'page', page, elementsPerPage, pagedFilters[model.name], pagedSort[model.name]]);
     }
