@@ -13,15 +13,6 @@ export async function onInit(defaultEngine) {
 
     const isProduction = process.env.NODE_ENV === 'production'
 
-    let ca, cert, key;
-    try {
-        ca = fs.readFileSync('certs/mongodb-cert.crt');
-        cert = fs.readFileSync('certs/mongodb.pem');
-        key = fs.readFileSync(`certs/mongodb-cert.key`);
-    } catch (e) {
-
-    }
-
     modelsCollection = MongoDatabase.collection("models");
     datasCollection = MongoDatabase.collection("datas");
     filesCollection = MongoDatabase.collection("files");

@@ -35,6 +35,7 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import CodeMirror, {basicSetup} from "@uiw/react-codemirror";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
+import {maxStringLength} from "data-primals-engine/constants";
 
 export const Form = ({
   name,
@@ -259,10 +260,8 @@ const EmailField = forwardRef(
       if (maxlength !== undefined && maxlength > 0 && value && value.trim().length > maxlength) {
         errs.push("Value length must be <= to " + maxlength);
       }
-      if (
-        value &&
-        !value.match(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/)
-      ) {
+
+    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         errs.push("Invalid email");
       }
       setErrors(errs);
