@@ -390,8 +390,9 @@ export const getAllPacks = async () => {
                         return {
                             name: m.name,
                             permissions: {
-                                "$find": {
-                                    "$in": ["$name", m.perms]
+                                "$link": {
+                                    "$in": ["$name", m.perms],
+                                    "_model": "permission"
                                 }
                             }
                         }
@@ -407,7 +408,7 @@ export const getAllPacks = async () => {
                         "code": "fr"
                     }],
                     "translation": [
-                        { "lang": { "$find": { "$eq": ["$code", "fr"]}}, "key": "Visitor alerts", "value": "Alertes visiteurs" }
+                        { "lang": { "$link": { "$eq": ["$code", "fr"]}, "_model": "lang"}, "key": "Visitor alerts", "value": "Alertes visiteurs" }
                     ]
                 }
             }
