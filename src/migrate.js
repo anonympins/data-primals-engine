@@ -3,16 +3,15 @@
 import process from "node:process";
 import fs from "node:fs/promises";
 import path from "node:path";
-// FIX: Import 'pathToFileURL' instead of 'fileURLToPath'
 import { pathToFileURL } from 'node:url';
 import { Engine, MongoDatabase } from "./engine.js";
 import { Logger } from "./gameObject.js";
 import { Config } from "./config.js";
-import chalk from "chalk"; // Pour une sortie plus lisible. Assurez-vous que 'chalk' est dans vos dépendances.
+import chalk from "chalk";
 
 // Configuration de base
 Config.Set("modules", ["mongodb"]);
-const MIGRATIONS_DIR = path.resolve(process.cwd(), 'server', 'src', 'migrations');
+const MIGRATIONS_DIR = path.resolve(process.cwd(), 'migrations');
 const MIGRATIONS_COLLECTION = 'migrations_log';
 
 const engine = await Engine.Create();
