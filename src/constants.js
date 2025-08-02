@@ -214,7 +214,19 @@ export const maxTotalPrivateFilesSize = 250 * megabytes;
  */
 export const timeoutVM = 5000;
 
-export const defaultMaxRequestData = 50000;
+/**
+ * Default maximum number of data per request
+ * @type {number}
+ */
+export const defaultMaxRequestData = 500;
+
+/**
+ * Database connections pool size for MongoDB access
+ * @type {number}
+ */
+export const databasePoolSize = 30;
+
+
 /**
  * Options for the HTML sanitizer
  * @type {{allowedSchemesByTag: {}, selfClosing: string[], allowedSchemes: string[], enforceHtmlBoundary: boolean, disallowedTagsMode: string, allowProtocolRelative: boolean, allowedAttributes: {a: string[], img: string[], code: string[]}, allowedTags: string[], allowedSchemesAppliedToAttributes: string[]}}

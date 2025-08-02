@@ -58,6 +58,10 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017
 | SMTP_PORT             | 	SMTP server port.	                                                     | 587                                      |
 | SMTP_USER             | 	Username for SMTP authentication.                                      | 	user@example.com                        |
 | SMTP_PASS             | 	Password for SMTP authentication.                                      | 	password                                |
+| TLS                   | 	Encrypted connection (TLS) mode. Disabled by default                   | 	0/1 false/true                          |
+| CERT                  | 	Path to cert file.                                                     | 	certs/ca.crt                            |
+| CA_CERT               | 	Path to CA cert file.                                                  | 	certs/cert.pem                          |
+| CERT_KEY              | Path to the key file for your certificate.                              | 	certs/key.pem                           |
 
 Start the server:
 ```bash
