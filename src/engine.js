@@ -150,7 +150,7 @@ export const Engine = {
                         throw err;
                     }
                 });
-                process.exit(0);
+                process.exit(1);
             });
         }
 
