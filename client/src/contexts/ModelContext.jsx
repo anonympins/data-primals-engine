@@ -6,13 +6,14 @@ import {useAuthContext} from "./AuthContext.jsx";
 import {getUserHash, getUserId} from "../../../src/data.js";
 import {useTranslation} from "react-i18next";
 import useLocalStorage from "../hooks/useLocalStorage.js";
+import {pagedFilterToMongoConds} from "../filter.js";
 
 const ModelContext = createContext(null);
 
 export const ModelProvider = ({ children }) => {
     const [models, setModels] = useState([]);
     const [datasToLoad, setDatasToLoad] = useState([]);
-    const [pagedFilters,setPagedFilters] = useState({});
+    const [pagedFilters,setPagedFilters] = useLocalStorage('paged_filters', {});
     const [pagedDepth,setPagedDepth] = useState({});
     const [filteredDatasToLoad, setFilteredDatasToLoad] = useState([]);
     const [onSuccessCallbacks, setOnSuccessCallbacks] = useState({});
@@ -188,13 +189,7 @@ export const ModelProvider = ({ children }) => {
                 if( sortParam.length )
                     params.append("sort", sortParam.join(','));
 
-                const c = [];
-                Object.keys(pagedFilters[model.name] || {}).filter(f=>typeof(pagedFilters[model.name][f]) === 'object' && Object.keys(pagedFilters[model.name][f]).length > 0).forEach(obj =>{
-                    const f = model.fields.find(f=>f.name===obj);
-                    if(f !== null && f !== undefined){
-                            c.push(pagedFilters[model.name][obj]);
-                    }
-                });
+                const c = pagedFilterToMongoConds(pagedFilters, model)
                 const filter= JSON.stringify({filter:{$and:c}});
 
                 return fetch(`/api/data/search?${params.toString()}`, { signal, method: 'POST', body: filter, headers: { "Content-Type": "application/json"}})
