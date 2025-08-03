@@ -52,6 +52,8 @@ export const websiteTranslations = {
             "modelcreator.hiddenable.hint": "Une option sera disponible pour afficher cette donnée ou la masquer  (il sera masqué par défaut).",
 
             "tourpoint.importDatapack": "Importez des packs de données pré-construits avec notre galerie de packs : Sites internets, e-commerce, CRM, et plus encore !",
+            "tourpoint.tutorials": "Laisse-vous guider en suivant nos tutoriels pas à pas !",
+
             "add_language": "Ajouter...",
             "select_or_add_language": "Sélectionnez ou ajoutez une langue pour commencer.",
             "field.richtext_t": "Texte enrichi traduit",
@@ -522,7 +524,7 @@ export const websiteTranslations = {
             "links.deploy_api": "Déployez votre API",
             "links.documentation": "Documentation",
             "links.demo": "Essayez maintenant !",
-            "filterstringfield.placeholder.regex": 'Expression régulière',
+            "filterstringfield.placeholder.regex": 'Expression régulière'
 
         }
     },
@@ -594,6 +596,8 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "The server has reached its maximum storage capacity. Please try again later.",
 
             "tourpoint.importDatapack": "Import pre-built data packs with our pack gallery: Websites, e-commerce, CRM, and more!",
+            "tourpoint.tutorials": "Let yourself be guided by following our step-by-step tutorials!",
+
             "add_language": "Add...",
             "select_or_add_language": "Select or add a language to get started.",
             "field.richtext_t": "Translated rich text",
@@ -1925,8 +1929,8 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Name',
             field_channel_description: 'Description',
-            field_channel_type: 'Type',
-        },
+            field_channel_type: 'Type'
+        }
     },
     es: {
         translation: {
@@ -1996,6 +2000,8 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "El servidor ha alcanzado su capacidad máxima de almacenamiento. Inténtelo de nuevo más tarde.",
 
             "tourpoint.importDatapack": "Importa paquetes de datos prediseñados con nuestra galería de paquetes: sitios web, comercio electrónico, CRM y más",
+            "tourpoint.tutorials": "¡Déjate guiar por nuestros tutoriales paso a paso!",
+
             "add_language": "Añadir...",
             "select_or_add_language": "Seleccione o añada un idioma para empezar.",
             "field.richtext_t": "Texto enriquecido traducido",
@@ -3332,8 +3338,8 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Nombre',
             field_channel_description: 'Descripción',
-            field_channel_type: 'Tipo',
-        },
+            field_channel_type: 'Tipo'
+        }
     },
     pt: {
         translation: {
@@ -3403,6 +3409,7 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "O servidor atingiu a sua capacidade máxima de armazenamento. Tente novamente mais tarde.",
 
             "tourpoint.importDatapack": "Importe pacotes de dados pré-criados com a nossa galeria de pacotes: sites, comércio eletrónico, CRM e muito mais!",
+            "tourpoint.tutorials": "Deixe-se guiar seguindo os nossos tutoriais passo a passo!",
             "add_language": "Adicionar...",
             "select_or_add_language": "Selecione ou adicione um idioma para começar.",
             "field.richtext_t": "Texto rico traduzido",
@@ -4736,8 +4743,8 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Nome',
             field_channel_description: 'Descrição',
-            field_channel_type: 'Tipo',
-        },
+            field_channel_type: 'Tipo'
+        }
     },
     de: {
         translation: {
@@ -4795,6 +4802,8 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "Der Server hat seine maximale Speicherkapazität erreicht. Bitte versuchen Sie es später erneut.",
 
             "tourpoint.importDatapack": "Vorgefertigte Datenpakete mit unserer Packgalerie importieren: Websites, E-Commerce, CRM und mehr!",
+            "tourpoint.tutorials": "Lassen Sie sich von unseren Schritt-für-Schritt-Tutorials leiten!",
+
             "add_language": "Hinzufügen...",
             "select_or_add_language": "Wählen oder fügen Sie eine Sprache hinzu, um zu beginnen.",
             "field.richtext_t": "Übersetzter Rich Text",
@@ -6122,8 +6131,8 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Name',
             field_channel_description: 'Beschreibung',
-            field_channel_type: 'Typ',
-        },
+            field_channel_type: 'Typ'
+        }
     },
     it: {
         translation: {
@@ -6193,6 +6202,7 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "Il server ha raggiunto la capacità massima di archiviazione. Riprova più tardi.",
 
             "tourpoint.importDatapack": "Importa pacchetti di dati predefiniti con la nostra galleria di pacchetti: siti web, e-commerce, CRM e altro ancora!",
+            "tourpoint.tutorials": "Lasciati guidare seguendo i nostri tutorial passo dopo passo!",
             "add_language": "Aggiungi...",
             "select_or_add_language": "Seleziona o aggiungi una lingua per iniziare.",
             "field.richtext_t": "Rich text tradotto",
@@ -7522,8 +7532,8 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Nome',
             field_channel_description: 'Descrizione',
-            field_channel_type: 'Tipo',
-        },
+            field_channel_type: 'Tipo'
+        }
     },
     cs: {
         translation: {
@@ -7593,6 +7603,7 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "Server dosáhl maximální úložné kapacity. Zkuste to prosím znovu později.",
 
             "tourpoint.importDatapack": "Importujte předpřipravené datové balíčky s naší galerií balíčků: Webové stránky, e-commerce, CRM a další!",
+            "tourpoint.tutorials": "Nechte se vést našimi podrobnými tutoriály!",
             "add_language": "Přidat...",
             "select_or_add_language": "Vyberte nebo přidejte jazyk pro zahájení.",
             "field.richtext_t": "Přeložený formátovaný text",
@@ -8917,8 +8928,8 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Jméno',
             field_channel_description: 'Popis',
-            field_channel_type: 'Typ',
-        },
+            field_channel_type: 'Typ'
+        }
     },
     ru: {
         translation: {
@@ -8988,6 +8999,7 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "Сервер достиг максимального объёма хранилища. Повторите попытку позже.",
 
             "tourpoint.importDatapack": "Импортируйте готовые пакеты данных с помощью нашей галереи пакетов: веб-сайты, электронная коммерция, CRM и многое другое!",
+            "tourpoint.tutorials": "Доверьтесь нашим пошаговым инструкциям!",
             "add_language": "Добавить...",
             "select_or_add_language": "Выберите или добавьте язык для начала работы",
             "field.richtext_t": "Переведенный форматированный текст",
@@ -10322,8 +10334,8 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Имя',
             field_channel_description: 'Описание',
-            field_channel_type: 'Тип',
-        },
+            field_channel_type: 'Тип'
+        }
     },
     ar: {
         translation: {
@@ -10395,6 +10407,8 @@ export const websiteTranslations = {
             "api.data.storageLimitExceeded": "سيتم تجاوز حد التخزين البالغ {{limit}} ميجابايت بهذه الإضافة.",
             "api.data.serverStorageFull": "وصل الخادم إلى الحد الأقصى لسعة التخزين. يُرجى المحاولة مرة أخرى لاحقًا.",
             "tourpoint.importDatapack": "استورد حزم البيانات المعدة مسبقًا باستخدام معرض الحزم لدينا: مواقع الويب، والتجارة الإلكترونية، وإدارة علاقات العملاء، والمزيد!",
+            "tourpoint.tutorials": "دع نفسك تسترشد باتباع دروسنا التعليمية خطوة بخطوة!",
+
             "add_language": "إضافة...",
             "select_or_add_language": "اختر أو أضف لغة للبدء.",
             "field.richtext_t": "نص منسق مترجم",
@@ -11743,7 +11757,7 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'الاسم',
             field_channel_description: 'الوصف',
-            field_channel_type: 'النوع',
+            field_channel_type: 'النوع'
         }
     },
     sv: {
@@ -11814,6 +11828,7 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "Servern har nått sin maximala lagringskapacitet. Försök igen senare.",
 
             "tourpoint.importDatapack": "Importera färdiga datapaket med vårt paketgalleri: Webbplatser, e-handel, CRM och mer!",
+            "tourpoint.tutorials": "Låt dig vägledas av våra steg-för-steg-handledningar!",
             "add_language": "Lägg till...",
             "select_or_add_language": "Välj eller lägg till ett språk för att komma igång.",
             "field.richtext_t": "Översatt RTF",
@@ -13138,7 +13153,7 @@ export const websiteTranslations = {
             // channel
             field_channel_name: 'Namn',
             field_channel_description: 'Beskrivning',
-            field_channel_type: 'Typ',
+            field_channel_type: 'Typ'
         }
     },
     el: {
@@ -13209,6 +13224,7 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "Ο διακομιστής έχει φτάσει στη μέγιστη χωρητικότητα αποθήκευσης. Παρακαλώ προσπαθήστε ξανά αργότερα.",
 
             "tourpoint.importDatapack": "Εισαγάγετε προκατασκευασμένα πακέτα δεδομένων με τη συλλογή πακέτων μας: Ιστότοποι, ηλεκτρονικό εμπόριο, CRM και πολλά άλλα!",
+            "tourpoint.tutorials": "Ακολουθώντας τα βήμα προς βήμα εκπαιδευτικά μας βίντεο, αφήστε τον εαυτό σας να σας καθοδηγήσει!",
             "add_language": "Προσθήκη...",
             "select_or_add_language": "Επιλέξτε ή προσθέστε μια γλώσσα για να ξεκινήσετε.",
             "field.richtext_t": "Μεταφρασμένο εμπλουτισμένο κείμενο",
@@ -14611,6 +14627,7 @@ export const websiteTranslations = {
             "api.data.serverStorageFull": "سرور به حداکثر ظرفیت ذخیره‌سازی خود رسیده است. لطفاً بعداً دوباره امتحان کنید.",
 
             "tourpoint.importDatapack": "بسته‌های داده از پیش ساخته شده را با گالری بسته‌های ما وارد کنید: وب‌سایت‌ها، تجارت الکترونیک، CRM و موارد دیگر!",
+            "tourpoint.tutorials": "با دنبال کردن آموزش‌های گام به گام ما، خودتان را راهنمایی کنید!",
             "add_language": "اضافه کردن...",
             "select_or_add_language": "برای شروع، یک زبان را انتخاب یا اضافه کنید.",
             "field.richtext_t": "متن غنی ترجمه شده",

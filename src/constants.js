@@ -1,3 +1,5 @@
+import {event_trigger} from "./core.js";
+
 /**
  * Enables auto-installation at startup
  * @type {boolean}
@@ -226,6 +228,12 @@ export const defaultMaxRequestData = 500;
  */
 export const databasePoolSize = 30;
 
+/**
+ * TLS options for MongoDB access
+ * @type {boolean}
+ */
+export const tlsAllowInvalidCertificates = false;
+export const tlsAllowInvalidHostnames = false;
 
 /**
  * Options for the HTML sanitizer

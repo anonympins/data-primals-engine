@@ -259,3 +259,21 @@ export const pagedFilterToMongoConds = (pagedFilters, model) => {
         return c;
     }
 };
+
+/**
+ * Remplace les placeholders dans un objet filtre.
+ * Gère {{userId}}.
+ */
+export const processFilterPlaceholders = (filter, user) => {
+    const processedFilter = JSON.parse(JSON.stringify(filter));
+    for (const key in processedFilter) {
+        if (processedFilter[key] === '{{userId}}') {
+            // Dans le système Primals, le champ utilisateur est souvent `_user`
+            // et contient le nom d'utilisateur, pas l'ID. Adaptez si besoin.
+            processedFilter[key] = user.username;
+        } else if (typeof processedFilter[key] === 'object' && processedFilter[key] !== null) {
+            processedFilter[key] = processFilterPlaceholders(processedFilter[key], user);
+        }
+    }
+    return processedFilter;
+};

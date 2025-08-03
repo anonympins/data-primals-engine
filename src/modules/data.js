@@ -89,6 +89,8 @@ import {getAllPacks} from "../packs.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
 import {Config} from "../config.js";
 import {profiles} from "../../client/src/constants.js";
+import {processFilterPlaceholders} from "../../client/src/filter.js";
+import {tutorialsConfig} from "../../client/src/tutorials.js";
 
 // Obtenir le chemin du répertoire courant de manière fiable avec ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -1504,6 +1506,128 @@ export async function onInit(defaultEngine) {
         } catch (error) {
             logger.error("Error creating magnet link:", error);
             res.status(500).json({ error: "An internal server error occurred." });
+        }
+    });
+
+    /**
+     * Route pour vérifier si une condition de complétion est remplie.
+     * Utilise la fonction `searchData` existante pour interroger les données.
+     */
+    engine.post('/api/tutorials/check-completion', middlewareAuthenticator, async (req, res) => {
+        try {
+            const { model, filter, limit } = req.fields;
+            const user = req.me;
+
+            if (!model || !filter || limit === undefined) {
+                return res.status(400).json({ error: 'Payload de condition de complétion invalide.' });
+            }
+
+            const processedFilter = processFilterPlaceholders(filter, user);
+
+            // On utilise la fonction de recherche interne de l'application
+            const searchResult = await searchData({
+                query: {
+                    model,
+                    filter: processedFilter,
+                    limit, // Optimisation : pas besoin de plus de résultats
+                    page: 1
+                },
+                user: user
+            });
+
+            // searchData devrait renvoyer un `count` total des documents correspondants
+            const isCompleted = searchResult.count >= limit;
+
+            res.json({ isCompleted });
+
+        } catch (error) {
+            console.error('[Tutoriel Check Error]', error);
+            res.status(500).json({ error: 'Erreur lors de la vérification de la complétion.', details: error.message });
+        }
+    });
+
+
+
+    engine.post('/api/tutorials/set-active', middlewareAuthenticator, async (req, res) => {
+        try {
+            const { tutorialState } = req.fields;
+            const user = req.me;
+
+            if (tutorialState !== null && (typeof tutorialState !== 'object' || !tutorialState.id)) {
+                return res.status(400).json({ error: 'Invalid tutorial state payload.' });
+            }
+
+            // Créer une représentation de l'utilisateur mis à jour pour la réponse
+            const updatedData = { activeTutorial: tutorialState };
+
+            await engine.userProvider.updateUser(user, updatedData);
+
+            // --- MODIFICATION ---
+            res.json({
+                success: true,
+                updatedData // Renvoyer l'objet utilisateur complet
+            });
+
+        } catch (error) {
+            console.error('[Tutoriel Set Active Error]', error);
+            res.status(500).json({ error: 'Error setting active tutorial.', details: error.message });
+        }
+    });
+
+    // ...
+
+    engine.post('/api/tutorials/:tutorialId/claim-rewards', middlewareAuthenticator, async (req, res) => {
+        try {
+            const { tutorialId } = req.params;
+            const user = req.me; // L'objet utilisateur est déjà chargé
+            const tutorial = tutorialsConfig.find(t => t.id === tutorialId);
+
+            if (!tutorial) return res.status(404).json({ error: 'Tutoriel non trouvé.' });
+            if (!tutorial.rewards) return res.status(400).json({ error: 'Ce tutoriel n\'a pas de récompenses.' });
+            if (user.completedTutorials?.includes(tutorialId)) {
+                return res.status(400).json({ error: 'Tutoriel déjà terminé.' });
+            }
+
+            const { xpBonus, skill, achievement, notification } = tutorial.rewards;
+
+            // --- LOGIQUE CORRIGÉE ---
+            let newData= {};
+            newData.xp = newData.xp || 0;
+            newData.achievements = newData.achievements || [];
+            newData.skills = newData.skills || [];
+            newData.completedTutorials = newData.completedTutorials || [];
+
+            // Appliquer les récompenses directement sur l'objet newData
+            if (xpBonus) newData.xp += xpBonus;
+            if (achievement && !newData.achievements.includes(achievement)) newData.achievements.push(achievement);
+            if (skill) {
+                const existingSkill = newData.skills.find(s => s.name === skill.name);
+                if (existingSkill) {
+                    existingSkill.points += skill.points;
+                } else {
+                    newData.skills.push({ name: skill.name, points: skill.points });
+                }
+            }
+
+            newData.completedTutorials.push(tutorialId);
+            newData.activeTutorial = null;
+
+            await engine.userProvider.updateUser(user, newData);
+
+            const translatedNotification = {
+                title: i18n.t(notification.title, notification.title),
+                message: i18n.t(notification.message, notification.message)
+            };
+
+            res.json({
+                success: true,
+                userUpdate: newData, // Renvoyer l'objet utilisateur complet et mis à jour
+                notification: translatedNotification
+            });
+
+        } catch (error) {
+            console.error('[Tutoriel Rewards Error]', error);
+            res.status(500).json({ error: 'Erreur lors de l\'attribution des récompenses.', details: error.message });
         }
     });
 

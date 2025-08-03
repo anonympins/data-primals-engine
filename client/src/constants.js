@@ -67,3 +67,22 @@ export const OPERAND_TYPES = {
 export const getHost = () => {
     return process.env.HOST || host || 'localhost';
 }
+
+
+
+export const langs = {
+    fr: "Français",
+    en: "English",
+    ar: "عربي",
+    fa: "فارسی",
+    it: "Italiano",
+    es: "Español",
+    el: "Ελληνικά",
+    de: "Deutsch",
+    cs: "Čeština",
+    sv: "Svenska",
+    pt: "Português",
+    ja: "日本語",
+    zh: "简体中文",
+    ru: "Русский"
+};

@@ -224,8 +224,9 @@ export function getRandom(min, max) {
 
 export function getBrowserRandom(minInclusive, maxInclusive) {
     const randomBuffer = new Uint32Array(1);
-    (window.crypto || window.msCrypto).getRandomValues(randomBuffer);
-    const r = ( randomBuffer[0] / (0xffffffff + 1) );
+    const cr = (window.crypto || window.msCrypto);
+    cr?.getRandomValues(randomBuffer);
+    const r = cr ? ( randomBuffer[0] / (0xffffffff + 1) ) : getRand();
     return Math.floor(r * (maxInclusive - minInclusive + 1) + minInclusive);
 }
 

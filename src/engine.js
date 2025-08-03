@@ -4,7 +4,12 @@ import fs from 'node:fs'
 import express from 'express'
 import {MongoClient as InternalMongoClient} from 'mongodb'
 import process from "process";
-import {cookiesSecret, databasePoolSize, dbName} from "./constants.js";
+import {
+    cookiesSecret,
+    databasePoolSize,
+    dbName,
+    tlsAllowInvalidCertificates, tlsAllowInvalidHostnames
+} from "./constants.js";
 import http from "http";
 import cookieParser from "cookie-parser";
 import requestIp from 'request-ip';
@@ -21,15 +26,15 @@ const isProduction = process.env.NODE_ENV === 'production'
 let caFile, certFile, keyFile;
 try {
     if (process.env.CA_CERT)
-        caFile = fs.readFileSync(process.env.CA_CERT  || './ca');
+        caFile = fs.readFileSync(process.env.CA_CERT);
 } catch (e) {}
 try {
     if (process.env.CERT)
-        certFile = fs.readFileSync(process.env.CERT || '');
+        certFile = fs.readFileSync(process.env.CERT);
 }catch (e) {}
 try{
     if (process.env.CERT_KEY)
-        keyFile = fs.readFileSync(process.env.CERT_KEY || './k');
+        keyFile = fs.readFileSync(process.env.CERT_KEY);
 } catch (e) {}
 
 const secureContext = tls.createSecureContext({
@@ -40,7 +45,13 @@ const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TL
 
 // Connection URL
 export const dbUrl = process.env.CI ? 'mongodb://mongodb:27017' : (process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017');
-export const MongoClient = new InternalMongoClient(dbUrl, { maxPoolSize: databasePoolSize, tls: isTlsActive, secureContext });
+export const MongoClient = new InternalMongoClient(dbUrl, {
+    maxPoolSize: databasePoolSize,
+    tls: isTlsActive,
+    secureContext,
+    tlsAllowInvalidCertificates,
+    tlsAllowInvalidHostnames
+});
 
 // Database Name
 export const MongoDatabase = MongoClient.db(dbName);

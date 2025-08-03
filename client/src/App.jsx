@@ -55,12 +55,13 @@ import {useCookies, CookiesProvider} from "react-cookie";
 import { translations as allTranslations} from "../../src/i18n.js";
 import {getBrowserRandom, getRandom} from "../../src/core.js";
 import {getUserHash} from "../../src/data.js";
-import {seoTitle} from "./constants.js";
+import {langs, seoTitle} from "./constants.js";
 import {host, useAI} from "../../src/constants.js";
 import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
 
 import { Tooltip } from 'react-tooltip';
+import {availableLangs} from "data-primals-engine/constants";
 
 let queryClient = new QueryClient();
 
@@ -84,7 +85,7 @@ function TopBar({header}) {
     return <>{header}</>;
 }
 
-function Layout ({header, translationMutation, routes, body, footer}) {
+function Layout ({header, routes, body, footer}) {
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const { i18n, t } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
@@ -157,8 +158,6 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     );
 
 
-    const [lastLang, setLastLang] = useState(null);
-
     // AJOUT : Liste des suggestions de prompts
     const suggestedPrompts = [
         {
@@ -180,37 +179,11 @@ function Layout ({header, translationMutation, routes, body, footer}) {
     ];
 
     const { setCurrentTourSteps, setAllTourSteps, currentTour, setCurrentTour } = useUI();
-    const [translations, setTranslations] = useState([]);
 
 
     const isProd = import.meta.env.MODE === 'production';
     const loc = useLocation();
 
-    const changeLanguage = (newLang) => {
-        if (typeof(newLang) === 'string' && newLang) {
-
-            i18n.changeLanguage(newLang, (err)=>{
-
-                i18next.removeResourceBundle(lang, "translation");
-                i18next.addResourceBundle(newLang, 'translation', {...websiteTranslations[newLang]['translation'], ...translations[newLang]?.['translation']});
-
-                gtag("event", "change_language "+newLang);
-            });
-        }
-    };
-
-    useEffect(() => {
-        if( me ){
-            translationMutation?.mutateAsync(lang).then(d => {
-                setTranslations(d);
-                setLastLang(lang);
-            });
-        }
-    }, [me, lang])
-
-    useEffect(() => {
-        changeLanguage(lang);
-    }, [lang]);
 
     const [currentProfile, setCurrentProfile] = useLocalStorage('profile', null);
 
@@ -225,24 +198,6 @@ function Layout ({header, translationMutation, routes, body, footer}) {
         }
     }
 
-    useEffect(() => {
-        if (Array.isArray(translations)) {
-            var trs= {};
-            translations.forEach(tr =>{
-                trs[tr.key] = tr.value;
-            });
-            trs= { ...allTranslations[lang]['translation'], ...trs};
-
-            if( lastLang && lang !== lastLang) {
-                i18n.removeResourceBundle(lastLang, 'translation');
-            }
-            i18n.addResourceBundle(lang, 'translation', trs);
-        }
-    }, [translations]);
-
-    useEffect(() => {
-        changeLanguage(lang);
-    }, []);
 
     const [refreshReducer, refreshUI]= useReducer((n) => n+1, 0,() => 0);
 
@@ -389,7 +344,9 @@ function Layout ({header, translationMutation, routes, body, footer}) {
 
                     <div className="flex flex-row flex-no-wrap">
                         <div className="flex flex-1 flex-no-gap home-header">
-                            <a href={"https://github.com/anonympins/data-primals-engine"} target={"_blank"} className="link-top"><img src={"/github.svg"} alt={"Github"} /></a>
+                            <div className="flex flex-self-end">
+                                <a href={"https://github.com/anonympins/data-primals-engine"} target={"_blank"} className="link-top"><img src={"/github.svg"} alt={"Github"} /></a>
+                            </div>
                             <div className="flex prior">
                                 <img
                                     src="https://web.primals.net/PRIOR.png"
@@ -575,10 +532,59 @@ function UserPage({notifs,triggerSignin, onAuthenticated}) {
                 données</p>}</>;
 }
 
+const allLangs = Object.keys(langs).map(l => {
+    return {value: l, label: langs[l]};
+})
+
 const BaseLayout=()=>{
+    const [lastLang, setLastLang] = useState(null);
+    const { i18n, t} = useTranslation();
+    const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
+    const { me, setMe } = useAuthContext();
+    const [translations, setTranslations] = useState([]);
+
+    useEffect(() => {
+        if (Array.isArray(translations)) {
+            var trs= {};
+            translations.forEach(tr =>{
+                trs[tr.key] = tr.value;
+            });
+            trs= { ...allTranslations[lang]['translation'], ...trs};
+
+            if( lastLang && lang !== lastLang) {
+                i18n.removeResourceBundle(lastLang, 'translation');
+            }
+            i18n.addResourceBundle(lang, 'translation', trs);
+        }
+    }, [translations]);
+
+    const changeLanguage = (newLang) => {
+        if (typeof(newLang) === 'string' && newLang) {
+
+            i18n.changeLanguage(newLang, (err)=>{
+
+                i18next.removeResourceBundle(lang, "dataEngineTranslations");
+                const trs = {...websiteTranslations[newLang]?.['translation']} || {};
+                i18next.addResourceBundle(newLang, 'dataEngineTranslations', trs);
+
+                gtag("event", "change_language "+newLang);
+            });
+        }
+    };
+
+    useEffect(() => {
+        changeLanguage(lang);
+    }, [lang]);
+
     return <Layout header={<header className={"flex"}>
         <Tooltip id={"header"}/>
         <h1 className="flex-1">{seoTitle}</h1>
+        <div className="center">
+            <SelectField label={<FaLanguage />} items={allLangs} onChange={(e) => {
+                console.log(e.value);
+                changeLanguage(e.value);
+            }} />
+        </div>
         <div className="flex">
             <FaQuestion data-tooltip-id="header" data-tooltip-content="Documentation" onClick={()=> {
                 window.open("https://data.primals.net/en/documentation/", "_blank");
