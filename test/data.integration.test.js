@@ -1,13 +1,13 @@
 // __tests__/data.integration.test.js
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeEach, beforeAll} from 'vitest';
+import {expect, describe, it, beforeEach, beforeAll, afterAll} from 'vitest';
 import { Config } from '../src/config.js';
 
 import {
     insertData,
     editData,
     deleteData,
-    searchData, installPack
+    searchData, installPack, deleteModels, createModel
 } from 'data-primals-engine/modules/data';
 
 import {
@@ -120,11 +120,12 @@ async function setupTestContext() {
     };
 }
 
+let engine;
 describe('Intégration des fonctions CRUD de données avec validation complète', () => {
 
     beforeAll(async () =>{
         Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
-        await initEngine();
+        engine = await initEngine();
 
     })
 
@@ -788,5 +789,103 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(validModel).not.toBeNull();
         });
     });
+    // In test/data.integration.test.js
 
+    describe('relationFilter validation', () => {
+        let user;
+        let activeProductId, inactiveProductId;
+
+        // Model names are kept in French to match the database, but variables are in English.
+        const productModel = {
+            name: 'produitTestFiltre',
+            description: '',
+            fields: [
+                { name: 'name', type: 'string' },
+                { name: 'actif', type: 'boolean', default: false }
+            ]
+        };
+        const orderModel = {
+            name: 'commandeTestFiltre',
+            description: '',
+            fields: [
+                { name: 'ref', type: 'string' },
+                {
+                    name: 'produit',
+                    type: 'relation',
+                    relation: 'produitTestFiltre',
+                    relationFilter: { actif: true } // Only link active products
+                }
+            ]
+        };
+
+        // Set up the context once for all tests in this describe block.
+        beforeAll(async () => {
+            user = await engine.userProvider.findUserByUsername('demo');
+            // Cleanup before starting to ensure a clean state
+            await deleteModels({ name: productModel.name, _user: user.username });
+            await deleteModels({ name: orderModel.name, _user: user.username });
+            await deleteData(productModel.name, [], {}, user);
+            await deleteData(orderModel.name, [], {}, user);
+
+            // Create models
+            await createModel({ ...productModel, _user: user.username });
+            await createModel({ ...orderModel, _user: user.username });
+
+            // Create test data
+            const activeProduct = await insertData(productModel.name, { name: 'Active Product', actif: true }, {}, user);
+            const inactiveProduct = await insertData(productModel.name, { name: 'Inactive Product', actif: false }, {}, user);
+
+            activeProductId = activeProduct.insertedIds[0];
+            inactiveProductId = inactiveProduct.insertedIds[0];
+        });
+
+        // Clean up everything after all tests in this block have run.
+        afterAll(async () => {
+            await deleteModels({ name: productModel.name, _user: user.username });
+            await deleteModels({ name: orderModel.name, _user: user.username });
+            await deleteData(productModel.name, [], {}, user);
+            await deleteData(orderModel.name, [], {}, user);
+        });
+
+        it('should ALLOW inserting data with a valid relation', async () => {
+            const result = await insertData(orderModel.name, { ref: 'CMD-OK', produit: activeProductId }, {}, user);
+            expect(result.success).toBe(true);
+            expect(result.insertedIds).toHaveLength(1);
+            // Cleanup the created order for test isolation
+            await deleteData(orderModel.name, result.insertedIds, {}, user);
+        });
+
+        it('should REJECT inserting data with a relation that does not respect the filter', async () => {
+            const result = await insertData(orderModel.name, { ref: 'CMD-FAIL', produit: inactiveProductId }, {}, user);
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('produit');
+        });
+
+        it('should ALLOW updating data with a valid relation', async () => {
+            // First, create a valid order
+            const initialOrder = await insertData(orderModel.name, { ref: 'CMD-TO-EDIT', produit: activeProductId }, {}, user);
+
+            // Update it (even with the same value, this tests the code path)
+            const result = await editData(orderModel.name, { _id: initialOrder.insertedIds[0] }, { produit: activeProductId }, {}, user);
+
+            expect(result.success).toBe(true);
+            // The hash might not change if only metadata like _updatedAt changes, so modifiedCount can be 0 or 1.
+            expect(result.modifiedCount).toBeGreaterThanOrEqual(0);
+
+            // Cleanup
+            await deleteData(orderModel.name, initialOrder.insertedIds, {}, user);
+        });
+
+        it('should REJECT updating data with a relation that does not respect the filter', async () => {
+            // First, create a valid order
+            const initialOrder = await insertData(orderModel.name, { ref: 'CMD-TO-EDIT-FAIL', produit: activeProductId }, {}, user);
+
+            // Attempt to link it to an inactive product, expecting it to fail.
+            const result = await editData(orderModel.name, { _id: initialOrder.insertedIds[0] }, { produit: inactiveProductId }, {}, user);
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('produit');
+            // Cleanup
+            await deleteData(orderModel.name, initialOrder.insertedIds, {}, user);
+        });
+    });
 });

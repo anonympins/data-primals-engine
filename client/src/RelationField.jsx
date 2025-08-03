@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import { useModelContext } from './contexts/ModelContext.jsx';
 import { TextField } from './Field.jsx';
 import { useAuthContext } from './contexts/AuthContext.jsx';
-import {conditionToApiSearchFilter, getDataAsString, getUserId} from 'data-primals-engine/data';
+import { getDataAsString, getUserId } from 'data-primals-engine/data';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import Button from './Button.jsx';
-import {mainFieldsTypes} from "../../src/constants.js";
+import { mainFieldsTypes } from "../../src/constants.js";
 import Draggable from "./Draggable.jsx";
-import {useTranslation} from "react-i18next";
+import { useTranslation } from "react-i18next";
 
-const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) => {
+const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null }) => {
     const { models, dataByModel, setOnSuccessCallbacks, relationIds, setRelationIds } = useModelContext();
     const { name, relation: modelName } = field;
     const queryClient = useQueryClient();
@@ -19,45 +19,67 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
     const [searchValue, setSearchValue] = useState('');
     const [history, setHistory] = useState([]);
     const { me } = useAuthContext();
-    const tr = useTranslation()
-    const {t, i18n} = tr
+    const tr = useTranslation();
+    const { t, i18n } = tr;
     const model = models?.find(f => f.name === modelName && f._user === me?.username);
 
     // Fetch related data based on search value
     const { data: results = [], isError, refetch } = useQuery(
-        ['api/search', model?.name, field?.name, searchValue],
+        // La clé de la requête inclut maintenant le filtre de relation pour une mise en cache correcte
+        ['api/search', model?.name, field?.name, searchValue, JSON.stringify(field.relationFilter)],
         async ({ signal }) => {
             if (!model) return [];
-            const orFilter = [];
-            let filter = {};
-            if( field.relationFilter ){
-                filter = {"$and": field.relationFilter.filter};
-            }else if ( searchValue) {
+
+            // --- DÉBUT DE LA NOUVELLE LOGIQUE DE FILTRAGE ---
+
+            // 1. On récupère le filtre permanent défini dans le modèle.
+            // S'il n'y en a pas, on utilise un objet vide qui n'aura aucun effet.
+            const permanentFilter = field.relationFilter || {};
+
+            // 2. On construit le filtre basé sur la recherche de l'utilisateur.
+            const searchFilter = {};
+            if (searchValue) {
+                const orConditions = [];
+                // Recherche sur les champs principaux (asMain)
                 model.fields.forEach(f => {
-                    if (f.asMain) {
-                        if( f.type !== 'relation' && mainFieldsTypes.includes(f.type))
-                            orFilter.push({"$regexMatch": { input: '$'+f.name, regex: searchValue}});
+                    if (f.asMain && mainFieldsTypes.includes(f.type)) {
+                        orConditions.push({ [f.name]: { "$regex": searchValue, "$options": "i" } });
                     }
-                })
-                if (!orFilter.length) {
+                });
+                // Si aucun champ principal, recherche sur les champs texte
+                if (orConditions.length === 0) {
                     model.fields.forEach(f => {
-                        if (["string", "string_t", "richtext", "url"]?.includes(f.type)) {
-                            orFilter.push({"$regexMatch": { input: '$'+f.name, regex: searchValue}});
+                        if (["string", "string_t", "richtext", "url"].includes(f.type)) {
+                            orConditions.push({ [f.name]: { "$regex": searchValue, "$options": "i" } });
                         }
                     });
-                    if (!orFilter.length) {
-                        orFilter.push({"$eq": ['_id', searchValue]});
-                    }
                 }
-                filter = {'$or':orFilter};
+                // Si toujours rien, on cherche sur l'ID (utile pour les développeurs)
+                if (orConditions.length === 0) {
+                    orConditions.push({ "_id": searchValue });
+                }
+                searchFilter['$or'] = orConditions;
             }
+
+            // 3. On combine les deux filtres avec un opérateur $and.
+            // Un document devra correspondre au filtre permanent ET au filtre de recherche.
+            const finalFilter = {
+                "$and": [
+                    permanentFilter,
+                    searchFilter
+                ]
+            };
+
+            // --- FIN DE LA NOUVELLE LOGIQUE DE FILTRAGE ---
+
             const params = new URLSearchParams();
-            params.append('_user', getUserId(me));
             params.append('model', field.relation);
-            params.append('limit', '1000');
-            params.append('depth', '2'); // Fetch related data with depth 2
+            params.append('limit', '100'); // Limite raisonnable pour les suggestions
+            params.append('depth', '2');
+
             return fetch(`/api/data/search?${params.toString()}`, {
-                body: JSON.stringify({ filter }),
+                // On envoie le filtre final et complet
+                body: JSON.stringify({ filter: finalFilter }),
                 method: 'POST',
                 signal: signal,
                 headers: { 'Content-Type': 'application/json' },
@@ -65,8 +87,10 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
                 .then(e => e.json())
                 .then(e => e.data);
         },
-        { enabled: !!model }
+        { enabled: !!model && showResults } // La requête ne s'exécute que si le panneau de résultats est visible
     );
+
+    // ... (le reste du composant reste identique) ...
 
     useEffect(() => {
         setSearchValue('');
@@ -100,7 +124,6 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
         }
     }, [value]);
 
-    //console.log(field, value);
     const updateValue = () => {
         if (!field.multiple) {
             const v = history.find(d => d._id === value);
@@ -108,7 +131,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
                 setSearchValue(getDataAsString(model, v, tr, models) || '');
                 onChange({ name, value });
             } else {
-                //onChange({ name, value: null });
+                // Ne rien faire si la valeur n'est pas dans l'historique pour éviter d'effacer
             }
         } else {
             if (Array.isArray(value)) {
@@ -133,17 +156,13 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
                     return value;
                 });
             } else {
-                onChange({ name, value });
+                onChange({ name, value: selectedValues });
             }
         }
         setResultsVisible(false);
         ref.current?.focus();
         e.preventDefault();
     };
-
-    useEffect(() => {
-        if (showResults) refetch();
-    }, [showResults]);
 
     const handleRemove = (element) => {
         if (!field.multiple) return;
@@ -162,6 +181,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
             inputRef.current.ref.setAttribute('autocomplete', 'off');
         }
     }, [inputRef]);
+
     return (
         <div onFocus={onFocus} onBlur={onBlur} className="field field-relation flex flex-row flex-start flex-1">
             {help && <div className={"flex help"}>{help}</div>}
@@ -176,17 +196,15 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
                     id={field.name}
                     onFocus={e => {
                         setResultsVisible(true);
-                        queryClient.invalidateQueries(['api/search', field.name, searchValue]);
                     }}
                     value={searchValue}
                     onChange={e => {
-                        if (!e.target.value) onChange({ name, value: '' });
-                        else onChange({ name, value: '' });
+                        if (!e.target.value) onChange({ name, value: null });
                         setResultsVisible(true);
                         setSearchValue(e.target.value);
                     }}
                     onBlur={(e) => {
-                        setResultsVisible(false);
+                        setTimeout(() => setResultsVisible(false), 150); // Léger délai pour permettre le clic sur un résultat
                     }}
                 />
                 <Button
@@ -200,11 +218,6 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
                     <div className="results" onKeyDown={e => {
                         if( e.key === 'Escape' )
                             setResultsVisible(false);
-                    }} onBlur={e => {
-                        const t = e.target.parentNode.children[e.target.parentNode.childElementCount-1];
-                        if(t === e.target){
-                            setResultsVisible(false);
-                        }
                     }} >
                         {!isError &&
                             (results || []).map(r => {
@@ -224,7 +237,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
             {field.multiple && selectedValues.length > 0 && (
                 <div ref={ref} tabIndex={0} className="selected-values flex flex-border flex-row flex-no-gap flex-start flex-1">
                     <Draggable items={selectedValues} renderItem={(id,i) =>{
-                        const val = history.find(f => f._id === id) || dataByModel[modelName].find(f => f._id === id);
+                        const val = history.find(f => f._id === id) || dataByModel[modelName]?.find(f => f._id === id);
                         if (!val) {
                             return <div className="flex" key={id}>data non chargée<FaTrash onClick={() => handleRemove(id)} /></div>;
                         }
@@ -239,7 +252,6 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value=null }) =
                     }} />
                 </div>
             )}
-
         </div>
     );
 };
