@@ -45,6 +45,9 @@ header {
   &.flex-start {
     align-items: start;
   }
+  &.flex-self-end {
+    align-self: end;
+  }
   .flex-left {
     justify-content: flex-start;
   }
@@ -513,7 +516,6 @@ label + .field, label + input, label + select {
 
 /* website*/
 #content {
-  margin-top: 40px;
   padding: 0;
   h1 {
     margin: 24px 8px;
