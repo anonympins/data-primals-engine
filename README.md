@@ -40,7 +40,7 @@ npm i data-primals-engine
 ```
 or
 ```bash
-git clone https://your-repo/data-primals-engine.git
+git clone https://github.com/anonympins/data-primals-engine.git
 cd data-primals-engine
 npm install
 ```
@@ -83,7 +83,7 @@ By default, the app runs on port **7633**.
 
 ## 🧠 Concepts
 
-### 1. Models
+### Models
 Define schemas using JSON:
 ```json
 {
@@ -120,22 +120,14 @@ Define schemas using JSON:
 | model	      | Stores a model by name                                                              | –                                                                         |                                            
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
-### 2. Modules
+### Modules
 Activatable features:
 - `mongodb`, `data`, `user`, `workflow`, `file`, `assistant`, `swagger`
 
-### 3. Starter Packs
+### Starter Packs
 - **E-commerce**: Products, orders, KPIs
 - **CRM**: Contacts, leads, interactions
 - **Website/blog**: Pages, posts, i18n
-
-### 4. Workflows
-Automate business processes:
-- **Triggers**: `DataAdded`, `DataUpdated`, `Scheduled`, `Manual`
-- **Actions**: `CreateData`, `UpdateData`, `SendEmail`, `ApiCall`
-
-Example:
-> When a new order is created, email the customer, update stock, and notify logistics.
 
 ---
 
@@ -445,7 +437,7 @@ data-primals-engine/
 │   ├── engine.js // The Express engine that serves the API
 │   ├── constants.js // The inner-application constants definitions
 │   ├── packs.js // The packs that will be loaded and available with installPack() method
-│   ├── defaultModels.js // The default models available to import
+│   ├── defaultModels.js // The default models available at startup.
 │   ├── ...
 └── server.js
 ```
@@ -492,10 +484,10 @@ Activate: The engine automatically listens for requests on /api/actions/:path th
 To create a custom endpoint, you need to define a document with the following structure:
 ```json
 {
-  "name": "GetUserWithPostCount",
-  "path": "user-summary/:username",
+  "name": "GetContactPostCount",
+  "path": "postCount/:name",
   "method": "GET",
-  "code": "const username = request.params.username; ... return { user, postCount };",
+  "code": "const posts = await db.find('content', { author: { $find: { $eq: ['$lastName', request.params.name]}}}); return { postCount: posts.length };",
   "isActive": true
 }
 ```
@@ -552,7 +544,8 @@ Let's create an endpoint that fetches a user's profile and counts how many posts
 ```
 2. Call the New Endpoint
    You can now call this custom endpoint like any other API route:
-Expected response
+
+Expected response :
 ```json
 {
   "profile": {
