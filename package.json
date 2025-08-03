@@ -102,13 +102,12 @@
     "client"
   ],
   "keywords": [
-    "mongodb",
-    "data",
-    "primals",
+    "data-driven engine",
+    "headless CMS",
+    "backend",
     "automation",
-    "aws",
-    "bucket",
-    "S3"
+    "AWS S3",
+    "MongoDB"
   ],
   "author": "anonympins",
   "license": "MIT",
