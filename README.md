@@ -297,7 +297,7 @@ await patchData(
 );
 ```
 
-### deleteData(modelName, ids, filter, user)
+### deleteData(modelName, filter, user)
 
 >Deletes data with cascading relation cleanup.
 
@@ -305,13 +305,13 @@ Examples:
 
 ```javascript
 // Delete by IDs
-await deleteData("comments", ["61d1f1a9e3f1a9e3f1a9e3f1"], null, user);
+await deleteData("comments", ["61d1f1a9e3f1a9e3f1a9e3f1"], user);
 
 // Delete by filter
-await deleteData("logs", null, { createdAt: { $lt: "2023-01-01" } }, user);
+await deleteData("logs", { createdAt: { $lt: "2023-01-01" } }, user);
 ```
 
-### searchData({user, query})
+### searchData(query, user)
 
 Powerful search with relation expansion and filtering.
 
@@ -326,15 +326,12 @@ Query Options:
 Example:
 ```javascript
 const results = await searchData({
-    user: currentUser,
-    query: {
-        model: "blogPost",
-        filter: { status: "published" },
-        depth: 2, // Expand author and comments
-        limit: 10,
-        sort: "createdAt:DESC"
-    }
-});
+     model: "blogPost",
+     filter: { status: "published" },
+     depth: 2, // Expand author and comments
+     limit: 10,
+     sort: "createdAt:DESC"
+}, user);
 ```
 
 ## Import/Export

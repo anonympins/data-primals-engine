@@ -299,7 +299,7 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
         }, {}, mockUser, false);
 
         // 2. Act: Supprimer la donnée
-        const deleteResult = await deleteData(targetDataModel.name, [projectId], {}, mockUser, true, true);
+        const deleteResult = await deleteData(targetDataModel.name, [projectId], mockUser, true, true);
         expect(deleteResult.success).toBe(true);
 
         // 3. Assert: Un `workflowRun` doit être créé
