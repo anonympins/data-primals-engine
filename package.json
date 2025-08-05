@@ -43,9 +43,9 @@
     "./*": "./src/*.js"
   },
   "peerDependencies": {
+    "express": "^5.1.0",
     "react": ">=18.0.0",
-    "react-query": ">=3.0.0",
-    "express": "^5.1.0"
+    "react-query": ">=3.0.0"
   },
   "dependencies": {
     "@langchain/core": "^0.3.66",
@@ -69,6 +69,7 @@
     "express-rate-limit": "^8.0.1",
     "express-session": "^1.18.2",
     "i18next-browser-languagedetector": "^8.2.0",
+    "isolated-vm": "^4.7.2",
     "juice": "^11.0.1",
     "mathjs": "^14.6.0",
     "mongodb": "^6.18.0",
@@ -88,7 +89,6 @@
     "tar": "^7.4.3",
     "uniqid": "^5.4.0",
     "vitest": "^3.2.4",
-    "isolated-vm": "^4.7.2",
     "yaml": "^2.8.0"
   },
   "devDependencies": {

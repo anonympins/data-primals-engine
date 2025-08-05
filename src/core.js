@@ -340,12 +340,13 @@ export const event_off = (name, callback) => {
 };
 
 
-export function slugify(str) {
+export function slugify(str,replacer='-', replaceUnicode=false) {
     str = str.replace(/^\s+|\s+$/g, ''); // trim leading/trailing white space
     str = str.toLowerCase(); // convert string to lowercase
-    str = str.replace(/[^a-z0-9 -]/g, '') // remove any non-alphanumeric characters
-        .replace(/\s+/g, '-') // replace spaces with hyphens
-        .replace(/-+/g, '-'); // remove consecutive hyphens
+    if( replaceUnicode)
+        str = str.replace(/[^a-z0-9 -]/g, ''); // remove any non-alphanumeric characters
+    str = str.replace(/\s+/g, replacer) // replace spaces with hyphens
+        .replace(/-+/g, replacer); // remove consecutive hyphens
     return str;
 }
 
@@ -388,4 +389,8 @@ export function object_equals( x, y ) {
     // allows x[ p ] to be set to undefined
 
     return true;
+}
+
+export const isValidPath = (path) =>{
+    return /^(?:[a-z]:)?[\/\\]{0,2}(?:[.\/\\ ](?![.\/\\\n])|[^<>:"|?*.\/\\ \n])+$/gmi.test(path);
 }
