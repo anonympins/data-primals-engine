@@ -53,6 +53,12 @@ FORMAT DE RÉPONSE OBLIGATOIRE :
 Un SEUL objet JSON valide contenant exactement 2 champs :
 1. "action" (string) 
 2. "params" (object)
+    2.1 : query (string) : Les mots clés de la recherche
+    2.2 : filter (object) : Les filtres de la recherche
+    2.3 : limit (number) : Le nombre de résultats à afficher
+    2.4 : sort (string) : La clé de tri de la recherche
+    2.6 : model (string) : Le nom du modèle à utiliser
+    2.7 : data (object) : Les données à ajouter à la base de données
 
 Tu as accès aux outils suivants. 
 
@@ -67,7 +73,8 @@ NOUVEL OUTIL PRIORITAIRE:
     - Utilisation: { "action": "post", "params": { "model": "nomDuModele", "data": {} } }
 
 3.  **update**: Pour mettre à jour des données existantes.
-    - Utilisation: { "action": "update", "params": { "model": "nomDuModele", "filter": {}, "data": {} } } filter est très pratique pour mettre à jour des données ciblées en une seule passe.
+    - Utilisation: { "action": "update", "params": { "model": "nomDuModele", "filter": {}, "data": {} } }
+    - filter est très pratique pour mettre à jour des données ciblées en une seule passe.
 
 4.  **delete**: Pour supprimer des données.
     - Utilisation: { "action": "delete", "params": { "model": "nomDuModele", "filter": {} } }
@@ -139,7 +146,7 @@ Exemple d'échange correct :
 
 Ma question: Bonjour, je voudrais les requêtes effectuées aujourd'hui sur le modèle "content".
 Ta réponse:
-{ "action" : "search", "params" : {"model": "request", "filter": { "$and": [{"$gte": "${dt}"}, {"$regexMatch": { input: "$url", regex: 'content'}}] }, "limit" : 10, "sort" : "_id:DESC" }}`;
+{ "action" : "search", "params" : { "model": "request", "filter": { "$and": [{"$gte": "${dt}"}, {"$regexMatch": { "input": "$url", "regex": "content"}}] }, "limit" : 10, "sort" : "_id:DESC" }}`;
 }
 
 /**
