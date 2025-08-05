@@ -1,6 +1,6 @@
 {
   "name": "data-primals-engine",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "data-primals-engine is the package responsible from handling large amount of data in a practical and performant way. It can handle large amount of data in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation.",
   "main": "src/engine.js",
   "type": "module",
@@ -43,9 +43,9 @@
     "./*": "./src/*.js"
   },
   "peerDependencies": {
+    "express": "^5.1.0",
     "react": ">=18.0.0",
-    "react-query": ">=3.0.0",
-    "express": "^5.1.0"
+    "react-query": ">=3.0.0"
   },
   "dependencies": {
     "@langchain/core": "^0.3.66",
@@ -69,6 +69,7 @@
     "express-rate-limit": "^8.0.1",
     "express-session": "^1.18.2",
     "i18next-browser-languagedetector": "^8.2.0",
+    "isolated-vm": "^4.7.2",
     "juice": "^11.0.1",
     "mathjs": "^14.6.0",
     "mongodb": "^6.18.0",
@@ -88,7 +89,6 @@
     "tar": "^7.4.3",
     "uniqid": "^5.4.0",
     "vitest": "^3.2.4",
-    "isolated-vm": "^4.7.2",
     "yaml": "^2.8.0"
   },
   "devDependencies": {
@@ -102,13 +102,12 @@
     "client"
   ],
   "keywords": [
-    "mongodb",
-    "data",
-    "primals",
+    "data-driven engine",
+    "headless CMS",
+    "backend",
     "automation",
-    "aws",
-    "bucket",
-    "S3"
+    "AWS S3",
+    "MongoDB"
   ],
   "author": "anonympins",
   "license": "MIT",

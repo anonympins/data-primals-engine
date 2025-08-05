@@ -41,17 +41,35 @@ const secureContext = tls.createSecureContext({
     ca: caFile, cert: certFile, key: keyFile
 });
 
+export const dbUrl = process.env.CI ? 'mongodb://mongodb:27017' : (process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017');
+
 const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TLS.toLowerCase()));
 
-// Connection URL
-export const dbUrl = process.env.CI ? 'mongodb://mongodb:27017' : (process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017');
-export const MongoClient = new InternalMongoClient(dbUrl, {
-    maxPoolSize: databasePoolSize,
-    tls: isTlsActive,
-    secureContext,
-    tlsAllowInvalidCertificates,
-    tlsAllowInvalidHostnames
-});
+const clientOptions = {
+    maxPoolSize: databasePoolSize
+};
+// On ajoute les options TLS si elles sont activées
+if (isTlsActive) {
+    clientOptions.tls = true;
+    // Chemin vers le certificat de l'autorité de certification (pour faire confiance au serveur)
+    if (process.env.CA_CERT) {
+        clientOptions.tlsCAFile = process.env.CA_CERT;
+    }
+    // Chemin vers le certificat et la clé du CLIENT (pour que le serveur vous fasse confiance)
+    if (process.env.CERT_KEY) {
+        clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
+    }
+    // Options pour le développement (à utiliser avec prudence)
+    if (tlsAllowInvalidCertificates) {
+        clientOptions.tlsAllowInvalidCertificates = true;
+    }
+    if (tlsAllowInvalidHostnames) {
+        clientOptions.tlsAllowInvalidHostnames = true;
+    }
+}
+
+export const MongoClient = new InternalMongoClient(dbUrl, clientOptions);
+
 
 // Database Name
 export const MongoDatabase = MongoClient.db(dbName);

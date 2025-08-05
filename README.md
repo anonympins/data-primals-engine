@@ -1,4 +1,9 @@
 # Data Primals Engine
+[![Node.js CI](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml/badge.svg?branch=main)](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml)
+![](https://img.shields.io/npm/dw/data-primals-engine)
+![](https://img.shields.io/npm/last-update/data-primals-engine)
+![](https://img.shields.io/github/v/release/anonympins/data-primals-engine)
+![](https://img.shields.io/github/license/anonympins/data-primals-engine)
 
 **data-primals-engine** is a powerful and flexible **Node.js** backend framework designed to accelerate development of complex data-driven applications. Built on **Express.js** and **MongoDB**, it offers dynamic data modeling, automation workflows, advanced user management, and more.
 
@@ -35,7 +40,7 @@ npm i data-primals-engine
 ```
 or
 ```bash
-git clone https://your-repo/data-primals-engine.git
+git clone https://github.com/anonympins/data-primals-engine.git
 cd data-primals-engine
 npm install
 ```
@@ -78,7 +83,7 @@ By default, the app runs on port **7633**.
 
 ## 🧠 Concepts
 
-### 1. Models
+### Models
 Define schemas using JSON:
 ```json
 {
@@ -115,22 +120,14 @@ Define schemas using JSON:
 | model	      | Stores a model by name                                                              | –                                                                         |                                            
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
-### 2. Modules
+### Modules
 Activatable features:
 - `mongodb`, `data`, `user`, `workflow`, `file`, `assistant`, `swagger`
 
-### 3. Starter Packs
+### Starter Packs
 - **E-commerce**: Products, orders, KPIs
 - **CRM**: Contacts, leads, interactions
 - **Website/blog**: Pages, posts, i18n
-
-### 4. Workflows
-Automate business processes:
-- **Triggers**: `DataAdded`, `DataUpdated`, `Scheduled`, `Manual`
-- **Actions**: `CreateData`, `UpdateData`, `SendEmail`, `ApiCall`
-
-Example:
-> When a new order is created, email the customer, update stock, and notify logistics.
 
 ---
 
@@ -440,7 +437,7 @@ data-primals-engine/
 │   ├── engine.js // The Express engine that serves the API
 │   ├── constants.js // The inner-application constants definitions
 │   ├── packs.js // The packs that will be loaded and available with installPack() method
-│   ├── defaultModels.js // The default models available to import
+│   ├── defaultModels.js // The default models available at startup.
 │   ├── ...
 └── server.js
 ```
@@ -473,8 +470,93 @@ A workflow is composed of two main parts: **Triggers** and **Actions**.
 
 See the details of the workflow models for more details.
 
+## ⚡ Dynamic API Endpoints
+Beyond standard CRUD operations, data-primals-engine allows you to create your own custom API endpoints directly from the UI. This feature acts like a built-in serverless function environment, enabling you to write custom business logic, integrate with third-party services, or create complex data aggregations on the fly.
+
+Your code is executed in a secure, isolated sandbox, with access to the core data functions and the incoming request context.
+
+### How It Works
+Define an Endpoint: You create a new document in the endpoint model.
+Write Your Logic: In the code field, you write the JavaScript that will be executed.
+Activate: The engine automatically listens for requests on /api/actions/:path that match your endpoint's definition.
+
+### The endpoint Model
+To create a custom endpoint, you need to define a document with the following structure:
+```json
+{
+  "name": "GetContactPostCount",
+  "path": "postCount/:name",
+  "method": "GET",
+  "code": "const posts = await db.find('content', { author: { $find: { $eq: ['$lastName', request.params.name]}}}); return { postCount: posts.length };",
+  "isActive": true
+}
+```
+| Field    | Type    | Description                                                          | 
+|:---------|:--------|:---------------------------------------------------------------------|
+| name     | string  | A descriptive name for your endpoint (e.g., "Calculate User Stats"). | 
+| path     | string  | The URL path. It can include parameters like :id.                    | 
+| method   | enum    | The HTTP method: GET, POST, PUT, PATCH, or DELETE.                   | 
+| code     | code    | The JavaScript code to execute when the endpoint is called.          |
+| isActive | boolean | A flag to enable or disable the endpoint without deleting it.        |
 ---
 
+### The Execution Context
+Your JavaScript code runs in an async context and has access to several global objects that are securely injected into the sandbox:
+
+#### The context Object
+> This object contains all the information about the incoming HTTP request.
+- context.request.**body**: The parsed request body (for POST, PUT, PATCH).
+- context.request.**query**: The URL query parameters as an object.
+- context.request.**params**: The URL path parameters (e.g., username from /user-summary/:username).
+- context.request.**headers**: The incoming request headers.
+
+#### The db Object
+> A secure API to interact with the database. All methods are async and must be awaited. They automatically operate within the authenticated user's permissions.
+- await db.**create**(modelName, dataObject): Inserts a new document.
+- await db.**find**(modelName, filter): Finds multiple documents. Returns an array.
+- await db.**findOne**(modelName, filter): Finds a single document. Returns an object or null.
+- await db.**update**(modelName, filter, updateObject): Partially updates documents matching the filter (similar to a PATCH).
+- await db.**delete**(modelName, filter): Deletes documents matching the filter.
+
+#### The logger Object
+> A safe way to log messages from your script. These logs will be collected and can be returned in the API response if an error occurs, which is very useful for debugging.
+- logger.**info**(...args)
+- logger.**warn**(...args)
+- logger.**error**(...args)
+
+#### The env Object
+> Provides access to the user-defined variables stored in the env model, not the server's process.env.
+- await env.**get**(variableName): Retrieves a single environment variable's value.
+- await env.**getAll**(): Retrieves all user environment variables as an object.
+
+#### Example: Creating a User Summary Endpoint
+Let's create an endpoint that fetches a user's profile and counts how many posts they have published.
+1. Create the Endpoint Document
+   Create a new document in the endpoint model with the following data:
+```json
+{
+    "name": "Get User Summary",
+    "path": "user-summary/:username",
+    "method": "GET",
+    "isActive": true,
+    "code": "const { username } = context.request.params;\n\n  if (!username) {\n    logger.error('Username parameter is required.');\n    return { success: false, error: 'Username is required.' };\n  }\n\n  logger.info(`Fetching summary for user: ${username}`);\n\n  // Fetch the user profile using the sandboxed db API\n  const userProfile = await db.findOne('userProfile', { username: username });\n\n  if (!userProfile) {\n    return { success: false, error: 'User not found' };\n  }\n\n  // Count the user's published posts\n  const posts = await db.find('post', { \n    authorId: userProfile._id.toString(), \n    status: 'published' \n  });\n\n  return {\n    profile: userProfile,\n    publishedPosts: posts.length\n  };\n});",
+}
+```
+2. Call the New Endpoint
+   You can now call this custom endpoint like any other API route:
+
+Expected response :
+```json
+{
+  "profile": {
+    "_id": "60d0fe4f5311236168a109ca",
+    "username": "demo",
+    "bio": "A demo user profile.",
+    "...": "..."
+  },
+  "publishedPosts": 15
+}
+```
 ## 🤝 Contributing
 
 1. Fork the repo
@@ -492,4 +574,4 @@ Distributed under the **MIT License**. See `LICENSE` file.
 
 ---
 
-## 🔼 Back to Top
+## [🔼](#) Back to Top

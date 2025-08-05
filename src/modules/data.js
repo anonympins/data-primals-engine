@@ -3,7 +3,7 @@ import {BSON, ObjectId} from "mongodb";
 import * as util from 'node:util';
 import {promisify} from 'node:util';
 import crypto from "node:crypto";
-import {exec} from 'node:child_process';
+import {exec,execFile} from 'node:child_process';
 import sanitizeHtml from 'sanitize-html';
 import * as tar from "tar";
 import process from "node:process";
@@ -105,6 +105,7 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
 
 const getBackupDir = () => process.env.BACKUP_DIR || './backups'; // Répertoire de stockage des sauvegardes
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 let importJobs = {};
 const IMPORT_CHUNK_SIZE = 100; // Nombre d'enregistrements à traiter par lot
@@ -3489,6 +3490,24 @@ async function insertAndResolveRelations(doc, model, collection, me, idMap) {
         return existingDoc._id;
     }
 
+    for (const field of model.fields) {
+        if (field.type === 'relation' && field.relationFilter && docToProcess[field.name]) {
+            const relatedIds = Array.isArray(docToProcess[field.name]) ? docToProcess[field.name] : [docToProcess[field.name]];
+            for (const id of relatedIds) {
+                const targetCollection = await getCollectionForUser(me, field.targetModel);
+                const validationQuery = {
+                    _id: new ObjectId(id), // L'ID doit correspondre
+                    ...field.relationFilter // ET le document doit respecter le filtre
+                };
+                const relatedDoc = await targetCollection.findOne(validationQuery);
+                if (!relatedDoc) {
+                    // Si on ne trouve rien, c'est que l'ID est invalide ou ne respecte pas le filtre.
+                    throw new Error(`La valeur '${id}' pour le champ '${field.name}' ne respecte pas le filtre de relation défini.`);
+                }
+            }
+        }
+    }
+
     // Insertion en conservant éventuellement l'ID original
     const result = docToProcess._id
         ? await collection.insertOne(docToProcess)
@@ -3705,6 +3724,33 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
                     field.type === 'file' ? null : updateData[field.name],
                     field
                 );
+            }
+        }
+
+        for (const field of model.fields) {
+            // On ne vérifie que si un champ de relation avec un filtre est en cours de modification.
+            if (field.type === 'relation' && field.relationFilter && updateData[field.name] !== undefined) {
+                const relatedIds = Array.isArray(updateData[field.name])
+                    ? updateData[field.name]
+                    : (updateData[field.name] ? [updateData[field.name]] : []);
+
+                for (const id of relatedIds) {
+                    if (!id || !isObjectId(id)) continue; // Ignorer les valeurs null/invalides
+
+                    const targetCollection = await getCollectionForUser(user, field.relation);
+
+                    const validationQuery = {
+                        _id: new ObjectId(id),
+                        ...field.relationFilter
+                    };
+
+                    const relatedDoc = await targetCollection.findOne(validationQuery);
+
+                    if (!relatedDoc) {
+                        // Si on ne trouve rien, c'est que l'ID est invalide ou ne respecte pas le filtre.
+                        throw new Error(`La valeur '${id}' pour le champ '${field.name}' ne respecte pas le filtre de relation défini.`);
+                    }
+                }
             }
         }
 
@@ -5172,6 +5218,7 @@ const handleFields = async (model, data, user, isRecursiveCall = false) => {
     }
 };
 
+let restoreRequests = {};
 export const validateRestoreRequest = (username, token) => {
     const request = restoreRequests[username];
     if (!request) {
@@ -5202,20 +5249,21 @@ export const loadFromDump = async (user, options = {}) => {
         throw new Error("No encryption key found for this user. Cannot restore.");
     }
 
+    const userId = getObjectHash({user: user.username});
     // --- La logique pour trouver le fichier de backup (local ou S3) reste la même ---
     // (le code existant pour trouver/télécharger le backupFilePath va ici)
     // ...
     let backupFilePath; // Assurez-vous que cette variable est bien définie avec le chemin du fichier .tar.gz
     // Exemple simplifié :
     const backupDir = getBackupDir();
-    const backupFilenameRegex = new RegExp(`^backup_${user.username}_(\\d+)\\.tar\\.gz$`);
+    const backupFilenameRegex = new RegExp(`^backup_${userId}_(\\d+)\\.tar\\.gz$`);
     const backupFiles = fs.readdirSync(backupDir).filter(filename => backupFilenameRegex.test(filename));
     if (backupFiles.length === 0) throw new Error(`Aucun fichier de sauvegarde local trouvé pour l'utilisateur ${user.username}.`);
     const latestBackupFile = backupFiles.sort((a, b) => parseInt(b.match(backupFilenameRegex)[1], 10) - parseInt(a.match(backupFilenameRegex)[1], 10))[0];
     backupFilePath = path.join(backupDir, latestBackupFile);
     // --- Fin de la logique de recherche de fichier ---
 
-    const tmpRestoreDir = path.join(backupDir, `tmp_restore_${user.username}_${Date.now()}`);
+    const tmpRestoreDir = path.join(backupDir, `tmp_restore_${userId}_${Date.now()}`);
 
     try {
         await runCryptoWorkerTask('decrypt', { filePath: backupFilePath, password: encryptedKey });
@@ -5252,17 +5300,25 @@ export const loadFromDump = async (user, options = {}) => {
         }
 
         let command;
+        const args = [
+            '--uri', dbUrl,
+            '--db', dbName
+        ];
+
         if (modelsOnly) {
-            // Restaure uniquement la collection des modèles
-            command = `mongorestore --uri="${dbUrl}" --db=${dbName} --nsInclude="${dbName}.models" "${restoreSourceDir}"`;
+            args.push('--nsInclude', `${dbName}.models`);
         } else {
-            // Restauration complète
-            command = `mongorestore --uri="${dbUrl}" --db=${dbName} --nsInclude="${dbName}.datas" --nsInclude="${dbName}.models" "${restoreSourceDir}"`;
+            // mongorestore accepte plusieurs fois l'option --nsInclude
+            args.push('--nsInclude', `${dbName}.datas`);
+            args.push('--nsInclude', `${dbName}.models`);
         }
+        // Le répertoire source est le dernier argument
+        args.push(restoreSourceDir);
+
 
         logger.info(`[${action}] Executing restore command: ${command}`);
-        await execAsync(command);
-
+        await execFileAsync('mongorestore', args);
+        
         // --- Tâches Post-Restauration ---
         await scheduleAlerts();
         await scheduleWorkflowTriggers();
@@ -5301,121 +5357,90 @@ const readKeyFromFile = (user) => {
     return null;
 };
 
+// C:/Dev/data-primals-engine/src/modules/data.js
+
 export const dumpUserData = async (user) => {
-// Déterminer la clé de chiffrement
-    // Pour cet exemple, on simule la config S3. Remplace par la vraie récupération.
-    const s3Config = user.configS3; // Supposons que l'objet 'user' passé contient déjà 'configS3'
+    const s3Config = user.configS3;
     const backupDir = getBackupDir();
+    const userId = getObjectHash({ user: user.username });
+    const backupFilename = `backup_${userId}`;
+    const timestamp = Date.now();
+
+    // Déclarer les chemins ici pour qu'ils soient accessibles dans tout le scope de la fonction
+    const localTempDumpDir = path.join(backupDir, `${backupFilename}_${timestamp}_temp`);
+    const finalArchiveName = `${backupFilename}_${timestamp}.tar.gz`;
+    const localArchivePath = path.join(backupDir, finalArchiveName);
 
     let encryptedKey = readKeyFromFile(user);
     if (!encryptedKey) {
         encryptedKey = generateAndStoreKey(user);
-        logger.info('Encryption key générée.');
-    } else {
-        logger.info('Encryption key chargée.');
     }
 
     try {
-        // Déterminer la fréquence de la sauvegarde
         const backupFrequency = await engine.userProvider.getBackupFrequency(user);
-
         logger.info(`Fréquence de sauvegarde : ${backupFrequency}.`);
 
-        // Définir le nom du fichier de sauvegarde et les chemins
-        const backupFilename = `backup_${user.username}`; //nom corrigé
-        const backupFileBasePath = path.join(backupDir, backupFilename); //chemin corrigé
-        const backupFilePath = `${backupFileBasePath}_${Date.now()}`;
-        const backupFilenameBase = `backup_${user.username}`;
-        const timestamp = Date.now();
-        const localTempDumpDir = path.join(backupDir, `${backupFilenameBase}_${timestamp}_temp`); // Répertoire temporaire local
-        const finalArchiveName = `${backupFilenameBase}_${timestamp}.tar.gz`; // Nom de l'archive finale
-        const localArchivePath = path.join(backupDir, finalArchiveName); // Chemin
-
-        logger.info(`Chemin du fichier de sauvegarde : ${backupFilePath}.`);
-
-        // Ajoute les filtres sur les collections et l'utilisateur
         const collections = await MongoDatabase.listCollections().toArray();
-        let query;
-        let col;
         for (const collection of collections) {
-
-            const colls = [await getUserCollectionName(user), 'models'];
-            if( colls.includes(collection.name) ){
-
-                // Exécuter mongodump avec les filtres appropriés
-                let command = `mongodump --uri="${dbUrl}" --db=${dbName} --out=${localTempDumpDir} `;
-
-                query = JSON.stringify({_user : user.username }); // Filtrer par _user
-                col = ` --collection=${collection.name}`;
-                command += `${col} --query ${JSON.stringify(query)}`;
-
-                logger.info(`Exécution de la commande : ${command}`);
-                await execAsync(command);
+            const collsToBackup = [await getUserCollectionName(user), 'models'];
+            if (collsToBackup.includes(collection.name)) {
+                const query = { _user: user.username };
+                const args = [
+                    '--uri', dbUrl,
+                    '--db', dbName,
+                    '--out', localTempDumpDir,
+                    '--collection', collection.name,
+                    '--query', JSON.stringify(query)
+                ];
+                logger.info(`Exécution de la commande : mongodump ${args.join(' ')}`);
+                await execFileAsync('mongodump', args);
             }
-
         }
 
-
-        // Zipper le contenu du répertoire de dump temporaire
-        // Le répertoire zippé sera `localTempDumpDir/${dbName}` si mongodump a créé ce sous-dossier
-        const dumpSourceDir = path.join(localTempDumpDir, dbName); // Le répertoire que mongodump a créé
+        const dumpSourceDir = path.join(localTempDumpDir, dbName);
         if (fs.existsSync(dumpSourceDir)) {
             await tar.create({ gzip: true, file: localArchivePath, C: localTempDumpDir }, [dbName]);
             logger.info(`Archive de sauvegarde locale créée : ${localArchivePath}`);
         } else {
-            throw new Error(`Le répertoire de dump ${dumpSourceDir} n'a pas été trouvé après mongodump.`);
+            logger.warn(`Le répertoire de dump ${dumpSourceDir} était vide. Aucune archive n'a été créée.`);
+            // On s'arrête ici car il n'y a rien à traiter
+            return Promise.resolve();
         }
 
-        // Chiffrer le fichier local avant l'upload si tu le souhaites (optionnel si le bucket S3 est déjà chiffré)
-        await encryptFile(localArchivePath, encryptedKey); // Ta fonction existante
+        await encryptFile(localArchivePath, encryptedKey);
 
         if (s3Config && s3Config.bucketName) {
-            logger.info(`Téléversement de la sauvegarde vers S3 pour l'utilisateur ${user.username}. Bucket: ${s3Config.bucketName}`);
             await uploadToS3(s3Config, localArchivePath, finalArchiveName);
-            logger.info(`Sauvegarde téléversée avec succès vers S3 pour ${user.username}.`);
-            // Optionnel: supprimer l'archive locale après l'upload S3 réussi
-            fs.unlinkSync(localArchivePath);
-            logger.info(`Archive locale ${localArchivePath} supprimée après l'upload S3.`);
+            fs.unlinkSync(localArchivePath); // Supprime l'archive locale après l'upload
         } else {
-            logger.info(`Aucune configuration S3 trouvée pour ${user.username}. La sauvegarde reste locale : ${localArchivePath}.`);
-            // Si pas de S3, le fichier chiffré localement (si encryptFile a été appelé) reste.
-            // Si tu ne chiffres pas localement et pas de S3, c'est l'archive .tar.gz qui reste.
+            logger.info(`Aucune configuration S3 trouvée. La sauvegarde reste locale : ${localArchivePath}.`);
         }
 
-        // Supprimer le répertoire de dump temporaire
+        logger.info(`Sauvegarde réussie pour l'utilisateur ${user.username}.`);
+        await manageBackupRotation(user, backupFrequency, s3Config);
+
+    } catch (error) {
+        logger.error(`Erreur lors de la sauvegarde pour l'utilisateur ${user.username}:`, error);
+        // Nettoyage de l'archive si elle a été créée avant l'erreur
+        if (fs.existsSync(localArchivePath)) {
+            fs.unlinkSync(localArchivePath);
+        }
+        throw error; // Relancer l'erreur pour que l'appelant soit informé
+    } finally {
+        // --- NETTOYAGE GARANTI ---
+        // Ce bloc s'exécute toujours, que la sauvegarde réussisse ou échoue.
         if (fs.existsSync(localTempDumpDir)) {
             fs.rmSync(localTempDumpDir, { recursive: true, force: true });
             logger.info(`Répertoire de dump temporaire ${localTempDumpDir} supprimé.`);
         }
-
-        logger.info(`Sauvegarde réussie pour l'utilisateur ${user.username}.`);
-        // La gestion de la rotation des sauvegardes devra être adaptée
-        // si les sauvegardes sont sur S3 (lister depuis S3, supprimer depuis S3).
-        await manageBackupRotation(user, backupFrequency, s3Config); // Passer s3Config
-
-        return Promise.resolve();
-    } catch (error) {
-        logger.error(`Erreur lors de la sauvegarde pour l'utilisateur ${user.username}:`, error);
-        // Nettoyage en cas d'erreur
-        const localTempDumpDir = path.join(backupDir, `backup_${user.username}_${Date.now()}_temp`); // Recalculer pour être sûr
-        if (fs.existsSync(localTempDumpDir)) {
-            fs.rmSync(localTempDumpDir, { recursive: true, force: true });
-        }
-        const localArchivePath = path.join(backupDir, `backup_${user.username}_${Date.now()}.tar.gz`); // Recalculer
-        if (fs.existsSync(localArchivePath)) {
-            fs.unlinkSync(localArchivePath);
-        }
-        throw error; // Relancer l'erreur
     }
-}
-
+};
 async function manageBackupRotation(user, backupFrequency, s3Config = null) { // Accepter s3Config
-    const userId = user.username; // ou user._id selon ce que tu utilises dans les noms de fichiers
-
+    const userId = getObjectHash({user:user.username});
     let filesToManage = [];
 
     if (s3Config && s3Config.bucketName) {
-        logger.info(`Gestion de la rotation des sauvegardes S3 pour ${userId}.`);
+        logger.info(`Gestion de la rotation des sauvegardes S3 pour ${userid}.`);
         const s3Backups = await listS3Backups(s3Config);
         // Filtrer pour ne garder que les backups de cet utilisateur et trier
         filesToManage = s3Backups

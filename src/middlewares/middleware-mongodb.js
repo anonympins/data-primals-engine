@@ -112,7 +112,7 @@ function sanitize(target, options = {}) {
 export function middleware(options = {}) {
     const hasOnSanitize = typeof options.onSanitize === 'function';
     return function (req, res, next) {
-        ['body', 'params', 'headers', 'query'].forEach(function (key) {
+        ['body', 'fields', 'params', 'headers', 'query'].forEach(function (key) {
             if (req[key]) {
                 // The _sanitize function mutates the req[key] object in-place.
                 // We only need to capture whether it was sanitized to call the hook.
