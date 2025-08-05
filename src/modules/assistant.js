@@ -218,13 +218,10 @@ async function handleChatRequest(message, history, provider, context, user, conf
         switch (parsedResponse.action) {
         case 'search': {
             const searchResult = await searchData({
-                user,
-                query: {
-                    model: parsedResponse.params.model,
-                    filter: parsedResponse.params.filter,
-                    limit: parsedResponse.params.limit || 10
-                }
-            });
+                model: parsedResponse.params.model,
+                filter: parsedResponse.params.filter,
+                limit: parsedResponse.params.limit || 10
+            }, user);
                 
             const resultString = searchResult.data.length > 0
                 ? i18n.t('assistant.searchResults', "Voici les résultats :") +
@@ -285,7 +282,7 @@ async function executeConfirmedAction(action, params, user) {
         return await patchData(params.model, params.filter, params.data, {}, user);
     case 'delete':
         // Le modèle est dans les params, pas besoin de le passer en argument sparé
-        return await deleteData(params.model, [], params.filter, user);
+        return await deleteData(params.model, params.filter, user);
     default:
         throw new Error(`Action confirmée non supportée: ${action}`);
     }
