@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/hooks/useDragAndDrop.js
 import { useState, useRef, useCallback } from 'react';
 
 const useDragAndDrop = () => {

@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/Dashboard.jsx
 import React, {useState, useMemo, useEffect} from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import {FaPlus, FaSpinner} from "react-icons/fa"; // Ajout FaTrash

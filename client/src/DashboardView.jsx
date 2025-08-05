@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/DashboardView.jsx
 import React, {useEffect, useState, useMemo, useRef, useCallback} from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import KPIWidget from "./KPIWidget.jsx";

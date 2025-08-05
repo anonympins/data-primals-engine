@@ -1198,7 +1198,6 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
  * @param {object} user - The user context for database access.
  * @returns {Promise<void>}
  */
-// C:/Dev/hackersonline-engine/server/src/modules/workflow.js
 
 export async function processWorkflowRun(workflowRunId, user) {
     const dbCollection = await getCollectionForUser(user);

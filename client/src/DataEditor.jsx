@@ -52,10 +52,6 @@ const getInputType = (fieldType) => {
     }
 };
 
-// C:/Dev/hackersonline-engine/client/src/DataEditor.jsx
-// C:/Dev/hackersonline-engine/client/src/DataEditor.jsx
-
-
 /**
  * Evaluates a single condition against form data.
  * @param {object} currentModelDef - The definition of the current model.

@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/ChartConfigModal.jsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useModelContext } from './contexts/ModelContext.jsx';
