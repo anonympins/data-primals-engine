@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/server/src/workers/crypto-worker.js
 import { parentPort } from 'worker_threads';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';

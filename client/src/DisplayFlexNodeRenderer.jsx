@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/DisplayFlexNodeRenderer.jsx
 import {useTranslation} from "react-i18next";
 import {cssProps} from "../../src/core.js";
 import FlexDataRenderer from "./FlexDataRenderer.jsx";

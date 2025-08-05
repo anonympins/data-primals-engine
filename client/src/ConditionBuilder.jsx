@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/ConditionBuilder.jsx
 
 import React, {useState, useEffect, useRef} from 'react';
 import {
@@ -567,7 +566,6 @@ const ConditionBuilder = ({ initialValue = null, onChange, models, model = null,
         setRoot(p);
         onChange(p);
     };
-// C:/Dev/hackersonline-engine/client/src/ConditionBuilder.jsx
     useEffect(() => {
         let parsedValue = {}; // Valeur par défaut si tout échoue
 

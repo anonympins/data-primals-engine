@@ -50,7 +50,6 @@ export function getUserId(user) {
 export const getUserName = (user) => {
     return isLocalUser(user) ? user._id + '_'+user._user : user.username;
 }
-// C:/Dev/hackersonline-engine/src/data.js
 
 /**
  * Crée une fonction de génération de nombres pseudo-aléatoires basée sur une graine (seed).
@@ -255,7 +254,6 @@ function buildNestedFindStructure(pathSegments, finalPayload) {
         }
     };
 }
-// C:/Dev/hackersonline-engine/src/data.js
 // ... (imports and other functions) ...
 
 /**

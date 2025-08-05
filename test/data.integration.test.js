@@ -644,8 +644,6 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
 
     });
 
-    // Dans C:/Dev/hackersonline-engine/test/data.integration.test.js
-
     describe('installPack', () => {
         let testPacksColInstance;
 

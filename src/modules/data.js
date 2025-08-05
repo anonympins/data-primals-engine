@@ -10,7 +10,7 @@ import process from "node:process";
 import {randomColor} from "randomcolor";
 import cronstrue from 'cronstrue/i18n.js';
 import { setTimeoutMiddleware } from '../middlewares/timeout.js';
-
+import { mkdir } from 'node:fs/promises';
 import {
     anonymizeText,
     encryptValue,
@@ -1376,6 +1376,9 @@ export async function onInit(defaultEngine) {
         }
 
 
+        // Create the uploads directories
+        await mkdir(path.join("uploads", "tmp"),{ recursive: true});
+
     }else {
         modelsCollection = getCollection("models");
         datasCollection = getCollection("datas");
@@ -1700,6 +1703,48 @@ export async function onInit(defaultEngine) {
         }
     });
 
+
+    engine.post('/api/model/search', [middlewareAuthenticator, userInitiator], async (req, res) => {
+        const { query } = req.fields;
+        const user = req.me;
+
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({ success: false, error: 'A search query string is required.' });
+        }
+
+        try {
+            // Utilise une expression régulière pour une recherche insensible à la casse
+            const searchRegex = new RegExp(query, 'i');
+
+            const results = await modelsCollection.find({
+                // Cherche dans les modèles de l'utilisateur OU les modèles partagés
+                $or: [
+                    { _user: user.username },
+                    { _user: { $exists: false } }
+                ],
+                // Cherche dans le nom OU la description
+                $and: [
+                    { $or: [
+                        { name: { $regex: searchRegex } },
+                        { description: { $regex: searchRegex } }
+                    ]}
+                ]
+            }, {
+                // On ne retourne que les informations utiles pour l'IA, pas tout le modèle
+                projection: {
+                    name: 1,
+                    description: 1,
+                    _id: 0
+                }
+            }).limit(10).toArray(); // Limite à 10 résultats pour ne pas surcharger
+
+            res.json({ success: true, models: results });
+
+        } catch (error) {
+            logger.error(`[Model Search] Error searching models for query "${query}":`, error);
+            res.status(500).json({ success: false, error: 'An internal server error occurred.' });
+        }
+    });
 
     engine.post('/api/model/generate', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
         // --- NOUVELLE LOGIQUE : Accepter le prompt ET un modèle existant ---
@@ -2335,12 +2380,6 @@ export async function onInit(defaultEngine) {
      * }
      * Returns: Array of aggregated data points (e.g., [{ label: '...', value: ... }]) or an error.
      */
-    // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
-
-    // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
-    // C:/Dev/hackersonline-engine/server/src/modules/data.js
-
-    // ... (autres imports et code)
 
     engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         // --- Récupérer groupByLabelField ---
@@ -3844,6 +3883,7 @@ async function handleScheduledJobs(modelName, existingDocs, collection, updateDa
     }
 }
 
+
 export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, waitForWorkflow = false) => {
 
     try {
@@ -4598,8 +4638,10 @@ export const importData = async(options, files, user) => {
             // let allProcessedData = [];
             // let modelNameForImport = '';
             // --- FIN DE LA MODIFICATION ---
-
-            if (file.mimetype === 'application/json' || file.originalFilename.endsWith('.json')) {
+            if( !file.name ){
+                throw new Error("No file provided.");
+            }
+            if (file.type === 'application/json' || file.name.endsWith('.json')) {
                 fileProcessed = true;
                 const jsonData = await runImportExportWorker('parse-json', { fileContent: fileContent.toString() });
 
@@ -4740,7 +4782,7 @@ export const importData = async(options, files, user) => {
                 }
                 // --- FIN DE LA MODIFICATION PRINCIPALE ---
 
-            } else if (file.mimetype === 'text/csv' || file.originalFilename.endsWith('.csv')) {
+            } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
                 // --- Logique CSV (inchangée, mais maintenant elle est séparée de la logique JSON) ---
                 fileProcessed = true;
                 const modelNameForImport = options.model;
@@ -5058,7 +5100,6 @@ function isValidAggregationOperator(operator) {
 
     return [...arithmeticOperators, ...comparisonOperators, ...stringOperators, ...conditionalOperators].includes(operator);
 }
-// C:/Dev/hackersonline-engine/server/src/modules/data.js
 
 /**
  * Gère les traductions spécifiques à l'utilisateur et traite les données de manière récursive
@@ -5341,8 +5382,6 @@ const readKeyFromFile = (user) => {
     }
     return null;
 };
-
-// C:/Dev/data-primals-engine/src/modules/data.js
 
 export const dumpUserData = async (user) => {
     const s3Config = user.configS3;
@@ -5816,11 +5855,6 @@ export const installAllPacks = async () => {
     await packsCollection.deleteMany({ _user: { $exists : false }});
     await packsCollection.insertMany(packs);
 }
-
-// Dans C:/Dev/data-primals-engine/src/modules/data.js
-// Dans C:/Dev/data-primals-engine/src/modules/data.js
-
-// ... (imports inchangés)
 
 export async function handleDemoInitialization(req, res) {
     const user = req.me;

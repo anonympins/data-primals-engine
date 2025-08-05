@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/RestoreDialog.jsx
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';

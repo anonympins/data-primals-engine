@@ -7,6 +7,12 @@ import {event_trigger} from "./core.js";
 export const install = true;
 
 /**
+ * Maximum reflective steps to be used by the AI (looping over own research)
+ * @type {number}
+ */
+export const maxAIReflectiveSteps = 4;
+
+/**
  * Database name
  * @type {string}
  */
