@@ -86,7 +86,7 @@ afterAll(async () => {
         fs.readdirSync(backupDir).forEach(file => {
             fs.unlinkSync(path.join(backupDir, file));
         });
-        // Optional: fs.rmdirSync(backupDir); // Remove the directory itself
+        fs.rmdirSync(backupDir); // Remove the directory itself
     }
 });
 
@@ -131,6 +131,8 @@ describe('Data Backup and Restore Integration', () => {
         expect(docAfterRestore).not.toBeNull();
         expect(docAfterRestore.testField).toBe('Initial Value');
         expect(docAfterRestore.optionalField).toBe(123);
+
+        console.log("Tests passed for backup and restore");
 
     }, 15000); // Timeout augmenté pour les opérations de fichiers
 });
