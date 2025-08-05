@@ -1704,6 +1704,48 @@ export async function onInit(defaultEngine) {
     });
 
 
+    engine.post('/api/model/search', [middlewareAuthenticator, userInitiator], async (req, res) => {
+        const { query } = req.fields;
+        const user = req.me;
+
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({ success: false, error: 'A search query string is required.' });
+        }
+
+        try {
+            // Utilise une expression régulière pour une recherche insensible à la casse
+            const searchRegex = new RegExp(query, 'i');
+
+            const results = await modelsCollection.find({
+                // Cherche dans les modèles de l'utilisateur OU les modèles partagés
+                $or: [
+                    { _user: user.username },
+                    { _user: { $exists: false } }
+                ],
+                // Cherche dans le nom OU la description
+                $and: [
+                    { $or: [
+                        { name: { $regex: searchRegex } },
+                        { description: { $regex: searchRegex } }
+                    ]}
+                ]
+            }, {
+                // On ne retourne que les informations utiles pour l'IA, pas tout le modèle
+                projection: {
+                    name: 1,
+                    description: 1,
+                    _id: 0
+                }
+            }).limit(10).toArray(); // Limite à 10 résultats pour ne pas surcharger
+
+            res.json({ success: true, models: results });
+
+        } catch (error) {
+            logger.error(`[Model Search] Error searching models for query "${query}":`, error);
+            res.status(500).json({ success: false, error: 'An internal server error occurred.' });
+        }
+    });
+
     engine.post('/api/model/generate', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
         // --- NOUVELLE LOGIQUE : Accepter le prompt ET un modèle existant ---
         const { prompt, history = [], existingModel } = req.fields;
@@ -3840,6 +3882,7 @@ async function handleScheduledJobs(modelName, existingDocs, collection, updateDa
         }
     }
 }
+
 
 export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, waitForWorkflow = false) => {
 
