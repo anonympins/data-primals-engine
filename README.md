@@ -37,13 +37,8 @@
 
 ## ⚙️ Requirements
 
-
----
-
-## ⚙️ Requirements
-
-- Node.js ≥ 18
-- MongoDB (local or remote)
+- Node.js ≥ 20
+- MongoDB (local or remote), see [installation guide](https://www.mongodb.com/docs/manual/installation/)
 - NPM or Yarn
 
 ---
