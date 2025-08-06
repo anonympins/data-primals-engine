@@ -88,72 +88,127 @@ export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 }
+/**
+ * Calcule et retourne l'ensemble des permissions actives pour un utilisateur.
+ * Cette fonction interne est la pierre angulaire de la nouvelle logique de permission.
+ * 1. Elle récupère toutes les permissions de base issues des rôles de l'utilisateur.
+ * 2. Elle applique ensuite les "exceptions" (ajouts ou retraits de permissions) qui sont valides (non expirées).
+ * @param {object} user - L'objet utilisateur pour lequel calculer les permissions.
+ * @returns {Promise<Set<string>>} Un Set contenant les noms de toutes les permissions actives.
+ * @private
+ */
+export async function getUserActivePermissions(user) {
+    const datasCollection = await getCollectionForUser(user);
+    const now = new Date();
+    const activePermissions = new Set();
 
-export async function hasPermission(permissionNames, user) {
-    if( !isLocalUser(user)){
-        return user.roles?.some(f => permissionNames.includes(f));
-    }
-    try {
-        // Si on a une string on le transforme en tableau.
-        const permissionNamesArray = Array.isArray(permissionNames) ? permissionNames : [permissionNames];
-        const collection = await getCollectionForUser(user);
+    // --- ÉTAPE 1: Récupérer les permissions de base des rôles ---
+    if (user.roles && user.roles.length > 0) {
+        const roleIds = user.roles.map(id => new ObjectId(id));
 
-        const job = [
+        const rolePermissions = await datasCollection.aggregate([
+            { $match: { _id: { $in: roleIds }, _model: "role" } },
+            { $unwind: "$permissions" },
+            { $addFields: { "permissionId": { "$toObjectId": "$permissions" } } },
             {
                 $lookup: {
-                    from: 'datas',
-                    let: { rolesIds: (user.roles ||[]).map(m => new ObjectId(m)) },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $in: ['$_id', '$$rolesIds'] }
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            $lookup: {
-                                from: 'datas',
-                                let: { rolePermissions: {
-                                    "$map": {
-                                        "input": "$permissions",
-                                        "in": { "$toObjectId": "$$this" }
-                                    }
-                                } },
-                                pipeline: [
-                                    {
-                                        $match: {
-                                            $expr: {
-                                                $and: [
-                                                    { $in: ['$_id', '$$rolePermissions'] }
-                                                ]
-                                            }
-                                        }
-                                    },
-                                    { $limit: 1 }
-                                ],
-                                as: 'permissions'
-                            }
-                        },
-                        { $unwind: { path: '$permissions', preserveNullAndEmptyArrays: true } }
-                    ],
-                    as: 'roles'
+                    from: datasCollection.collectionName, // Utiliser la même collection
+                    localField: "permissionId",
+                    foreignField: "_id",
+                    as: "permissionDoc"
                 }
             },
-            { $unwind: { path: '$roles', preserveNullAndEmptyArrays: true } },
-            { $match: { 'roles.permissions.name': { $in: permissionNamesArray } } }, // Match if permissions.name in array
-            { $limit: 1 },
-            { $project: { _id: 0, hasPermission: { $cond: [{ $in: ['$roles.permissions.name', permissionNamesArray] }, true, false] } } } //check the value
-        ];
-        const result = await collection.aggregate(job).toArray();
-        return result.length === 1 && result[0].hasPermission;
+            { $unwind: "$permissionDoc" },
+            { $group: { _id: "$permissionDoc.name" } }
+        ]).toArray();
+
+        rolePermissions.forEach(p => p._id && activePermissions.add(p._id));
+    }
+
+    // --- ÉTAPE 2: Appliquer les exceptions de permission ---
+    const exceptions = await datasCollection.aggregate([
+        {
+            $match: {
+                _model: "userPermission",
+                user: user._id, // Pas besoin de convertir en ObjectId si c'est déjà une string
+                $or: [
+                    { expiresAt: { $exists: false } },
+                    { expiresAt: { $gt: now } }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: datasCollection.collectionName,
+                let: { permissionId: "$permission" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $eq: [
+                                    "$_id",
+                                    { $toObjectId: "$$permissionId" } // Conversion ici
+                                ]
+                            }
+                        }
+                    },
+                    { $project: { name: 1 } }
+                ],
+                as: 'permissionDoc'
+            }
+        },
+        { $unwind: '$permissionDoc' }
+    ]).toArray();
+
+    // Appliquer les exceptions
+    for (const exception of exceptions) {
+        const permissionName = exception.permissionDoc?.name;
+        if (!permissionName) continue;
+
+        if (exception.isGranted) {
+            activePermissions.add(permissionName);
+        } else {
+            activePermissions.delete(permissionName);
+        }
+    }
+
+    return activePermissions;
+}
+
+/**
+ * Vérifie si un utilisateur possède au moins une des permissions spécifiées.
+ * Cette fonction utilise la nouvelle logique basée sur les rôles et les exceptions de permission.
+ * @param {string|string[]} permissionNames - Le nom de la permission ou un tableau de noms.
+ * @param {object} user - L'objet utilisateur authentifié.
+ * @returns {Promise<boolean>} - True si l'utilisateur a la permission, sinon false.
+ */
+export async function hasPermission(permissionNames, user) {
+    // Garde la compatibilité pour les utilisateurs non-locaux (ex: système)
+    if (!isLocalUser(user)) {
+        const userRoles = new Set(user.roles || []);
+        const requiredPermissions = Array.isArray(permissionNames) ? permissionNames : [permissionNames];
+        return requiredPermissions.some(p => userRoles.has(p));
+    }
+
+    try {
+        const requiredPermissions = Array.isArray(permissionNames) ? permissionNames : [permissionNames];
+        // Si aucune permission n'est requise, on autorise
+        if (requiredPermissions.length === 0) {
+            return true;
+        }
+
+        // 1. Obtenir l'ensemble final et à jour des permissions de l'utilisateur
+        const activePermissions = await getUserActivePermissions(user);
+
+        // 2. Vérifier si au moins une des permissions requises est dans l'ensemble des permissions actives
+        return requiredPermissions.some(pName => activePermissions.has(pName));
+
     } catch (e) {
-        logger.error(e);
+        logger.error("Erreur lors de la vérification des permissions :", e);
         return false;
     }
 }
+
 
 /**
  * Calcule l'utilisation totale de l'espace de stockage pour un utilisateur en octets.
