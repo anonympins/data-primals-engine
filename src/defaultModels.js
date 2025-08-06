@@ -46,6 +46,39 @@ export const defaultModels = {
             { name: 'tokens', type: 'relation', multiple: true, relation: 'token' }
         ]
     },
+    userPermission: {
+        "name": "userPermission",
+        "description": "Gère les exceptions aux permissions des rôles pour un utilisateur (ajouts ou retraits, permanents ou temporaires).",
+        "fields": [
+            {
+                "name": "user",
+                "type": "relation",
+                "relation": "user",
+                "required": true,
+                "index": true
+            },
+            {
+                "name": "permission",
+                "type": "relation",
+                "relation": "permission",
+                "required": true,
+                "index": true
+            },
+            {
+                "name": "isGranted",
+                "type": "boolean",
+                "required": true,
+                "hint": "True pour accorder la permission, False pour la révoquer explicitement."
+            },
+            {
+                "name": "expiresAt",
+                "type": "datetime",
+                "required": false,
+                "index": true,
+                "hint": "Si défini, l'exception (l'octroi ou la révocation) est temporaire."
+            }
+        ]
+    },
     token: {
         name: 'token',
         "description": "",
