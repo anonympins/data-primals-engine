@@ -9,6 +9,12 @@ export function escapeRegex(string) {
     return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
+export function escapeHtml(string){
+    return string.replace(/javascript:/gi, '').replace(/[^\w-_. ]/gi, function (c) {
+        return `&#${c.charCodeAt(0)};`;
+    });
+}
+
 export const isDate = dt => String(new Date(dt)) !== 'Invalid Date'
 
 export const safeAssignObject = (obj, key, value) => {
