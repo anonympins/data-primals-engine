@@ -10,6 +10,7 @@ import { getDataAsString } from "../data.js";
 import i18n from "../../src/i18n.js";
 import {generateLimiter} from "./user.js";
 import rateLimit from "express-rate-limit";
+import {maxAIReflectiveSteps} from "../constants.js";
 
 let logger = null;
 
@@ -24,52 +25,72 @@ export const assistantGlobalLimiter = rateLimit({
     }
 });
 
-const createSystemPrompt = (modelDefs) => {
+async function searchModels(query, user) {
+    if (!query) return [];
+    const searchRegex = new RegExp(query, 'i');
+    return await modelsCollection.find({
+        $or: [{ _user: user.username }, { _user: { $exists: false } }],
+        $and: [{ $or: [{ name: { $regex: searchRegex } }, { description: { $regex: searchRegex } }] }]
+    }, {
+        projection: { name: 1, description: 1, _id: 0 }
+    }).limit(10).toArray();
+}
+
+const createSystemPrompt = (modelDefs, lang) => {
     const cond1 = JSON.stringify({ "model": "event", "sort": "startDate:ASC", "limit": 0, "filter": { "$and": [{ "$nin": ["$tags", "festival"] }, { "$lt": ["$endDate", "$$NOW"] }] }}, null, 2);
     const cond2 = JSON.stringify({ "model": "contact", "sort": "legalName:ASC", "limit": 5,"filter": {"$ne": [{ "$type": "$legalName"}, "missing"] }}, null, 2);
     const cond3 = JSON.stringify({ "model": "order", "sort": "_id:DESC", "limit": 10,"filter": {"lang": { "$find": [{ "$eq": ["$$this.code", "fr"] }] } }}, null, 2);
     const cond4 = JSON.stringify({ "model": "order", "sort": "updatedAt:DESC", "limit": 0,"filter": {"user": { "$find": { "roles": { "$find": [{ "$in": ["$$this.name", ["admin", "moderator"]] }] } }}}}, null, 2);
 
+    const date = new Date();
+    const dt = date.toISOString();
     return `
 Tu es "Prior", un assistant expert en analyse de données pour le moteur data-primals-engine..
 Ta mission est d'aider l'utilisateur en répondant à ses questions sur ses données.
 
-STRICTEMENT INTERDIT :
-- DE FAIRE DES COMMENTAIRES TEXTUELS 
-- D'EXPLIQUER CE QUE TU VAS FAIRE
-- D'UTILISER DU TEXTE LIBRE SOUS AUCUNE FORME
 
 FORMAT DE RÉPONSE OBLIGATOIRE :
 Un SEUL objet JSON valide contenant exactement 2 champs :
 1. "action" (string) 
 2. "params" (object)
+    2.1 : query (string) : Les mots clés de la recherche
+    2.2 : filter (object) : Les filtres de la recherche
+    2.3 : limit (number) : Le nombre de résultats à afficher
+    2.4 : sort (string) : La clé de tri de la recherche
+    2.6 : model (string) : Le nom du modèle à utiliser
+    2.7 : data (object) : Les données à ajouter à la base de données
 
-Tu as accès aux outils suivants. Tu ne dois utiliser QUE ces outils.
+Tu as accès aux outils suivants. 
 
+NOUVEL OUTIL PRIORITAIRE:
+1.  **search_models**: À utiliser EN PREMIER SI TU NE SAIS PAS QUEL MODÈLE UTILISER pour répondre à la question de l'utilisateur. Si tu l'as déjà recherché, garde la définition initiale et n'effectue pas de recherche.
+    - Utilisation: { "action": "search_models", "params": { "query": "mots-clés de la recherche" } }
+    
 1.  **search**: Pour chercher des informations dans les données de l'utilisateur.
-    - Utilisation: \`{ "action": "search", "params": { "model": "nomDuModele", "filter": $FILTER, "limit": 10 } }\`
+    - Utilisation: { "action": "search", "params": { "model": "nomDuModele", "filter": {}, "limit": 10 } }
 
 2.  **post**: Pour créer une nouvelle donnée.
-    - Utilisation: \`{ "action": "post", "params": { "model": "nomDuModele", "data": $DATA } }\`
+    - Utilisation: { "action": "post", "params": { "model": "nomDuModele", "data": {} } }
 
 3.  **update**: Pour mettre à jour des données existantes.
-    - Utilisation: \`{ "action": "update", "params": { "model": "nomDuModele", "filter": $FILTER, "data": $DATA } }\` filter est très pratique pour mettre à jour des données ciblées en une seule passe.
+    - Utilisation: { "action": "update", "params": { "model": "nomDuModele", "filter": {}, "data": {} } }
+    - filter est très pratique pour mettre à jour des données ciblées en une seule passe.
 
 4.  **delete**: Pour supprimer des données.
-    - Utilisation: \`{ "action": "delete", "params": { "model": "nomDuModele", "filter": $FILTER } }\`
+    - Utilisation: { "action": "delete", "params": { "model": "nomDuModele", "filter": {} } }
 
 5.  **displayMessage**: Pour répondre directement à l'utilisateur. N'utilise cette action QUE lorsque tu as toutes les informations nécessaires pour formuler une réponse finale.
-    - Utilisation: \`{ "action": "displayMessage", "params": { "message": "Ta réponse textuelle." } }\`
+    - Utilisation: { "action": "displayMessage", "params": { "message": "Ta réponse textuelle." } }
 
-La spécification, pour t'aider à construire les filtres, est la suivante :
+Voici le mémo pour assigner des valeurs aux champs des modèles,avec ces types de données : 
 utilise une chaine de caractère convertible en ObjectId (mongodb) lorsque le nom du champ est _id 
 utilise une chaine de caracteres lorsque le type de champ est : string, string_t , password, url, phone, email, richtext
-utilise un $FILTER en retour si le type de champ est code et language='json' et conditionBuilder=true
+utilise un filtre en retour si le type de champ est code et language='json' et conditionBuilder=true
 utilise une chaine si c'est un type de champ code par défaut. 
 utilise une structure { "iso2langcode":"content..." } pour le champ multi-traductions richtext_t
 utilise un booléen pour : boolean
 utilise un nombre pour number
-utilise une date au format ISO String pour les types de champ : date, datetime,
+utilise une date au format ISO String pour les types de champ : date, datetime
 utilise les valeurs de l'attribut items pour les champs de type : enum 
 utilise un tableau de données brutes pour les champs de type : array
 utilise un _id nécessairement pour remplir les champs relation multiple=false
@@ -79,110 +100,178 @@ utilise les valeurs de cron standard '* * * * * *' pour : cronSchedule
 
 PROCESSUS DE RAISONNEMENT:
 1. L'utilisateur pose une question.
-2. Tu analyses la question et choisis l'outil approprié.
-3. Tu réponds IMMÉDIATEMENT avec l'objet JSON correspondant SANS COMMENTAIRE.
+2. Si le nom du modèle n'est pas évident, utilise d'abord l'outil "search_models" pour trouver le bon modèle.
+3. Une fois le modèle identifié, utilise les autres outils (search, post, etc.) pour effectuer l'action.
+4. Si tu as assez d'informations, réponds à l'utilisateur avec "displayMessage".
 
 Chacune de tes réponses doit être une étape en soi, ou au plus près d'une étape.
 
 CONTEXTE ACTUEL:
+- Date du jour de ton conversateur : ${dt}
+- La langue ISO à utiliser dans la conversation : ${lang}
 - L'utilisateur a accès aux modèles de données suivants et ne peut utiliser les filtres que sur les champs associés:
-${modelDefs.map(m => `  - Modèle "${m.name}":\n    Champs: ${JSON.stringify(m.fields.map(f => ({ name: f.name, type: f.type, hint: f.hint })), null, 2)}`).join('\n')}
-- Le format de $DATA est { modelFieldName: "value", otherModelFieldName: { subObj : true } }
-- Exemples de filtres $FILTER utilisables (ils sont compatibles MongoDB) : 
-Filtre utilisable : { $eq: ["$status", 500 ] }
-Filtre incorrect : { "status": 500 }
-==
+Si tu as besoin de savoir lesquels, utilise l'outil "search_models".
 
-Exemples de "params" : 
-Je voudrais les événements non terminés, qui ne sont pas des festivals ou des salons :
-\`${cond1}\`
-Donne moi les 5 nouvelles entreprises
-\`${cond2}\`
-Je veux les 10 dernières traductions ajoutées dans la langue française.
-\`${cond3}\`
-Je veux les commandes qui ont été faites par un admin ou un modérateur
-\`${cond4}\`
+- Le format de $DATA est { modelFieldName: "value", otherModelFieldName: { subObj : true } }
+- Le format des filtres est compréhensible par ses cas d'usage (Il doit être {} par défaut.) :
+
+Par exemple :  
+Question : Je voudrais les événements non terminés, qui ne sont pas des festivals ou des salons :
+Réponse : { "action" : "search", "params" : ${cond1} }
+
+Question : Donne moi les 5 nouvelles entreprises
+Réponse : { "action" : "search", "params" : ${cond2} }
+
+Question : Je veux les 10 dernières traductions ajoutées dans la langue française.
+Réponse : { "action" : "search", "params" : ${cond3} }
+
+Question : Je veux les commandes qui ont été faites par un admin ou un modérateur
+Réponse : { "action" : "search", "params" : ${cond4} }
+====
+
+NEVER use the non-aggregated syntax of the MongoDB operators :
+Use { '$gt': ["$publishedAt", "2023-10-05T20:12:00Z" } } } and NOT { publishedAt: { '$gt': '2023-10-05T20:12:00Z' } } }
+=====
+Et si tu dois utiliser une date :
+"2025-08-05T20:12:00Z" au lieu de { "$date": "2025-08-05T20:12:00Z" }
+=====
+Si plusieurs filtres doivent être combinés, utilise OBLIGATOIREMENT les opérateurs $and, $or, $nor, $not
+=====
 
 Règles ABSOLUES:
 - UNE SEULE COMMANDE JSON PAR RÉPONSE
 - AUCUN TEXTE HORS DU JSON
-- SI TU N'APPLIQUES PAS CES RÈGLES, LE SYSTÈME TE DÉSACTIVERA
 
-Exemple de réponse CORRECTE :
-\`\`\`
-json
-{
-    "action" : "search",
-    "params" : {
-        "model": "request", "limit" : 10, "sort" : "_id:DESC"
+Exemple d'échange correct :
+
+Ma question: Bonjour, je voudrais les requêtes effectuées aujourd'hui sur le modèle "content".
+Ta réponse:
+{ "action" : "search", "params" : { "model": "request", "filter": { "$and": [{"$gte": "${dt}"}, {"$regexMatch": { "input": "$url", "regex": "content"}}] }, "limit" : 10, "sort" : "_id:DESC" }}`;
+}
+
+/**
+ * Exécute un outil (tool) non-modifiant et retourne le résultat sous forme de chaîne.
+ * @param {string} action - L'action à exécuter ('search', 'search_models').
+ * @param {object} params - Les paramètres de l'action.
+ * @param {object} user - L'objet utilisateur.
+ * @param {Array} allModels - La liste de tous les modèles disponibles.
+ * @returns {Promise<string>} - Une chaîne de caractères décrivant le résultat de l'outil.
+ */
+async function executeTool(action, params, user, allModels) {
+    logger.debug(`[Assistant] Exécution de l'outil: ${action} avec les paramètres:`, params);
+    try {
+        switch (action) {
+        case 'search': {
+            const modelDef = allModels.find(m => m.name === params.model);
+            if (!modelDef) {
+                return `Erreur: Le modèle '${params.model}' n'a pas été trouvé. Impossible de lancer la recherche.`;
+            }
+
+            const searchResult = await searchData({
+                model: params.model,
+                filter: params.filter,
+                limit: params.limit || 10,
+                sort: params.sort
+            }, user);
+
+            if (searchResult.data.length === 0) {
+                return i18n.t('assistant.noResults', "Aucun résultat trouvé.");
+            }
+
+            const resultString = i18n.t('assistant.searchResults', "Voici les résultats :") +
+                    searchResult.data.map(item =>
+                        `\n- ${getDataAsString(modelDef, item, { i18n, t: i18n.t }, allModels, true)}`
+                    ).join('');
+
+            return resultString;
+        }
+        case 'search_models': {
+            const foundModels = await searchModels(params.query, user);
+
+            if (foundModels.length > 0) {
+                return "J'ai trouvé les modèles suivants qui pourraient correspondre : " +
+                        foundModels.map(m => `\n- Modèle "${m.name}": ${m.description || 'Pas de description.'}`).join('');
+            } else {
+                return "Je n'ai trouvé aucun modèle correspondant à votre recherche.";
+            }
+        }
+        default:
+            logger.warn(`[Assistant] Tentative d'exécution d'un outil non supporté ou nécessitant confirmation: ${action}`);
+            return `Erreur: L'action '${action}' n'est pas un outil exécutable directement.`;
+        }
+    } catch (error) {
+        logger.error(`[Assistant] Erreur lors de l'exécution de l'outil '${action}': ${error.message}`, error.stack);
+        return `Erreur lors de l'exécution de l'outil: ${error.message}`;
     }
 }
-\`\`\`
-
-Exemple de réponse INCORRECTE (INTERDIT) :
-"Je vais d'abord rechercher ces requêtes. Voici la commande que je vais exécuter..."
-`;
-}
-
-
 /**
  * Gère la requête de chat, soit en exécutant une action confirmée,
  * soit en lançant la boucle de raisonnement de l'IA.
- */
-/**
- * Gère la requête de chat, soit en exécutant une action confirmée,
- * soit en lanant la boucle de raisonnement de l'IA.
+ * @param {string} message - Le message de l'utilisateur.
+ * @param {Array} history - L'historique de la conversation.
+ * @param {string} provider - Le fournisseur d'IA ('openai' ou 'google').
+ * @param {object} context - Contexte additionnel.
+ * @param {object} user - L'objet utilisateur.
+ * @param {object} confirmedAction - Une action pré-approuvée par l'utilisateur.
+ * @returns {Promise<object>} La réponse de l'assistant.
  */
 async function handleChatRequest(message, history, provider, context, user, confirmedAction) {
+
+    const allModels = await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user.username}]}).toArray();
 
     // --- GESTION D'UNE ACTION CONFIRMÉE ---
     if (confirmedAction && confirmedAction.action) {
         try {
             const result = await executeConfirmedAction(confirmedAction.action, confirmedAction.params, user);
             let successMessage = i18n.t('assistant.actionSuccess', "Action exécutée avec succès.");
-            if (result.insertedIds) successMessage = i18n.t('assistant.itemCreated', `Élément créé avec l'ID: {{id}}.`, { id: result.insertedIds.join(', ') });
-            if (result.modifiedCount) successMessage = i18n.t('assistant.itemsUpdated', `{{count}} élément(s) mis à jour.`, { count: result.modifiedCount });
-            if (result.deletedCount) successMessage = i18n.t('assistant.itemsDeleted', `{{count}} élément(s) supprimés.`, { count: result.deletedCount });
+            if (result.insertedIds) successMessage = i18n.t('assistant.itemCreated', `Élément créé avec l'ID: {{id}}.`, {id: result.insertedIds.join(', ')});
+            if (result.modifiedCount) successMessage = i18n.t('assistant.itemsUpdated', `{{count}} élément(s) mis à jour.`, {count: result.modifiedCount});
+            if (result.deletedCount) successMessage = i18n.t('assistant.itemsDeleted', `{{count}} élément(s) supprimé(s).`, {count: result.deletedCount});
 
-            return { success: true, displayMessage: successMessage };
+            return {success: true, displayMessage: successMessage};
         } catch (error) {
             logger.error(`[Assistant] Erreur lors de l'exécution de l'action confirmée: ${error.message}`, error.stack);
-            return { success: false, displayMessage: i18n.t('error', `Erreur : {{message}}`, { message: error.message }) };
+            return {
+                success: false,
+                displayMessage: i18n.t('error.generic', `Erreur : {{message}}`, {message: error.message})
+            };
         }
     }
-    // --- FIN DE LA GESTION DE CONFIRMATION ---
 
-    const { modelName } = context;
-
-    // --- Étape 1: Initialisation de l'IA ---
-    let apiKey;
-    let p = provider || 'openai';
-    const providers = { "openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY" };
-    const envKeyName = providers[p];
-    if (!envKeyName) return { success: false, message: `Fournisseur IA non supporté : ${p}` };
-
-    const envCollection = await getCollectionForUser(user);
-    const userEnvVar = await envCollection.findOne({ _model: 'env', name: envKeyName, _user: user.username });
-    apiKey = userEnvVar?.value || process.env[envKeyName];
-
-    if (!apiKey) return { success: false, message: `Clé API pour ${provider} (${envKeyName}) non trouvée.` };
-
+    // --- INITIALISATION DE L'IA ---
     let llm;
     try {
+        const p = provider || 'openai';
+        const providers = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"};
+        const envKeyName = providers[p];
+        if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
+
+        const envCollection = await getCollectionForUser(user);
+        const userEnvVar = await envCollection.findOne({_model: 'env', name: envKeyName, _user: user.username});
+        const apiKey = userEnvVar?.value || process.env[envKeyName];
+
+        if (!apiKey) return {success: false, message: `Clé API pour ${provider} (${envKeyName}) non trouvée.`};
+
         llm = p === 'openai'
-            ? new ChatOpenAI({ apiKey, modelName: "gpt-4o-mini", temperature: 0.2, response_format: { "type": "json_object" } })
-            : new ChatGoogleGenerativeAI({ apiKey, modelName: "gemini-1.5-pro-latest", temperature: 0.2, response_format: { "type": "json_object" } });
+            ? new ChatOpenAI({
+                apiKey,
+                modelName: "gpt-4o-mini",
+                temperature: 0.2,
+                response_format: {"type": "json_object"}
+            })
+            : new ChatGoogleGenerativeAI({
+                apiKey,
+                modelName: "gemini-1.5-pro-latest",
+                temperature: 0.2,
+                response_format: {"type": "json_object"}
+            });
     } catch (initError) {
-        return { success: false, message: `Initialisation du client IA pour ${p}: ${initError.message}` };
+        logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);
+        return {success: false, message: `Erreur d'initialisation du client IA: ${initError.message}`};
     }
 
-    // --- Étape 2: Préparation du contexte pour l'IA ---
-    const allModels = await modelsCollection.find({ $or: [{ _user: { $exists: false } }, { _user: user.username }] }).toArray();
-    const relevantModelNames = new Set([modelName, 'alert', 'kpi', "dashboard", "request", "translation"]);
-    const modelDefs = allModels.filter(m => relevantModelNames.has(m.name));
-
-    const systemPrompt = createSystemPrompt(modelDefs);
-
+    // --- PRÉPARATION DE L'HISTORIQUE DE CONVERSATION ---
+    const systemPrompt = createSystemPrompt([], user.lang || 'en');
     const conversationHistory = history
         .filter(msg => !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
         .map(msg => new (msg.from === 'user' ? HumanMessage : SystemMessage)(msg.text));
@@ -190,83 +279,72 @@ async function handleChatRequest(message, history, provider, context, user, conf
     conversationHistory.unshift(new SystemMessage(systemPrompt));
     conversationHistory.push(new HumanMessage(message));
 
-    const maxTurns = 5;
 
-    // --- Étape 3: La boucle de raisonnement ---
-    for (let i = 0; i < maxTurns; i++) {
+    // --- BOUCLE DE RAISONNEMENT ET D'EXÉCUTION D'OUTILS ---
+    for (let i = 0; i < maxAIReflectiveSteps; i++) {
         logger.debug(`[Assistant] Tour de boucle ${i + 1}. Invocation de l'IA...`);
 
         const response = await llm.invoke(conversationHistory);
         const llmOutput = response.content;
 
+        // Parsing JSON robuste
         let parsedResponse;
         try {
+
             parsedResponse = JSON.parse(llmOutput);
+
             if (!parsedResponse.action || !parsedResponse.params) {
-                throw new Error("Format de réponse invalide.");
+                throw new Error("Réponse JSON invalide: 'action' ou 'params' manquant.");
             }
         } catch (parseError) {
-            // Si ce n'est pas du JSON valide, on nettoie et affiche
-            const cleanedOutput = llmOutput.replace(/\{(?:[^{}]|(?:\{[^{}]*\}))*\}/g, '').trim();
+            logger.error(`[Assistant] Erreur de parsing de la réponse de l'IA: ${parseError.message}. Réponse brute: "${llmOutput}"`);
             return {
                 success: true,
-                displayMessage: cleanedOutput || i18n.t('assistant.invalidResponse', "Réponse non valide.")
+                displayMessage: llmOutput || i18n.t('assistant.invalidResponse', "Désolé, je n'ai pas pu formuler une réponse correcte. Veuillez réessayer.")
             };
         }
 
-        // Exécution IMMÉDIATE des actions sans confirmation (sauf pour post/update/delete)
-        switch (parsedResponse.action) {
-        case 'search': {
-            const searchResult = await searchData({
-                user,
-                query: {
-                    model: parsedResponse.params.model,
-                    filter: parsedResponse.params.filter,
-                    limit: parsedResponse.params.limit || 10
-                }
-            });
-                
-            const resultString = searchResult.data.length > 0
-                ? i18n.t('assistant.searchResults', "Voici les résultats :") +
-                    searchResult.data.map(item =>
-                        `\n- ${getDataAsString(allModels.find(m => m.name === parsedResponse.params.model), item, i18n.t, allModels, true)}`
-                    ).join('')
-                : i18n.t('assistant.noResults', "Aucun résultat trouvé.");
+        logger.debug(`[Assistant] Action décidée par l'IA: ${parsedResponse.action}`);
+        conversationHistory.push(new SystemMessage(JSON.stringify(parsedResponse)));
 
-            return { success: true, displayMessage: resultString };
-        }
-        case 'displayMessage':
-            return { success: true, displayMessage: parsedResponse.params.message };
-        case 'code':
-            return { success: true, displayMessage: "Voici le code : " + parsedResponse.params.code };
-        case 'post':
-        case 'update':
-        case 'delete': {
-            const { model, filter, data } = parsedResponse.params;
+        const { action, params } = parsedResponse;
 
-            // Un message générique. Les détails seront affichés par le front-end.
+        // Actions nécessitant une confirmation de l'utilisateur
+        if (['post', 'update', 'delete'].includes(action)) {
             const confirmationMessage = i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :");
-
             return {
                 success: true,
-                model,
-                filter,
-                data,
-                displayMessage: confirmationMessage, // Message détaillé pour l'utilisateur
-                confirmationRequest: parsedResponse // Action complète pour l'exécution
+                displayMessage: confirmationMessage,
+                confirmationRequest: parsedResponse
             };
         }
 
-        default:
-            return {
-                success: true,
-                displayMessage: i18n.t('assistant.unknownAction', "Commande non reconnue.")
-            };
+        // Action finale pour afficher un message
+        if (action === 'displayMessage') {
+            return { success: true, displayMessage: params.message };
         }
+
+        // Actions à exécuter immédiatement (outils)
+        if (['search', 'search_models'].includes(action)) {
+            const toolResult = await executeTool(action, params, user, allModels);
+            conversationHistory.push(new SystemMessage(`Résultat de l'outil '${action}':\n${toolResult}`));
+            continue; // On continue la boucle pour que l'IA puisse raisonner avec ce nouveau résultat
+        }
+
+        // Si l'action n'est reconnue par aucune des logiques ci-dessus
+        logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
+        return {
+            success: true,
+            displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", { action })
+        };
     }
 
-    logger.warn("[Assistant] La boucle a atteint le nombre maximum de tours sans réponse.");
-    return { success: true, displayMessage: i18n.t('assistant.loopTimeout', "Désolé, je n'ai pas réussi à terminer ma pensée. Pouvez-vous reformuler votre demande ?"), actions: [] };
+    // Si la boucle se termine sans une action finale
+    logger.warn("[Assistant] La boucle a atteint le nombre maximum de tours sans réponse finale.");
+    return {
+        success: true,
+        displayMessage: i18n.t('assistant.loopTimeout', "Désolé, je n'ai pas réussi à terminer ma pensée. Pouvez-vous reformuler votre demande ?")
+    };
 }
 /**
  * Exécute une action de modification (post, update, delete) après confirmation de l'utilisateur.
@@ -285,7 +363,7 @@ async function executeConfirmedAction(action, params, user) {
         return await patchData(params.model, params.filter, params.data, {}, user);
     case 'delete':
         // Le modèle est dans les params, pas besoin de le passer en argument sparé
-        return await deleteData(params.model, [], params.filter, user);
+        return await deleteData(params.model, params.filter, user);
     default:
         throw new Error(`Action confirmée non supportée: ${action}`);
     }

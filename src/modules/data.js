@@ -10,7 +10,7 @@ import process from "node:process";
 import {randomColor} from "randomcolor";
 import cronstrue from 'cronstrue/i18n.js';
 import { setTimeoutMiddleware } from '../middlewares/timeout.js';
-
+import { mkdir } from 'node:fs/promises';
 import {
     anonymizeText,
     encryptValue,
@@ -981,13 +981,10 @@ async function runStatefulAlertJob(alertId) {
         // 3. Evaluate the trigger condition
         const apiFilter = (alertDoc.triggerCondition);
         const { count } = await searchData({
-            user: { username: alertDoc._user },
-            query: {
-                model: alertDoc.targetModel,
-                filter: apiFilter,
-                limit: 1
-            }
-        });
+            model: alertDoc.targetModel,
+            filter: apiFilter,
+            limit: 1
+        }, { username: alertDoc._user });
 
         // 4. If condition is met, send notification and update state
         if (count > 0) {
@@ -1233,17 +1230,14 @@ export async function handleCustomEndpointRequest(req, res) {
     try {
         // 1. Trouver l'endpoint correspondant dans la base de données
         const endpointSearch = await searchData({
-            user,
-            query: {
-                model: 'endpoint',
-                filter: {
-                    path: path,
-                    method: method,
-                    isActive: true
-                },
-                limit: 1
-            }
-        });
+            model: 'endpoint',
+            filter: {
+                path: path,
+                method: method,
+                isActive: true
+            },
+            limit: 1
+        }, user);
 
         if (endpointSearch.count === 0) {
             logger.warn(`[Endpoint] 404 - No active endpoint found for user '${user.username}', path '${path}', method '${method}'.`);
@@ -1382,6 +1376,9 @@ export async function onInit(defaultEngine) {
         }
 
 
+        // Create the uploads directories
+        await mkdir(path.join("uploads", "tmp"),{ recursive: true});
+
     }else {
         modelsCollection = getCollection("models");
         datasCollection = getCollection("datas");
@@ -1396,7 +1393,7 @@ export async function onInit(defaultEngine) {
     schedule.scheduleJob("0 0 * * *", async () => {
         const dt = new Date();
         dt.setTime(dt.getTime()-1000*3600*24*14);
-        await deleteData("request", [], {"$lt": ["$timestamp",dt.toISOString()]}, null, false);
+        await deleteData("request", {"$lt": ["$timestamp",dt.toISOString()]}, null, false);
     });
     await scheduleWorkflowTriggers();
 
@@ -1527,14 +1524,11 @@ export async function onInit(defaultEngine) {
 
             // On utilise la fonction de recherche interne de l'application
             const searchResult = await searchData({
-                query: {
-                    model,
-                    filter: processedFilter,
-                    limit, // Optimisation : pas besoin de plus de résultats
-                    page: 1
-                },
-                user: user
-            });
+                model,
+                filter: processedFilter,
+                limit, // Optimisation : pas besoin de plus de résultats
+                page: 1
+            }, user);
 
             // searchData devrait renvoyer un `count` total des documents correspondants
             const isCompleted = searchResult.count >= limit;
@@ -1710,6 +1704,48 @@ export async function onInit(defaultEngine) {
     });
 
 
+    engine.post('/api/model/search', [middlewareAuthenticator, userInitiator], async (req, res) => {
+        const { query } = req.fields;
+        const user = req.me;
+
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({ success: false, error: 'A search query string is required.' });
+        }
+
+        try {
+            // Utilise une expression régulière pour une recherche insensible à la casse
+            const searchRegex = new RegExp(query, 'i');
+
+            const results = await modelsCollection.find({
+                // Cherche dans les modèles de l'utilisateur OU les modèles partagés
+                $or: [
+                    { _user: user.username },
+                    { _user: { $exists: false } }
+                ],
+                // Cherche dans le nom OU la description
+                $and: [
+                    { $or: [
+                        { name: { $regex: searchRegex } },
+                        { description: { $regex: searchRegex } }
+                    ]}
+                ]
+            }, {
+                // On ne retourne que les informations utiles pour l'IA, pas tout le modèle
+                projection: {
+                    name: 1,
+                    description: 1,
+                    _id: 0
+                }
+            }).limit(10).toArray(); // Limite à 10 résultats pour ne pas surcharger
+
+            res.json({ success: true, models: results });
+
+        } catch (error) {
+            logger.error(`[Model Search] Error searching models for query "${query}":`, error);
+            res.status(500).json({ success: false, error: 'An internal server error occurred.' });
+        }
+    });
+
     engine.post('/api/model/generate', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter, setTimeoutMiddleware(30000)], async (req, res) => {
         // --- NOUVELLE LOGIQUE : Accepter le prompt ET un modèle existant ---
         const { prompt, history = [], existingModel } = req.fields;
@@ -1820,7 +1856,7 @@ export async function onInit(defaultEngine) {
         const { pack } = req.fields;
 
         try {
-            const {data, count} = await searchData({query: {...req.query, model: req.fields.model || req.query.model, filter: req.fields.filter, pack}, user: req.me });
+            const {data, count} = await searchData({...req.query, model: req.fields.model || req.query.model, filter: req.fields.filter, pack}, req.me);
 
             if( req.query.attachment ) {
                 res.attachment(req.query.attachment);
@@ -1845,7 +1881,7 @@ export async function onInit(defaultEngine) {
 
     engine.delete('/api/data/:ids', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
         const ids = req.params.ids.split(',');
-        const r = await deleteData(req.fields.model, ids, {}, req.me);
+        const r = await deleteData(req.fields.model, ids, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
         }else{
@@ -1854,7 +1890,7 @@ export async function onInit(defaultEngine) {
     });
 
     engine.delete('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
-        const r = await deleteData(req.fields.model, [], req.fields.filter, req.me);
+        const r = await deleteData(req.fields.model, req.fields.filter, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
         }else{
@@ -2344,12 +2380,6 @@ export async function onInit(defaultEngine) {
      * }
      * Returns: Array of aggregated data points (e.g., [{ label: '...', value: ... }]) or an error.
      */
-    // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
-
-    // Dans server/src/modules/data.js, modifiez la route POST /api/charts/aggregate
-    // C:/Dev/hackersonline-engine/server/src/modules/data.js
-
-    // ... (autres imports et code)
 
     engine.post('/api/charts/aggregate', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         // --- Récupérer groupByLabelField ---
@@ -3236,13 +3266,10 @@ async function processRelations(docToProcess, model, collection, me, idMap) {
             batchFinds.push({
                 field: field.name,
                 promise: searchData({
-                    user: me,
-                    query: {
-                        filter: value.$find,
-                        limit: field.multiple ? 0 : 1,
-                        model: field.relation
-                    }
-                }),
+                    filter: value.$find,
+                    limit: field.multiple ? 0 : 1,
+                    model: field.relation
+                }, me),
                 multiple: field.multiple
             });
         }
@@ -3655,7 +3682,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         }
 
         // 2. Récupération des documents existants et de leur hash original
-        const existingDocs = (await searchData({user, query: {model: modelName, filter}}))?.data;
+        const existingDocs = (await searchData({model: modelName, filter}, user))?.data;
         if (!existingDocs || existingDocs.length === 0) {
             return {success: false, error: i18n.t("api.data.notFound")};
         }
@@ -3856,7 +3883,8 @@ async function handleScheduledJobs(modelName, existingDocs, collection, updateDa
     }
 }
 
-export const deleteData = async (modelName, ids = [], filter, user ={}, triggerWorkflow, waitForWorkflow = false) => {
+
+export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, waitForWorkflow = false) => {
 
     try {
         const collection = await getCollectionForUser(user);
@@ -3871,8 +3899,8 @@ export const deleteData = async (modelName, ids = [], filter, user ={}, triggerW
             });
 
         // Ajouter le filtre par IDs si fourni
-        if (ids && ids.length > 0) {
-            findFilter.push({"$in": ["$_id", ids.map(m => new ObjectId(m))]});
+        if (Array.isArray(filter) && filter.length > 0) {
+            findFilter.push({"$in": ["$_id", filter.map(m => new ObjectId(m))]});
         }
 
         // Ajouter le filtre par nom de modèle si fourni (utile si 'filter' est utilisé seul)
@@ -4071,7 +4099,7 @@ export const deleteData = async (modelName, ids = [], filter, user ={}, triggerW
 
 // ... (le reste du fichier data.js)
 
-export const searchData = async ({user, query}) => {
+export const searchData = async (query, user) => {
     const { page, limit, sort, model, ids, timeout, pack } = query; // Les filtres de la requête (attention aux injections MongoDB !)
 
     if( user.username !== 'demo' && isLocalUser(user) && (
@@ -4610,8 +4638,10 @@ export const importData = async(options, files, user) => {
             // let allProcessedData = [];
             // let modelNameForImport = '';
             // --- FIN DE LA MODIFICATION ---
-
-            if (file.mimetype === 'application/json' || file.originalFilename.endsWith('.json')) {
+            if( !file.name ){
+                throw new Error("No file provided.");
+            }
+            if (file.type === 'application/json' || file.name.endsWith('.json')) {
                 fileProcessed = true;
                 const jsonData = await runImportExportWorker('parse-json', { fileContent: fileContent.toString() });
 
@@ -4752,7 +4782,7 @@ export const importData = async(options, files, user) => {
                 }
                 // --- FIN DE LA MODIFICATION PRINCIPALE ---
 
-            } else if (file.mimetype === 'text/csv' || file.originalFilename.endsWith('.csv')) {
+            } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
                 // --- Logique CSV (inchangée, mais maintenant elle est séparée de la logique JSON) ---
                 fileProcessed = true;
                 const modelNameForImport = options.model;
@@ -4959,16 +4989,13 @@ export const exportData= async (options, user) =>{
 
             // --- Fetch Data using searchData ---
             const searchParams = {
-                user: user,
-                query: {
-                    model: modelName,
-                    filter: modelSpecificFilter,
-                    depth: parsedDepth,
-                    limit: remainingLimit
-                }
+                model: modelName,
+                filter: modelSpecificFilter,
+                depth: parsedDepth,
+                limit: remainingLimit
             };
 
-            const { data: resultData, count } = await searchData(searchParams);
+            const { data: resultData, count } = await searchData(searchParams, user);
 
             if (resultData && resultData.length > 0) {
                 exportResults[modelName] = resultData;
@@ -5073,7 +5100,6 @@ function isValidAggregationOperator(operator) {
 
     return [...arithmeticOperators, ...comparisonOperators, ...stringOperators, ...conditionalOperators].includes(operator);
 }
-// C:/Dev/hackersonline-engine/server/src/modules/data.js
 
 /**
  * Gère les traductions spécifiques à l'utilisateur et traite les données de manière récursive
@@ -5356,8 +5382,6 @@ const readKeyFromFile = (user) => {
     }
     return null;
 };
-
-// C:/Dev/data-primals-engine/src/modules/data.js
 
 export const dumpUserData = async (user) => {
     const s3Config = user.configS3;
@@ -5777,7 +5801,7 @@ export async function installPack(packId, user, lang) {
                 const finalSelector = { ...linkSelector };
                 delete finalSelector['_model']; // nécessaire
                 // CORRECTION 4: Appel corrigé à searchData
-                const { data: targetDocs } = await searchData({ user, query: { model: targetModelName, filter: finalSelector } });
+                const { data: targetDocs } = await searchData({model: targetModelName, filter: finalSelector }, user);
 
                 if (targetDocs && targetDocs.length > 0) {
                     targetIds = targetDocs.map(d => d._id); // Récupère un tableau d'ObjectIds
@@ -5831,11 +5855,6 @@ export const installAllPacks = async () => {
     await packsCollection.deleteMany({ _user: { $exists : false }});
     await packsCollection.insertMany(packs);
 }
-
-// Dans C:/Dev/data-primals-engine/src/modules/data.js
-// Dans C:/Dev/data-primals-engine/src/modules/data.js
-
-// ... (imports inchangés)
 
 export async function handleDemoInitialization(req, res) {
     const user = req.me;

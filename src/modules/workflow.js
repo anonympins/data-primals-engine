@@ -197,15 +197,15 @@ export async function executeSafeJavascript(actionDef, context, user) {
         await jail.set('db', createJailFunction({
             create: (modelName, dataObject) => insertData(modelName, dataObject, {}, user),
             find: async (modelName, filter) => {
-                const result = await searchData({ user, query: { model: modelName, filter } });
+                const result = await searchData({ model: modelName, filter }, user);
                 return new ivm.ExternalCopy(result.data).copyInto();
             },
             findOne: async (modelName, filter) => {
-                const result = await searchData({ user, query: { model: modelName, filter, limit: 1 } });
+                const result = await searchData({ model: modelName, filter, limit: 1 }, user);
                 return new ivm.ExternalCopy(result.data?.[0] || null).copyInto();
             },
             update: (modelName, filter, updateObject) => patchData(modelName, filter, updateObject, {}, user),
-            delete: (modelName, filter) => deleteData(modelName, null, filter, user)
+            delete: (modelName, filter) => deleteData(modelName, filter, user)
         }));
 
         const createLoggerFunction = (level) => {
@@ -228,11 +228,11 @@ export async function executeSafeJavascript(actionDef, context, user) {
         await jail.set('env', createJailFunction({
             get: async (variableName) => {
                 if (!variableName) return null;
-                const result = await searchData({ user, query: { model: 'env', filter: { name: variableName }, limit: 1 } });
+                const result = await searchData({ model: 'env', filter: { name: variableName }, limit: 1 }, user);
                 return new ivm.ExternalCopy(result.data?.[0]?.value || null).copyInto();
             },
             getAll: async () => {
-                const result = await searchData({ user, query: { model: 'env' } });
+                const result = await searchData({ model: 'env' }, user);
                 const envObject = result.data.reduce((acc, v) => {
                     acc[v.name] = v.value;
                     return acc;
@@ -708,7 +708,7 @@ async function handleDeleteDataAction(actionDef, contextData, user, dbCollection
         // 5. Call the centralized deleteData function (à créer dans data.js)
         // Cette fonction devra gérer la recherche préalable pour les workflows 'DataDeleted' et la suppression des fichiers.
         const deleteResult = await deleteData(
-            targetModel, [],
+            targetModel,
             selectorObject,
             user
         );
@@ -1115,7 +1115,7 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
 
                         // Exécuter la vérification dans la base de données
                         // Utilisation de countDocuments pour une vérification rapide
-                        const matchCount = await searchData({ user, query: { model: targetModelName, filter: finalFilter, limit: 1 } });
+                        const matchCount = await searchData({  model: targetModelName, filter: finalFilter, limit: 1 }, user);
 
                         if (!matchCount.count) {
                             console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
@@ -1198,7 +1198,6 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
  * @param {object} user - The user context for database access.
  * @returns {Promise<void>}
  */
-// C:/Dev/hackersonline-engine/server/src/modules/workflow.js
 
 export async function processWorkflowRun(workflowRunId, user) {
     const dbCollection = await getCollectionForUser(user);
@@ -1280,7 +1279,7 @@ export async function processWorkflowRun(workflowRunId, user) {
             try {
                 // --- 7. Évaluation des conditions de l'étape ---
                 if (currentStepDef.conditions && Object.keys(currentStepDef.conditions).length > 0) {
-                    const searchResult = await searchData({ user, query: { model: contextData.triggerDataModel, filter: currentStepDef.conditions, limit: 1 } });
+                    const searchResult = await searchData({ model: contextData.triggerDataModel, filter: currentStepDef.conditions, limit: 1}, user);
                     conditionsMet = searchResult && searchResult.count > 0;
                     logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Conditions evaluated. Found ${searchResult ? searchResult.count : 0} match(es). Result: ${conditionsMet}`);
                 }
@@ -1478,9 +1477,8 @@ async function handleSendEmailAction(action, triggerData, user) {
 
     // 1. Récupérer la configuration SMTP depuis le modèle 'env' de l'utilisateur
     const envVars = await searchData({
-        user,
-        query: { model: 'env', limit: 100 } // Limite raisonnable pour les variables d'env
-    });
+        model: 'env', limit: 100 } // Limite raisonnable pour les variables d'env
+    , user);
 
     if (!envVars.data || envVars.data.length === 0) {
         throw new Error("Aucune variable d'environnement (modèle 'env') trouvée pour la configuration SMTP.");

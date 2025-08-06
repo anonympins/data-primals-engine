@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/CronPartBuilder.jsx
 
 import React, { useMemo } from 'react';
 import { SelectField, TextField, NumberField } from './Field.jsx';

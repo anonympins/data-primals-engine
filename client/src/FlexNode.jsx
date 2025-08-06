@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/FlexNode.jsx
 import React, {useEffect, useRef, useState} from 'react';
 import PropTypes from 'prop-types';
 import {

@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/server/src/migrate.js
 
 import process from "node:process";
 import fs from "node:fs/promises";

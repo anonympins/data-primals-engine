@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/pages/ContentView.jsx
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {useParams, Link, useLocation } from 'react-router-dom'; // NavLink supprimé car non utilisé
 import { useQuery } from 'react-query';

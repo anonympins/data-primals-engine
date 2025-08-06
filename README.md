@@ -23,17 +23,36 @@
 - **🌐 i18n support**: Multilingual interfaces, translated validations.
 - **📄 Auto Documentation**: Swagger available at `/api-docs`.
 
+
+## 🌟 Why Choose data-primals-engine?
+
+- **Zero Boilerplate**: Focus on your business logic, not infrastructure
+- **Scalability**: Architecture designed for rapidly growing applications
+- **Modularity**: Enable/disable features as needed
+- **Batteries Included**: Everything you need to get started quickly
+- **Proven Performance**: Handles 50k+ documents efficiently
+- **AI Ready**: Built-in LangChain integration for OpenAI/Gemini
+
 ---
 
 ## ⚙️ Requirements
 
-- Node.js ≥ 18
-- MongoDB (local or remote)
+- Node.js ≥ 20
+- MongoDB (local or remote), see [installation guide](https://www.mongodb.com/docs/manual/installation/)
 - NPM or Yarn
 
 ---
 
 ## ⚡ Quick Start
+
+### check
+```bash
+# Verify required versions
+node -v # Must show ≥ v18
+mongod --version # Must be installed
+```
+
+### install
 
 ```bash
 npm i data-primals-engine
@@ -44,6 +63,8 @@ git clone https://github.com/anonympins/data-primals-engine.git
 cd data-primals-engine
 npm install
 ```
+
+### configure 
 Possibly create a `.env` file:
 ```env
 MONGO_DB_URL=mongodb://127.0.0.1:27017
@@ -68,7 +89,7 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017
 | CA_CERT               | 	Path to CA cert file.                                                  | 	certs/cert.pem                          |
 | CERT_KEY              | Path to the key file for your certificate.                              | 	certs/key.pem                           |
 
-Start the server:
+### Start the server
 ```bash
 # Development mode
 npm run devserver
@@ -77,7 +98,8 @@ npm run devserver
 npm run server
 ```
 
-By default, the app runs on port **7633**.
+By default, the app runs on port **7633** : http://localhost:7633
+
 
 ---
 
@@ -93,10 +115,22 @@ Define schemas using JSON:
     { "name": "name", "type": "string", "required": true },
     { "name": "price", "type": "number", "required": true },
     { "name": "stock", "type": "number", "default": 0 },
-    { "name": "category", "type": "relation", "relation": "taxonomy" }
+    { "name": "category", "type": "relation", "relation": "taxonomy",
+       "relationFilter": { "$eq": ["$type", "category"] }
+    },
+    { "name": "tags", "type": "relation", "relation": "taxonomy", "multiple": true,
+       "relationFilter": { "$eq": ["$type", "keyword"] }
+    }
   ]
 }
 ```
+### Smart Relations
+- Handles up to 2,000 direct relations
+- For larger datasets, use intermediate collections
+- Automatic indexing on key fields
+- Custom indexing on fields
+- Custom fields :
+
 | Type        | Description                                                                         | 	Properties/Notes                                                         | 
 |:------------|:------------------------------------------------------------------------------------|:--------------------------------------------------------------------------|
 | string	     | Character string.                                                                   | 	minLength, maxLength                                                     |
@@ -124,10 +158,22 @@ Define schemas using JSON:
 Activatable features:
 - `mongodb`, `data`, `user`, `workflow`, `file`, `assistant`, `swagger`
 
-### Starter Packs
-- **E-commerce**: Products, orders, KPIs
-- **CRM**: Contacts, leads, interactions
-- **Website/blog**: Pages, posts, i18n
+## 🏗️ Use Case Examples
+
+### 🛒 E-Commerce Backoffice
+- Install ecommerce-starter pack
+- Add products via API/UI
+- Customize order workflows
+
+### 🎫 Support Ticket System
+- Create ticket model with [open, pending, resolved] statuses
+- Configure notification workflows
+- Add custom endpoints for analytics
+
+### 🤖 AI Chatbot 
+- Define your model
+- Set up workflow: "When new entry → generate AI content"
+- Connect to frontend chat interface
 
 ---
 
@@ -297,7 +343,7 @@ await patchData(
 );
 ```
 
-### deleteData(modelName, ids, filter, user)
+### deleteData(modelName, filter, user)
 
 >Deletes data with cascading relation cleanup.
 
@@ -305,13 +351,13 @@ Examples:
 
 ```javascript
 // Delete by IDs
-await deleteData("comments", ["61d1f1a9e3f1a9e3f1a9e3f1"], null, user);
+await deleteData("comments", ["61d1f1a9e3f1a9e3f1a9e3f1"], user);
 
 // Delete by filter
-await deleteData("logs", null, { createdAt: { $lt: "2023-01-01" } }, user);
+await deleteData("logs", { createdAt: { $lt: "2023-01-01" } }, user);
 ```
 
-### searchData({user, query})
+### searchData(query, user)
 
 Powerful search with relation expansion and filtering.
 
@@ -326,15 +372,12 @@ Query Options:
 Example:
 ```javascript
 const results = await searchData({
-    user: currentUser,
-    query: {
-        model: "blogPost",
-        filter: { status: "published" },
-        depth: 2, // Expand author and comments
-        limit: 10,
-        sort: "createdAt:DESC"
-    }
-});
+     model: "blogPost",
+     filter: { status: "published" },
+     depth: 2, // Expand author and comments
+     limit: 10,
+     sort: "createdAt:DESC"
+}, user);
 ```
 
 ## Import/Export

@@ -471,7 +471,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const insertResult = await insertData(simpleModel.name, dataToDelete, {}, currentTestUser, false);
             const docId = insertResult.insertedIds[0];
 
-            const deleteResult = await deleteData(simpleModel.name, [docId], {}, currentTestUser, false);
+            const deleteResult = await deleteData(simpleModel.name, [docId], currentTestUser);
 
             expect(deleteResult.success).toBe(true);
             expect(deleteResult.deletedCount).toBe(1);
@@ -493,7 +493,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 input: '$name',
                 regex: "^Item Filtrable"
             } };
-            const deleteResult = await deleteData(simpleModel.name, [], filter, currentTestUser, false);
+            const deleteResult = await deleteData(simpleModel.name, filter, currentTestUser);
 
             expect(deleteResult.success).toBe(true);
             expect(deleteResult.deletedCount).toBe(2);
@@ -551,19 +551,16 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         it('devrait trouver un document par une condition sur une relation simple ($find)', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: currentTestUser,
-                query: {
-                    model: comprehensiveTestModelDefinition.name,
-                    filter: {
-                        relationSingle: {
-                            "$find": { "$and": [{"$eq": ["$$this.relatedValue", 101]}] }
-                        }
-                    },
-                    autoExpand: true,
-                    depth: 8
-                }
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    relationSingle: {
+                        "$find": { "$and": [{"$eq": ["$$this.relatedValue", 101]}] }
+                    }
+                },
+                autoExpand: true,
+                depth: 8
             };
-            const { data, count } = await searchData(searchParams);
+            const { data, count } = await searchData(searchParams, currentTestUser);
             expect(count).toBe(1);
             expect(data).toHaveLength(1);
             expect(data[0]._id.toString()).toBe(docId1.toString());
@@ -575,18 +572,15 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         it('ne devrait pas trouver de document si la condition $find sur relation simple ne correspond pas', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: currentTestUser,
-                query: {
-                    model: comprehensiveTestModelDefinition.name,
-                    filter: {
-                        relationSingle: {
-                            "$find": { "$eq": ["$$this.relatedName", "NonExistentRelName"] }
-                        }
-                    },
-                    depth: 1
-                }
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    relationSingle: {
+                        "$find": { "$eq": ["$$this.relatedName", "NonExistentRelName"] }
+                    }
+                },
+                depth: 1
             };
-            const { data, count } = await searchData(searchParams);
+            const { data, count } = await searchData(searchParams, currentTestUser);
             expect(count).toBe(0);
             expect(data).toHaveLength(0);
         });
@@ -594,20 +588,17 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         it('devrait trouver des documents par une condition sur une relation multiple ($find)', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: currentTestUser,
-                query: {
-                    model: comprehensiveTestModelDefinition.name,
-                    filter: {
-                        $and: [{$ne:["$stringRequired", null]}, {
-                            relationMultiple: { // Le champ qui est un tableau de relations
-                                "$find": {"$eq": ["$$this.relatedValue", 102]} // Condition sur les documents liés
-                            }
-                        }]
-                    },
-                    depth: 1
-                }
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    $and: [{$ne:["$stringRequired", null]}, {
+                        relationMultiple: { // Le champ qui est un tableau de relations
+                            "$find": {"$eq": ["$$this.relatedValue", 102]} // Condition sur les documents liés
+                        }
+                    }]
+                },
+                depth: 1
             };
-            const { data, count } = await searchData(searchParams);
+            const { data, count } = await searchData(searchParams, currentTestUser);
             expect(count).toBe(1);
             expect(data).toHaveLength(1);
             expect(data[0]._id.toString()).toBe(docId1.toString());
@@ -620,19 +611,16 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         it('devrait trouver des documents en combinant un filtre normal et un filtre $find', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: currentTestUser,
-                query: {
-                    model: comprehensiveTestModelDefinition.name,
-                    filter: {
-                        stringRequired: "SearchDoc1", // Filtre sur le modèle principal
-                        relationSingle: {
-                            "$find": {"$gt": ["$$this.relatedValue", 100] } // Filtre sur la relation
-                        }
-                    },
-                    depth: 1
-                }
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    stringRequired: "SearchDoc1", // Filtre sur le modèle principal
+                    relationSingle: {
+                        "$find": {"$gt": ["$$this.relatedValue", 100] } // Filtre sur la relation
+                    }
+                },
+                depth: 1
             };
-            const { data, count } = await searchData(searchParams);
+            const { data, count } = await searchData(searchParams,currentTestUser);
             expect(count).toBe(1);
             expect(data).toHaveLength(1);
             expect(data[0]._id.toString()).toBe(docId1.toString());
@@ -641,25 +629,20 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         it('devrait retourner un tableau vide si $find ne correspond à aucun document lié', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await initTest();
             const searchParams = {
-                user: currentTestUser,
-                query: {
-                    model: comprehensiveTestModelDefinition.name,
-                    filter: {
-                        relationMultiple: {
-                            "$find": { "$eq": ["$$this.relatedName", "NonExistentRelNameForMultiple"] }
-                        }
-                    },
-                    depth: 1
-                }
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    relationMultiple: {
+                        "$find": { "$eq": ["$$this.relatedName", "NonExistentRelNameForMultiple"] }
+                    }
+                },
+                depth: 1
             };
-            const { data, count } = await searchData(searchParams);
+            const { data, count } = await searchData(searchParams,currentTestUser);
             expect(count).toBe(0);
             expect(data).toHaveLength(0);
         });
 
     });
-
-    // Dans C:/Dev/hackersonline-engine/test/data.integration.test.js
 
     describe('installPack', () => {
         let testPacksColInstance;
@@ -824,8 +807,8 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             // Cleanup before starting to ensure a clean state
             await deleteModels({ name: productModel.name, _user: user.username });
             await deleteModels({ name: orderModel.name, _user: user.username });
-            await deleteData(productModel.name, [], {}, user);
-            await deleteData(orderModel.name, [], {}, user);
+            await deleteData(productModel.name, {}, user);
+            await deleteData(orderModel.name, {}, user);
 
             // Create models
             await createModel({ ...productModel, _user: user.username });
@@ -843,8 +826,8 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         afterAll(async () => {
             await deleteModels({ name: productModel.name, _user: user.username });
             await deleteModels({ name: orderModel.name, _user: user.username });
-            await deleteData(productModel.name, [], {}, user);
-            await deleteData(orderModel.name, [], {}, user);
+            await deleteData(productModel.name, {}, user);
+            await deleteData(orderModel.name, {}, user);
         });
 
         it('should ALLOW inserting data with a valid relation', async () => {
@@ -852,7 +835,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(result.success).toBe(true);
             expect(result.insertedIds).toHaveLength(1);
             // Cleanup the created order for test isolation
-            await deleteData(orderModel.name, result.insertedIds, {}, user);
+            await deleteData(orderModel.name, result.insertedIds, user);
         });
 
         it('should REJECT inserting data with a relation that does not respect the filter', async () => {
@@ -873,7 +856,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(result.modifiedCount).toBeGreaterThanOrEqual(0);
 
             // Cleanup
-            await deleteData(orderModel.name, initialOrder.insertedIds, {}, user);
+            await deleteData(orderModel.name, initialOrder.insertedIds, user);
         });
 
         it('should REJECT updating data with a relation that does not respect the filter', async () => {
@@ -885,7 +868,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(result.success).toBe(false);
             expect(result.error).toContain('produit');
             // Cleanup
-            await deleteData(orderModel.name, initialOrder.insertedIds, {}, user);
+            await deleteData(orderModel.name, initialOrder.insertedIds, user);
         });
     });
 });

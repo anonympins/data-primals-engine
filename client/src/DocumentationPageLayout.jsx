@@ -1,8 +1,6 @@
-// C:/Dev/hackersonline-engine/client/src/DocumentationPageLayout.jsx
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import './DocumentationPageLayout.scss'; // Nous créerons ce fichier SCSS ensuite
-// C:/Dev/hackersonline-engine/client/src/DocumentationMenu.jsx
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FaChevronDown, FaChevronRight } from 'react-icons/fa';

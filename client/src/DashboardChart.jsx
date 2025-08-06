@@ -1,4 +1,3 @@
-// C:/Dev/hackersonline-engine/client/src/DashboardChart.jsx
 import React, {useEffect, useMemo, useState} from 'react';
 import { fr } from 'date-fns/locale'
 import {
