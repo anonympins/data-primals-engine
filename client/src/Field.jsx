@@ -493,7 +493,7 @@ const CheckboxField = forwardRef(
     };
     return (
         <>
-            <div className={cn({field: true, "field-checkbox": true})}>
+            <div className={cn({field: true, "field-checkbox": true,"field-bg": true})}>
                 <div className="inline"><input
                     aria-required={required}
                     aria-readonly={readOnly}

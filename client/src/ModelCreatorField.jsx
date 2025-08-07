@@ -61,7 +61,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
             </div>
             <div className="flex flex-row flex-stretch">
 
-                <div className="flex fieldName">{hint('modelcreator.name.hint')}
+                <div className="flex fieldName field-bg">{hint('modelcreator.name.hint')}
                     <div className="flex flex-no-gap flex-no-wrap flex-1">
                         <TextField
                             label={t('modelcreator.fieldName')}
@@ -88,7 +88,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
                 <div className="flex">
                     {hint('modelcreator.type.hint')}
-                    <div className="flex flex-1 flex-stretch flex-no-gap">
+                    <div className="flex flex-1 flex-stretch field-bg flex-no-gap">
 
                         <SelectField
                             label={t('modelcreator.type', 'Type de champ')}
@@ -453,16 +453,15 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                             </div>
 
                             {!['file', 'relation', 'array', 'calculated'].includes(field.type) && (<div
-                                className="flex flex-no-wrap">
-                                {hint('modelcreator.default.hint')}
+                                className="flex flex-no-wrap field-bg mg-item">
 
                                 {['string_t', 'string', 'richtext', 'password', 'url', 'phone', 'email'].includes(field.type) && (<>
-                                    <label className="flex flex-1">
-                                        <Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>
-                                        <input
-                                            type="text"
+                                    {hint('modelcreator.default.hint')}
+                                    <div className="flex flex-1">
+                                        <TextField
                                             className="flex-1"
                                             value={field.default}
+                                            label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                             disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                             onChange={(e) => {
                                                 const newFields = [...fields];
@@ -470,9 +469,10 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                                 setFields(newFields);
                                             }}
                                         />
-                                    </label>
+                                    </div>
                                 </>)}
                                 {['number'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <NumberField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         type="number"
@@ -491,6 +491,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['enum'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <SelectField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         value={field.default}
@@ -505,6 +506,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['code'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <CodeField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         value={field.language === 'json' ? JSON.stringify(field.default, 2, null) : field.default}
@@ -516,6 +518,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['boolean'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <div className="checkbox-label flex flex-1">
                                         <CheckboxField
                                             label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
@@ -530,6 +533,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     </div>
                                 </>)}
                                 {['color'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <ColorField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         value={field.default || null} name={field.name}
@@ -543,6 +547,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['date', 'datetime'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <label className="flex flex-1">
                                         <Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>
                                         <input
@@ -562,7 +567,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
 
                             {(['number', 'datetime', 'date'].includes(field.itemsType || field.type)) && (
-                                <><label className="flex">
+                                <><label className="flex field-bg mg-item">
                                     {hint('modelcreator.min.hint')}
                                     <span><Trans
                                         i18nKey={"modelcreator.min"}>Valeur minimale :</Trans></span>
@@ -581,7 +586,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         }}
                                     /></div>
                                 </label>
-                                    <label className="flex">
+                                    <label className="flex field-bg mg-item">
                                         {hint('modelcreator.max.hint')}
                                         <span><Trans i18nKey={"modelcreator.max"}>Valeur maximale :</Trans></span>
                                         <div className="flex flex-1"><input
@@ -601,13 +606,12 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     </label>
                                 </>
                             )}
-                            <div className="flex flex-no-wrap">
+                            <div className="flex flex-no-wrap mg-item">
                                 {hint('modelcreator.condition.hint')}
 
-                                <label className="checkbox-label flex flex-1"><Trans
-                                    i18nKey={"modelcreator.condition"}>Condition</Trans> :
-                                    <input
-                                        type="checkbox"
+                                    <CheckboxField
+                                        label={<Trans
+                                            i18nKey={"modelcreator.condition"}>Condition</Trans>}
                                         disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                         checked={field.condition !== undefined}
                                         onChange={(e) => {
@@ -620,7 +624,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                             setFields(newFields);
                                         }}
                                     />
-                                </label>
                             </div>
                             {field.condition !== undefined && (
                                 <div className={"condition-details flex flex-start"}>
@@ -691,10 +694,10 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
 
                             {mainFieldsTypes.includes(field.itemsType || field.type) && (<div
-                                className="flex flex-no-wrap"
+                                className="flex flex-no-wrap mg-item"
                                 title={t("modelcreator.field.asMain", "Une information principale sera affichée dans le titre de l'enregistrement")}>
                                 {hint('modelcreator.asMain.hint')}
-                                <label className="checkbox-label flex flex-1">
+                                <div className="flex flex-1">
 
                                     <CheckboxField
                                         label={<Trans i18nKey={"modelcreator.asMain"}>Information principale :</Trans>}
@@ -707,7 +710,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         }}
                                         help={field.asMain && t('modelcreator.asMain.hint')}
                                     />
-                                </label>
+                                </div>
                             </div>)}
 
                             <div className="flex flex-row flex-stretch">
@@ -729,7 +732,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                             </div>
 
 
-                            <label className="flex">
+                            <label className="flex mg-item ">
                                 {hint('modelcreator.color.hint')}
                                 <Trans i18nKey={"field.color"}>Color :</Trans>
                                 <ColorField
@@ -763,19 +766,16 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
                             <div className={"flex flex-no-wrap"}>
                                 {hint('modelcreator.anonymized.hint')}
-                                <label className={"checkbox-label flex flex-1"}>
-                                    <Trans i18nKey={"modelcreator.anonymized"}>Donnée anonymisée :</Trans>
-                                    <input
-                                        type="checkbox"
-                                        disabled={modelLocked || (isLocalUser(me) && field.locked)}
-                                        checked={field.anonymized}
-                                        onChange={(e) => {
-                                            const newFields = [...fields];
-                                            newFields[index].anonymized = e.target.checked;
-                                            setFields(newFields);
-                                        }}
-                                    />
-                                </label>
+                                <CheckboxField
+                                    label={<Trans i18nKey={"modelcreator.anonymized"}>Donnée anonymisée :</Trans>}
+                                    disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                    checked={field.anonymized}
+                                    onChange={(e) => {
+                                        const newFields = [...fields];
+                                        newFields[index].anonymized = e.target.checked;
+                                        setFields(newFields);
+                                    }}
+                                />
                             </div>
 
 

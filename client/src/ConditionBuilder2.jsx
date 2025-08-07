@@ -8,6 +8,30 @@ import {FaRepeat} from "react-icons/fa6";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 
 
+// Déterminer si le champ doit être une date
+const isDateArg = (operator, argIndex) => {
+    if (!operator) return false;
+
+    const opConfig = MONGO_CALC_OPERATORS[operator];
+    if (!opConfig) {
+        console.warn(`Opérateur non trouvé: ${operator}`);
+        return false;
+    }
+
+    // Cas spécial pour les opérateurs de date
+    if (operator === '$dateAdd' || operator === '$dateSubtract') {
+        return argIndex === 0; // Seul le premier argument est une date
+    }
+
+    // Pour les autres opérateurs marqués isDate (comme $hour, $second, etc.)
+    if (opConfig.isDate) {
+        return true; // Tous les arguments sont des dates pour ces opérateurs
+    }
+
+    return false;
+};
+
+
 const OperatorSelector = ({ onSelect }) => {
     const [search, setSearch] = useState('');
 
@@ -117,10 +141,12 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
         setEditing(false);
     };
 
+    console.log(path);
+    console.log(isDateArg(path[path.length - 1]));
 
     const renderArgument = (arg, index, parentOperator, args) => {
         const isSimpleValue = typeof arg !== 'object' || arg === null || Array.isArray(arg);
-
+        const parentOpConfig = MONGO_CALC_OPERATORS[parentOperator];
         // Fonction pour mettre à jour cet argument spécifique
         const handleArgChange = (newArgValue) => {
             const updatedArgs = [...args];
@@ -148,8 +174,6 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                 onChange({ [parentOperator]: updatedArgs }, path);
             }
         };
-        const parentOpConfig = MONGO_CALC_OPERATORS[parentOperator];
-
         return (
             <div key={`arg-${index}`} className="expression-arg">
                 <div className="arg-content">
@@ -163,10 +187,11 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                                     updatedArgs[index] = newValue;
                                     onChange({ [parentOperator]: updatedArgs }, path);
                                 }}
+                                isDate={isDateArg(path[path.length - 1], 0)} // Utilis
                                 fieldNames={fieldNames}
                                 isInFindContext={isInFindContext}
                             />
-                            {!parentOpConfig?.disableAdvancedValue && (<button
+                            {!parentOpConfig?.disableAdvancedValue && !isDateArg(path[path.length -1]) && (<button
                                 type="button"
                                 className="switch-to-expr"
                                 onClick={() => handleArgChange({ $eq: [arg, ""] })}
@@ -281,6 +306,7 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                                 onChange={handleFieldChange}
                                 fieldNames={fieldNames}
                                 isFieldName={true}
+                                isDate={isDateArg(path[path.length - 1])}
                                 currentModelFields={currentModelFields} // Passer les champs complets
                                 onlyRelations={true}
                             />
@@ -607,12 +633,13 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                     }}
                     fieldNames={fieldNames}
                     isInFindContext={isInFindContext}
+                    isDate={isDateArg(path[path.length - 1])}
                     currentModelFields={currentModelFields} // On propage le contexte
                 />
 
                 {/* --- MODIFICATION --- */}
                 {/* On affiche le bouton de conversion uniquement si l'opérateur parent le permet */}
-                {parentOpConfig?.disableAdvancedValue !== true && (
+                {parentOpConfig?.disableAdvancedValue !== true && !isDateArg(path[path.length - 1]) && (
                     <button
                         type="button"
                         className="switch-to-expr"
@@ -637,11 +664,13 @@ const FieldInput = ({
                         isFieldName = false,
                         isInFindContext = false,
                         currentModelFields = [],
-                        onlyRelations = false
+                        onlyRelations = false,
+                        isDate = false
                     }) => {
     const [inputValue, setInputValue] = useState(value);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         setInputValue(value);
@@ -685,6 +714,18 @@ const FieldInput = ({
         setShowSuggestions(false);
     };
 
+    // Si c'est un champ date, on affiche le datepicker
+    if (isDate) {
+        return (
+            <div className="date-input-container">
+                <input
+                    type="datetime-local"
+                    value={inputValue ? new Date(inputValue).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                />
+            </div>
+        );
+    }
     return (
         <div className="field-input-container">
             <input
