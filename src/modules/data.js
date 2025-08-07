@@ -1204,8 +1204,8 @@ export const editModel = async (user, id, data) => {
 
         const newModel = await modelsCollection.findOne({_id : oid});
         const res = ({ success: true, data: newModel });
-        const plugin = Event.Trigger("OnEditModel", "event", "system", engine, newModel);
-        Event.Trigger("OnEditModel", "event", "user", plugin?.data || newModel);
+        const plugin = Event.Trigger("OnModelEdited", "event", "system", engine, newModel);
+        Event.Trigger("OnModelEdited", "event", "user", plugin?.data || newModel);
         return plugin || res
     } catch (e) {
         logger.error(e);
@@ -4086,8 +4086,8 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
         }
 
         const res = { success: true, deletedCount }
-        const plugin = Event.Trigger("OnDeleteData", "event", "system", engine, {model:modelName, filter});
-        Event.Trigger("OnDeleteData", "event", "user", {model:modelName, filter});
+        const plugin = Event.Trigger("OnDataDeleted", "event", "system", engine, {model:modelName, filter});
+        Event.Trigger("OnDataDeleted", "event", "user", {model:modelName, filter});
         return plugin || res;
 
     } catch (error) {
@@ -4599,8 +4599,8 @@ export const searchData = async (query, user) => {
     data = await handleFields(modelElement, data, user);
 
     const res = {data, count: count[0]?.count || 0};
-    const plugin = Event.Trigger("OnSearchData", "event", "system", engine, {data, count: count[0]?.count});
-    Event.Trigger("OnSearchData", "event", "user", plugin || {data, count: count[0]?.count});
+    const plugin = Event.Trigger("OnDataSearched", "event", "system", engine, {data, count: count[0]?.count});
+    Event.Trigger("OnDataSearched", "event", "user", plugin || {data, count: count[0]?.count});
     return plugin || res;
 }
 
