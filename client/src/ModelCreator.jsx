@@ -526,7 +526,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                                 {/* Colonne de droite: Formulaire du modèle sélectionné */}
                                 <div className="model-form-container">
                                     {/* Le formulaire existant est placé ici */}
-                                    <div className="flex">
+                                    <div className="flex field-bg">
                                         <label htmlFor="modelName"><Trans i18nKey={"modelcreator.name"}>Nom:</Trans></label>
                                     </div>
                                     <TextField
@@ -539,7 +539,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                                         required
                                     />
 
-                                    <div className="flex">
+                                    <div className="flex field-bg">
                                         <label htmlFor="modelDescription"><Trans i18nKey={"modelcreator.description"}>Description:</Trans></label>
                                     </div>
                                     <TextField
@@ -570,7 +570,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 {/* Affichage du formulaire en mode manuel ou édition */}
                 {(!useAI || initialModel) && (
                     <div className="model-form-container">
-                        <div className="flex">
+                        <div className="flex field-bg">
                             <label htmlFor="modelName"><Trans i18nKey={"modelcreator.name"}>Nom:</Trans></label>
                         </div>
                         <TextField
@@ -583,7 +583,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                             required
                         />
 
-                        <div className="flex">
+                        <div className="flex field-bg">
                             <label htmlFor="modelDescription"><Trans i18nKey={"modelcreator.description"}>Description:</Trans></label>
                         </div>
                         <TextField
