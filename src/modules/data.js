@@ -3,35 +3,30 @@ import {BSON, ObjectId} from "mongodb";
 import * as util from 'node:util';
 import {promisify} from 'node:util';
 import crypto from "node:crypto";
-import {exec,execFile} from 'node:child_process';
+import {exec, execFile} from 'node:child_process';
 import sanitizeHtml from 'sanitize-html';
 import * as tar from "tar";
 import process from "node:process";
 import {randomColor} from "randomcolor";
 import cronstrue from 'cronstrue/i18n.js';
-import { setTimeoutMiddleware } from '../middlewares/timeout.js';
-import { mkdir } from 'node:fs/promises';
+import {setTimeoutMiddleware} from '../middlewares/timeout.js';
+import {mkdir} from 'node:fs/promises';
+import {anonymizeText, getDefaultForType, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../data.js";
 import {
-    anonymizeText,
-    encryptValue,
-    getDefaultForType,
-    getFieldValueHash,
-    getUserId, isDemoUser,
-    isLocalUser
-} from "../data.js";
-import {
-    allowedFields, availableLangs,
+    allowedFields,
     dbName,
-    install, maxAlertsPerUser,
+    install,
+    maxAlertsPerUser,
     maxBytesPerSecondThrottleData,
     maxExportCount,
     maxFileSize,
-    maxFilterDepth, maxMagnetsDataPerModel, maxMagnetsModels,
+    maxFilterDepth,
+    maxMagnetsDataPerModel,
+    maxMagnetsModels,
     maxModelNameLength,
     maxModelsPerUser,
     maxPasswordLength,
     maxPostData,
-    maxPrivateFileSize,
     maxRelationsPerData,
     maxRequestData,
     maxRichTextLength,
@@ -39,7 +34,8 @@ import {
     maxTotalDataPerUser,
     megabytes,
     optionsSanitizer,
-    searchRequestTimeout, storageSafetyMargin
+    searchRequestTimeout,
+    storageSafetyMargin
 } from "../constants.js";
 import {
     getCollection,
@@ -51,16 +47,8 @@ import {
 } from "./mongodb.js";
 import {dbUrl, MongoClient, MongoDatabase} from "../engine.js";
 import path from "node:path";
-import {
-    event_trigger,
-    getFileExtension,
-    getObjectHash,
-    getRandom,
-    isGUID,
-    isPlainObject,
-    randomDate,
-    uuidv4
-} from "../core.js";
+import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, uuidv4} from "../core.js";
+import {Event} from "../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
 import {middleware} from "../middlewares/middleware-mongodb.js";
@@ -75,12 +63,14 @@ import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
 import {openaiJobModel} from "../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
-import { fileURLToPath } from 'url';
-import { Worker } from 'worker_threads';
+import {fileURLToPath} from 'url';
+import {Worker} from 'worker_threads';
 import {addFile, encryptFile, removeFile} from "./file.js";
 import {listS3Backups, uploadToS3} from "./bucket.js";
 import {
-    calculateTotalUserStorageUsage, generateLimiter, hasPermission,
+    calculateTotalUserStorageUsage,
+    generateLimiter,
+    hasPermission,
     middlewareAuthenticator,
     userInitiator
 } from "./user.js";
@@ -132,6 +122,7 @@ export function sendSseToUser(username, data) {
     const res = sseConnections.get(username);
     if (res) {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
+        Event.Trigger("sendSseToUser", "system", "calls");
         return true;
     }
     logger.warn(`[SSE] Attempted to send event to disconnected user: ${username}`);
@@ -155,12 +146,13 @@ export const jobDumpUserData = async () => {
                 return;
             try {
                 dumpUserData(user).catch(e => {
-
+                    Event.Trigger("OnUserDataDumped", "event", "system", engine);
                 })
             } catch (ignored) {
 
             }
         });
+
     }catch (e) {
         console.error(e);
     }
@@ -1210,7 +1202,11 @@ export const editModel = async (user, id, data) => {
             logger.error(`Erreur asynchrone lors du déclenchement des workflows pour ${model._model} ID ${model._id}:`, workflowError);
         });
 
-        return ({ success: true, data: await modelsCollection.findOne({_id : oid}) });
+        const newModel = await modelsCollection.findOne({_id : oid});
+        const res = ({ success: true, data: newModel });
+        const plugin = Event.Trigger("OnModelEdited", "event", "system", engine, newModel);
+        Event.Trigger("OnModelEdited", "event", "user", plugin?.data || newModel);
+        return plugin || res
     } catch (e) {
         logger.error(e);
         return ({ success: false, error: e.message, statusCode: 500 });
@@ -2111,7 +2107,7 @@ export async function onInit(defaultEngine) {
                 await cancelAlerts(req.me);
 
                 await getPromise();
-                event_trigger('jobAddUserData', req.me.username);
+                Event.Trigger('jobAddUserData', req.me.username);
             }else{
                 await getPromise();
             }
@@ -3119,9 +3115,10 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
             // Attendre que toutes les opérations post-insertion (workflows, planification) soient tentées
             await Promise.allSettled(postInsertionPromises);
         }
-
-        // --- Retourner succès car l'insertion principale a réussi ---
-        return { success: true, insertedIds: insertedIds.map(id => id.toString()) }; // Convertir les IDs en string pour la réponse
+        const res = { success: true, insertedIds: insertedIds.map(id => id.toString()) }; // Convertir les IDs en string pour la réponse
+        const plugin = Event.Trigger("OnDataAdded", "event", "system", engine, insertedIds);
+        Event.Trigger("OnDataAdded", "event", "user", plugin?.insertedIds || insertedIds);
+        return plugin || res;
 
     } catch (error) { // Attrape les erreurs de permission ou de pushDataUnsecure
         logger.error(`[insertData] Main error during insertion process for model ${modelName}: ${error.message}`, error.stack);
@@ -4088,7 +4085,10 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
             logger.info(`[deleteData] No documents to delete for user ${user?.username} after permission checks or matching criteria.`);
         }
 
-        return ({ success: true, deletedCount });
+        const res = { success: true, deletedCount }
+        const plugin = Event.Trigger("OnDataDeleted", "event", "system", engine, {model:modelName, filter});
+        Event.Trigger("OnDataDeleted", "event", "user", {model:modelName, filter});
+        return plugin || res;
 
     } catch (error) {
         logger.error(`[deleteData] Error during deletion process for user ${user?.username}:`, error);
@@ -4598,7 +4598,10 @@ export const searchData = async (query, user) => {
     let data = await prom.toArray();
     data = await handleFields(modelElement, data, user);
 
-    return {data, count: count[0]?.count || 0};
+    const res = {data, count: count[0]?.count || 0};
+    const plugin = Event.Trigger("OnDataSearched", "event", "system", engine, {data, count: count[0]?.count});
+    Event.Trigger("OnDataSearched", "event", "user", plugin || {data, count: count[0]?.count});
+    return plugin || res;
 }
 
 export const importData = async(options, files, user) => {
@@ -4909,8 +4912,7 @@ export const importData = async(options, files, user) => {
             importJobs[importJobId].errors.push(error.message || "An unhandled error occurred in background process.");
         }
     });
-
-    return ({ success: true, message: "Import initiated. Check progress via SSE.", job: importJob });
+    return ({success: true, message: "Import initiated. Check progress via SSE.", job: importJob});
 }
 
 export const exportData= async (options, user) =>{
@@ -5025,7 +5027,10 @@ export const exportData= async (options, user) =>{
         exportResults._exportErrors = errors;
     }
 
-    return { success: true, data: exportResults, models: modelsToExport };
+    const res = { success: true, data: exportResults, models: modelsToExport };
+    const plugin = Event.Trigger("OnDataExported", "event", "system", engine, exportResults, modelsToExport);
+    Event.Trigger("OnDataExported", "event", "user", plugin?.exportResults || exportResults, plugin?.modelsToExport || modelsToExport);
+    return plugin || res;
 }
 
 function handleCalculationExpression(calcExpression, fi, modelElement, calculationName) {
@@ -5344,13 +5349,14 @@ export const loadFromDump = async (user, options = {}) => {
 
         logger.info(`[${action}] Executing restore command: ${command}`);
         await execFileAsync('mongorestore', args);
-        
+
         // --- Tâches Post-Restauration ---
         await scheduleAlerts();
         await scheduleWorkflowTriggers();
         modelsCache.flushAll(); // Vider le cache des modèles
 
         logger.info(`[${action}] Restore successful for user ${user.username}.`);
+        Event.Trigger("OnDataRestored", "event", "system");
 
     } finally {
         // --- Nettoyage final ---
@@ -5840,6 +5846,8 @@ export async function installPack(packId, user, lang) {
             summary.datas.failed++;
         }
     }
+
+    Event.Trigger("OnPackInstalled", "event", "system", pack);
 
     const modifiedCount = summary.datas.inserted + summary.datas.updated;
     logger.info(`--- Installation of pack '${pack.name}' finished. ---`);
