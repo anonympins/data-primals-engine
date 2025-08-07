@@ -10,7 +10,7 @@ export function escapeRegex(string) {
 }
 
 export function escapeHtml(string){
-    return string.replace(/javascript:/gi, '').replace(/[^\w-_. ]/gi, function (c) {
+    return string.replace(/(javascript|data|vbscript):/gi, '').replace(/[^\w-_. ]/gi, function (c) {
         return `&#${c.charCodeAt(0)};`;
     });
 }
