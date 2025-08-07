@@ -1,6 +1,6 @@
 {
   "name": "data-primals-engine",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "data-primals-engine is the package responsible from handling large amount of data in a practical and performant way. It can handle large amount of data in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation.",
   "main": "src/engine.js",
   "type": "module",
@@ -30,7 +30,8 @@
   "resolutions": {
     "tar-fs": "3.0.9",
     "on-headers": "1.1.0",
-    "brace-expansion": "2.0.2"
+    "brace-expansion": "2.0.2",
+    "prismjs": "1.30.0"
   },
   "repository": {
     "type": "git",

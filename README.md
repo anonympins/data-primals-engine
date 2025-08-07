@@ -9,6 +9,11 @@
 
 > Whether you're building a CRM, e-commerce site, CMS, or SaaS platform, **data-primals-engine** provides the strong foundations so you can focus on what makes your application unique.
 
+<p align="center">
+  <a href="https://data.primals.net/prez1.jpg" target="_blank"><img alt="Light" src="https://data.primals.net/prez1.jpg" width="35%"></a>
+  <a href="https://data.primals.net/prez6.jpg" target="_blank"><img alt="Light" src="https://data.primals.net/prez6.jpg" width="35%"></a>
+  <a href="https://data.primals.net/api-docs" target="_blank"><img alt="Dark" src="https://data.primals.net/prez5.jpg" width="25%"></a>
+</p>
 ---
 
 ## 🚀 Key Features
@@ -85,8 +90,8 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017
 | SMTP_USER             | 	Username for SMTP authentication.                                      | 	user@example.com                        |
 | SMTP_PASS             | 	Password for SMTP authentication.                                      | 	password                                |
 | TLS                   | 	Encrypted connection (TLS) mode. Disabled by default                   | 	0/1 false/true                          |
-| CERT                  | 	Path to cert file.                                                     | 	certs/ca.crt                            |
-| CA_CERT               | 	Path to CA cert file.                                                  | 	certs/cert.pem                          |
+| CA_CERT               | 	Path to CA cert file.                                                  | 	certs/ca.crt                            |
+| CERT                  | 	Path to cert file.                                                     | 	certs/cert.pem                          |
 | CERT_KEY              | Path to the key file for your certificate.                              | 	certs/key.pem                           |
 
 ### Start the server
@@ -168,12 +173,11 @@ Activatable features:
 ### 🎫 Support Ticket System
 - Create ticket model with [open, pending, resolved] statuses
 - Configure notification workflows
-- Add custom endpoints for analytics
+- Add custom endpoints or dashboards/kpi for analytics
 
 ### 🤖 AI Chatbot 
 - Define your model
 - Set up workflow: "When new entry → generate AI content"
-- Connect to frontend chat interface
 
 ---
 
@@ -617,4 +621,4 @@ Distributed under the **MIT License**. See `LICENSE` file.
 
 ---
 
-## [🔼](#) Back to Top
+## [🔼](https://github.com/anonympins/data-primals-engine?tab=readme-ov-file#data-primals-engine) Back to Top

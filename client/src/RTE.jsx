@@ -28,6 +28,7 @@ import css from 'highlight.js/lib/languages/css'
 import js from 'highlight.js/lib/languages/javascript'
 import ts from 'highlight.js/lib/languages/typescript'
 import html from 'highlight.js/lib/languages/xml'
+import {escapeHtml, escapeRegex} from "data-primals-engine/core";
 // create a lowlight instance
 const lowlight = createLowlight(all)
 
@@ -43,7 +44,7 @@ const code = (c) => {
     const doc = document.createElement('div');
     doc.innerHTML = c;
     doc.querySelectorAll('code').forEach(cc =>{
-        cc.innerHTML = cc.textContent
+        cc.innerHTML = escapeHtml(cc.textContent)
             .replace(/\r\n|\n/g, "<br />")
             .replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;");
     })
