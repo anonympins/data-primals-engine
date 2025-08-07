@@ -453,16 +453,15 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                             </div>
 
                             {!['file', 'relation', 'array', 'calculated'].includes(field.type) && (<div
-                                className="flex flex-no-wrap">
-                                {hint('modelcreator.default.hint')}
+                                className="flex flex-no-wrap field-bg mg-item">
 
                                 {['string_t', 'string', 'richtext', 'password', 'url', 'phone', 'email'].includes(field.type) && (<>
-                                    <label className="flex flex-1 field-bg">
-                                        <Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>
-                                        <input
-                                            type="text"
+                                    {hint('modelcreator.default.hint')}
+                                    <div className="flex flex-1">
+                                        <TextField
                                             className="flex-1"
                                             value={field.default}
+                                            label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                             disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                             onChange={(e) => {
                                                 const newFields = [...fields];
@@ -470,9 +469,10 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                                 setFields(newFields);
                                             }}
                                         />
-                                    </label>
+                                    </div>
                                 </>)}
                                 {['number'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <NumberField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         type="number"
@@ -491,6 +491,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['enum'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <SelectField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         value={field.default}
@@ -505,6 +506,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['code'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <CodeField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         value={field.language === 'json' ? JSON.stringify(field.default, 2, null) : field.default}
@@ -516,6 +518,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['boolean'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <div className="checkbox-label flex flex-1">
                                         <CheckboxField
                                             label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
@@ -530,6 +533,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     </div>
                                 </>)}
                                 {['color'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <ColorField
                                         label={<Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>}
                                         value={field.default || null} name={field.name}
@@ -543,6 +547,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </>)}
                                 {['date', 'datetime'].includes(field.type) && (<>
+                                    {hint('modelcreator.default.hint')}
                                     <label className="flex flex-1">
                                         <Trans i18nKey={"modelcreator.default"}>Valeur par défaut :</Trans>
                                         <input
@@ -562,7 +567,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
 
                             {(['number', 'datetime', 'date'].includes(field.itemsType || field.type)) && (
-                                <><label className="flex">
+                                <><label className="flex field-bg mg-item">
                                     {hint('modelcreator.min.hint')}
                                     <span><Trans
                                         i18nKey={"modelcreator.min"}>Valeur minimale :</Trans></span>
@@ -581,7 +586,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         }}
                                     /></div>
                                 </label>
-                                    <label className="flex">
+                                    <label className="flex field-bg mg-item">
                                         {hint('modelcreator.max.hint')}
                                         <span><Trans i18nKey={"modelcreator.max"}>Valeur maximale :</Trans></span>
                                         <div className="flex flex-1"><input
