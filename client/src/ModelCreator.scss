@@ -2,6 +2,7 @@
   flex: 1;
   max-width: 720px;
   form {
+    padding: 0;
     @media only screen and (min-width: 480px){
       padding: 16px;
     }

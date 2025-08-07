@@ -1083,11 +1083,15 @@ h2.shadow {
 }
 
 .condition-details {
-  padding-left: 20px; // Indentation
+  padding-left: 4px;
+  margin-left:2px;
+  @media only screen and (min-width: 480px) {
+    padding-left: 20px; // Indentation
+    margin-left: 10px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+  }
   border-left: 2px solid #eee; // Ligne visuelle
-  margin-left: 10px;
-  margin-top: 5px;
-  margin-bottom: 10px;
   gap: 5px; // Espacement entre les éléments de condition
 }
 
@@ -1287,10 +1291,6 @@ select[multiple]{
       flex-direction: row-reverse;
     }
   }
-}
-
-.datalayout {
-  padding: 0 16px;
 }
 
 .main-menu {
