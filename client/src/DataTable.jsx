@@ -6,6 +6,8 @@ import {useAuthContext} from "./contexts/AuthContext.jsx";
 import React, {useEffect, useMemo, useRef, useState} from "react";
 import {getUserId} from "../../src/data.js";
 import cronstrue from 'cronstrue/i18n';
+import {Event} from "../../src/events.js";
+
 import {
     FaBook,
     FaCopy,
@@ -238,7 +240,7 @@ export function DataTable({
                         console.log('Données non trouvées');
                     }
 
-                    event_trigger('API_DELETE_DATA', { model: item._model, id: item._id });
+                    Event.Trigger('API_DELETE_DATA', "custom", "data",{ model: item._model, id: item._id });
                     queryClient.invalidateQueries(['api/data', item._model, 'page', page, elementsPerPage, pagedFilters[item._model], pagedSort[item._model]]);
 
                 } else {

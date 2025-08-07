@@ -4,7 +4,9 @@ const events = {};
 const eventLayerSystems = {
     "priority": ["high", "medium", "low"],
     "log": ["info", "debug", "warn", "error", "critical"],
-    "system": ["calls"]
+    "system": ["calls", "users"],
+    "event": ["system","user"],
+    "custom": ["data"]
 };
 
 
@@ -13,11 +15,12 @@ export const Event = {
     Trigger: (name, system = "priority", layer = "medium", ...args) => {  // Ajout des arguments system et layer
         if (!events[system] || !events[system][name] || (layer && !events[system][name][layer])) {
             //console.warn(`No trigger found for ${name} in system ${system} layer ${layer}`);
-            return;
+            return null;
         }
 
         const systemsToProcess = system ? [system] : Object.keys(events); // Si system est spécifié, on cible ce système uniquement, sinon tous les systèmes
 
+        let ret = null;
         for (const currentSystem of systemsToProcess) {
             if (events[currentSystem] && events[currentSystem][name]) {
                 const layersToProcess = layer ? [layer] : eventLayerSystems[currentSystem] || Object.keys(events[currentSystem][name]); // Si layer est spécifié, on cible cette couche, sinon toutes les couches ou celles définies dans eventLayerSystems
@@ -27,7 +30,22 @@ export const Event = {
                         if (events[currentSystem][name][currentLayer]) {
                             for (const callback of events[currentSystem][name][currentLayer]) {
                                 try {
-                                    callback(...args);
+                                    const res = callback(...args);
+                                    if (Array.isArray(res)) {
+                                        if (!Array.isArray(ret)) ret = [];
+                                        ret = ret.concat(res);
+                                    } else if (typeof res === "string") {
+                                        if (typeof ret !== "string") ret = "";
+                                        ret += res;
+                                    } else if (typeof res === "number") {
+                                        if (typeof ret !== "number") ret = 0;
+                                        ret += res;
+                                    } else if (typeof res === "boolean") {
+                                        if (typeof ret !== "boolean") ret = true;
+                                        ret = res && ret;
+                                    } else {
+                                        ret = res || ret;
+                                    }
                                 } catch (error) {
                                     console.error(`Error in callback for event ${name} in system ${currentSystem} layer ${currentLayer}:`, error);
                                 }
@@ -37,6 +55,7 @@ export const Event = {
                 }
             }
         }
+        return ret;
     },
     Listen: (name = "", callback = () => {}, system = "priority", layer = "medium") => {
         const validSystems = Object.keys(eventLayerSystems); // Récupération des clés pour une vérification plus performante

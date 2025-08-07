@@ -2,35 +2,19 @@ import React, {forwardRef, useCallback, useEffect, useMemo, useReducer, useRef, 
 
 import "./App.scss";
 import {useMutation, useQuery, useQueryClient} from "react-query";
-import {CheckboxField, FileField, NumberField, SelectField, TextField} from "./Field.jsx";
 import ModelCreator from "./ModelCreator.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
-import {FaMagnifyingGlass, FaPencil} from "react-icons/fa6";
 import {Dialog, DialogProvider} from "./Dialog.jsx";
 import {Pagination} from "./Pagination.jsx";
+import {Event} from "../../src/events.js";
+
 import {
-    elementsPerPage, kilobytes,
-    mainFieldsTypes,
-    maxBytesPerSecondThrottleData,
-    maxFileSize,
-    maxRequestData, metaModels
-} from "../../src/constants.js";
-import {
-    FaArrowDown,
-    FaArrowUp, FaBell,
-    FaBook, FaCopy,
-    FaEdit,
-    FaFileExport, FaFileImport,
     FaFilter, FaInfo,
-    FaLanguage,
-    FaLock,
-    FaPlus,
-    FaTrash
 } from "react-icons/fa";
 import {getDefaultForType, getUserId} from "../../src/data.js";
 import {Trans, useTranslation} from "react-i18next";
 
-import {debounce, escapeRegExp, event_trigger, getObjectHash, isGUID} from "../../src/core.js";
+import {getObjectHash} from "../../src/core.js";
 import Button from "./Button.jsx";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import APIInfo from "./APIInfo.jsx";
@@ -49,7 +33,6 @@ import CalendarConfigModal from "./CalendarConfigModal.jsx";
 import KanbanView from "./KanbanView.jsx";
 
 
-// --- AJOUT : Composants Placeholders pour la démonstration ---
 const CalendarView = ({ settings, model }) => (
     <div className="p-4 border rounded-md mt-4 bg-gray-50">
         <h3 className="font-bold">Vue Calendrier</h3>
@@ -349,7 +332,7 @@ function DataLayout() {
 
             console.log('Données enregistrées:', data, selectedModel);
 
-            event_trigger(recordToEdit ? 'API_ADD_DATA' : 'API_ADD_DATA', {
+            Event.Trigger(recordToEdit ? 'API_ADD_DATA' : 'API_ADD_DATA', "custom", "data", {
                 model: selectedModel.name,
             });
 

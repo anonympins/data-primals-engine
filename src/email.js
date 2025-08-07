@@ -1,7 +1,7 @@
 import process from "node:process";
 import nodemailer from "nodemailer";
 import juice from "juice";
-import {event_trigger} from "./core.js";
+import {Event} from "./events.js";
 import {emailDefaultConfig} from "./constants.js";
 
 // Le transporteur par défaut, utilisé si aucune config spécifique n'est fournie.
@@ -52,7 +52,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
     // Choisir le transporteur à utiliser
     const transporter = smtpConfig ? createTransporter(smtpConfig||emailDefaultConfig) : defaultTransporter;
 
-    if (tpl === null) tpl = event_trigger("sendEmail:template",data, lang);
+    if (tpl === null) tpl = Event.Trigger("sendEmail:template", "system", "calls", data, lang);
     let html = tpl;
     try {
         html = juice(tpl);

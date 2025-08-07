@@ -19,6 +19,7 @@ import {DefaultUserProvider} from "./providers.js";
 import formidableMiddleware from 'express-formidable';
 import sirv from "sirv";
 import * as tls from "node:tls";
+import {Event} from "./events.js";
 
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
@@ -202,10 +203,13 @@ export const Engine = {
                 });
                 process.exit(1);
             });
+
+            Event.Trigger("OnServerStart", "event", "system", engine);
         }
 
         engine.stop = async () => {
             await server.close();
+            Event.Trigger("OnServerStop", "event", "system", engine);
         };
 
         async function setupInitialModels() {
@@ -228,9 +232,11 @@ export const Engine = {
                     logger.info('Model loaded (' + model.name + ')');
             }
             logger.info("All models loaded.");
+            Event.Trigger("OnModelsLoaded", "event", "system", engine, dbModels);
         }
         engine.resetModels = async () => {
             await deleteModels();
+            Event.Trigger("OnModelsDeleted", "event", "system", engine);
         };
         return engine;
     }
