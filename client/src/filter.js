@@ -53,6 +53,8 @@ export const MONGO_CALC_OPERATORS = {
     $ln: { label: 'ln', multi: false },
     $log10: { label: 'log', multi: false },
     $concat: { label: 'concat', multi: true },
+
+    // Date-specific
     $year: { label: 'year', multi: false, isDate: true },
     $month: { label: 'month', multi: false, isDate: true },
     $dayOfMonth: { label: 'dayOfMonth', multi: false, isDate: true },
