@@ -13,9 +13,12 @@ import crypto from "node:crypto";
 import * as tar from "tar";
 import {promisify} from "node:util";
 import {calculateTotalUserStorageUsage, hasPermission} from "./user.js";
+import {Logger} from "../gameObject.js";
+import {deleteFromS3, getUserS3Config, uploadToS3} from "./bucket.js";
 
 const pbkdf2Async = promisify(crypto.pbkdf2);
 
+let engine, logger;
 const fsPromises = fs.promises;
 
 // Encryption settings
@@ -64,78 +67,116 @@ export const addFile = async (file, user) => {
         throw new Error(i18n.t("api.data.serverStorageFull", "Le serveur a atteint sa capacité de stockage maximale. Veuillez réessayer plus tard."));
     }
 
-    const collection = getCollection("files");
-
     // Générer un GUID pour le fichier
     const guid = uuidv4();
-    const filename = guid + path.extname(file.originalname || file.name); // Préserver l'extension
-    const filepath = path.join(process.cwd(), 'uploads', 'private', filename);
+    const s3Config = await getUserS3Config(user);
+    const extension = getFileExtension(file.name);
+    const newFilename = `${guid}.${extension}`;
 
-    try {
-        // Enregistrer le fichier sur le serveur
-        await fsPromises.mkdir(path.join(process.cwd(), 'uploads', 'private'), {recursive: true});
-        await fsPromises.writeFile(filepath, file.buffer || fs.readFileSync(file.path)); // Utiliser buffer si disponible
-        if( file.path && fs.existsSync(file.path) ){
-            fs.unlinkSync(file.path);
+    const fileData = {
+        guid: guid,
+        filename: file.name,
+        size: file.size,
+        mimeType: file.type,
+        createdAt: new Date(),
+        user: user.username,
+        mainUser: user._user
+    };
+
+    if (s3Config && s3Config.bucketName && s3Config.accessKeyId && s3Config.secretAccessKey) { // Correction: bucketName au lieu de bucket
+        try {
+            // Correction: Appel manquant à la fonction de téléversement
+            await uploadToS3(s3Config, file.path, newFilename);
+
+            fileData.storage = 's3';
+            fileData.filename = newFilename; // Le nom sur S3
+            logger.info(`Fichier ${newFilename} téléversé sur le bucket S3 ${s3Config.bucketName}.`);
+        } catch (error) {
+            logger.info(`Le téléversement S3 a échoué pour ${file.name}: ${error.message}`, 'error');
+            throw new Error("Le téléversement S3 a échoué.");
+        } finally {
+            // Nettoyer le fichier temporaire uploadé par express-formidable
+            await fsPromises.unlink(file.path).catch(e => logger.info(`Échec de la suppression du fichier temporaire ${file.path}: ${e.message}`, 'error'));
         }
-
-        // Enregistrer les métadonnées du fichier
-        const fileMetadata = {
-            guid,
-            filename: file.originalname || file.name, // Conserver le nom original
-            mimeType: file.type,
-            size: file.size,
-            mainUser: user._user,
-            user: user.username,
-            timestamp: new Date()
-        };
-
-        // Insérer le fichier dans une collection dédiée (par exemple, "privateFiles")
-        const result = await collection.insertOne({...fileMetadata, _model: "privateFile"});
-        if (!result.insertedId) throw new Error("Échec de l'indexation du fichier.");
-
-        return guid;
-
-    } catch (error) {
-        // Nettoyage en cas d'erreur
-        if (fs.existsSync(filepath)) {
-            fs.unlinkSync(filepath);
+    } else {
+        // Sauvegarde locale
+        const uploadDir = path.join(process.cwd(), "uploads", "private");
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
         }
-        throw new Error(`Erreur lors de l'ajout du fichier: ${error.message}`);
+        const newPath = path.join(uploadDir, newFilename);
+
+        try {
+            // express-formidable place déjà le fichier dans un répertoire temporaire. Nous n'avons qu'éplacer.
+            await fsPromises.rename(file.path, newPath);
+            fileData.storage = 'local';
+            fileData.filename = newFilename; // Le nom dans le dossier uploads
+            fileData.path = newPath; // Le chemin complet pour les fichiers locaux
+            logger.info(`Fichier ${newFilename} sauvegardé localement dans ${newPath}.`);
+        } catch (error) {
+            logger.info(`Le déplacement du fichier local a échoué pour ${file.name}: ${error.message}`, 'error');
+            // Essayer de nettoyer le fichier temporaire même si le renommage échoue
+            await fsPromises.unlink(file.path).catch(e => logger.info(`Échec de la suppression du fichier temporaire ${file.path}: ${e.message}`, 'error'));
+            throw new Error("Le stockage du fichier local a échoué.");
+        }
     }
+
+    const filesCollection = await getCollection("files");
+    await filesCollection.insertOne(fileData);
+
+    return guid;
+};
+
+/**
+ * Récupère les métadonnées d'un fichier depuis la base de données.
+ * @param {string} guid - Le GUID du fichier.
+ * @returns {Promise<object|null>} L'objet de métadonnées du fichier ou null si non trouvé.
+ */
+export const getFile = async (guid) => {
+    const filesCollection = await getCollection("files");
+    return await filesCollection.findOne({ guid });
 };
 
 export const removeFile = async (guid, user) => {
     if (!guid) return false;
     if (!isGUID(guid)) throw new Error("Le GUID du fichier n'est pas valide.");
 
-    const collection = getCollection("files");
+    const fileData = await getFile(guid);
+    if (!fileData) {
+        logger.info(`Tentative de suppression d'un fichier inexistant avec le GUID : ${guid}`, 'warn');
+        return;
+    }
 
-    // Trouver le fichier et vérifier l'autorisation (propriétaire ou admin)
-    const file = await collection.findOne({ guid });
-    if (!file) throw new Error("Fichier non trouvé (" + guid + ")");
-
-    if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_EDIT_DATA", "API_EDIT_DATA_privateFile", `API_EDIT_DATA_privateFile_${guid}`], user) ) {
-        if (file._user !== (user._user || user.username)) {
-            throw new Error("Vous n'êtes pas autorisé à supprimer ce fichier.");
+    if (fileData.storage === 's3') {
+        const s3Config = await getUserS3Config(user);
+        if (s3Config && s3Config.bucketName) { // Correction: bucketName au lieu de bucket
+            try {
+                await deleteFromS3(s3Config, fileData.filename);
+                logger.info(`Fichier ${fileData.filename} supprimé du bucket S3 ${s3Config.bucketName}.`);
+            } catch (error) {
+                logger.info(`La suppression S3 a échoué pour ${fileData.filename}: ${error.message}`, 'error');
+                throw new Error("La suppression S3 a échoué.");
+            }
+        } else {
+            logger.info(`Configuration S3 non trouvée pour l'utilisateur, impossible de supprimer le fichier ${fileData.filename} de S3.`, 'error');
+            throw new Error("Configuration S3 non trouvée, impossible de supprimer le fichier.");
+        }
+    } else if (fileData.storage === 'local') {
+        try {
+            if (fileData.path && fs.existsSync(fileData.path)) {
+                await fsPromises.unlink(fileData.path);
+                logger.info(`Fichier local ${fileData.path} supprimé.`);
+            } else {
+                logger.info(`Fichier local non trouvé au chemin ${fileData.path}, mais suppression de l'enregistrement en BDD.`, 'warn');
+            }
+        } catch (error) {
+            logger.info(`La suppression du fichier local a échoué pour ${fileData.path}: ${error.message}`, 'error');
+            throw new Error("La suppression du fichier local a échoué.");
         }
     }
 
-    try {
-        // Supprimer le fichier de la base de données
-        const deleteResult = await collection.deleteOne({ _model: "privateFile", guid });
-        if (deleteResult.deletedCount !== 1) throw new Error("Échec de la suppression de l'indexation du fichier.");
-
-        // Supprimer le fichier du serveur
-        const filepath = path.join(process.cwd(), 'uploads', 'private', guid)+'.'+getFileExtension(file.filename);
-        if (fs.existsSync(filepath)) {
-            fs.unlinkSync(filepath);
-        }
-
-        return { success: true, message: "Fichier supprimé avec succès." };
-    } catch (error) {
-        throw new Error(`Erreur lors de la suppression du fichier: ${error.message}`);
-    }
+    const filesCollection = await getCollection("files");
+    await filesCollection.deleteOne({ guid });
 };
 
 
@@ -190,7 +231,7 @@ export async function decryptFile(filePath, password) {
     }
 }
 
-let engine;
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
+    logger = engine.getComponent(Logger);
 }

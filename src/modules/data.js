@@ -66,7 +66,7 @@ import checkDiskSpace from "check-disk-space";
 import {fileURLToPath} from 'url';
 import {Worker} from 'worker_threads';
 import {addFile, encryptFile, removeFile} from "./file.js";
-import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "./bucket.js";
+import {downloadFromS3, getS3Stream, getUserS3Config, listS3Backups, uploadToS3} from "./bucket.js";
 import {
     calculateTotalUserStorageUsage,
     generateLimiter,
@@ -2846,12 +2846,24 @@ export async function onInit(defaultEngine) {
             const resourceInfo = await getResource(guid, user); // Passez l'objet utilisateur
             res.setHeader('Content-Type', resourceInfo.mimeType);
 
-            const fileStream = fs.createReadStream(resourceInfo.filepath);
-            fileStream.on('error', (streamError) => {
-                console.error(`Stream error for resource ${guid}:`, streamError); // ou logger.error
-                res.status(404).json({ error: 'Resource file not found on server.' });
-            });
-            fileStream.pipe(res);
+            if (resourceInfo.storage === 's3') {
+                const s3Config = await getUserS3Config(user);
+                const s3Stream = getS3Stream(s3Config, resourceInfo.s3Key);
+
+                s3Stream.on('error', (s3Error) => {
+                    logger.error(`S3 stream error for resource ${guid}:`, s3Error);
+                    res.status(404).json({ error: 'Resource file not found in storage.' });
+                });
+
+                s3Stream.pipe(res);
+            } else { // Stockage 'local'
+                const fileStream = fs.createReadStream(resourceInfo.filepath);
+                fileStream.on('error', (streamError) => {
+                    console.error(`Stream error for resource ${guid}:`, streamError); // ou logger.error
+                    res.status(404).json({error: 'Resource file not found on server.'});
+                });
+                fileStream.pipe(res);
+            }
 
         } catch (error) {
             console.error(`Error serving resource ${req.params.guid}:`, error); // ou logger.error
@@ -2888,7 +2900,7 @@ export const getModel = async (modelName, user) => {
     return model;
 }
 export const getModels = async ()  => {
-    return await getCollection('models').find({'$or': [{_user: { $exists: false}}]}).toArray();
+    return await getCollection('models')?.find({'$or': [{_user: { $exists: false}}]}).toArray() || [];
 }
 
 
@@ -3630,27 +3642,48 @@ const checkHash = async (me, model, hash, excludeId = null) => {
     return count > 0;
 };
 
+
 export const getResource = async (guid, user) => {
     if (!guid) throw new Error("Le GUID du fichier est requis.");
     if (!isGUID(guid)) throw new Error("Le GUID du fichier n'est pas valide.");
 
     const collection = getCollection("files");
-
-    // Trouver le fichier et vérifier l'autorisation (propriétaire, admin ou utilisateur principal)
     const file = await collection.findOne({ guid });
-    if (!file) throw new Error("Fichier non trouvé."+guid);
 
+    if (!file) {
+        throw new Error("Fichier non trouvé.");
+    }
+
+    // La vérification des permissions reste la même...
     if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_READ_FILE", `API_READ_FILE_privateFile_${guid}`], user)) {
-        if (file._user !== (user._user || user.username)) { // Vérifier si l'utilisateur est le propriétaire
+        if (file.user !== (user._user || user.username)) {
             throw new Error("Vous n'êtes pas autorisé à accéder à ce fichier.");
         }
     }
-    // Construire le chemin vers le fichier
-    const filepath = path.join(process.cwd(), 'uploads', 'private', guid)+'.'+getFileExtension(file.filename);
-    if (!fs.existsSync(filepath)) throw new Error("Fichier non trouvé sur le serveur.");
 
-
-    return { success: true, filepath, filename: file.filename, mimeType: file.mimeType }; // Retourner des informations utiles
+    // On retourne des informations différentes selon le type de stockage
+    if (file.storage === 's3') {
+        return {
+            success: true,
+            storage: 's3',
+            s3Key: file.filename, // 'filename' contient la clé S3
+            mimeType: file.mimeType
+            // Idlement, on aurait aussi le nom de fichier original ici
+        };
+    } else { // Par défaut, on considère le stockage local
+        // On utilise le chemin stocké en base de données
+        const filepath = file.path;
+        if (!filepath || !fs.existsSync(filepath)) {
+            throw new Error("Fichier non trouvé sur le serveur.");
+        }
+        return {
+            success: true,
+            storage: 'local',
+            filepath: filepath,
+            filename: file.filename,
+            mimeType: file.mimeType
+        };
+    }
 };
 
 export const patchData = async (modelName, filter, data, files, user, triggerWorkflow = true, waitForWorkflow = false) => {
