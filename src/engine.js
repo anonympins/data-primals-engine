@@ -148,13 +148,13 @@ export const Engine = {
 
         await Promise.all(Config.Get('modules', []).map(async module => {
             try {
-                if( fs.existsSync(module)){
+                if( fs.existsSync(module) ){
                     return await importModule(module);
                 }else {
                     return await importModule('./modules/' + module + ".js");
                 }
             } catch (e){
-                console.log('ERROR at loading module '+ module + ' in /modules dir.', e.stack);
+                logger.log('ERROR at loading module '+ module, e.stack);
             }
         })).then(async e => {
             engine._modules = e;

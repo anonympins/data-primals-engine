@@ -90,4 +90,113 @@ describe('Event System', () => {
             Event.Listen('invalidEvent', () => {}, 'priority', 'invalidLayer');
         }).toThrowError(/Layer 'invalidLayer' does not exist/);
     });
+
+    describe('Event.Trigger result merging', () => {
+        it('should merge objects from multiple callbacks using spread operator', () => {
+            const eventName = 'mergeObjectEvent';
+            const callback1 = vitest.fn().mockReturnValue({ a: 1, b: 2 });
+            const callback2 = vitest.fn().mockReturnValue({ b: 3, c: 4 }); // b will be overwritten
+
+            Event.Listen(eventName, callback1);
+            Event.Listen(eventName, callback2);
+
+            const result = Event.Trigger(eventName);
+
+            expect(result).toEqual({ a: 1, b: 3, c: 4 });
+        });
+
+        it('should concatenate arrays from multiple callbacks', () => {
+            const eventName = 'mergeArrayEvent';
+            const callback1 = vitest.fn().mockReturnValue([1, 2]);
+            const callback2 = vitest.fn().mockReturnValue([3, 4]);
+
+            Event.Listen(eventName, callback1);
+            Event.Listen(eventName, callback2);
+
+            const result = Event.Trigger(eventName);
+
+            expect(result).toEqual([1, 2, 3, 4]);
+        });
+
+        it('should concatenate strings from multiple callbacks', () => {
+            const eventName = 'mergeStringEvent';
+            const callback1 = vitest.fn().mockReturnValue('Hello ');
+            const callback2 = vitest.fn().mockReturnValue('World');
+
+            Event.Listen(eventName, callback1);
+            Event.Listen(eventName, callback2);
+
+            const result = Event.Trigger(eventName);
+
+            expect(result).toBe('Hello World');
+        });
+
+        it('should add numbers from multiple callbacks', () => {
+            const eventName = 'mergeNumberEvent';
+            const callback1 = vitest.fn().mockReturnValue(10);
+            const callback2 = vitest.fn().mockReturnValue(20);
+
+            Event.Listen(eventName, callback1);
+            Event.Listen(eventName, callback2);
+
+            const result = Event.Trigger(eventName);
+
+            expect(result).toBe(30);
+        });
+
+        it('should perform a logical AND on booleans from multiple callbacks', () => {
+            const eventName = 'mergeBooleanEvent';
+
+            // Case 1: true && true -> true
+            const cb_true1 = vitest.fn().mockReturnValue(true);
+            const cb_true2 = vitest.fn().mockReturnValue(true);
+            Event.Listen(eventName, cb_true1);
+            Event.Listen(eventName, cb_true2);
+            expect(Event.Trigger(eventName)).toBe(true);
+            Event.RemoveAllCallbacks(eventName); // Clean up for next case
+
+            // Case 2: true && false -> false
+            const cb_false1 = vitest.fn().mockReturnValue(false);
+            Event.Listen(eventName, cb_true1);
+            Event.Listen(eventName, cb_false1);
+            expect(Event.Trigger(eventName)).toBe(false);
+            Event.RemoveAllCallbacks(eventName);
+
+            // Case 3: false && true -> false
+            Event.Listen(eventName, cb_false1);
+            Event.Listen(eventName, cb_true1);
+            expect(Event.Trigger(eventName)).toBe(false);
+        });
+
+        it('should handle mixed-type return values', () => {
+            const eventName = 'mergeMixedEvent';
+            const callback1 = vitest.fn().mockReturnValue(100); // number
+            const callback2 = vitest.fn().mockReturnValue({ a: 1 }); // object
+
+            Event.Listen(eventName, callback1);
+            Event.Listen(eventName, callback2);
+
+            const result = Event.Trigger(eventName);
+
+            // The logic initializes `ret` with the first value (100).
+            // When the second callback returns an object, it re-initializes `ret` to {}
+            // and merges the object. The final result is the object.
+            expect(result).toEqual({ a: 1 });
+        });
+
+        it('should ignore null and undefined return values while merging', () => {
+            const eventName = 'ignoreNullsEvent';
+            const callback1 = vitest.fn().mockReturnValue(null);
+            const callback2 = vitest.fn().mockReturnValue({ data: 'important' });
+            const callback3 = vitest.fn().mockReturnValue(undefined);
+
+            Event.Listen(eventName, callback1);
+            Event.Listen(eventName, callback2);
+            Event.Listen(eventName, callback3);
+
+            const result = Event.Trigger(eventName);
+
+            expect(result).toEqual({ data: 'important' });
+        });
+    });
 });

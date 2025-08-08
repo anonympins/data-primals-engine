@@ -31,7 +31,10 @@ export const Event = {
                             for (const callback of events[currentSystem][name][currentLayer]) {
                                 try {
                                     const res = callback(...args);
-                                    if (Array.isArray(res)) {
+                                    if (typeof res === "object" && !Array.isArray(res)) {
+                                        if (typeof ret !== "object") ret = {};
+                                        ret = {...ret, ...res};
+                                    } else if (Array.isArray(res)) {
                                         if (!Array.isArray(ret)) ret = [];
                                         ret = ret.concat(res);
                                     } else if (typeof res === "string") {

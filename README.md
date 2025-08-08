@@ -642,6 +642,20 @@ Event.Listen("OnDataAdded", (engine, data) => {
 | OnDataDeleted | Triggered just after data is actually deleted.                          | System & User | deleteData() | System: engine, {model, filter} (Pipeline*)<br>User: {model, filter} | 
 | OnDataSearched | Triggered after a data search.                                          | System & User | searchData() | System: engine, {data, count} (Pipeline*)<br>User: {data, count} (or the version modified by the system) | 
 | OnDataExported | Triggered after a data export.                                          | System & User | exportData() | System: engine, exportResults, modelsToExport (Pipeline*)<br>User: exportResults, modelsToExport (or the version modified by the system) |
+
+### Triggering events
+
+If you want to provide your own hooks, you can call :
+```javascript
+const result = Event.Trigger("OnMyCustomEvent", "event", "user", ...args);
+```
+Results are merged together if multiple events are triggered.
+- strings are concatenated
+- numbers are added
+- booleans are ANDed
+- arrays are concatenated
+- objects are merged using spread operator
+
 ---
 
 ## 🤝 Contributing
