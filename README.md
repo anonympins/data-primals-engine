@@ -18,15 +18,20 @@
 
 ## 🚀 Key Features
 
-- **Dynamic data modeling**: Define and update schemas using JSON, no migrations required.
-- **Robust REST API**: Advanced CRUD operations, filtering, and querying.
-- **Modular architecture**: Load or extend modules dynamically.
-- **Automation workflows**: Trigger actions on events or schedules.
-- **Authentication & authorization**: Role-based access control, pluggable providers.
-- **📦 Starter Packs**: CRM, e-commerce, showcase websites, etc.
-- **🧠 AI Integration**: Supports OpenAI, Google Gemini via LangChain.
-- **🌐 i18n support**: Multilingual interfaces, translated validations.
-- **📄 Auto Documentation**: Swagger available at `/api-docs`.
+## 🚀 Key Features
+
+- **Dynamic Data Modeling**: Define and update schemas using JSON, no migrations required.
+- **Custom API Endpoints**: Create server-side logic and new API endpoints directly from the UI in a secure, sandboxed environment.
+- **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
+- **Advanced Querying & Aggregation**: Go beyond simple filters with deep relation expansion, complex lookups, and dynamic calculated fields.
+- **Integrated Backup & Restore**: Secure, encrypted user data backups with rotation policies, supporting both local and AWS S3 storage.
+- **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
+- **Authentication & Authorization**: Robust role-based access control (RBAC) and pluggable user providers.
+- **Built-in File Management**: Handle file uploads seamlessly with integrated support for AWS S3 storage.
+- **🧠 AI Integration**: Natively supports OpenAI and Google Gemini models via LangChain for content generation, analysis, and more.
+- **🌐 Internationalization (i18n)**: Fully supports multilingual interfaces and user-specific translated data.
+- **📦 Starter Packs**: Quickly bootstrap applications with pre-built data packs for CRM, e-commerce, and more.
+- **📄Auto-Generated API Documentation**: Interactive API documentation available via the interface or at `/api-docs`.
 
 
 ## 🌟 Why Choose data-primals-engine?
