@@ -122,12 +122,9 @@ export async function getUserS3Config(user) {
 }
 const getS3Client = (s3Config) => {
 
-    const decryptedSecretAccessKey = decryptValue(s3Config.secretAccessKey);
-
-    const defaultConfig = getDefaultS3Config();
+    const decryptedSecretAccessKey = s3Config.secretAccessKey ? decryptValue(s3Config.secretAccessKey): undefined;
 
     return new AWS.S3({
-        ...defaultConfig,
         accessKeyId: s3Config.accessKeyId || defaultConfig.accessKeyId,
         secretAccessKey: decryptedSecretAccessKey ? decryptedSecretAccessKey : defaultConfig.secretAccessKey,
         region: s3Config.region || defaultConfig.region,
@@ -222,12 +219,6 @@ export const deleteFromS3 = async (s3Config, remoteFilename) => {
     }
 };
 
-// Ajoutez ceci à votre fichier src/modules/bucket.js
-// Assurez-vous que AWS est bien importé en haut du fichier.
-import AWS from 'aws-sdk';
-
-// ... (vos autres fonctions : getUserS3Config, uploadToS3, deleteFromS3, etc.)
-
 /**
  * Crée un flux de lecture pour un objet depuis un bucket S3.
  * @param {object} s3Config - La configuration S3 (bucketName, accessKeyId, secretAccessKey, region).
@@ -239,11 +230,8 @@ export const getS3Stream = (s3Config, s3Key) => {
         throw new Error("La configuration S3 et la clé de l'objet sont requises pour créer un flux.");
     }
 
-    const s3 = new AWS.S3({
-        accessKeyId: s3Config.accessKeyId,
-        secretAccessKey: s3Config.secretAccessKey,
-        region: s3Config.region
-    });
+    // On utilise la fonction existante qui gère le déchiffrement !
+    const s3 = getS3Client(s3Config);
 
     const params = {
         Bucket: s3Config.bucketName,
