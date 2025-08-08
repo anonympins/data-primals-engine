@@ -18,8 +18,6 @@
 
 ## 🚀 Key Features
 
-## 🚀 Key Features
-
 - **Dynamic Data Modeling**: Define and update schemas using JSON, no migrations required.
 - **Custom API Endpoints**: Create server-side logic and new API endpoints directly from the UI in a secure, sandboxed environment.
 - **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
