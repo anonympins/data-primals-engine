@@ -70,7 +70,7 @@ beforeAll(async () => {
     fs.readdirSync(backupDir).forEach(file => {
         fs.unlinkSync(path.join(backupDir, file));
     });
-    vi.stubEnv('S3_CONFIG_ENCRYPTION_KEY', '00000000000000000000000000000000');
+    vi.stubEnv('ENCRYPTION_KEY', '00000000000000000000000000000000');
     vi.stubEnv('OPENAI_API_KEY', '00000000000000000000000000000000');
     // You might need to create a model first if your dumpUserData requires it
     await createModel(testModelDefinition);

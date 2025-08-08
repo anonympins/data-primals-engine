@@ -3,7 +3,6 @@ import AWS from "aws-sdk";
 import fs from "node:fs";
 import path from "node:path";
 import {decryptValue, encryptValue} from "../data.js";
-import {MongoClient} from "../engine.js";
 import {loadFromDump, validateRestoreRequest} from "./data.js";
 import {Logger} from "../gameObject.js";
 import {middlewareAuthenticator, userInitiator} from "./user.js";
@@ -12,6 +11,7 @@ import crypto from "node:crypto";
 import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
+import {getCollectionForUser} from "./mongodb.js";
 
 const restoreRequests = {};
 
@@ -54,14 +54,77 @@ const getDefaultS3Config = () => {
         bucketName: process.env.AWS_BUCKET || awsDefaultConfig.bucketName
     };
 }
+
+/**
+ * Récupère la configuration S3 depuis les variables d'environnement de l'utilisateur en base de données.
+ * @param {object} user - L'objet utilisateur.
+ * @returns {Promise<object>} - Un objet contenant la configuration S3 trouvée pour l'utilisateur.
+ */
+async function _getUserS3ConfigFromDb(user) {
+    if (!user || !user.username) {
+        return {}; // Pas d'utilisateur, pas de configuration spécifique.
+    }
+
+    try {
+        const collection = await getCollectionForUser(user);
+        const userEnvVars = await collection.find({
+            _model: 'env',
+            _user: user.username,
+            // On ne cherche que les clés pertinentes pour optimiser la requête
+            key: { $in: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET_NAME'] }
+        }).toArray();
+
+        // Transforme le tableau de documents [{key, value}, ...] en un objet de configuration.
+        return userEnvVars.reduce((config, envVar) => {
+            if (envVar.key === 'AWS_ACCESS_KEY_ID') config.accessKeyId = envVar.value;
+            if (envVar.key === 'AWS_SECRET_ACCESS_KEY') config.secretAccessKey = envVar.value; // La clé est déjà chiffrée en BDD
+            if (envVar.key === 'AWS_REGION') config.region = envVar.value;
+            if (envVar.key === 'AWS_BUCKET_NAME') config.bucketName = envVar.value;
+            return config;
+        }, {});
+
+    } catch (error) {
+        logger.error(`Failed to fetch user S3 config from DB for ${user.username}:`, error);
+        return {}; // Retourne un objet vide en cas d'erreur pour utiliser le fallback.
+    }
+}
+
+/**
+ * Récupère la configuration S3 effective en priorisant celle de l'utilisateur
+ * puis en se rabattant sur la configuration globale de l'environnement.
+ * C'est la fonction à utiliser pour toute opération S3.
+ * @param {object} user - L'objet utilisateur.
+ * @returns {Promise<object>} - L'objet de configuration S3 final.
+ */
+export async function getUserS3Config(user) {
+    // 1. Récupérer la configuration globale par défaut
+    const defaultConfig = {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        region: process.env.AWS_REGION || awsDefaultConfig.region,
+        bucketName: process.env.AWS_BUCKET_NAME || awsDefaultConfig.bucketName
+    };
+
+    // 2. Récupérer la configuration spécifique de l'utilisateur
+    const userConfig = await _getUserS3ConfigFromDb(user);
+
+    if( userConfig.bucketName && userConfig.accessKeyId && userConfig.secretAccessKey) {
+        // 3. Fusionner les configurations, en donnant la priorité à celle de l'utilisateur
+        return {
+            accessKeyId: userConfig.accessKeyId || defaultConfig.accessKeyId,
+            secretAccessKey: userConfig.secretAccessKey || defaultConfig.secretAccessKey,
+            region: userConfig.region || defaultConfig.region,
+            bucketName: userConfig.bucketName || defaultConfig.bucketName
+        };
+    }
+    console.log({defaultConfig})
+    return defaultConfig;
+}
 const getS3Client = (s3Config) => {
 
-    const decryptedSecretAccessKey = decryptValue(s3Config.secretAccessKey);
-
-    const defaultConfig = getDefaultS3Config();
+    const decryptedSecretAccessKey = s3Config.secretAccessKey ? decryptValue(s3Config.secretAccessKey): undefined;
 
     return new AWS.S3({
-        ...defaultConfig,
         accessKeyId: s3Config.accessKeyId || defaultConfig.accessKeyId,
         secretAccessKey: decryptedSecretAccessKey ? decryptedSecretAccessKey : defaultConfig.secretAccessKey,
         region: s3Config.region || defaultConfig.region,
@@ -73,6 +136,10 @@ export const uploadToS3 = async (s3Config, filePath, remoteFilename) => {
     const s3 = getS3Client(s3Config);
     const fileContent = fs.readFileSync(filePath);
     const bucketPath = s3Config.pathPrefix ? `${s3Config.pathPrefix.replace(/\/$/, "")}/${remoteFilename}` : remoteFilename;
+
+    if( !s3.accessKeyId || !s3.secretAccessKey || !s3.bucketName) {
+        throw new Error('Missing S3 configuration');
+    }
 
     const params = {
         Bucket: s3Config.bucketName,
@@ -89,6 +156,7 @@ export const uploadToS3 = async (s3Config, filePath, remoteFilename) => {
         throw err;
     }
 };
+
 
 export const listS3Backups = async (s3Config) => {
     const s3 = getS3Client(s3Config);
@@ -131,6 +199,48 @@ export const downloadFromS3 = async (s3Config, s3FileKey, downloadPath) => {
         console.error("Error downloading from S3:", err);
         throw err;
     }
+};
+
+export const deleteFromS3 = async (s3Config, remoteFilename) => {
+    const s3 = getS3Client(s3Config);
+    const bucketPath = s3Config.pathPrefix ? `${s3Config.pathPrefix.replace(/\/$/, "")}/${remoteFilename}` : remoteFilename;
+
+    const params = {
+        Bucket: s3Config.bucketName,
+        Key: bucketPath
+    };
+
+    try {
+        await s3.deleteObject(params).promise();
+        console.log(`Fichier supprimé avec succès de S3 : ${bucketPath}`);
+    } catch (err) {
+        console.error("Erreur lors de la suppression sur S3 :", err);
+        throw err;
+    }
+};
+
+/**
+ * Crée un flux de lecture pour un objet depuis un bucket S3.
+ * @param {object} s3Config - La configuration S3 (bucketName, accessKeyId, secretAccessKey, region).
+ * @param {string} s3Key - La clé (nom du fichier) de l'objet sur S3.
+ * @returns {import('stream').Readable} - Le flux de lecture de l'objet S3.
+ */
+export const getS3Stream = (s3Config, s3Key) => {
+    if (!s3Config || !s3Config.bucketName || !s3Key) {
+        throw new Error("La configuration S3 et la clé de l'objet sont requises pour créer un flux.");
+    }
+
+    // On utilise la fonction existante qui gère le déchiffrement !
+    const s3 = getS3Client(s3Config);
+
+    const params = {
+        Bucket: s3Config.bucketName,
+        Key: s3Key
+    };
+
+    // getObject().createReadStream() retourne directement un flux lisible.
+    // Les erreurs (ex: objet non trouvé) seront émises sur l'événement 'error' de ce flux.
+    return s3.getObject(params).createReadStream();
 };
 
 const throttle = throttleMiddleware(maxBytesPerSecondThrottleData);

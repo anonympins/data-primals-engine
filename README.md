@@ -18,15 +18,18 @@
 
 ## 🚀 Key Features
 
-- **Dynamic data modeling**: Define and update schemas using JSON, no migrations required.
-- **Robust REST API**: Advanced CRUD operations, filtering, and querying.
-- **Modular architecture**: Load or extend modules dynamically.
-- **Automation workflows**: Trigger actions on events or schedules.
-- **Authentication & authorization**: Role-based access control, pluggable providers.
-- **📦 Starter Packs**: CRM, e-commerce, showcase websites, etc.
-- **🧠 AI Integration**: Supports OpenAI, Google Gemini via LangChain.
-- **🌐 i18n support**: Multilingual interfaces, translated validations.
-- **📄 Auto Documentation**: Swagger available at `/api-docs`.
+- **Dynamic Data Modeling**: Define and update schemas using JSON, no migrations required.
+- **Custom API Endpoints**: Create server-side logic and new API endpoints directly from the UI in a secure, sandboxed environment.
+- **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
+- **Advanced Querying & Aggregation**: Go beyond simple filters with deep relation expansion, complex lookups, and dynamic calculated fields.
+- **Integrated Backup & Restore**: Secure, encrypted user data backups with rotation policies, supporting both local and AWS S3 storage.
+- **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
+- **Authentication & Authorization**: Robust role-based access control (RBAC) and pluggable user providers.
+- **Built-in File Management**: Handle file uploads seamlessly with integrated support for AWS S3 storage.
+- **🧠 AI Integration**: Natively supports OpenAI and Google Gemini models via LangChain for content generation, analysis, and more.
+- **🌐 Internationalization (i18n)**: Fully supports multilingual interfaces and user-specific translated data.
+- **📦 Starter Packs**: Quickly bootstrap applications with pre-built data packs for CRM, e-commerce, and more.
+- **📄Auto-Generated API Documentation**: Interactive API documentation available via the interface or at `/api-docs`.
 
 
 ## 🌟 Why Choose data-primals-engine?
@@ -603,11 +606,68 @@ Expected response :
   },
   "publishedPosts": 15
 }
+
 ```
+
+---
+## Extensibility
+
+### Events (Triggers) Table
+> You can use the events below to access the engine and manipulate API responses.
+> It is useful for custom modules or middlewares for your application.
+
+Just use
+
+```javascript
+Event.Listen("OnDataAdded", (data) => {
+     my_callback()
+}, "event", "user");
+```
+
+or the system version
+```javascript
+Event.Listen("OnDataAdded", (engine, data) => {
+     my_callback()
+}, "event", "system");
+```
+
+| Event | Description                                                             | Scope | Triggered by | Arguments (Payload) | 
+| :--- |:------------------------------------------------------------------------| :--- | :--- | :--- |
+| OnServerStart | Triggered once the HTTP server is started and listening.                | System | engine.start() | engine | 
+| OnServerStop | Triggered right after the HTTP server is stopped.                       | System | engine.stop() | engine |
+| OnModelsLoaded | Triggered after the initial models are loaded and validated at startup. | System | setupInitialModels() | engine, dbModels |
+| OnModelsDeleted | Triggered after all models are deleted via the reset function.          | System | engine.resetModels() | engine | 
+| OnUserDataDumped | Triggered after a user's data has been backed up (dumped).              | System | jobDumpUserData() | engine | 
+| OnDataRestored | Triggered after a user's data has been restored from a backup.          | System | loadFromDump() | (none) |
+| OnPackInstalled | Triggered after a data pack has been successfully installed.            | System | installPack() | pack | 
+| OnModelEdited | Triggered after a model definition has been modified.                   | System & User | editModel() | System: engine, newModel (Pipeline*)<br>User: newModel (or the version modified by the system) | 
+| OnDataAdded | Triggered after new data has been inserted.                             | System & User | insertData() | System: engine, insertedIds (Pipeline*)<br>User: insertedIds (or the version modified by the system) | 
+| OnDataDeleted | Triggered just after data is actually deleted.                          | System & User | deleteData() | System: engine, {model, filter} (Pipeline*)<br>User: {model, filter} | 
+| OnDataSearched | Triggered after a data search.                                          | System & User | searchData() | System: engine, {data, count} (Pipeline*)<br>User: {data, count} (or the version modified by the system) | 
+| OnDataExported | Triggered after a data export.                                          | System & User | exportData() | System: engine, exportResults, modelsToExport (Pipeline*)<br>User: exportResults, modelsToExport (or the version modified by the system) |
+
+### Triggering events
+
+If you want to provide your own hooks, you can call :
+```javascript
+const result = Event.Trigger("OnMyCustomEvent", "event", "user", ...args);
+```
+Results are merged together if multiple events are triggered.
+- strings are concatenated
+- numbers are added
+- booleans are ANDed
+- arrays are concatenated
+- objects are merged using spread operator
+
+---
+
 ## 🤝 Contributing
+
+Find the issues available for [contributions here](https://github.com/anonympins/data-primals-engine/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22help%20wanted%22%20no%3Aassignee)
 
 1. Fork the repo
 2. Create your feature branch: `git checkout -b feature/your-feature`
+3. Launch ```npm run dev``` and make your changes with hot-reload on local port 
 3. Commit changes: `git commit -m "Add new feature"`
 4. Push to your branch: `git push origin feature/your-feature`
 5. Open a pull request

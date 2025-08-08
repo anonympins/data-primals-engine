@@ -6,7 +6,7 @@ import { tutorialsConfig } from '../tutorials.js';
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import useLocalStorage from "./useLocalStorage.js";
-import { event_off, event_on } from "../../../src/core.js";
+import {Event} from "../../../src/events.js";
 
 /**
  * Hook pour gérer la logique des tutoriels multi-étapes.
@@ -205,10 +205,10 @@ export const useTutorials = () => {
 
         console.log(me.activeTutorial + new Date().getMilliseconds());
         const eventTypes = ['API_ADD_DATA', 'API_EDIT_DATA', 'API_DELETE_DATA'];
-        eventTypes.forEach(type => event_on(type, handleDataChange));
+        eventTypes.forEach(type => Event.Listen(type, handleDataChange, "custom", "data"));
 
         return () => {
-            eventTypes.forEach(type => event_off(type, handleDataChange));
+            eventTypes.forEach(type => Event.RemoveCallback(type, handleDataChange, "custom", "data"));
         };
     }, [me?.activeTutorial]);
 
