@@ -222,6 +222,39 @@ export const deleteFromS3 = async (s3Config, remoteFilename) => {
     }
 };
 
+// Ajoutez ceci à votre fichier src/modules/bucket.js
+// Assurez-vous que AWS est bien importé en haut du fichier.
+import AWS from 'aws-sdk';
+
+// ... (vos autres fonctions : getUserS3Config, uploadToS3, deleteFromS3, etc.)
+
+/**
+ * Crée un flux de lecture pour un objet depuis un bucket S3.
+ * @param {object} s3Config - La configuration S3 (bucketName, accessKeyId, secretAccessKey, region).
+ * @param {string} s3Key - La clé (nom du fichier) de l'objet sur S3.
+ * @returns {import('stream').Readable} - Le flux de lecture de l'objet S3.
+ */
+export const getS3Stream = (s3Config, s3Key) => {
+    if (!s3Config || !s3Config.bucketName || !s3Key) {
+        throw new Error("La configuration S3 et la clé de l'objet sont requises pour créer un flux.");
+    }
+
+    const s3 = new AWS.S3({
+        accessKeyId: s3Config.accessKeyId,
+        secretAccessKey: s3Config.secretAccessKey,
+        region: s3Config.region
+    });
+
+    const params = {
+        Bucket: s3Config.bucketName,
+        Key: s3Key
+    };
+
+    // getObject().createReadStream() retourne directement un flux lisible.
+    // Les erreurs (ex: objet non trouvé) seront émises sur l'événement 'error' de ce flux.
+    return s3.getObject(params).createReadStream();
+};
+
 const throttle = throttleMiddleware(maxBytesPerSecondThrottleData);
 
 let engine, logger;
