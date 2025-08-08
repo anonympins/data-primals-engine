@@ -80,13 +80,13 @@ export const Engine = {
     Create: async (options = { app : null}) => {
         const engine = GameObject.Create("Engine");
         console.log("Creating engine", Config.Get('modules'));
-        engine.addComponent(Logger);
+        const logger = engine.addComponent(Logger);
 
         engine.userProvider = new DefaultUserProvider(engine);
 
         engine.setUserProvider = (providerInstance) => {
             engine.userProvider = providerInstance;
-            engine.getComponent(Logger).info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
+            logger.info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
         };
 
         if (!options.app) {
@@ -131,9 +131,6 @@ export const Engine = {
             return engine._modules.find(m => m.module === module);
         };
 
-
-        const logger = engine.getComponent(Logger);
-
         const importModule = async (module) => {
             const moduleA = await import(module);
             if (moduleA.onInit){
@@ -148,13 +145,13 @@ export const Engine = {
 
         await Promise.all(Config.Get('modules', []).map(async module => {
             try {
-                if( fs.existsSync(module)){
+                if( fs.existsSync(module) ){
                     return await importModule(module);
                 }else {
                     return await importModule('./modules/' + module + ".js");
                 }
             } catch (e){
-                console.log('ERROR at loading module '+ module + ' in /modules dir.', e.stack);
+                logger.info('ERROR at loading module '+ module, e.stack);
             }
         })).then(async e => {
             engine._modules = e;
