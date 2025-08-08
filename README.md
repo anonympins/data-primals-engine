@@ -660,6 +660,8 @@ Results are merged together if multiple events are triggered.
 
 ## 🤝 Contributing
 
+Find the issues available for [contributions here](https://github.com/anonympins/data-primals-engine/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22help%20wanted%22%20no%3Aassignee)
+
 1. Fork the repo
 2. Create your feature branch: `git checkout -b feature/your-feature`
 3. Commit changes: `git commit -m "Add new feature"`
