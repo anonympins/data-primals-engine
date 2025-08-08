@@ -2888,7 +2888,7 @@ export const getModel = async (modelName, user) => {
     return model;
 }
 export const getModels = async ()  => {
-    return await getCollection('models').find({'$or': [{_user: { $exists: false}}]}).toArray();
+    return await getCollection('models')?.find({'$or': [{_user: { $exists: false}}]}).toArray() || [];
 }
 
 

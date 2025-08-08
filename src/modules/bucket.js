@@ -160,6 +160,7 @@ export const uploadToS3 = async (s3Config, filePath, remoteFilename) => {
     }
 };
 
+
 export const listS3Backups = async (s3Config) => {
     const s3 = getS3Client(s3Config);
     const bucketPathPrefix = s3Config.pathPrefix ? `${s3Config.pathPrefix.replace(/\/$/, "")}/` : '';
@@ -199,6 +200,24 @@ export const downloadFromS3 = async (s3Config, s3FileKey, downloadPath) => {
         return downloadPath;
     } catch (err) {
         console.error("Error downloading from S3:", err);
+        throw err;
+    }
+};
+
+export const deleteFromS3 = async (s3Config, remoteFilename) => {
+    const s3 = getS3Client(s3Config);
+    const bucketPath = s3Config.pathPrefix ? `${s3Config.pathPrefix.replace(/\/$/, "")}/${remoteFilename}` : remoteFilename;
+
+    const params = {
+        Bucket: s3Config.bucketName,
+        Key: bucketPath
+    };
+
+    try {
+        await s3.deleteObject(params).promise();
+        console.log(`Fichier supprimé avec succès de S3 : ${bucketPath}`);
+    } catch (err) {
+        console.error("Erreur lors de la suppression sur S3 :", err);
         throw err;
     }
 };

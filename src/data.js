@@ -5,21 +5,21 @@ import {mainFieldsTypes} from "./constants.js";
 
 const IV_LENGTH = 16;
 export function encryptValue(text) {
-    if (!process.env.S3_CONFIG_ENCRYPTION_KEY) throw new Error("S3_CONFIG_ENCRYPTION_KEY is not set");
+    if (!process.env.ENCRYPTION_KEY) throw new Error("ENCRYPTION_KEY is not set");
     let iv = crypto.randomBytes(IV_LENGTH);
-    let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(process.env.S3_CONFIG_ENCRYPTION_KEY), iv);
+    let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(process.env.ENCRYPTION_KEY), iv);
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
 export function decryptValue(text) {
-    if (!process.env.S3_CONFIG_ENCRYPTION_KEY) throw new Error("S3_CONFIG_ENCRYPTION_KEY is not set");
+    if (!process.env.ENCRYPTION_KEY) throw new Error("ENCRYPTION_KEY is not set");
     if (!text || typeof text !== 'string' || !text.includes(':')) return text; // ou throw error
     let textParts = text.split(':');
     let iv = Buffer.from(textParts.shift(), 'hex');
     let encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(process.env.S3_CONFIG_ENCRYPTION_KEY), iv);
+    let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(process.env.ENCRYPTION_KEY), iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
