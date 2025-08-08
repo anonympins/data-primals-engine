@@ -66,7 +66,7 @@ import checkDiskSpace from "check-disk-space";
 import {fileURLToPath} from 'url';
 import {Worker} from 'worker_threads';
 import {addFile, encryptFile, removeFile} from "./file.js";
-import {listS3Backups, uploadToS3} from "./bucket.js";
+import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "./bucket.js";
 import {
     calculateTotalUserStorageUsage,
     generateLimiter,
@@ -5275,43 +5275,68 @@ export const loadFromDump = async (user, options = {}) => {
     const action = modelsOnly ? 'restore-models' : 'full-restore';
     logger.info(`[${action}] Starting for user: ${user.username}`);
 
-    let encryptedKey = readKeyFromFile(user);
+    const encryptedKey = readKeyFromFile(user);
     if (!encryptedKey) {
         throw new Error("No encryption key found for this user. Cannot restore.");
     }
 
-    const userId = getObjectHash({user: user.username});
-    // --- La logique pour trouver le fichier de backup (local ou S3) reste la même ---
-    // (le code existant pour trouver/télécharger le backupFilePath va ici)
-    // ...
-    let backupFilePath; // Assurez-vous que cette variable est bien définie avec le chemin du fichier .tar.gz
-    // Exemple simplifié :
+    const userId = getObjectHash({ user: user.username });
     const backupDir = getBackupDir();
-    const backupFilenameRegex = new RegExp(`^backup_${userId}_(\\d+)\\.tar\\.gz$`);
-    const backupFiles = fs.readdirSync(backupDir).filter(filename => backupFilenameRegex.test(filename));
-    if (backupFiles.length === 0) throw new Error(`Aucun fichier de sauvegarde local trouvé pour l'utilisateur ${user.username}.`);
-    const latestBackupFile = backupFiles.sort((a, b) => parseInt(b.match(backupFilenameRegex)[1], 10) - parseInt(a.match(backupFilenameRegex)[1], 10))[0];
-    backupFilePath = path.join(backupDir, latestBackupFile);
-    // --- Fin de la logique de recherche de fichier ---
+    let backupFilePath = ''; // Will hold the path to the archive to be restored
+    let isTempFile = false; // Flag to know if we need to delete the file later
 
     const tmpRestoreDir = path.join(backupDir, `tmp_restore_${userId}_${Date.now()}`);
 
     try {
+        const s3Config = await getUserS3Config(user);
+        // --- NEW LOGIC: Check for S3 config first ---
+        if (s3Config && s3Config.bucketName && s3Config.accessKeyId && s3Config.secretAccessKey) {
+            logger.info(`[${action}] S3 config found for user. Searching for backups in bucket: ${s3Config.bucketName}`);
+
+            const s3Backups = await listS3Backups(s3Config);
+            const userBackups = s3Backups
+                .filter(f => f.filename.startsWith(`backup_${userId}_`))
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            if (userBackups.length === 0) {
+                throw new Error(`No S3 backups found for user ${user.username} in bucket ${s3Config.bucketName}.`);
+            }
+
+            const latestBackup = userBackups[0];
+            logger.info(`[${action}] Found latest S3 backup: ${latestBackup.key}. Downloading...`);
+
+            // Download the file to a temporary location
+            backupFilePath = path.join(backupDir, latestBackup.filename);
+            isTempFile = true;
+            await downloadFromS3(s3Config, latestBackup.key, backupFilePath);
+            logger.info(`[${action}] S3 backup downloaded to ${backupFilePath}.`);
+
+        } else {
+            // --- FALLBACK LOGIC: Look for local backups ---
+            logger.info(`[${action}] No S3 config. Searching for local backups.`);
+            const backupFilenameRegex = new RegExp(`^backup_${userId}_(\\d+)\\.tar\\.gz$`);
+            const backupFiles = fs.readdirSync(backupDir).filter(filename => backupFilenameRegex.test(filename));
+            if (backupFiles.length === 0) {
+                throw new Error(`No local backup files found for user ${user.username}.`);
+            }
+            const latestBackupFile = backupFiles.sort((a, b) => parseInt(b.match(backupFilenameRegex)[1], 10) - parseInt(a.match(backupFilenameRegex)[1], 10))[0];
+            backupFilePath = path.join(backupDir, latestBackupFile);
+        }
+
+        // --- The rest of the logic remains the same, operating on backupFilePath ---
+
         await runCryptoWorkerTask('decrypt', { filePath: backupFilePath, password: encryptedKey });
+
         if (!fs.existsSync(tmpRestoreDir)) {
             fs.mkdirSync(tmpRestoreDir, { recursive: true });
         }
         await tar.extract({ file: backupFilePath, gzip: true, C: tmpRestoreDir, sync: true });
 
-        // --- NETTOYAGE SÉCURISÉ AVANT RESTAURATION ---
+        // ... (Cleaning logic: deleteMany, removeFile, cancelAlerts) ...
         const datasCollection = getCollection("datas");
-
         if (modelsOnly) {
-            // Supprime uniquement les modèles de l'utilisateur
             await modelsCollection.deleteMany({ _user: user.username });
-            logger.info(`[${action}] Deleted existing models for user ${user.username}.`);
         } else {
-            // Restauration complète : supprime les données, modèles, fichiers et alertes de l'utilisateur
             await datasCollection.deleteMany({ _user: user.username });
             await modelsCollection.deleteMany({ _user: user.username });
 
@@ -5350,22 +5375,29 @@ export const loadFromDump = async (user, options = {}) => {
         logger.info(`[${action}] Executing restore command: ${command}`);
         await execFileAsync('mongorestore', args);
 
-        // --- Tâches Post-Restauration ---
+        // ... (Post-restore tasks) ...
         await scheduleAlerts();
         await scheduleWorkflowTriggers();
-        modelsCache.flushAll(); // Vider le cache des modèles
+        modelsCache.flushAll();
 
         logger.info(`[${action}] Restore successful for user ${user.username}.`);
         Event.Trigger("OnDataRestored", "event", "system");
 
     } finally {
-        // --- Nettoyage final ---
+        // --- GUARANTEED CLEANUP ---
         if (fs.existsSync(tmpRestoreDir)) {
             await fs.promises.rm(tmpRestoreDir, { recursive: true, force: true });
         }
-        // Il est préférable de rechiffrer le fichier de backup après l'avoir utilisé
-        if (fs.existsSync(backupFilePath)) {
+
+        // Re-encrypt the original file if it's not a temporary one
+        if (fs.existsSync(backupFilePath) && !isTempFile) {
             await runCryptoWorkerTask('encrypt', { filePath: backupFilePath, password: encryptedKey });
+        }
+
+        // If we downloaded a temp file from S3, delete it
+        if (fs.existsSync(backupFilePath) && isTempFile) {
+            fs.unlinkSync(backupFilePath);
+            logger.info(`[${action}] Deleted temporary downloaded backup file: ${backupFilePath}`);
         }
     }
 };
@@ -5390,7 +5422,7 @@ const readKeyFromFile = (user) => {
 };
 
 export const dumpUserData = async (user) => {
-    const s3Config = user.configS3;
+    const s3Config = await getUserS3Config(user);
     const backupDir = getBackupDir();
     const userId = getObjectHash({ user: user.username });
     const backupFilename = `backup_${userId}`;
@@ -5426,28 +5458,28 @@ export const dumpUserData = async (user) => {
                 await execFileAsync('mongodump', args);
             }
         }
-
         const dumpSourceDir = path.join(localTempDumpDir, dbName);
         if (fs.existsSync(dumpSourceDir)) {
             await tar.create({ gzip: true, file: localArchivePath, C: localTempDumpDir }, [dbName]);
             logger.info(`Archive de sauvegarde locale créée : ${localArchivePath}`);
         } else {
-            logger.warn(`Le répertoire de dump ${dumpSourceDir} était vide. Aucune archive n'a été créée.`);
-            // On s'arrête ici car il n'y a rien à traiter
+            logger.warn(`Le répertoire de dump ${dumpSourceDir} était vide. Aucune archive n'a créée.`);
             return Promise.resolve();
         }
 
-        await encryptFile(localArchivePath, encryptedKey);
+        await runCryptoWorkerTask('encrypt', { filePath: localArchivePath, password: encryptedKey });
 
-        if (s3Config && s3Config.bucketName) {
+        try {
+            // Attempt the S3 upload
             await uploadToS3(s3Config, localArchivePath, finalArchiveName);
-            fs.unlinkSync(localArchivePath); // Supprime l'archive locale après l'upload
-        } else {
-            logger.info(`Aucune configuration S3 trouvée. La sauvegarde reste locale : ${localArchivePath}.`);
+            // ONLY if the upload succeeds, delete the local file.
+            fs.unlinkSync(localArchivePath);
+            logger.info(`Local archive ${finalArchiveName} deleted after successful S3 upload.`);
+        } catch (e) {
         }
 
         logger.info(`Sauvegarde réussie pour l'utilisateur ${user.username}.`);
-        await manageBackupRotation(user, backupFrequency, s3Config);
+        await manageBackupRotation(user, await engine.userProvider.getBackupFrequency(user), s3Config);
 
     } catch (error) {
         logger.error(`Erreur lors de la sauvegarde pour l'utilisateur ${user.username}:`, error);
@@ -5469,8 +5501,8 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
     const userId = getObjectHash({user:user.username});
     let filesToManage = [];
 
-    if (s3Config && s3Config.bucketName) {
-        logger.info(`Gestion de la rotation des sauvegardes S3 pour ${userid}.`);
+    if (s3Config && s3Config.bucketName && s3Config.accessKeyId && s3Config.secretAccessKey) {
+        logger.info(`Gestion de la rotation des sauvegardes S3 pour ${userId}.`);
         const s3Backups = await listS3Backups(s3Config);
         // Filtrer pour ne garder que les backups de cet utilisateur et trier
         filesToManage = s3Backups
