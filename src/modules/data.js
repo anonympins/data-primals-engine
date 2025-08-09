@@ -1967,7 +1967,6 @@ export async function onInit(defaultEngine) {
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
             const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
-            console.log(filter, hash, "tototos")
             const r = await editData(req.fields.model, filter || { "$eq": ["$_id", { "$toObjectId": hash}]}, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);

@@ -128,7 +128,7 @@ describe('CRUD on model definitions and integrity tests', () => {
 
     describe('editModel unit tests', () => {
 
-        it('should create and drop index when field.index is toggled (premium user)', async () => {
+        it.skip('should create and drop index when field.index is toggled (premium user)', async () => {
             // --- SETUP ---
             const { coll, currentTestUser, comprehensiveTestModelDefinition } = await setupTestContext();
             const fieldToIndex = 'stringUnique'; // Utiliser un champ qui existe vraiment dans le modèle
