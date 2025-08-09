@@ -66,7 +66,7 @@ export const awsDefaultConfig = {
 export const emailDefaultConfig = {
     from: "Support - data@primals.net <data@primals.net>",
     host: 'smtp.mydomain.tld',
-    port: 2500,
+    port: 587,
     secure: false,
     user: 'user',
     pass: 'password'

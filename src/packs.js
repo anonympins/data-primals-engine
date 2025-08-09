@@ -117,7 +117,7 @@ const audience = await db.findOne("audience",{"_id": campaign.audience});
 
 if (!audience || !audience.filter) {
 logger.error('Campaign audience or audience filter is not defined.');
-return { chunk: [] }; // Returning an empty chunk will stop the workflow.
+return { chunk: [], message: 'Campaign audience or audience filter is not defined.'}; // Returning an empty chunk will stop the workflow.
 }
 
 const processedIds = campaign.processedRecipients || [];
@@ -125,7 +125,7 @@ const processedIds = campaign.processedRecipients || [];
 const query = {
     '$and': [
         audience.filter,
-        { '_id': { '$not':{ '$in': processedIds }} }
+        { '$not':{ '$in': ["$_id", processedIds] } }
     ]
 };
 
@@ -154,14 +154,14 @@ const campaignId = context.triggerData._id;
 const emailResult = context.emailResult; 
 
 if (!emailResult || !Array.isArray(emailResult.sent) || emailResult.sent.length === 0) {
-    log_info('No recipients were successfully sent an email in this chunk.');
+    logger.info('No recipients were successfully sent an email in this chunk.');
     // Return the original chunk from the first script to allow the condition to check it
     return { processedChunk: context.result.chunk };
 }
 
 const processedIds = emailResult.sent.map(recipient => recipient._id.toString());
 
-log_info(\`Updating campaign \${campaignId} with \${processedIds.length} new processed IDs.\`);
+logger.info(\`Updating campaign \${campaignId} with \${processedIds.length} new processed IDs.\`);
 
 await db.update(
     'campaign',

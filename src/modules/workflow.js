@@ -8,7 +8,7 @@ import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
 import {deleteData, insertData, patchData, searchData} from "./data.js";
-import {maxExecutionsByStep, maxWorkflowSteps, timeoutVM} from "../constants.js";
+import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps, timeoutVM} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
@@ -17,6 +17,7 @@ import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
 import {isConditionMet} from "../filter.js";
+import util from "node:util";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -193,7 +194,7 @@ export async function executeSafeJavascript(actionDef, context, user) {
 
         const find = async (modelName, filter) => {
             const result = await searchData({ model: modelName, filter: JSON.parse(filter) }, user);
-            return new ivm.ExternalCopy(result.data).copyInto();
+            return new ivm.ExternalCopy(result).copyInto();
         };
         const findOne = async (modelName, filter) => {
             const result = await searchData({ model: modelName, filter: JSON.parse(filter), limit: 1 }, user);
@@ -205,7 +206,7 @@ export async function executeSafeJavascript(actionDef, context, user) {
         await jail.set('_db_find', new ivm.Reference(find));
         await jail.set('_db_findOne', new ivm.Reference(findOne));
 
-        await jail.set('_db_update', new ivm.Reference((modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), updateObject, {}, user, false)));
+        await jail.set('_db_update', new ivm.Reference((modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false)));
         await jail.set('_db_delete', new ivm.Reference((modelName, filter) => deleteData(modelName, JSON.parse(filter), user, false)));
 
         const createLoggerMethod = (level) => {
@@ -1039,7 +1040,20 @@ export async function substituteVariables(template, contextData, user) {
     if (singlePlaceholderMatch) {
         const key = singlePlaceholderMatch[1];
         const value = await findValue(key);
-        return value !== undefined ? value : template;
+
+        if (value === undefined) {
+            return template; // Placeholder not found, return as is.
+        }
+
+        // If the resolved value is a string, it might contain more placeholders.
+        // We recursively call substituteVariables on it, but only if it's different
+        // from the original template to prevent infinite loops.
+        if (typeof value === 'string' && value !== template) {
+            return substituteVariables(value, contextData, user);
+        }
+
+        // For non-string values or if value is same as template, return the value.
+        return value;
     }
 
     // CAS B : La chaîne contient plusieurs placeholders ou mix texte/variables
@@ -1337,7 +1351,7 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (actionResult.updatedContext) {
                                 contextData = { ...contextData, ...actionResult.updatedContext };
                             }
-                            console.log({actionResult});
+                            console.log("action", util.inspect(actionResult, false, 8, true));
                             logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}, Action ID: ${actionId}: Executed successfully.`);
                         }
                     }
@@ -1524,6 +1538,8 @@ async function handleSendEmailAction(action, contextData, user) {
         acc[variable.name.replace('SMTP_', '').toLowerCase()] = variable.value;
         return acc;
     }, {});
+    if( !smtpConfig.port )
+        smtpConfig.port = emailDefaultConfig.port;
 
     // 2. Valider la configuration de l'action
     const { emailRecipients, emailSubject, emailContent } = action;
@@ -1564,6 +1580,7 @@ async function handleSendEmailAction(action, contextData, user) {
                 failedFor.push(recipient); // Garder une trace de l'entrée invalide
                 continue;
             }
+
 
             // 5. Créer un contexte personnalisé pour ce destinataire spécifique
             // Cela permet d'utiliser des placeholders comme {recipient.name}

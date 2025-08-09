@@ -60,7 +60,7 @@ export const Event = {
         }
         return ret;
     },
-    Listen: (name = "", callback = () => {}, system = "priority", layer = "medium") => {
+    Listen: (name = "", callback, system = "priority", layer = "medium") => {
         const validSystems = Object.keys(eventLayerSystems); // Récupération des clés pour une vérification plus performante
         if (!validSystems.includes(system)) {
             throw new Error(`System '${system}' does not exist. Valid systems are: ${validSystems.join(', ')}`); // Message d'erreur plus informatif
