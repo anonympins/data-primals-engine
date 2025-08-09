@@ -7,9 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { ObjectId } from 'mongodb';
 import { initEngine, generateUniqueName } from "../src/setenv.js";
 import { addFile, removeFile, getFile, onInit } from "../src/modules/file.js";
-import { getCollection } from "../src/modules/mongodb.js";
+import {getCollection, getUserCollectionName} from "../src/modules/mongodb.js";
 import { Logger } from "../src/gameObject.js";
 import {maxPrivateFileSize} from "../src/constants.js";
+import {getCollectionForUser} from "data-primals-engine/modules/mongodb";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -46,9 +47,13 @@ beforeAll(async () => {
 
     filesCollection = await getCollection("files");
 });
-describe('File Module Integration Tests', () => {
-    let testUser;
+let testUser;
+afterAll(async () => {
+    const coll = await getCollectionForUser(testUser);
+    await coll.drop();
+})
 
+describe('File Module Integration Tests', () => {
 
     beforeEach(async () => {
         // Créer un utilisateur de test

@@ -9,15 +9,21 @@ import {
 } from 'data-primals-engine/modules/mongodb';
 import {generateUniqueName, getUniquePort, initEngine} from "../src/setenv.js";
 import {editModel} from "../src/modules/data.js";
-import {getCollectionForUser} from "../src/modules/mongodb.js";
+import {getCollectionForUser, getUserCollectionName} from "../src/modules/mongodb.js";
 
 let testModelsColInstance;
 let testDatasColInstance;
 
 let testModelId;
-
+let lastUser;
 // Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte
 async function setupTestContext() {
+
+
+    if( lastUser ) {
+        const coll = await getCollectionForUser(lastUser);
+        await coll.drop();
+    }
 
     const currentTestModelName = generateUniqueName('relatedModel');
     const currentRelatedModelName = generateUniqueName('comprehensiveModel');
@@ -105,6 +111,9 @@ async function setupTestContext() {
     await testDatasColInstance.deleteMany({ _user: currentTestUser.username });
     await testDatasColInstance.deleteMany({ _model: { $in: [comprehensiveTestModelDefinition.name, 'renamedTestModel'] } });
     // Retourner toutes les variables nécessaires pour un test
+
+    lastUser = currentTestUser;
+
     return {
         currentTestUser,
         comprehensiveTestModelDefinition,
@@ -121,6 +130,12 @@ describe('CRUD on model definitions and integrity tests', () => {
         // Initialize collection instances after the engine is ready
         testModelsColInstance = getAppModelsCollection;
         testDatasColInstance = datasCollection;
+    })
+    afterAll(async () => {
+        if( lastUser ) {
+            const coll = await getCollectionForUser(lastUser);
+            await coll.drop();
+        }
     })
     describe('editModel unit tests', () => {
 

@@ -233,7 +233,65 @@ return { processedChunk: context.result.chunk };
                 }
             }
         },
-
+        /*
+        {
+            "name": "Social Media Publisher",
+            "description": "Automate your social media presence. This pack provides a workflow to automatically post new blog articles to Twitter and LinkedIn. Requires the 'Website Starter Pack'.",
+            "tags": ["social media", "marketing", "automation", "workflow"],
+            "dependencies": ["Website Starter Pack"],
+            "models": ["workflow", "workflowStep", "workflowAction", "workflowTrigger", "env"],
+            "data": {
+                "all": {
+                    "workflow": [{
+                        "name": "Publish New Blog Post to Socials",
+                        "description": "Automatically posts a link to a new blog post on Twitter and LinkedIn.",
+                        "startStep": {"$link": {"name": "Post on Social Networks", "_model": "workflowStep"}}
+                    }],
+                    "workflowAction": [
+                        {
+                            "name": "Post to Twitter",
+                            "type": "PostToSocialMedia",
+                            "provider": "Twitter",
+                            "content": "📰 New blog post published: {triggerData.title}! Check it out here: https://your-website.com/blog/{triggerData.slug}"
+                        },
+                        {
+                            "name": "Post to LinkedIn",
+                            "type": "PostToSocialMedia",
+                            "provider": "LinkedIn",
+                            "content": "We've just published a new article: '{triggerData.title}'.\n\n{triggerData.summary}\n\nRead the full post on our blog: https://your-website.com/blog/{triggerData.slug}\n#YourIndustry #BlogPost"
+                        }
+                    ],
+                    "workflowStep": [{
+                        "name": "Post on Social Networks",
+                        "workflow": {"$link": {"name": "Publish New Blog Post to Socials", "_model": "workflow"}},
+                        "actions": {
+                            "$link": {
+                                "$or": [
+                                    {"$eq": ["$name", "Post to Twitter"]},
+                                    {"$eq": ["$name", "Post to LinkedIn"]}
+                                ],
+                                "_model": "workflowAction"
+                            }
+                        },
+                        "isTerminal": true
+                    }],
+                    "workflowTrigger": [{
+                        "name": "On New Blog Post Added",
+                        "workflow": {"$link": {"name": "Publish New Blog Post to Socials", "_model": "workflow"}},
+                        "type": "manual",
+                        "onEvent": "DataAdded",
+                        "targetModel": "content",
+                        "dataFilter": {"category": {"$find": {"name": "Blog"}}},
+                        "isActive": true
+                    }],
+                    "env": [
+                        {"name": "TWITTER_API_KEY", "value": "your_key_here"},
+                        {"name": "TWITTER_API_SECRET", "value": "your_secret_here"},
+                        {"name": "LINKEDIN_ACCESS_TOKEN", "value": "your_token_here"}
+                    ]
+                }
+            }
+        },*/
         {
             "name": "E-commerce Starter Kit",
             "description": "Launch your online store in just a few clicks. This pack includes templates for products, orders, and customers, as well as sample data, KPIs, alerts and an order fulfillment workflow (with sending email).",

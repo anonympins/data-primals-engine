@@ -7,6 +7,7 @@ import { modelsCollection as getAppModelsCollection, getCollectionForUser } from
 import * as workflowModule from 'data-primals-engine/modules/workflow';
 import {getUniquePort, initEngine} from "../src/setenv.js";
 import process from "process";
+import {getUserCollectionName} from "../src/modules/mongodb.js";
 
 
 beforeAll(async () =>{
@@ -155,6 +156,10 @@ beforeEach(async () => {
     console.log({mods})
 });
 
+afterAll(async () => {
+    const coll = await getCollectionForUser(mockUser);
+    await coll.drop();
+})
 describe('Intégration des Workflows - triggerWorkflows', () => {
 
     let testWorkflow;

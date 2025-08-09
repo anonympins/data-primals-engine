@@ -182,6 +182,22 @@ export async function scheduleWorkflowTriggers() {
     }
 }
 
+async function handleWaitAction(actionDef, contextData, user) {
+    const { duration, durationUnit } = actionDef;
+    if (!duration || !durationUnit) {
+        return { success: false, message: "Wait action requires 'duration' and 'durationUnit'." };
+    }
+
+    // Retourne un statut spécial que le moteur de workflow comprendra
+    return {
+        success: true,
+        status: 'paused', // Statut spécial
+        duration,
+        durationUnit,
+        message: `Workflow will be paused for ${duration} ${durationUnit}.`
+    };
+}
+
 
 export async function executeSafeJavascript(actionDef, context, user) {
     const code = actionDef.script;
@@ -790,6 +806,9 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
         case 'SendEmail':
             result = await handleSendEmailAction(actionDef, contextData, user);
             break;
+        case 'Wait':
+            result = await handleWaitAction(actionDef, contextData, user);
+            break;
         case 'ExecuteScript':
             result = await executeSafeJavascript(actionDef, contextData, user);
             break;
@@ -1341,6 +1360,39 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (!actionDef) return await logError(`Action definition ${actionId} not found.`);
                             console.log({actionDef});
                             const actionResult = await workflowModule.executeStepAction(actionDef, contextData, user, dbCollection);
+
+                            if (actionResult.status === 'paused') {
+                                // L'action demande une pause !
+                                const { duration, durationUnit } = actionResult;
+                                const now = new Date();
+                                let resumeAt = new Date(now);
+
+                                // Calculer la date de reprise
+                                const ms = { seconds: 1000, minutes: 60000, hours: 3600000, days: 86400000 };
+                                resumeAt.setTime(now.getTime() + (duration * ms[durationUnit]));
+
+                                logger.info(`[processWorkflowRun] Run ID: ${runId} is pausing. Will resume at: ${resumeAt.toISOString()}`);
+
+                                // Mettre à jour le workflowRun avec le statut 'paused' et la date de reprise
+                                await dbCollection.updateOne({ _id: runId }, {
+                                    $set: {
+                                        status: 'paused',
+                                        currentStep: currentStepDef.onSuccessStep, // On prépare la prochaine étape
+                                        contextData,
+                                        log: actionResult.message
+                                    }
+                                });
+
+                                // Planifier le réveil du workflow
+                                schedule.scheduleJob(resumeAt, async () => {
+                                    logger.info(`[Scheduler] Waking up paused workflowRun ID: ${runId}`);
+                                    // On relance le traitement pour ce workflow spécifique
+                                    await workflowModule.processWorkflowRun(runId, user);
+                                });
+
+                                // Arrêter le traitement actuel de cette exécution
+                                return; // Très important de stopper la boucle ici
+                            }
                             if (!actionResult.success) {
                                 stepSucceeded = false;
                                 logInfo = actionResult.message || `Action ${actionDef.name || actionId} failed.`;
@@ -1411,7 +1463,7 @@ export async function processWorkflowRun(workflowRunId, user) {
         logger.error(`[processWorkflowRun] Critical error during processing of workflowRun ID: ${runId}. Error: ${error.message}`, error.stack);
         await dbCollection.updateOne(
             { _id: runId, status: { $nin: ['completed', 'failed', 'cancelled'] } },
-            { $set: { status: 'failed', error: `Critical error: ${error.message}`, completedAt: new Date(), stepExecutionsCount } }
+            { $set: { status: 'failed', log: `Critical error: ${error.message}`, completedAt: new Date(), stepExecutionsCount } }
         );
     }
 }

@@ -1001,7 +1001,7 @@ export const defaultModels = {
             { name: 'owner', type: 'relation', relation: 'user', required: false },
             { name: 'startedAt', type: 'datetime', required: true, hint: "Timestamp when the workflow run began." },
             { name: 'completedAt', type: 'datetime', hint: "Timestamp when the workflow run finished (successfully or failed)." },
-            { name: 'error', type: 'string', maxlength: 4096, hint: "Error message if the workflow run failed." }
+            { name: 'log', type: 'string', maxlength: 4096, hint: "Error message if the workflow run failed." }
         ]
     },
     dashboard:{
