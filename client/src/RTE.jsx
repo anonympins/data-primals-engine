@@ -293,11 +293,6 @@ export const ExtendedImage = Image.extend({
     }
 })
 
-const CodeBlockComponent = ({children, ...rest}) => {
-    console.log(rest);
-    return children;
-};
-
 const extensions = [
     HardBreak,
     CodeBlock,

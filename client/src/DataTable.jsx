@@ -688,7 +688,6 @@ export function DataTable({
                         console.log("close")
                     }} availableModels={models} currentModel={selectedModel.name} hasSelection={true} onExport={(data)=>{
                         exportMutation(data);
-                        console.log(data);
                     }} />
                     {showPackGallery && (
                         <Dialog isClosable={true} isModal={true} onClose={() => setShowPackGallery(false)}>

@@ -153,7 +153,6 @@ beforeEach(async () => {
             ...workflowMetaModels.map(m => ({...m})) // Copie pour éviter les mutations
         ]);
     }
-    console.log({mods})
 });
 
 afterAll(async () => {

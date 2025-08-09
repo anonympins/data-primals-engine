@@ -38,7 +38,6 @@ const CronBuilder = ({ cronExpression, cronMask, defaultCronExpression, onCronCh
         if (defaultParts.length === 5) {
             defaultParts.unshift('*');
         }
-        console.log({cronMask})
         setParts({
             second: cronMask && !cronMask[0] ? '0' : cronParts[0] || defaultParts[0] || '*',
             minute: cronMask && !cronMask[1] ? '0' : cronParts[1] || defaultParts[1] || '*',

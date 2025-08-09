@@ -53,7 +53,6 @@ const ContentView = () => { // Le prop 'menu' a été retiré car non passé par
     );
     const pageContent = contentData?.data?.[0];
 
-    console.log({contentData})
     // 4. Récupérer les sous-catégories de la catégorie parente 'cat'
     const {data: childCategoriesData, isLoading: isLoadingChildCategories} = useQuery(
         ['childDocCategories', cat, langCode], // Clé de query mise à jour
@@ -87,7 +86,6 @@ const ContentView = () => { // Le prop 'menu' a été retiré car non passé par
             const parentCategory = childCategories.find(c => c._id === itemCategoryId);
 
             if (parentCategory) {
-                console.log({pt:parentCategory.name});
                 const categoryName = parentCategory.name.value || t('toc.unknownCategory', 'Autres');
                 if (grouped[categoryName]) { // La catégorie doit exister car initialisée plus haut
                     grouped[categoryName].push(item); // Les items sont déjà triés par la query
@@ -252,7 +250,6 @@ const ContentView = () => { // Le prop 'menu' a été retiré car non passé par
                     <APIInfo/>
                 ) : root?.innerHTML.split("<pre><i>[@codeField]</i></pre>").map((m,index)=>{
                     const cc = codeFields[index];
-                    console.log({cc, index});
                     return <div><div dangerouslySetInnerHTML={{__html: m}}></div>{cc && <div className={"fs-regular"}>
                             <CodeField
                                 key={uniqid()}

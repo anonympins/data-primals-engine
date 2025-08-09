@@ -182,6 +182,20 @@ Activatable features:
 - Define your model
 - Set up workflow: "When new entry → generate AI content"
 
+### 📧 Email Campaign Management
+The "Marketing & Campaigning" starter pack provides a powerful solution for sending large-scale email campaigns without overloading your server.
+
+- **Install the Pack**: A single command installs the necessary models (`campaign`, `audience`) and a sophisticated workflow.
+- **Dynamic Audiences**: Create target audiences with MongoDB filters. For example, select all contacts with the "newsletter" tag or located in a specific country.
+- **Personalized Content**: Use variables like `{recipient.firstName}` in the subject and body of your emails for a personal touch.
+- **Automated & Scalable Sending**: When you schedule a campaign, a pre-configured workflow takes over:
+    - It processes your audience in small batches (e.g., 10 recipients at a time).
+    - It sends emails to each batch and waits before processing the next, ensuring stability.
+    - It tracks processed recipients to avoid duplicates and allow the campaign to be safely paused and resumed.
+    - Once all emails are sent, the campaign is automatically marked as "completed".
+
+This use case demonstrates how starter packs and workflows can automate complex, performance-critical business logic right out of the box.
+
 ---
 
 ## 🔌 API Examples (using `curl`)
@@ -631,20 +645,23 @@ Event.Listen("OnDataAdded", (engine, data) => {
 }, "event", "system");
 ```
 
-| Event | Description                                                             | Scope | Triggered by | Arguments (Payload) | 
-| :--- |:------------------------------------------------------------------------| :--- | :--- | :--- |
-| OnServerStart | Triggered once the HTTP server is started and listening.                | System | engine.start() | engine | 
-| OnServerStop | Triggered right after the HTTP server is stopped.                       | System | engine.stop() | engine |
-| OnModelsLoaded | Triggered after the initial models are loaded and validated at startup. | System | setupInitialModels() | engine, dbModels |
-| OnModelsDeleted | Triggered after all models are deleted via the reset function.          | System | engine.resetModels() | engine | 
-| OnUserDataDumped | Triggered after a user's data has been backed up (dumped).              | System | jobDumpUserData() | engine | 
-| OnDataRestored | Triggered after a user's data has been restored from a backup.          | System | loadFromDump() | (none) |
-| OnPackInstalled | Triggered after a data pack has been successfully installed.            | System | installPack() | pack | 
-| OnModelEdited | Triggered after a model definition has been modified.                   | System & User | editModel() | System: engine, newModel (Pipeline*)<br>User: newModel (or the version modified by the system) | 
-| OnDataAdded | Triggered after new data has been inserted.                             | System & User | insertData() | System: engine, insertedIds (Pipeline*)<br>User: insertedIds (or the version modified by the system) | 
-| OnDataDeleted | Triggered just after data is actually deleted.                          | System & User | deleteData() | System: engine, {model, filter} (Pipeline*)<br>User: {model, filter} | 
-| OnDataSearched | Triggered after a data search.                                          | System & User | searchData() | System: engine, {data, count} (Pipeline*)<br>User: {data, count} (or the version modified by the system) | 
-| OnDataExported | Triggered after a data export.                                          | System & User | exportData() | System: engine, exportResults, modelsToExport (Pipeline*)<br>User: exportResults, modelsToExport (or the version modified by the system) |
+| Event            | Description                                                             | Scope         | Triggered by         | Arguments (Payload)                                                                                                                      | 
+|:-----------------|:------------------------------------------------------------------------|:--------------|:---------------------|:-----------------------------------------------------------------------------------------------------------------------------------------|
+| OnServerStart    | Triggered once the HTTP server is started and listening.                | System        | engine.start()       | engine                                                                                                                                   | 
+| OnServerStop     | Triggered right after the HTTP server is stopped.                       | System        | engine.stop()        | engine                                                                                                                                   |
+| OnModelsLoaded   | Triggered after the initial models are loaded and validated at startup. | System        | setupInitialModels() | engine, dbModels                                                                                                                         |
+| OnModelsDeleted  | Triggered after all models are deleted via the reset function.          | System        | engine.resetModels() | engine                                                                                                                                   | 
+| OnUserDataDumped | Triggered after a user's data has been backed up (dumped).              | System        | jobDumpUserData()    | engine                                                                                                                                   | 
+| OnDataRestored   | Triggered after a user's data has been restored from a backup.          | System        | loadFromDump()       | (none)                                                                                                                                   |
+| OnPackInstalled  | Triggered after a data pack has been successfully installed.            | System        | installPack()        | pack                                                                                                                                     | 
+| OnModelEdited    | Triggered after a model definition has been modified.                   | System & User | editModel()          | System: engine, newModel (Pipeline*)<br>User: newModel (or the version modified by the system)                                           | 
+| OnDataAdded      | Triggered after new data has been inserted.                             | System & User | insertData()         | System: engine, insertedIds (Pipeline*)<br>User: insertedIds (or the version modified by the system)                                     | 
+| OnDataDeleted    | Triggered just after data is actually deleted.                          | System & User | deleteData()         | System: engine, {model, filter} (Pipeline*)<br>User: {model, filter}                                                                     | 
+| OnDataSearched   | Triggered after a data search.                                          | System & User | searchData()         | System: engine, {data, count} (Pipeline*)<br>User: {data, count} (or the version modified by the system)                                 | 
+| OnDataExported   | Triggered after a data export.                                          | System & User | exportData()         | System: engine, exportResults, modelsToExport (Pipeline*)<br>User: exportResults, modelsToExport (or the version modified by the system) |
+| OnDataInsert     | Triggered just before data insertion. It will use the override data     | System        | internal             | (data)                                                                                                                                   |
+| OnDataValidate   | Triggered after a data internal validation check.                       | System        | internal             | (value, field, data)                                                                                                                     |
+| OnDataFilter     | Triggered after a data internal data filtering operation.               | System        | internal             | (filteredValue, field, data)                                                                                                             |
 
 ### Triggering events
 

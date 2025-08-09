@@ -143,8 +143,6 @@ function Layout ({header, routes, body, footer}) {
                     google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value || (useAI ? process.env.GOOGLE_API_KEY : undefined),
                 };
 
-
-                console.log(newConfig)
                 // On met à jour l'état si au moins une clé est disponible
                 if (newConfig.openai || newConfig.google) {
                     setAssistantConfig(newConfig);
@@ -581,7 +579,6 @@ const BaseLayout=()=>{
         <h1 className="flex-1">{seoTitle}</h1>
         <div className="center">
             <SelectField label={<FaLanguage />} items={allLangs} onChange={(e) => {
-                console.log(e.value);
                 changeLanguage(e.value);
             }} />
         </div>

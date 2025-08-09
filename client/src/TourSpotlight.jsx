@@ -61,8 +61,6 @@ function TourSpotlight({ name, steps = [], isOpen, onComplete, onClose, initialS
     useEffect(() => {
         if (!isOpen || !name) return;
 
-
-        console.log({currentStep})
         if (!currentStep?.selector) {
             console.warn(`[TourSpotlight] Élément cible non défini pour le tour ${name}`);
             return;

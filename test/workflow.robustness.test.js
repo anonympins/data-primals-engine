@@ -42,7 +42,6 @@ beforeEach(async () => {
     await testDatasColInstance.deleteMany({ _user: mockUser.username });
     await getCollection('job_locks').deleteMany({}); // Nettoyer les verrous
     const mods = await testModelsColInstance.find({ $and: [{_user: mockUser.username}, {$or: [{name: targetDataModel.name}, ...workflowMetaModels.map(m =>({name: m.name}))] }]}).toArray();
-    console.log({mods})
     if( mods.length === 0){
         await testModelsColInstance.insertMany([targetDataModel, ...workflowMetaModels]);
     }
