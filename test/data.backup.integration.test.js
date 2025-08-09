@@ -14,13 +14,14 @@ import {
 
 import {
     modelsCollection as getAppModelsCollection,
-    getCollectionForUser as getAppUserCollection
+    getCollectionForUser as getAppUserCollection, getCollectionForUser
 } from 'data-primals-engine/modules/mongodb';
 import process from "node:process";
 
 import { dumpUserData, loadFromDump } from 'data-primals-engine/modules/data';
 import fs from "node:fs";
 import {initEngine} from "../src/setenv.js";
+import {getUserCollectionName} from "../src/modules/mongodb.js";
 
 vi.mock('data-primals-engine/engine', async(importOriginal) => {
     const mod = await importOriginal() // type is inferred
@@ -88,6 +89,8 @@ afterAll(async () => {
         });
         fs.rmdirSync(backupDir); // Remove the directory itself
     }
+    const coll = await getCollectionForUser(mockUser);
+    await coll.drop()
 });
 
 beforeAll(async () =>{

@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { expect, describe, it, beforeEach, beforeAll, vi } from 'vitest';
+import {expect, describe, it, beforeEach, beforeAll, vi, afterAll} from 'vitest';
 import { Config } from "data-primals-engine/config";
 // --- Importations des modules de l'application ---
 import { insertData, editData } from 'data-primals-engine/modules/data';
@@ -7,6 +7,7 @@ import { modelsCollection as getAppModelsCollection, getCollectionForUser, getCo
 import * as workflowModule from 'data-primals-engine/modules/workflow';
 import {initEngine} from "../src/setenv.js";
 import {maxExecutionsByStep} from "../src/constants.js";
+import {getUserCollectionName} from "../src/modules/mongodb.js";
 
 vi.mock('data-primals-engine/modules/workflow', { spy: true })
 
@@ -47,6 +48,10 @@ beforeEach(async () => {
     }
 });
 
+afterAll(async () => {
+    const coll = await getCollectionForUser(mockUser);
+    await coll.drop();
+})
 // ====================================================================================
 // =================== DÉBUT DES TESTS DE ROBUSTESSE ==================================
 // ====================================================================================

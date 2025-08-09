@@ -13,7 +13,7 @@ import {
 import http from "http";
 import cookieParser from "cookie-parser";
 import requestIp from 'request-ip';
-import {createModel, deleteModels, getModels, validateModelStructure} from "./modules/data.js";
+import {createModel, deleteModels, getModels, installAllPacks, validateModelStructure} from "./modules/data.js";
 import {defaultModels} from "./defaultModels.js";
 import {DefaultUserProvider} from "./providers.js";
 import formidableMiddleware from 'express-formidable';
@@ -175,6 +175,7 @@ export const Engine = {
             server.listen(port);
 
             await setupInitialModels();
+            await installAllPacks();
 
             if (cb)
                 await cb();

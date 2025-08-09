@@ -39,6 +39,14 @@ export const getAllPacks = async () => {
         return perms;
     }
 
+    const envSmtp = [
+        { "name": "SMTP_HOST", "value": "smtp.example.com", "description": "SMTP server host for sending emails." },
+        { "name": "SMTP_PORT", "value": "587", "description": "SMTP server port." },
+        { "name": "SMTP_USER", "value": "user@example.com", "description": "Username for SMTP authentication." },
+        { "name": "SMTP_PASS", "value": "your_smtp_password", "description": "Password for SMTP authentication." },
+        { "name": "SMTP_FROM", "value": "\"My Store\" <noreply@example.com>", "description": "The 'From' address for outgoing emails." }
+    ];
+
     const categories = [ 'News', 'Blog', 'Products', 'Services', 'Store', 'Events', 'Forums', 'Contact', 'Support'];
     const tags = [ 'info', 'incident', 'maintenance', 'feature', 'hint', 'bugfix', 'question'];
 
@@ -49,19 +57,249 @@ export const getAllPacks = async () => {
 
     return [
         {
+            "name": "Marketing & Campaigning",
+            "description": "Launch powerful, personalized, and scalable email campaigns. This pack uses dynamic audiences and a robust workflow to send emails in chunks, ensuring high performance. Depends on the 'Customer Relationship Management (CRM)' pack.",
+            "tags": ["marketing", "email", "campaign", "workflow"],
+            "models": ["env", "contact", "workflow", "workflowStep", "workflowAction", "workflowRun", "workflowTrigger",
+                {
+                    "name": "campaign",
+                    "description": "Defines an email marketing campaign.",
+                    "fields": [
+                        { "name": "name", "type": "string", "required": true, "asMain": true },
+                        { "name": "subject", "type": "string", "required": true },
+                        { "name": "content", "type": "richtext", "required": true },
+                        { "name": "status", "type": "enum", "items": ["draft", "scheduled", "in_progress", "finished", "cancelled"], "default": "draft" },
+                        { "name": "audience", "type": "relation", "relation": "audience" },
+                        { "name": "processedRecipients", "type": "array", "itemsType": "string", "hint": "List of processed contact IDs." }
+                    ]
+                },
+                {
+                    "name": "audience",
+                    "description": "Defines a dynamic segment of contacts based on a filter.",
+                    "fields": [
+                        { "name": "name", "type": "string", "required": true, "asMain": true },
+                        { "name": "description", "type": "string" },
+                        { "name": "filter", "type": "code", "language": "json", "required": true, "conditionBuilder": true, "hint": "A MongoDB filter to select contacts. E.g., { \"tags\": \"newsletter\" }" }
+                    ]
+                }
+            ],
+            "data":{
+                "all": {
+                    "audience": [
+                        {
+                            "name": "Example Audience for Campaigning",
+                            "description": "An example audience targeting specific contacts from the CRM pack.",
+                            "filter": { "$or": [{ "$eq": ["$email", "alice.martin@innovatech.com"] }, { "$eq": ["$email", "bob.durand@globalexports.com"] }] }
+                        }
+                    ],
+                    "campaign": [
+                        {
+                            "name": "Q3 Product Launch",
+                            "subject": "🚀 Discover Our New Products!",
+                            "content": "<h1>Hello {recipient.firstName},</h1><p>We are excited to introduce our latest product line. We think you'll love it!</p><p>Best regards,<br>The Team</p>",
+                            "status": "draft",
+                            "audience": { "$link": { "name": "Example Audience for Campaigning", "_model": "audience" } }
+                        }
+                    ],
+                    "workflow": [{
+                        "name": "Campaign Emailing Workflow",
+                        "description": "A scalable workflow that sends campaign emails in chunks by dynamically querying contacts from an audience.",
+                        "startStep": { "$link": { "name": "Start Campaign Processing", "_model": "workflowStep" } }
+                    }],
+                    "workflowAction": [
+                        {
+                            "name": "Set Campaign to 'in_progress'",
+                            "type": "UpdateData",
+                            "targetModel": "campaign",
+                            "targetSelector": { "_id": "{triggerData._id}" },
+                            "fieldsToUpdate": { "status": "in_progress" }
+                        },
+                        {
+                            "name": "Get Next Recipient Chunk",
+                            "type": "ExecuteScript",
+                            "script": `
+const chunkSize = 10; // Process 10 recipients per run
+const campaign = context.triggerData;
+const audience = await db.findOne("audience",{"_id": campaign.audience});
+
+if (!audience || !audience.filter) {
+logger.error('Campaign audience or audience filter is not defined.');
+return { chunk: [], message: 'Campaign audience or audience filter is not defined.'}; // Returning an empty chunk will stop the workflow.
+}
+
+const processedIds = campaign.processedRecipients || [];
+
+const query = {
+    '$and': [
+        audience.filter,
+        { '$not':{ '$in': ["$_id", processedIds] } }
+    ]
+};
+
+logger.info('Finding next chunk with filter:', JSON.stringify(query));
+
+const searchResult = await db.find('contact', query, { limit: chunkSize });
+const chunk = searchResult.data || [];
+
+logger.info(\`Found \${chunk.length} recipients for the next chunk.\`);
+
+return { chunk }; // This chunk is passed to the next action via context.result
+`
+                        },
+                        {
+                            "name": "Send Email to Chunk",
+                            "type": "SendEmail",
+                            "emailRecipients": ["{context.result.chunk}"],
+                            "emailSubject": "{triggerData.subject}",
+                            "emailContent": "{triggerData.content}"
+                        },
+                        {
+                            "name": "Update Processed Recipients",
+                            "type": "ExecuteScript",
+                            "script": `
+const campaignId = context.triggerData._id;
+const emailResult = context.emailResult; 
+
+if (!emailResult || !Array.isArray(emailResult.sent) || emailResult.sent.length === 0) {
+    logger.info('No recipients were successfully sent an email in this chunk.');
+    // Return the original chunk from the first script to allow the condition to check it
+    return { processedChunk: context.result.chunk };
+}
+
+const processedIds = emailResult.sent.map(recipient => recipient._id.toString());
+
+logger.info(\`Updating campaign \${campaignId} with \${processedIds.length} new processed IDs.\`);
+
+await db.update(
+    'campaign',
+    { _id: campaignId },
+    { 'processedRecipients': [...campaign.processedRecipients, ...processedIds] }
+);
+
+// Return the original chunk for the condition check step
+return { processedChunk: context.result.chunk };
+`
+                        },
+                        {
+                            "name": "Set Campaign to 'finished'",
+                            "type": "UpdateData",
+                            "targetModel": "campaign",
+                            "targetSelector": { "_id": "{triggerData._id}" },
+                            "fieldsToUpdate": { "status": "finished" }
+                        }
+                    ],
+                    "workflowStep": [
+                        {
+                            "name": "Start Campaign Processing",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Set Campaign to 'in_progress'", "_model": "workflowAction" } },
+                            "onSuccessStep": { "$link": { "name": "Process Recipient Chunk", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Process Recipient Chunk",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "actions":
+                                { "$link": { "$or": [
+                                    {"$eq": ["$name", "Get Next Recipient Chunk"]},
+                                    {"$eq": ["$name", "Send Email to Chunk"]},
+                                    {"$eq": ["$name", "Update Processed Recipients"]}
+                                ],"_model": "workflowAction"}},
+                            "onSuccessStep": { "$link": { "name": "Check if Campaign is Complete", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Check if Campaign is Complete",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "conditions": { "$gt": [{ "$size": {$ifNull:["{context.result.processedChunk}", []]} }, 0] },
+                            "onSuccessStep": { "$link": { "name": "Process Recipient Chunk", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Finish Campaign", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Finish Campaign",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Set Campaign to 'finished'", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        }
+                    ],
+                    "workflowTrigger": [{
+                        "name": "On Campaign Scheduled",
+                        "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                        "type": "manual",
+                        "onEvent": "DataEdited",
+                        "targetModel": "campaign",
+                        "dataFilter": { "$eq": ["$status", "scheduled"] },
+                        "isActive": true
+                    }],
+                    "env": envSmtp
+                }
+            }
+        },
+        /*
+        {
+            "name": "Social Media Publisher",
+            "description": "Automate your social media presence. This pack provides a workflow to automatically post new blog articles to Twitter and LinkedIn. Requires the 'Website Starter Pack'.",
+            "tags": ["social media", "marketing", "automation", "workflow"],
+            "dependencies": ["Website Starter Pack"],
+            "models": ["workflow", "workflowStep", "workflowAction", "workflowTrigger", "env"],
+            "data": {
+                "all": {
+                    "workflow": [{
+                        "name": "Publish New Blog Post to Socials",
+                        "description": "Automatically posts a link to a new blog post on Twitter and LinkedIn.",
+                        "startStep": {"$link": {"name": "Post on Social Networks", "_model": "workflowStep"}}
+                    }],
+                    "workflowAction": [
+                        {
+                            "name": "Post to Twitter",
+                            "type": "PostToSocialMedia",
+                            "provider": "Twitter",
+                            "content": "📰 New blog post published: {triggerData.title}! Check it out here: https://your-website.com/blog/{triggerData.slug}"
+                        },
+                        {
+                            "name": "Post to LinkedIn",
+                            "type": "PostToSocialMedia",
+                            "provider": "LinkedIn",
+                            "content": "We've just published a new article: '{triggerData.title}'.\n\n{triggerData.summary}\n\nRead the full post on our blog: https://your-website.com/blog/{triggerData.slug}\n#YourIndustry #BlogPost"
+                        }
+                    ],
+                    "workflowStep": [{
+                        "name": "Post on Social Networks",
+                        "workflow": {"$link": {"name": "Publish New Blog Post to Socials", "_model": "workflow"}},
+                        "actions": {
+                            "$link": {
+                                "$or": [
+                                    {"$eq": ["$name", "Post to Twitter"]},
+                                    {"$eq": ["$name", "Post to LinkedIn"]}
+                                ],
+                                "_model": "workflowAction"
+                            }
+                        },
+                        "isTerminal": true
+                    }],
+                    "workflowTrigger": [{
+                        "name": "On New Blog Post Added",
+                        "workflow": {"$link": {"name": "Publish New Blog Post to Socials", "_model": "workflow"}},
+                        "type": "manual",
+                        "onEvent": "DataAdded",
+                        "targetModel": "content",
+                        "dataFilter": {"category": {"$find": {"name": "Blog"}}},
+                        "isActive": true
+                    }],
+                    "env": [
+                        {"name": "TWITTER_API_KEY", "value": "your_key_here"},
+                        {"name": "TWITTER_API_SECRET", "value": "your_secret_here"},
+                        {"name": "LINKEDIN_ACCESS_TOKEN", "value": "your_token_here"}
+                    ]
+                }
+            }
+        },*/
+        {
             "name": "E-commerce Starter Kit",
             "description": "Launch your online store in just a few clicks. This pack includes templates for products, orders, and customers, as well as sample data, KPIs, alerts and an order fulfillment workflow (with sending email).",
             "tags": ["e-commerce", "business", "store"],
             "models": ["env", "taxonomy", "product", "productVariant", "brand", "currency", "order", "shipment", "review", "cart", "cartItem", "discount", "workflow", "workflowStep", "workflowAction","workflowRun", "workflowTrigger", "translation", "lang", "kpi", "dashboard", "alert", "return"],
             "data": {
                 "all": {
-                    "env": [
-                        { "name": "SMTP_HOST", "value": "smtp.example.com", "description": "SMTP server host for sending emails." },
-                        { "name": "SMTP_PORT", "value": "587", "description": "SMTP server port." },
-                        { "name": "SMTP_USER", "value": "user@example.com", "description": "Username for SMTP authentication." },
-                        { "name": "SMTP_PASS", "value": "your_smtp_password", "description": "Password for SMTP authentication." },
-                        { "name": "SMTP_FROM", "value": "\"My Store\" <noreply@example.com>", "description": "The 'From' address for outgoing emails." }
-                    ],
+                    "env":envSmtp,
                     "taxonomy": [
                         { "name": "E-commerce", "type": "category" },
                         { "name": "Clothes", "type": "category", "parent": { "$find": { "name": "E-commerce" } } },
