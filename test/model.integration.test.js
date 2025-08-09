@@ -115,6 +115,7 @@ async function setupTestContext() {
     };
 }
 
+
 describe('CRUD on model definitions and integrity tests', () => {
 
     beforeAll(async () =>{
@@ -177,11 +178,10 @@ describe('CRUD on model definitions and integrity tests', () => {
             const indexesAfterDeletion = await coll.indexes();
             expect(indexesAfterDeletion.some(i => i.key[fieldToIndex] === 1)).toBe(false);
 
-            await coll.drop();
         }, 20000);
 
         it('should not save extra, non-defined fields in the model definition', async () => {
-            const { coll, currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             // 1. Préparer les données avec un champ non sollicité
             const updatedModelData = {
                 ...comprehensiveTestModelDefinition,
@@ -192,7 +192,6 @@ describe('CRUD on model definitions and integrity tests', () => {
             // 2. Appeler la fonction d'édition
             const result = await editModel(currentTestUser, testModelId, updatedModelData);
             expect(result.success).toBe(false);
-            await coll.drop();
         });
         it('should return an error if trying to edit a non-existent model', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();

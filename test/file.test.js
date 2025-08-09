@@ -54,11 +54,6 @@ let testUser = {
     permissions: ['API_UPLOAD_FILE']
 };
 
-afterAll(async () => {
-    const userColl = await getCollectionForUser(testUser);
-    await userColl.drop();
-});
-
 describe('File Module Integration Tests', () => {
 
     beforeEach(async () => {
