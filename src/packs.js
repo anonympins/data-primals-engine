@@ -39,6 +39,14 @@ export const getAllPacks = async () => {
         return perms;
     }
 
+    const envSmtp = [
+        { "name": "SMTP_HOST", "value": "smtp.example.com", "description": "SMTP server host for sending emails." },
+        { "name": "SMTP_PORT", "value": "587", "description": "SMTP server port." },
+        { "name": "SMTP_USER", "value": "user@example.com", "description": "Username for SMTP authentication." },
+        { "name": "SMTP_PASS", "value": "your_smtp_password", "description": "Password for SMTP authentication." },
+        { "name": "SMTP_FROM", "value": "\"My Store\" <noreply@example.com>", "description": "The 'From' address for outgoing emails." }
+    ];
+
     const categories = [ 'News', 'Blog', 'Products', 'Services', 'Store', 'Events', 'Forums', 'Contact', 'Support'];
     const tags = [ 'info', 'incident', 'maintenance', 'feature', 'hint', 'bugfix', 'question'];
 
@@ -48,7 +56,6 @@ export const getAllPacks = async () => {
         {name: 'visitor', perms: ['API_SEARCH_DATA_webpage','API_SEARCH_DATA_content', 'API_SEARCH_DATA_lang', 'API_SEARCH_DATA_currency', 'API_SEARCH_DATA_taxonomy']}];
 
     return [
-
         {
             "name": "Marketing & Campaigning",
             "description": "Launch powerful, personalized, and scalable email campaigns. This pack uses dynamic audiences and a robust workflow to send emails in chunks, ensuring high performance. Depends on the 'Customer Relationship Management (CRM)' pack.",
@@ -221,7 +228,8 @@ return { processedChunk: context.result.chunk };
                         "targetModel": "campaign",
                         "dataFilter": { "$eq": ["$status", "scheduled"] },
                         "isActive": true
-                    }]
+                    }],
+                    "env": envSmtp
                 }
             }
         },
@@ -233,13 +241,7 @@ return { processedChunk: context.result.chunk };
             "models": ["env", "taxonomy", "product", "productVariant", "brand", "currency", "order", "shipment", "review", "cart", "cartItem", "discount", "workflow", "workflowStep", "workflowAction","workflowRun", "workflowTrigger", "translation", "lang", "kpi", "dashboard", "alert", "return"],
             "data": {
                 "all": {
-                    "env": [
-                        { "name": "SMTP_HOST", "value": "smtp.example.com", "description": "SMTP server host for sending emails." },
-                        { "name": "SMTP_PORT", "value": "587", "description": "SMTP server port." },
-                        { "name": "SMTP_USER", "value": "user@example.com", "description": "Username for SMTP authentication." },
-                        { "name": "SMTP_PASS", "value": "your_smtp_password", "description": "Password for SMTP authentication." },
-                        { "name": "SMTP_FROM", "value": "\"My Store\" <noreply@example.com>", "description": "The 'From' address for outgoing emails." }
-                    ],
+                    "env":envSmtp,
                     "taxonomy": [
                         { "name": "E-commerce", "type": "category" },
                         { "name": "Clothes", "type": "category", "parent": { "$find": { "name": "E-commerce" } } },
