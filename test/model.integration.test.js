@@ -25,8 +25,8 @@ async function setupTestContext() {
 
     // Créer un utilisateur unique pour ce test
     const currentTestUser = {
-        username: generateUniqueName('testuserDataIntegration'),
-        userPlan: 'free',
+        username: generateUniqueName('testuserModelIntegration'),
+        userPlan: 'premium',
         email: generateUniqueName('test') + '@example.com'
     };
 

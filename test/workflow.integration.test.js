@@ -19,7 +19,7 @@ vi.mock('data-primals-engine/modules/workflow', { spy: true })
 const mockUser = {
     username: 'testuserWorkflow',
     _user: 'testuserWorkflow',
-    userPlan: 'free',
+    userPlan: 'premium',
     email: 'testWorkflow@example.com'
 };
 
