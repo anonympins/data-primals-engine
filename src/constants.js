@@ -288,7 +288,7 @@ metaModels['messaging'] = { load: ['alert','ticket', 'message', 'channel'], 'req
 metaModels['eshopping'] = { load: [
     'order', 'currency', 'product', 'productVariant', 'discount', 'cart', 'cartItem',
     'brand', 'return', 'review', 'stock', 'returnItem', 'userSubscription',
-    'warehouse', 'shipment', 'campaign', 'stockAlert', 'invoice'],
+    'warehouse', 'shipment', 'stockAlert', 'invoice'],
 'require': ['i18n', 'users', 'messaging'] };
 metaModels['workflow'] = { load: ['env', 'workflow', 'workflowRun', 'workflowAction', 'workflowStep', 'workflowTrigger']};
 metaModels['erp'] = { load: [ 'accountingExercise', 'accountingLineItem', 'accountingEntry', 'employee', 'dashboard', 'kpi'] };

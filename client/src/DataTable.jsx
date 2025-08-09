@@ -43,7 +43,6 @@ import RelationValue from "./RelationValue.jsx";
 import {FaGear, FaPencil, FaTriangleExclamation} from "react-icons/fa6";
 import RestoreConfirmationModal from "./RestoreConfirmationModal.jsx";
 import {event_trigger, isLightColor} from "../../src/core.js";
-import {isConditionMet} from "./DataEditor.jsx";
 import {Tooltip} from "react-tooltip";
 import ExportDialog from "./ExportDialog.jsx";
 import Captions from "yet-another-react-lightbox/plugins/captions";
@@ -58,6 +57,7 @@ import PackGallery from "./PackGallery.jsx";
 import {HiddenableCell} from "./HiddenableCell.jsx";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import {pagedFilterToMongoConds} from "./filter.js";
+import {isConditionMet} from "data-primals-engine/filter";
 
 // Ajoutez cette constante pour la clé de sessionStorage
 const SESSION_STORAGE_IMPORT_JOBS_KEY = 'activeImportJobs';

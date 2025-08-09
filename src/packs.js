@@ -48,6 +48,184 @@ export const getAllPacks = async () => {
         {name: 'visitor', perms: ['API_SEARCH_DATA_webpage','API_SEARCH_DATA_content', 'API_SEARCH_DATA_lang', 'API_SEARCH_DATA_currency', 'API_SEARCH_DATA_taxonomy']}];
 
     return [
+
+        {
+            "name": "Marketing & Campaigning",
+            "description": "Launch powerful, personalized, and scalable email campaigns. This pack uses dynamic audiences and a robust workflow to send emails in chunks, ensuring high performance. Depends on the 'Customer Relationship Management (CRM)' pack.",
+            "tags": ["marketing", "email", "campaign", "workflow"],
+            "models": ["env", "contact", "workflow", "workflowStep", "workflowAction", "workflowRun", "workflowTrigger",
+                {
+                    "name": "campaign",
+                    "description": "Defines an email marketing campaign.",
+                    "fields": [
+                        { "name": "name", "type": "string", "required": true, "asMain": true },
+                        { "name": "subject", "type": "string", "required": true },
+                        { "name": "content", "type": "richtext", "required": true },
+                        { "name": "status", "type": "enum", "items": ["draft", "scheduled", "in_progress", "finished", "cancelled"], "default": "draft" },
+                        { "name": "audience", "type": "relation", "relation": "audience" },
+                        { "name": "processedRecipients", "type": "array", "itemsType": "string", "hint": "List of processed contact IDs." }
+                    ]
+                },
+                {
+                    "name": "audience",
+                    "description": "Defines a dynamic segment of contacts based on a filter.",
+                    "fields": [
+                        { "name": "name", "type": "string", "required": true, "asMain": true },
+                        { "name": "description", "type": "string" },
+                        { "name": "filter", "type": "code", "language": "json", "required": true, "conditionBuilder": true, "hint": "A MongoDB filter to select contacts. E.g., { \"tags\": \"newsletter\" }" }
+                    ]
+                }
+            ],
+            "data":{
+                "all": {
+                    "audience": [
+                        {
+                            "name": "Example Audience for Campaigning",
+                            "description": "An example audience targeting specific contacts from the CRM pack.",
+                            "filter": { "$or": [{ "$eq": ["$email", "alice.martin@innovatech.com"] }, { "$eq": ["$email", "bob.durand@globalexports.com"] }] }
+                        }
+                    ],
+                    "campaign": [
+                        {
+                            "name": "Q3 Product Launch",
+                            "subject": "🚀 Discover Our New Products!",
+                            "content": "<h1>Hello {recipient.firstName},</h1><p>We are excited to introduce our latest product line. We think you'll love it!</p><p>Best regards,<br>The Team</p>",
+                            "status": "draft",
+                            "audience": { "$link": { "name": "Example Audience for Campaigning", "_model": "audience" } }
+                        }
+                    ],
+                    "workflow": [{
+                        "name": "Campaign Emailing Workflow",
+                        "description": "A scalable workflow that sends campaign emails in chunks by dynamically querying contacts from an audience.",
+                        "startStep": { "$link": { "name": "Start Campaign Processing", "_model": "workflowStep" } }
+                    }],
+                    "workflowAction": [
+                        {
+                            "name": "Set Campaign to 'in_progress'",
+                            "type": "UpdateData",
+                            "targetModel": "campaign",
+                            "targetSelector": { "_id": "{triggerData._id}" },
+                            "fieldsToUpdate": { "status": "in_progress" }
+                        },
+                        {
+                            "name": "Get Next Recipient Chunk",
+                            "type": "ExecuteScript",
+                            "script": `
+const chunkSize = 10; // Process 10 recipients per run
+const campaign = context.triggerData;
+const audience = await db.findOne("audience",{"_id": campaign.audience});
+
+if (!audience || !audience.filter) {
+logger.error('Campaign audience or audience filter is not defined.');
+return { chunk: [] }; // Returning an empty chunk will stop the workflow.
+}
+
+const processedIds = campaign.processedRecipients || [];
+
+const query = {
+    '$and': [
+        audience.filter,
+        { '_id': { '$not':{ '$in': processedIds }} }
+    ]
+};
+
+logger.info('Finding next chunk with filter:', JSON.stringify(query));
+
+const searchResult = await db.find('contact', query, { limit: chunkSize });
+const chunk = searchResult.data || [];
+
+logger.info(\`Found \${chunk.length} recipients for the next chunk.\`);
+
+return { chunk }; // This chunk is passed to the next action via context.result
+`
+                        },
+                        {
+                            "name": "Send Email to Chunk",
+                            "type": "SendEmail",
+                            "emailRecipients": ["{context.result.chunk}"],
+                            "emailSubject": "{triggerData.subject}",
+                            "emailContent": "{triggerData.content}"
+                        },
+                        {
+                            "name": "Update Processed Recipients",
+                            "type": "ExecuteScript",
+                            "script": `
+const campaignId = context.triggerData._id;
+const emailResult = context.emailResult; 
+
+if (!emailResult || !Array.isArray(emailResult.sent) || emailResult.sent.length === 0) {
+    log_info('No recipients were successfully sent an email in this chunk.');
+    // Return the original chunk from the first script to allow the condition to check it
+    return { processedChunk: context.result.chunk };
+}
+
+const processedIds = emailResult.sent.map(recipient => recipient._id.toString());
+
+log_info(\`Updating campaign \${campaignId} with \${processedIds.length} new processed IDs.\`);
+
+await db.update(
+    'campaign',
+    { _id: campaignId },
+    { 'processedRecipients': [...campaign.processedRecipients, ...processedIds] }
+);
+
+// Return the original chunk for the condition check step
+return { processedChunk: context.result.chunk };
+`
+                        },
+                        {
+                            "name": "Set Campaign to 'finished'",
+                            "type": "UpdateData",
+                            "targetModel": "campaign",
+                            "targetSelector": { "_id": "{triggerData._id}" },
+                            "fieldsToUpdate": { "status": "finished" }
+                        }
+                    ],
+                    "workflowStep": [
+                        {
+                            "name": "Start Campaign Processing",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Set Campaign to 'in_progress'", "_model": "workflowAction" } },
+                            "onSuccessStep": { "$link": { "name": "Process Recipient Chunk", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Process Recipient Chunk",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "actions":
+                                { "$link": { "$or": [
+                                    {"$eq": ["$name", "Get Next Recipient Chunk"]},
+                                    {"$eq": ["$name", "Send Email to Chunk"]},
+                                    {"$eq": ["$name", "Update Processed Recipients"]}
+                                ],"_model": "workflowAction"}},
+                            "onSuccessStep": { "$link": { "name": "Check if Campaign is Complete", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Check if Campaign is Complete",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "conditions": { "$gt": [{ "$size": {$ifNull:["{context.result.processedChunk}", []]} }, 0] },
+                            "onSuccessStep": { "$link": { "name": "Process Recipient Chunk", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Finish Campaign", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Finish Campaign",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Set Campaign to 'finished'", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        }
+                    ],
+                    "workflowTrigger": [{
+                        "name": "On Campaign Scheduled",
+                        "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
+                        "type": "manual",
+                        "onEvent": "DataEdited",
+                        "targetModel": "campaign",
+                        "dataFilter": { "$eq": ["$status", "scheduled"] },
+                        "isActive": true
+                    }]
+                }
+            }
+        },
+
         {
             "name": "E-commerce Starter Kit",
             "description": "Launch your online store in just a few clicks. This pack includes templates for products, orders, and customers, as well as sample data, KPIs, alerts and an order fulfillment workflow (with sending email).",

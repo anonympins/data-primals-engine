@@ -16,6 +16,7 @@ import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
+import {isConditionMet} from "../filter.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -190,73 +191,102 @@ export async function executeSafeJavascript(actionDef, context, user) {
         const vmContext = await isolate.createContext();
         const jail = vmContext.global;
 
-        // Helper to create a secure reference for our API functions
-        const createJailFunction = (fn) => new ivm.Reference(fn);
+        const find = async (modelName, filter) => {
+            const result = await searchData({ model: modelName, filter: JSON.parse(filter) }, user);
+            return new ivm.ExternalCopy(result.data).copyInto();
+        };
+        const findOne = async (modelName, filter) => {
+            const result = await searchData({ model: modelName, filter: JSON.parse(filter), limit: 1 }, user);
+            return new ivm.ExternalCopy(result.data?.[0] || null).copyInto();
+        };
 
         // 1. Build the sandboxed API
-        await jail.set('db', createJailFunction({
-            create: (modelName, dataObject) => insertData(modelName, dataObject, {}, user),
-            find: async (modelName, filter) => {
-                const result = await searchData({ model: modelName, filter }, user);
-                return new ivm.ExternalCopy(result.data).copyInto();
-            },
-            findOne: async (modelName, filter) => {
-                const result = await searchData({ model: modelName, filter, limit: 1 }, user);
-                return new ivm.ExternalCopy(result.data?.[0] || null).copyInto();
-            },
-            update: (modelName, filter, updateObject) => patchData(modelName, filter, updateObject, {}, user),
-            delete: (modelName, filter) => deleteData(modelName, filter, user)
-        }));
+        await jail.set('_db_create', new ivm.Reference((modelName, dataObject) => insertData(modelName, JSON.parse(dataObject), {}, user, false)));
+        await jail.set('_db_find', new ivm.Reference(find));
+        await jail.set('_db_findOne', new ivm.Reference(findOne));
 
-        const createLoggerFunction = (level) => {
+        await jail.set('_db_update', new ivm.Reference((modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), updateObject, {}, user, false)));
+        await jail.set('_db_delete', new ivm.Reference((modelName, filter) => deleteData(modelName, JSON.parse(filter), user, false)));
+
+        const createLoggerMethod = (level) => {
             return (...args) => {
-                const finalMessage = logger.trace(level, '[VM Script]', ...args);
+                const message = args.join(' ');
                 collectedLogs.push({
-                    level: level,
-                    message: finalMessage,
+                    level,
+                    message,
                     timestamp: new Date().toISOString()
                 });
+                logger.trace(level, '[VM Script]', message);
             };
         };
 
-        await jail.set('logger', createJailFunction({
-            info: createLoggerFunction('info'),
-            warn: createLoggerFunction('warn'),
-            error: createLoggerFunction('error')
+        await jail.set('_log_info', createLoggerMethod('info'));
+        await jail.set('_log_warn', createLoggerMethod('warn'));
+        await jail.set('_log_error', createLoggerMethod('error'));
+        await jail.set('_env_get', new ivm.Reference(async (variableName) => {
+            if (!variableName) return null;
+            const result = await searchData({ model: 'env', filter: { name: variableName }, limit: 1 }, user);
+            return new ivm.ExternalCopy(result.data?.[0]?.value || null).copyInto();
+        }));
+        await jail.set('_env_get_all', new ivm.Reference(async () => {
+            const result = await searchData({ model: 'env' }, user);
+            const envObject = result.data.reduce((acc, v) => {
+                acc[v.name] = v.value;
+                return acc;
+            }, {});
+            return new ivm.ExternalCopy(envObject).copyInto();
         }));
 
-        await jail.set('env', createJailFunction({
-            get: async (variableName) => {
-                if (!variableName) return null;
-                const result = await searchData({ model: 'env', filter: { name: variableName }, limit: 1 }, user);
-                return new ivm.ExternalCopy(result.data?.[0]?.value || null).copyInto();
-            },
-            getAll: async () => {
-                const result = await searchData({ model: 'env' }, user);
-                const envObject = result.data.reduce((acc, v) => {
-                    acc[v.name] = v.value;
-                    return acc;
-                }, {});
-                return new ivm.ExternalCopy(envObject).copyInto();
-            }
-        }));
+        // Contexte sécurisé
+        const safeContext = JSON.parse(JSON.stringify(context));
+        await jail.set('context', new ivm.ExternalCopy(safeContext).copyInto());
 
-        // Inject the context data securely
-        await jail.set('context', new ivm.ExternalCopy(context).copyInto());
-
-        // 2. Prepare and run the script
-        // The script is wrapped in an async IIFE to handle promises correctly
+        // Exécution
         const fullScript = `
-            (async () => {
+            const normalizeArgs = args => args.map(arg => {
+                if (typeof arg === 'object' && arg !== null) {
+                    return JSON.stringify(arg); // Convert objects to strings
+                }
+                return arg;
+            });
+            const db = {
+                create: (...args) => _db_create.applySyncPromise(null, normalizeArgs(args)),
+                find: (...args) => _db_find.applySyncPromise(null, normalizeArgs(args)),
+                findOne: (...args) => _db_findOne.applySyncPromise(null, normalizeArgs(args)),
+                update: (...args) => _db_update.applySyncPromise(null, normalizeArgs(args)),
+                delete: (...args) => _db_delete.applySyncPromise(null, normalizeArgs(args))
+            };
+
+            const logger = {
+                info: _log_info,
+                warn: _log_warn,
+                error: _log_error
+            };
+
+            const env = {
+                get: _env_get,
+                getAll: _env_get_all
+            };
+            
+            (async function() {
                 ${code}
             })();
         `;
 
-        const script = await isolate.compileScript(fullScript);
-        const result = await script.run(vmContext, { timeout: timeoutVM, promise: true });
+        const TIMEOUT = 5000;
+        const script = await isolate.compileScript(fullScript, { timeout: TIMEOUT });
+        const result = await script.run(vmContext, {
+            timeout: TIMEOUT,
+            promise: true,
+            copy: true // Copie automatique du résultat
+        });
 
-        // The result is returned as an ExternalCopy, we need to copy it out
-        return { success: true, data: result, logs: collectedLogs };
+        return {
+            success: true,
+            data: result,
+            logs: collectedLogs,
+            updatedContext: { result }
+        };
 
     } catch (error) {
         const errorMessage = `Script execution failed: ${error.message}`;
@@ -485,7 +515,7 @@ async function handleCreateDataAction(actionDef, contextData, user, dbCollection
         logger.debug('Final data object after substitution:', dataObject);
 
         // 3. Appeler insertData avec l'objet correctement substitué
-        const result = await insertData(targetModel, dataObject, [], user, true, true); // On attend la fin du workflow déclenché par cette création
+        const result = await insertData(targetModel, dataObject, [], user, false, true); // On attend la fin du workflow déclenché par cette création
 
         if (result.success) {
             return { success: true, insertedIds: result.insertedIds };
@@ -607,16 +637,7 @@ async function handleUpdateDataAction(actionDef, contextData, user) {
             selectorObject,
             updatesObject,
             {},
-            user
-        );
-
-
-        console.log(
-            targetModel,
-            selectorObject,
-            updatesObject,
-            {},
-            user
+            user, false
         );
 
         // 6. Return result
@@ -626,7 +647,10 @@ async function handleUpdateDataAction(actionDef, contextData, user) {
                 success: true,
                 modifiedCount: updateResult.modifiedCount,
                 matchedCount: updateResult.matchedCount,
-                message: updateResult.message
+                message: updateResult.message,
+                updatedContext: {
+                    triggerData: {...contextData.triggerData || {}, ...updatesObject}
+                }
             };
         } else {
             // updateData now throws errors, so this 'else' might not be reached often,
@@ -968,6 +992,9 @@ export async function substituteVariables(template, contextData, user) {
     // 5. Logique de résolution de valeur améliorée avec resolvePathValue
     const findValue = async (key) => {
         let path = key.trim();
+        if (path.startsWith('context.')) {
+            path = path.substring('context.'.length);
+        }
         if (path.endsWith('._id')) {
             const basePath = path.slice(0, -4);
             const value = await findValue(basePath);
@@ -1107,17 +1134,16 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
                     try {
                         const finalFilter = {
                             '$and': [
+                                {"_id": { "$toObjectId": triggerData._id.toString() }},
                                 dataFilterCondition                      // Applique la condition du trigger
                             ]
                         };
 
+
                         console.debug(`[Workflow Trigger] Vérification dataFilter pour trigger ${trigger._id} avec filtre combiné:`, JSON.stringify(finalFilter));
-
-                        // Exécuter la vérification dans la base de données
-                        // Utilisation de countDocuments pour une vérification rapide
-                        const matchCount = await searchData({  model: targetModelName, filter: finalFilter, limit: 1 }, user);
-
-                        if (!matchCount.count) {
+                        console.log({triggerData, finalFilter});
+                        const match = await searchData({ model: triggerData._model, filter: finalFilter, limit: 1 }, user);
+                        if (!match.count) {
                             console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
                             continue; // Passer au trigger suivant
                         } else {
@@ -1277,9 +1303,16 @@ export async function processWorkflowRun(workflowRunId, user) {
             let conditionsMet = true;
 
             try {
+                // Add logging to see the actual pipeline being executed
+                logger.debug('Executing pipeline:', JSON.stringify(await substituteVariables(currentStepDef.conditions, contextData, user), null, 2));
+
+                // And log the context data to verify processedChunk exists
+                logger.debug('Context data:', JSON.stringify(contextData, null, 2));
+                
                 // --- 7. Évaluation des conditions de l'étape ---
                 if (currentStepDef.conditions && Object.keys(currentStepDef.conditions).length > 0) {
-                    const searchResult = await searchData({ model: contextData.triggerDataModel, filter: currentStepDef.conditions, limit: 1}, user);
+                    const substitutedConditions = await substituteVariables(currentStepDef.conditions, contextData, user);
+                    const searchResult = await searchData({ model: contextData.triggerDataModel, filter: substitutedConditions, limit: 1}, user);
                     conditionsMet = searchResult && searchResult.count > 0;
                     logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Conditions evaluated. Found ${searchResult ? searchResult.count : 0} match(es). Result: ${conditionsMet}`);
                 }
@@ -1292,6 +1325,7 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (!isObjectId(actionId)) continue;
                             const actionDef = await dbCollection.findOne({ _id: new ObjectId(actionId), _model: 'workflowAction' });
                             if (!actionDef) return await logError(`Action definition ${actionId} not found.`);
+                            console.log({actionDef});
                             const actionResult = await workflowModule.executeStepAction(actionDef, contextData, user, dbCollection);
                             if (!actionResult.success) {
                                 stepSucceeded = false;
@@ -1303,6 +1337,7 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (actionResult.updatedContext) {
                                 contextData = { ...contextData, ...actionResult.updatedContext };
                             }
+                            console.log({actionResult});
                             logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}, Action ID: ${actionId}: Executed successfully.`);
                         }
                     }
@@ -1466,57 +1501,119 @@ async function executeGenerateAIContentAction(action, context, user) {
 
 
 /**
- * Gère l'action d'envoi d'email d'un workflow.
- * @param {object} action - L'objet workflowAction.
- * @param {object} triggerData - Les données qui ont déclenché le workflow.
+ * Gère l'action d'envoi d'e-mail d'un workflow.
+ * Cette version améliorée peut traiter une liste de destinataires, en envoyant un e-mail
+ * individuel et personnalisé à chacun. Elle gère les placeholders dans le sujet et le corps
+ * de l'e-mail en se basant sur le contexte de chaque destinataire.
+ *
+ * @param {object} action - La définition de l'action 'SendEmail'.
+ * @param {object} contextData - Le contexte d'exécution actuel du workflow.
  * @param {object} user - L'utilisateur propriétaire du workflow.
+ * @returns {Promise<{success: boolean, message: string, data?: {sent: string[], failed: any[]}}>}
  */
-async function handleSendEmailAction(action, triggerData, user) {
-
-    logger.info(`[Workflow] Exécution de l'action sendEmail pour l'utilisateur ${user.username}.`);
+async function handleSendEmailAction(action, contextData, user) {
+    logger.info(`[handleSendEmailAction] Executing for user ${user.username}.`);
 
     // 1. Récupérer la configuration SMTP depuis le modèle 'env' de l'utilisateur
     const envVars = await searchData({
-        model: 'env', limit: 100 } // Limite raisonnable pour les variables d'env
-    , user);
-
-    if (!envVars.data || envVars.data.length === 0) {
-        throw new Error("Aucune variable d'environnement (modèle 'env') trouvée pour la configuration SMTP.");
-    }
+        model: 'env',
+        filter: { $in: ['$name', ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']] }
+    }, user);
 
     const smtpConfig = envVars.data.reduce((acc, variable) => {
-        if (['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'].includes(variable.name)) {
-            acc[variable.name.replace('SMTP_', '').toLowerCase()] = variable.value;
-        }
+        acc[variable.name.replace('SMTP_', '').toLowerCase()] = variable.value;
         return acc;
     }, {});
 
-    // 2. Extraire la configuration de l'action et résoudre les placeholders
+    // 2. Valider la configuration de l'action
     const { emailRecipients, emailSubject, emailContent } = action;
     if (!emailRecipients || !emailSubject || !emailContent) {
-        throw new Error("SendEmail incomplete (emailRecipients, emailSubject, emailContent are needed).");
+        const msg = "SendEmail action is incomplete. 'emailRecipients', 'emailSubject', and 'emailContent' are required.";
+        logger.error(`[handleSendEmailAction] ${msg}`);
+        return { success: false, message: msg };
     }
 
     try {
-        const context = { data: triggerData, user }; // Contexte pour la résolution des placeholders
+        // 3. Résoudre la liste des destinataires. Peut être un placeholder qui retourne un tableau.
+        let resolvedRecipients = await substituteVariables(emailRecipients, contextData, user);
 
-        const rto = (await Promise.all(emailRecipients.map(r => substituteVariables(r, context, user))));
-        const rsubject = await substituteVariables(emailSubject, context, user);
-        const rbody = await substituteVariables(emailContent, context, user);
+        // S'assurer que nous avons toujours un tableau à parcourir
+        if (!Array.isArray(resolvedRecipients)) {
+            resolvedRecipients = [resolvedRecipients];
+        }
 
-        // 3. Préparer les données pour sendEmail
-        const emailData = {
-            title: rsubject,
-            content: rbody
+        resolvedRecipients = resolvedRecipients.flat();
+
+        if (resolvedRecipients.length === 0) {
+            return { success: true, message: "No recipients found after substitution. Nothing to send." };
+        }
+
+        logger.info(`[handleSendEmailAction] Preparing to send emails to ${resolvedRecipients.length} recipient(s).`);
+
+        const allPromises = [];
+        const sentTo = [];
+        const failedFor = [];
+
+        // 4. Itérer sur chaque destinataire pour envoyer un e-mail personnalisé
+        for (const recipient of resolvedRecipients) {
+            // Le destinataire peut être une simple chaîne (email) ou un objet { email: '...', nom: '...' }
+            const recipientEmail = typeof recipient === 'object' && recipient !== null ? recipient.email : recipient;
+
+            if (!recipientEmail || typeof recipientEmail !== 'string') {
+                logger.warn(`[handleSendEmailAction] Skipping an invalid recipient entry:`, recipient);
+                failedFor.push(recipient); // Garder une trace de l'entrée invalide
+                continue;
+            }
+
+            // 5. Créer un contexte personnalisé pour ce destinataire spécifique
+            // Cela permet d'utiliser des placeholders comme {recipient.name}
+            const personalizedContext = { ...contextData, recipient };
+
+            // 6. Substituer les variables dans le sujet et le contenu pour ce destinataire
+            const personalizedSubject = await substituteVariables(emailSubject, personalizedContext, user);
+            const personalizedBody = await substituteVariables(emailContent, personalizedContext, user);
+
+            const emailData = { title: personalizedSubject, content: personalizedBody };
+
+            // 7. Envoyer l'e-mail et suivre son résultat
+            const sendPromise = sendEmail([recipientEmail], emailData, smtpConfig, user.lang)
+                .then(() => {
+                    sentTo.push(recipient);
+                })
+                .catch(err => {
+                    logger.error(`[handleSendEmailAction] Failed to send email to ${recipientEmail}: ${err.message}`);
+                    failedFor.push({ recipient: recipientEmail, error: err.message });
+                });
+
+            allPromises.push(sendPromise);
+        }
+
+        // Attendre que toutes les tentatives d'envoi soient terminées
+        await Promise.all(allPromises);
+
+        const summaryMessage = `Email process completed. Sent: ${sentTo.length}. Failed: ${failedFor.length}.`;
+        logger.info(`[handleSendEmailAction] ${summaryMessage}`);
+
+        // L'action elle-même a réussi, même si certains e-mails ont échoué.
+        // Le message de retour et les données fournissent les détails.
+        return {
+            success: true,
+            message: summaryMessage,
+            data: {
+                sent: sentTo,
+                failed: failedFor
+            },
+            updatedContext: {
+                emailResult: {
+                    sent: sentTo,
+                    failed: failedFor
+                }
+            }
         };
 
-        await sendEmail(rto, emailData, smtpConfig, user.lang);
-        logger.info(`[Workflow] Action sendEmail terminée avec succès pour le destinataire: ${rto}`);
-
-        return { success: true, message: `Email sent to ${rto.join(', ')}` };
-
     } catch (error) {
-        logger.error(`[handleSendEmailAction] Erreur lors de l'envoi de l'email : ${error.message}`, error.stack);
-        return { success: false, message: error.message };
+        const msg = `[handleSendEmailAction] Unexpected error during email processing: ${error.message}`;
+        logger.error(msg, error.stack);
+        return { success: false, message: msg };
     }
 }

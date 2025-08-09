@@ -109,8 +109,7 @@ describe('File Module Integration Tests', () => {
             await expect(addFile(mockFile, testUser)).rejects.toThrow(/La taille du fichier dépasse la limite autorisée/);
         });
 
-        it('should throw error when storage limit exceeded', async ({skip}) => {
-            skip();
+        it.skip('should throw error when storage limit exceeded', async ({skip}) => {
             // Mock la fonction de calcul d'usage pour simuler un dépassement
             vi.spyOn(engine.userProvider, 'getUserStorageLimit').mockResolvedValue(85 * 1024 * 1024); // 5MB
 
@@ -119,8 +118,7 @@ describe('File Module Integration Tests', () => {
             await expect(addFile(mockFile, testUser)).rejects.toThrow("api.data.storageLimitExceeded");
         });
 
-        it('should throw error when server capacity is insufficient', async ({skip}) => {
-            skip();
+        it.skip('should throw error when server capacity is insufficient', async ({skip}) => {
             // Mock la vérification de capacité serveur
             vi.spyOn(engine.userProvider, 'checkServerCapacity').mockResolvedValue({ isSufficient: false });
 

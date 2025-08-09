@@ -543,19 +543,6 @@ export const defaultModels = {
             { name: 'createdAt', type: 'datetime', required: true }
         ]
     },
-    campaign: {
-        name: 'campaign',
-        "description": "",
-        fields: [
-            { name: 'name', type: 'string_t', required: true },
-            { name: 'description', type: 'richtext' },
-            { name: 'startDate', type: 'datetime' },
-            { name: 'endDate', type: 'datetime' },
-            { name: 'type', type: 'enum', items: ['email', 'sms', 'advertisement', 'promotion'] },
-            { name: 'status', type: 'enum', items: ['planified', 'in_progress', 'finished', 'cancelled'] },
-            { name: 'budget', type: 'number' }
-        ]
-    },
     review: {
         name: "review",
         "description": "",

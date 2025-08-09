@@ -6,12 +6,12 @@ import {emailDefaultConfig} from "./constants.js";
 
 // Le transporteur par défaut, utilisé si aucune config spécifique n'est fournie.
 const defaultTransporter = nodemailer.createTransport({
-    host: "mail.smtp2go.com",
-    port: 587,
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT || 587,
     secure: false,
     auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
     }
 });
 
