@@ -5,15 +5,13 @@ import { Config } from '../src/config.js';
 
 import {
     modelsCollection as getAppModelsCollection,
-    datasCollection // Accès direct pour vérifications
+    datasCollection, getCollection // Accès direct pour vérifications
 } from 'data-primals-engine/modules/mongodb';
 import {generateUniqueName, getUniquePort, initEngine} from "../src/setenv.js";
 import {editModel} from "../src/modules/data.js";
 import {getCollectionForUser, getUserCollectionName} from "../src/modules/mongodb.js";
 
 let testModelsColInstance;
-let testDatasColInstance;
-
 let testModelId;
 let lastUser;
 // Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte
@@ -30,7 +28,8 @@ async function setupTestContext() {
         email: generateUniqueName('test') + '@example.com'
     };
 
-    testDatasColInstance = await getCollectionForUser(currentTestUser);
+    testModelsColInstance = getCollection("models");
+    const testDatasColInstance = await getCollectionForUser(currentTestUser);
 
     const relatedModelDefinition = {
         name: currentRelatedModelName,
@@ -121,9 +120,6 @@ describe('CRUD on model definitions and integrity tests', () => {
     beforeAll(async () =>{
         Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
         await initEngine();
-
-        // Initialize collection instances after the engine is ready
-        testModelsColInstance = getAppModelsCollection;
     })
 
     describe('editModel unit tests', () => {
