@@ -3244,7 +3244,8 @@ async function processDocuments(datas, model, collection, me) {
     const idMap = new Map();
     const allInsertedIds = [];
 
-    for (const doc of datas) {
+    const realData = Event.Trigger("OnDataInsert", "event", "system", datas) || datas;
+    for (const doc of realData) {
         try {
             const newDocId = await insertAndResolveRelations(doc, model, collection, me, idMap);
             if (newDocId) {
@@ -3445,10 +3446,12 @@ async function applyFieldFilters(docToProcess, model) {
     for (const field of model.fields) {
         docToProcess[field.name] = typeof(docToProcess[field.name]) === 'undefined' || docToProcess[field.name] === null ? field.default:docToProcess[field.name];
         if (dataTypes[field.type]?.filter) {
-            docToProcess[field.name] = await dataTypes[field.type].filter(
+            const filter = await dataTypes[field.type].filter(
                 docToProcess[field.name],
                 field
             );
+            const realFilter = Event.Trigger('OnDataFilter', "event", "system",filter, field, docToProcess );
+            docToProcess[field.name] = realFilter || filter;
         }
     }
 }
@@ -3478,7 +3481,9 @@ function validateModelData(doc, model, isPatch = false) {
         if (!fieldDef) continue; // On ignore les champs supplémentaires
 
         const validator = dataTypes[fieldDef.type]?.validate;
-        if (validator && !validator(value, fieldDef)) {
+        const valid = validator && validator(value, fieldDef);
+        const realValidation = Event.Trigger('OnDataValidate', "event", "system", value, fieldDef,doc );
+        if (!(valid || realValidation)) {
             throw new Error(i18n.t('api.field.validationFailed', { field: fieldName, value }));
         }
     }
