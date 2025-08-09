@@ -7,9 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { ObjectId } from 'mongodb';
 import { initEngine, generateUniqueName } from "../src/setenv.js";
 import { addFile, removeFile, getFile, onInit } from "../src/modules/file.js";
-import { getCollection } from "../src/modules/mongodb.js";
+import {getCollection, getUserCollectionName} from "../src/modules/mongodb.js";
 import { Logger } from "../src/gameObject.js";
 import {maxPrivateFileSize} from "../src/constants.js";
+import {getCollectionForUser} from "data-primals-engine/modules/mongodb";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -46,19 +47,17 @@ beforeAll(async () => {
 
     filesCollection = await getCollection("files");
 });
-describe('File Module Integration Tests', () => {
-    let testUser;
+let testUser = {
+    username: generateUniqueName('testuser'),
+    _user: generateUniqueName('testuser'),
+    userPlan: 'premium',
+    permissions: ['API_UPLOAD_FILE']
+};
 
+describe('File Module Integration Tests', () => {
 
     beforeEach(async () => {
         // Créer un utilisateur de test
-        testUser = {
-            username: generateUniqueName('testuser'),
-            _user: generateUniqueName('testuser'),
-            userPlan: 'premium',
-            permissions: ['API_UPLOAD_FILE']
-        };
-
         // Nettoyer les collections avant chaque test
         await filesCollection.deleteMany({});
 
@@ -109,8 +108,7 @@ describe('File Module Integration Tests', () => {
             await expect(addFile(mockFile, testUser)).rejects.toThrow(/La taille du fichier dépasse la limite autorisée/);
         });
 
-        it('should throw error when storage limit exceeded', async ({skip}) => {
-            skip();
+        it.skip('should throw error when storage limit exceeded', async ({skip}) => {
             // Mock la fonction de calcul d'usage pour simuler un dépassement
             vi.spyOn(engine.userProvider, 'getUserStorageLimit').mockResolvedValue(85 * 1024 * 1024); // 5MB
 
@@ -119,8 +117,7 @@ describe('File Module Integration Tests', () => {
             await expect(addFile(mockFile, testUser)).rejects.toThrow("api.data.storageLimitExceeded");
         });
 
-        it('should throw error when server capacity is insufficient', async ({skip}) => {
-            skip();
+        it.skip('should throw error when server capacity is insufficient', async ({skip}) => {
             // Mock la vérification de capacité serveur
             vi.spyOn(engine.userProvider, 'checkServerCapacity').mockResolvedValue({ isSufficient: false });
 

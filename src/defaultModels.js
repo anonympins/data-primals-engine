@@ -543,19 +543,6 @@ export const defaultModels = {
             { name: 'createdAt', type: 'datetime', required: true }
         ]
     },
-    campaign: {
-        name: 'campaign',
-        "description": "",
-        fields: [
-            { name: 'name', type: 'string_t', required: true },
-            { name: 'description', type: 'richtext' },
-            { name: 'startDate', type: 'datetime' },
-            { name: 'endDate', type: 'datetime' },
-            { name: 'type', type: 'enum', items: ['email', 'sms', 'advertisement', 'promotion'] },
-            { name: 'status', type: 'enum', items: ['planified', 'in_progress', 'finished', 'cancelled'] },
-            { name: 'budget', type: 'number' }
-        ]
-    },
     review: {
         name: "review",
         "description": "",
@@ -1014,7 +1001,7 @@ export const defaultModels = {
             { name: 'owner', type: 'relation', relation: 'user', required: false },
             { name: 'startedAt', type: 'datetime', required: true, hint: "Timestamp when the workflow run began." },
             { name: 'completedAt', type: 'datetime', hint: "Timestamp when the workflow run finished (successfully or failed)." },
-            { name: 'error', type: 'string', maxlength: 4096, hint: "Error message if the workflow run failed." }
+            { name: 'log', type: 'string', maxlength: 4096, hint: "Error message if the workflow run failed." }
         ]
     },
     dashboard:{

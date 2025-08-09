@@ -47,14 +47,14 @@ import {
 } from "./mongodb.js";
 import {dbUrl, MongoClient, MongoDatabase} from "../engine.js";
 import path from "node:path";
-import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, uuidv4} from "../core.js";
+import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sleep, uuidv4} from "../core.js";
 import {Event} from "../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
 import {middleware} from "../middlewares/middleware-mongodb.js";
 import i18n from "../i18n.js";
 import {
-    executeSafeJavascript,
+    executeSafeJavascript, processWorkflowRun,
     runScheduledJobWithDbLock,
     scheduleWorkflowTriggers,
     triggerWorkflows
@@ -94,7 +94,6 @@ const sseConnections = new Map();
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 const getBackupDir = () => process.env.BACKUP_DIR || './backups'; // Répertoire de stockage des sauvegardes
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 let importJobs = {};
@@ -1386,6 +1385,7 @@ export async function onInit(defaultEngine) {
     schedule.scheduleJob("0 2 * * *", jobDumpUserData);
     //await jobDumpUserData();
 
+
     schedule.scheduleJob("0 0 * * *", async () => {
         const dt = new Date();
         dt.setTime(dt.getTime()-1000*3600*24*14);
@@ -1967,7 +1967,7 @@ export async function onInit(defaultEngine) {
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
             const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
-            const r = await editData(req.fields.model, filter || hash, data, req.files, req.me)
+            const r = await editData(req.fields.model, filter || { "$eq": ["$_id", { "$toObjectId": hash}]}, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);
             else
@@ -2889,14 +2889,14 @@ export const deleteModels = async (filter) => {
 }
 
 export const getModel = async (modelName, user) => {
-    const modelInCache = modelsCache.get(user.username+"@@"+modelName);
+    const modelInCache = modelsCache.get((user?.username||'')+"@@"+modelName);
     if(modelInCache)
         return modelInCache;
-    const model = await getCollection('models').findOne({name: modelName, $and: [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}]});
+    const model = await getCollection('models').findOne({name: modelName, $and: user ? [{_user: {$exists: true}}, {$or: [{_user: user._user}, {_user: user.username}]}] : [{_user: { $exists: false}}]});
     if (!model) {
         throw new Error(i18n.t('api.model.notFound', {model: modelName}));
     }
-    modelsCache.set(user.username+"@@"+modelName, model);
+    modelsCache.set((user?.username||'')+"@@"+modelName, model);
     return model;
 }
 export const getModels = async ()  => {
@@ -4135,7 +4135,7 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
 export const searchData = async (query, user) => {
     const { page, limit, sort, model, ids, timeout, pack } = query; // Les filtres de la requête (attention aux injections MongoDB !)
 
-    if( user.username !== 'demo' && isLocalUser(user) && (
+    if( user && user.username !== 'demo' && isLocalUser(user) && (
         !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_"+model], user) ||
         await hasPermission(["API_SEARCH_DATA_NOT_"+model], user))){
         throw new Error(i18n.t('api.permission.searchData'));

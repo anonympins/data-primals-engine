@@ -1,22 +1,25 @@
 // __tests__/data.integration.test.js
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeEach, beforeAll, afterAll} from 'vitest';
+import {vi, expect, describe, it, beforeEach, beforeAll, afterAll} from 'vitest';
 import { Config } from '../src/config.js';
-
 import {
     insertData,
     editData,
     deleteData,
-    searchData, installPack, deleteModels, createModel
+    searchData, installPack, deleteModels, createModel, patchData
 } from 'data-primals-engine/modules/data';
 
 import {
     modelsCollection as getAppModelsCollection,
     getCollection,
-    getCollectionForUser as getAppUserCollection
+    getCollectionForUser as getAppUserCollection, getCollectionForUser
 } from 'data-primals-engine/modules/mongodb';
 import {getRandom} from "../src/core.js";
 import {generateUniqueName, initEngine} from "../src/setenv.js";
+import {processWorkflowRun} from "data-primals-engine/modules/workflow";
+import {sendEmail} from "../src/email.js";
+import {MongoDatabase} from "../src/engine.js";
+import {getUserCollectionName} from "../src/modules/mongodb.js";
 
 let testModelsColInstance;
 let testDatasColInstance;
@@ -828,6 +831,8 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             await deleteModels({ name: orderModel.name, _user: user.username });
             await deleteData(productModel.name, {}, user);
             await deleteData(orderModel.name, {}, user);
+            const coll = await getCollectionForUser(user);
+            await coll.drop();
         });
 
         it('should ALLOW inserting data with a valid relation', async () => {
@@ -871,4 +876,5 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             await deleteData(orderModel.name, initialOrder.insertedIds, user);
         });
     });
+
 });

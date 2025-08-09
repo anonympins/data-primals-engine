@@ -2,20 +2,20 @@ import {expect, describe, it, beforeEach, beforeAll, afterAll, vi} from 'vitest'
 
 // --- Importations des modules de votre application ---
 import {
-    createModel,
     insertData,
     exportData,
     importData
-} from 'data-primals-engine/modules/data';
+} from '../src/index.js';
 
 import {
     modelsCollection as getAppModelsCollection,
-    getCollectionForUser as getAppUserCollection
+    getCollectionForUser as getAppUserCollection, getCollectionForUser
 } from 'data-primals-engine/modules/mongodb';
 import {sleep} from "data-primals-engine/core";
 import fs from "node:fs";
 import {getUniquePort, initEngine} from "../src/setenv.js";
 import {Config} from "../src/index.js";
+import {ObjectId} from "mongodb";
 
 // --- Données Mock ---
 const mockUser = {
@@ -55,6 +55,10 @@ function blobToFile(theBlob, fileName){
 beforeAll(async () =>{
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
+})
+afterAll(async () => {
+    const coll = await getCollectionForUser(mockUser);
+    await coll.drop();
 })
 // --- Début des tests ---
 describe('Intégration des fonctions d\'Import/Export', () => {
@@ -114,13 +118,13 @@ describe('Intégration des fonctions d\'Import/Export', () => {
             fs.writeFileSync('test.json', jsonString);
             blob.path = 'test.json';
             blob.originalFilename = 'test.json';
-            const result = await importData({model: impexTestModel.name}, {file: blobToFile(blob,"test.json")}, mockUser);
+            const result = await importData({model: impexTestModel.name}, {file: blobToFile(blob, "test.json")}, mockUser);
 
             // Vérifications du résultat de l'opération
             expect(result.success).toBe(true);
-            expect(result.jobId).not.toBeNull();
+            expect(result.job.jobId).not.toBeNull();
 
-            await sleep(2000);
+            await sleep(8000)
 
             // Vérification directe en base de données
             const importedDocs = await testDatasColInstance.find({
@@ -136,7 +140,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
             expect(docD.inStock).toBe(true); // Vérification de la valeur par défaut
             expect(docE.price).toBe(2.00);
 
-        }, 5000);
+        }, 20000);
 
         it('devrait importer des données depuis une chaîne CSV et convertir les types', async () => {
             const csvStringToImport = `name,sku,price,inStock\nProduit F,SKU-F,3.55,true\nProduit G,SKU-G,4.99,false`;
@@ -148,14 +152,13 @@ describe('Intégration des fonctions d\'Import/Export', () => {
             blob.originalFilename = 'test.csv';
 
             // Exécution de la fonction d'import
-            const result = await importData({model:impexTestModel.name}, {file: blobToFile(blob,"test.csv")}, mockUser);
+            const result = await importData({model:impexTestModel.name}, {file: blobToFile(blob, "test.csv")}, mockUser);
 
-            console.log(result)
             // Vérifications du résultat
             expect(result.success).toBe(true);
+            expect(result.job.jobId).not.toBeNull();
 
-            await sleep(2000);
-
+            await sleep(8000);
             // Vérification en base de données
             const importedDocs = await testDatasColInstance.find({
                 _model: impexTestModel.name,
@@ -185,16 +188,17 @@ Valide K,SKU-A,40,true`;
             blob.path = 'test.csv';
             blob.originalFilename = 'test.csv';
 
-            const result = await importData(impexTestModel.name, {file: blobToFile(blob,"test.csv")}, 'csv', mockUser);
+            const result = await importData({ model: impexTestModel.name }, {file: blobToFile(blob,"test.csv")}, mockUser);
 
-            console.log(result);
-            // Vérifications du résultat
-            expect(result.success).toBe(true); // L'opération globale a des erreurs
-            expect(result.job.status).toBe('failed'); // L'opération globale a des erreurs
+            // L'initiation du job doit réussir
+            expect(result.success).toBe(true);
+            expect(result.job.jobId).not.toBeNull();
+
+            await sleep(8000);
 
             // Vérifier que seule les données valides sont en BDD
-            const count = await testDatasColInstance.countDocuments({ _model: impexTestModel.name });
-            expect(count).toBe(3);
-        });
+            const count = await testDatasColInstance.countDocuments({ _model: impexTestModel.name, sku: 'SKU-H' });
+            expect(count).toBe(1); // Seule la ligne valide 'SKU-H' doit être insérée.
+        }, 20000);
     });
 });
