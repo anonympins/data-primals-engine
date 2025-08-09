@@ -47,23 +47,22 @@ beforeAll(async () => {
 
     filesCollection = await getCollection("files");
 });
-let testUser;
-afterEach(async () => {
-    const coll = await getCollectionForUser(testUser);
-    await coll.drop();
-})
+let testUser = {
+    username: generateUniqueName('testuser'),
+    _user: generateUniqueName('testuser'),
+    userPlan: 'premium',
+    permissions: ['API_UPLOAD_FILE']
+};
+
+afterAll(async () => {
+    const userColl = await getCollectionForUser(testUser);
+    await userColl.drop();
+});
 
 describe('File Module Integration Tests', () => {
 
     beforeEach(async () => {
         // Créer un utilisateur de test
-        testUser = {
-            username: generateUniqueName('testuser'),
-            _user: generateUniqueName('testuser'),
-            userPlan: 'premium',
-            permissions: ['API_UPLOAD_FILE']
-        };
-
         // Nettoyer les collections avant chaque test
         await filesCollection.deleteMany({});
 

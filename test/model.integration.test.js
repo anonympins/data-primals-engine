@@ -22,6 +22,7 @@ async function setupTestContext() {
     const currentTestModelName = generateUniqueName('relatedModel');
     const currentRelatedModelName = generateUniqueName('comprehensiveModel');
 
+
     // Créer un utilisateur unique pour ce test
     const currentTestUser = {
         username: generateUniqueName('testuserDataIntegration'),
@@ -29,6 +30,8 @@ async function setupTestContext() {
         email: generateUniqueName('test') + '@example.com'
     };
 
+
+    testDatasColInstance = await getCollectionForUser(currentTestUser);
 
     const relatedModelDefinition = {
         name: currentRelatedModelName,
@@ -121,12 +124,12 @@ describe('CRUD on model definitions and integrity tests', () => {
 
         // Initialize collection instances after the engine is ready
         testModelsColInstance = getAppModelsCollection;
-        testDatasColInstance = datasCollection;
     })
     const destroyUser = async (user) => {
-        const coll = await getCollectionForUser(user);
-        await coll.drop();
+        await testDatasColInstance.drop();
+        testDatasColInstance = null;
     };
+
     describe('editModel unit tests', () => {
 
         it('should create and drop index when field.index is toggled (premium user)', async () => {
