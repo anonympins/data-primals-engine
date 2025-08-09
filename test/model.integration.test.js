@@ -30,7 +30,6 @@ async function setupTestContext() {
         email: generateUniqueName('test') + '@example.com'
     };
 
-
     testDatasColInstance = await getCollectionForUser(currentTestUser);
 
     const relatedModelDefinition = {
@@ -111,6 +110,7 @@ async function setupTestContext() {
 
     return {
         currentTestUser,
+        coll:testDatasColInstance,
         comprehensiveTestModelDefinition,
         relatedModelDefinition
     };
@@ -125,31 +125,26 @@ describe('CRUD on model definitions and integrity tests', () => {
         // Initialize collection instances after the engine is ready
         testModelsColInstance = getAppModelsCollection;
     })
-    const destroyUser = async (user) => {
-        await testDatasColInstance.drop();
-        testDatasColInstance = null;
-    };
 
     describe('editModel unit tests', () => {
 
         it('should create and drop index when field.index is toggled (premium user)', async () => {
             // --- SETUP ---
-            const { currentTestUser, comprehensiveTestModelDefinition } = await setupTestContext();
-            const dataCollection = await getCollectionForUser(currentTestUser);
+            const { coll, currentTestUser, comprehensiveTestModelDefinition } = await setupTestContext();
             const fieldToIndex = 'stringUnique'; // Utiliser un champ qui existe vraiment dans le modèle
 
             // --- FIX: Ensure the collection exists before any operation ---
             // By inserting and deleting a dummy document, we force MongoDB to create the
             // collection and its default indexes. This prevents the "ns does not exist"
             // error in asynchronous listeners (like workflow triggers).
-            const dummyDoc = await dataCollection.insertOne({ _model: 'dummy', _user: currentTestUser.username });
-            await dataCollection.deleteOne({ _id: dummyDoc.insertedId });
+            const dummyDoc = await coll.insertOne({ _model: 'dummy', _user: currentTestUser.username });
+            await coll.deleteOne({ _id: dummyDoc.insertedId });
 
 
             // --- VERIFICATION INITIALE ---
             // S'assurer qu'aucun index n'existe au départ.
             // Cet appel ne plantera plus car la collection est maintenant créée.
-            const initialIndexes = await dataCollection.indexes();
+            const initialIndexes = await coll.indexes();
             expect(initialIndexes.some(i => i.key[fieldToIndex] === 1)).toBe(false);
 
             // --- ACTION 1 : AJOUTER UN INDEX ---
@@ -163,7 +158,7 @@ describe('CRUD on model definitions and integrity tests', () => {
 
             // --- VERIFICATION 1 ---
             // Maintenant, la collection et l'index doivent exister.
-            const indexesAfterCreation = await dataCollection.indexes();
+            const indexesAfterCreation = await coll.indexes();
             const newIndex = indexesAfterCreation.find(i => i.key[fieldToIndex] === 1);
 
             expect(newIndex).toBeDefined();
@@ -183,14 +178,14 @@ describe('CRUD on model definitions and integrity tests', () => {
             await editModel(currentTestUser, testModelId, modelWithoutIndex);
 
             // --- VERIFICATION 2 ---
-            const indexesAfterDeletion = await dataCollection.indexes();
+            const indexesAfterDeletion = await coll.indexes();
             expect(indexesAfterDeletion.some(i => i.key[fieldToIndex] === 1)).toBe(false);
 
-            await destroyUser(currentTestUser);
+            await coll.drop();
         }, 20000);
 
         it('should not save extra, non-defined fields in the model definition', async () => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const { coll, currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             // 1. Préparer les données avec un champ non sollicité
             const updatedModelData = {
                 ...comprehensiveTestModelDefinition,
@@ -201,7 +196,7 @@ describe('CRUD on model definitions and integrity tests', () => {
             // 2. Appeler la fonction d'édition
             const result = await editModel(currentTestUser, testModelId, updatedModelData);
             expect(result.success).toBe(false);
-            await destroyUser(currentTestUser);
+            await coll.drop();
         });
         it('should return an error if trying to edit a non-existent model', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
@@ -210,7 +205,6 @@ describe('CRUD on model definitions and integrity tests', () => {
             expect(result.success).toBe(false);
             expect(result.statusCode).toBe(404);
             expect(result.error).toContain('introuvable');
-            await destroyUser(currentTestUser);
         });
         it('should return an error if the new model structure is invalid', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
@@ -224,7 +218,6 @@ describe('CRUD on model definitions and integrity tests', () => {
             expect(result.success).toBe(false);
             // L'erreur est levée par validateModelStructure, donc le message peut varier
             expect(result.error).toBeDefined();
-            await destroyUser(currentTestUser);
         });
     });
 
