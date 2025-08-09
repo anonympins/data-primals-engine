@@ -117,7 +117,6 @@ export async function getUserS3Config(user) {
             bucketName: userConfig.bucketName || defaultConfig.bucketName
         };
     }
-    console.log({defaultConfig})
     return defaultConfig;
 }
 const getS3Client = (s3Config) => {

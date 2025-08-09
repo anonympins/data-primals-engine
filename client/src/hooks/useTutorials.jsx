@@ -138,7 +138,6 @@ export const useTutorials = () => {
                 const tutorial = tutorials.find(t => t._id === currentActiveState.id);
                 if (!tutorial) break;
 
-                console.log({currentActiveState})
                 const stageConfig = tutorial.stages.find(s => s.stage === currentActiveState.stage);
                 if (!stageConfig) {
                     console.log('[Tutoriels] Fin du tutoriel, attribution des récompenses.');

@@ -5787,7 +5787,6 @@ export async function installPack(packId, user, lang) {
         if (documents.length === 0) continue;
 
         const docsToInsert = [];
-        console.log(modelName, user);
 
         const modelDefForHash = await getModel(modelName, user);
 

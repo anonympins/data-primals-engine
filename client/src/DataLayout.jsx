@@ -97,7 +97,6 @@ function DataLayout() {
 
     // --- MODIFICATION : Logique de changement de vue mise à jour ---
     const handleSwitchView = (viewName) => {
-        console.log({viewName})
         if (viewName === 'table') {
             setCurrentView('table');
             return;

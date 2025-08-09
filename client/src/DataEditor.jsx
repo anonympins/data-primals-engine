@@ -144,7 +144,6 @@ export const DataEditor = forwardRef(function MyDataEditor({
                             // C'est un nom de modèle statique
                             builderModelName = field.targetModel;
                         }
-                        console.log({builderModelName})
                     }
                     return <div className={"flex flex-1"} style={{width:'100%'}} key={field.name}>
                         {currentViewMode !== 'builder' && ( <div className="condition-builder-toggle">

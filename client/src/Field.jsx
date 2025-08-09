@@ -893,7 +893,6 @@ const FileField = ({ inputProps, value, onChange, name, mimeTypes, maxSize, mult
         }
     }, [value]);
 
-    console.log(fileInfos)
     return (
         <div className="field field-file">
             <input

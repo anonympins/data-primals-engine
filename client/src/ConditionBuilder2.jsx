@@ -141,9 +141,6 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
         setEditing(false);
     };
 
-    console.log(path);
-    console.log(isDateArg(path[path.length - 1]));
-
     const renderArgument = (arg, index, parentOperator, args) => {
         const isSimpleValue = typeof arg !== 'object' || arg === null || Array.isArray(arg);
         const parentOpConfig = MONGO_CALC_OPERATORS[parentOperator];
@@ -271,7 +268,6 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                     relatedFieldNames = relatedModel.fields.map(f => f.name);
                     relatedModelFields = relatedModel.fields;
                 }
-                console.log({models,relatedModel})
             }
 
             // --- Fin de la correction ---

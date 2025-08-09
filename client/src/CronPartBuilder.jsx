@@ -111,8 +111,6 @@ export const CronPartBuilder = ({ label, masked, value, defaultValue, onChange, 
         { value: 'range', label: t('cron.range', `Plage (ex: 9-17)`) },
     ];
 
-    console.log({label, masked})
-
     return (
         <div className="cron-part-controls">
             <SelectField disabled={masked} items={modeOptions} value={mode} onChange={handleModeChange} />

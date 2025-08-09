@@ -206,7 +206,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                 initialSteps={field.calculation?.steps || []}
                                 onCalculationChange={(calc) => {
                                     const newFields = [...fields];
-                                    console.log({calc});
                                     newFields[index].calculation = calc; // 'index' est l'index du champ calculé dans 'fields'
                                     setFields(newFields);
                                 }}
