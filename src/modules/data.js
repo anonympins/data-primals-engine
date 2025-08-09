@@ -4135,8 +4135,6 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
     }
 }
 
-// ... (le reste du fichier data.js)
-
 export const searchData = async (query, user) => {
     const { page, limit, sort, model, ids, timeout, pack } = query; // Les filtres de la requête (attention aux injections MongoDB !)
 

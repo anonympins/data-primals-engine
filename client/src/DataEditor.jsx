@@ -62,7 +62,6 @@ export const DataEditor = forwardRef(function MyDataEditor({
    formData,
    setFormData, record, setRecord}, ref){
 
-    const [focusedField, setFocusedField] = useState({});
     const {me} = useAuthContext()
     const {models} = useModelContext()
 
@@ -103,7 +102,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
             case 'textarea':
                 return <textarea key={field.name} {...inputProps} />
             case 'richtext':
-                return <RTE help={focusedField?.name === field.name ? t('field_'+model.name+'_'+field.name+'_hint', field.hint || '') : ''} onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)}  key={field.name} {...inputProps} field={field} name={formData._id} />;
+                return <RTE help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} {...inputProps} field={field} name={formData._id} />;
             case 'richtext_t':
                 return <RTETrans
                     key={field.name}
@@ -218,10 +217,10 @@ export const DataEditor = forwardRef(function MyDataEditor({
                     inputProps["min"] = field.min;
                 if( field.max)
                     inputProps["max"] = field.max;
-                return <NumberField help={focusedField?.name === field.name ? t('field_'+model.name+'_'+field.name+'_hint', field.hint || '') : ''} onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)} unit={field.unit} key={field.name} {...inputProps} onChange={(e) => handleChange({name: field.name, value: parseFloat(e.target.value.replace(',', '.'))})}  />
+                return <NumberField help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')}  unit={field.unit} key={field.name} {...inputProps} onChange={(e) => handleChange({name: field.name, value: parseFloat(e.target.value.replace(',', '.'))})}  />
             case 'relation':
                 return (
-                    <RelationField  onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)} help={focusedField?.name === field.name ? t('field_'+model.name+'_'+field.name+'_hint', field.hint || '') : ''} key={field.name} model={model} field={field} value={value} onChange={(e) => {
+                    <RelationField help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} model={model} field={field} value={value} onChange={(e) => {
                         handleChange(e)
                     }} refreshTime={refreshTime} />
                 );
@@ -254,8 +253,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
                     const displayValue = (typeof value === 'object' && value !== null) ? value.key : (value || '');
 
                     return <TextField
-                        help={focusedField?.name === field.name ? t('field_' + model.name + '_' + field.name + '_hint', field.hint || '') : ''}
-                        onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)} key={field.name}
+                        help={t('field_' + model.name + '_' + field.name + '_hint', field.hint || '')}
+                         key={field.name}
                         type={getInputType(field.type)} {...inputProps}
                         value={displayValue}
                         onChange={(e) => handleChange({name: field.name, value: e.target.value})}  />
@@ -265,9 +264,9 @@ export const DataEditor = forwardRef(function MyDataEditor({
             case 'color':
                 return <ColorField help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} name={field.name} value={value} onChange={handleChange} />
             case 'email':
-                return <EmailField onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)} help={focusedField?.name === field.name ? t('field_'+model.name+'_'+field.name+'_hint', field.hint || '') : ''} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
+                return <EmailField  help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
             default:
-                return <TextField onFocus={() => setFocusedField(field)} onBlur={() => setFocusedField(null)} help={focusedField?.name === field.name ? t('field_'+model.name+'_'+field.name+'_hint', field.hint || '') : ''} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
+                return <TextField  help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
         }
     }
 
