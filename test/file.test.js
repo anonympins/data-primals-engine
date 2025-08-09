@@ -48,7 +48,7 @@ beforeAll(async () => {
     filesCollection = await getCollection("files");
 });
 let testUser;
-afterAll(async () => {
+afterEach(async () => {
     const coll = await getCollectionForUser(testUser);
     await coll.drop();
 })

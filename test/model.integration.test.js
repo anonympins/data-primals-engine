@@ -19,12 +19,6 @@ let lastUser;
 // Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte
 async function setupTestContext() {
 
-
-    if( lastUser ) {
-        const coll = await getCollectionForUser(lastUser);
-        await coll.drop();
-    }
-
     const currentTestModelName = generateUniqueName('relatedModel');
     const currentRelatedModelName = generateUniqueName('comprehensiveModel');
 
@@ -112,8 +106,6 @@ async function setupTestContext() {
     await testDatasColInstance.deleteMany({ _model: { $in: [comprehensiveTestModelDefinition.name, 'renamedTestModel'] } });
     // Retourner toutes les variables nécessaires pour un test
 
-    lastUser = currentTestUser;
-
     return {
         currentTestUser,
         comprehensiveTestModelDefinition,
@@ -131,12 +123,10 @@ describe('CRUD on model definitions and integrity tests', () => {
         testModelsColInstance = getAppModelsCollection;
         testDatasColInstance = datasCollection;
     })
-    afterAll(async () => {
-        if( lastUser ) {
-            const coll = await getCollectionForUser(lastUser);
-            await coll.drop();
-        }
-    })
+    const destroyUser = async (user) => {
+        const coll = await getCollectionForUser(user);
+        await coll.drop();
+    };
     describe('editModel unit tests', () => {
 
         it('should create and drop index when field.index is toggled (premium user)', async () => {
@@ -192,6 +182,8 @@ describe('CRUD on model definitions and integrity tests', () => {
             // --- VERIFICATION 2 ---
             const indexesAfterDeletion = await dataCollection.indexes();
             expect(indexesAfterDeletion.some(i => i.key[fieldToIndex] === 1)).toBe(false);
+
+            await destroyUser(currentTestUser);
         }, 20000);
 
         it('should not save extra, non-defined fields in the model definition', async () => {
@@ -206,6 +198,7 @@ describe('CRUD on model definitions and integrity tests', () => {
             // 2. Appeler la fonction d'édition
             const result = await editModel(currentTestUser, testModelId, updatedModelData);
             expect(result.success).toBe(false);
+            await destroyUser(currentTestUser);
         });
         it('should return an error if trying to edit a non-existent model', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
@@ -214,6 +207,7 @@ describe('CRUD on model definitions and integrity tests', () => {
             expect(result.success).toBe(false);
             expect(result.statusCode).toBe(404);
             expect(result.error).toContain('introuvable');
+            await destroyUser(currentTestUser);
         });
         it('should return an error if the new model structure is invalid', async () => {
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
@@ -227,6 +221,7 @@ describe('CRUD on model definitions and integrity tests', () => {
             expect(result.success).toBe(false);
             // L'erreur est levée par validateModelStructure, donc le message peut varier
             expect(result.error).toBeDefined();
+            await destroyUser(currentTestUser);
         });
     });
 
