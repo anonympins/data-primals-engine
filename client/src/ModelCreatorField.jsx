@@ -43,7 +43,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
     const [showMore, setMoreVisible] = useState(false);
     const hint = (description) => t(description, '') && <div className="hint-icon"><FaCircleInfo data-tooltip-id={`tooltipHint`} data-tooltip-content={description} /></div>
 
-    const [focusedField, setFocusedField] = useState({});
     return (
         <div className="field-edit">
 
@@ -73,9 +72,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                 newFields[index].name = e.target.value;
                                 setFields(newFields);
                             }}
-                            help={focusedField?.name === field.name && t('modelcreator.name.hint')}
-                            onFocus={() => setFocusedField(field)}
-                            onBlur={() => setFocusedField(null)}
+                            help={t('modelcreator.name.hint')}
                             required
                         />
                         {!(!modelLocked && isLocalUser(me) && field.locked) && !field._isNewField && (
@@ -206,7 +203,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                 initialSteps={field.calculation?.steps || []}
                                 onCalculationChange={(calc) => {
                                     const newFields = [...fields];
-                                    console.log({calc});
                                     newFields[index].calculation = calc; // 'index' est l'index du champ calculé dans 'fields'
                                     setFields(newFields);
                                 }}

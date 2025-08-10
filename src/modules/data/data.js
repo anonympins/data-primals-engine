@@ -1,4 +1,4 @@
-import {Logger} from "../gameObject.js";
+import {Logger} from "../../gameObject.js";
 import {BSON, ObjectId} from "mongodb";
 import * as util from 'node:util';
 import {promisify} from 'node:util';
@@ -9,9 +9,9 @@ import * as tar from "tar";
 import process from "node:process";
 import {randomColor} from "randomcolor";
 import cronstrue from 'cronstrue/i18n.js';
-import {setTimeoutMiddleware} from '../middlewares/timeout.js';
+import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {mkdir} from 'node:fs/promises';
-import {anonymizeText, getDefaultForType, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../data.js";
+import {anonymizeText, getDefaultForType, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../../data.js";
 import {
     allowedFields,
     dbName,
@@ -36,7 +36,7 @@ import {
     optionsSanitizer,
     searchRequestTimeout,
     storageSafetyMargin
-} from "../constants.js";
+} from "../../constants.js";
 import {
     getCollection,
     getCollectionForUser,
@@ -44,43 +44,43 @@ import {
     isObjectId,
     modelsCollection,
     packsCollection
-} from "./mongodb.js";
-import {dbUrl, MongoClient, MongoDatabase} from "../engine.js";
+} from "../mongodb.js";
+import {dbUrl, MongoClient, MongoDatabase} from "../../engine.js";
 import path from "node:path";
-import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sleep, uuidv4} from "../core.js";
-import {Event} from "../events.js";
+import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sleep, uuidv4} from "../../core.js";
+import {Event} from "../../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
-import {middleware} from "../middlewares/middleware-mongodb.js";
-import i18n from "../i18n.js";
+import {middleware} from "../../middlewares/middleware-mongodb.js";
+import i18n from "../../i18n.js";
 import {
     executeSafeJavascript, processWorkflowRun,
     runScheduledJobWithDbLock,
     scheduleWorkflowTriggers,
     triggerWorkflows
-} from "./workflow.js";
+} from "../workflow.js";
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
-import {openaiJobModel} from "../openai.jobs.js";
+import {openaiJobModel} from "../../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
 import {fileURLToPath} from 'url';
 import {Worker} from 'worker_threads';
-import {addFile, encryptFile, removeFile} from "./file.js";
-import {downloadFromS3, getS3Stream, getUserS3Config, listS3Backups, uploadToS3} from "./bucket.js";
+import {addFile, encryptFile, removeFile} from "../file.js";
+import {downloadFromS3, getS3Stream, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
 import {
     calculateTotalUserStorageUsage,
     generateLimiter,
     hasPermission,
     middlewareAuthenticator,
     userInitiator
-} from "./user.js";
-import {assistantGlobalLimiter} from "./assistant.js";
-import {getAllPacks} from "../packs.js";
-import {throttleMiddleware} from "../middlewares/throttle.js";
-import {Config} from "../config.js";
-import {profiles} from "../../client/src/constants.js";
-import {processFilterPlaceholders} from "../../client/src/filter.js";
-import {tutorialsConfig} from "../../client/src/tutorials.js";
+} from "../user.js";
+import {assistantGlobalLimiter} from "../assistant.js";
+import {getAllPacks} from "../../packs.js";
+import {throttleMiddleware} from "../../middlewares/throttle.js";
+import {Config} from "../../config.js";
+import {profiles} from "../../../client/src/constants.js";
+import {processFilterPlaceholders} from "../../../client/src/filter.js";
+import {tutorialsConfig} from "../../../client/src/tutorials.js";
 
 // Obtenir le chemin du répertoire courant de manière fiable avec ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -202,7 +202,6 @@ export const dataTypes = {
     },
     code: {
         validate: (value, field) => {
-            console.log(field,typeof(value));
             return value === null || (field.language === 'json' && typeof(value) === 'object') || (typeof value === 'string' && (field.maxlength === undefined || field.maxlength <= 0 || value.length <= field.maxlength));
         },
         filter: async (value, field) => {
@@ -536,7 +535,7 @@ export const getAPILang = (langs) => {
  */
 function runImportExportWorker(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(__dirname, '../workers/import-export-worker.js');
+        const workerPath = path.resolve(process.cwd(), './src/workers/import-export-worker.js');
         const worker = new Worker(workerPath);
 
         worker.postMessage({ action, payload });
@@ -571,7 +570,7 @@ function runImportExportWorker(action, payload) {
  */
 function runCryptoWorkerTask(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(__dirname, '../workers/crypto-worker.js');
+        const workerPath = path.resolve(process.cwd(), './src/workers/crypto-worker.js');
         const worker = new Worker(workerPath);
 
         worker.postMessage({ action, payload });
@@ -1296,7 +1295,7 @@ export async function onInit(defaultEngine) {
         "$rand",
         "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
         "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
-        "$dateSubtract", "$dateAdd", "$dateToString",
+        "$dateDiff", "$dateSubtract", "$dateAdd", "$dateToString",
         '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
     ]}));
 
@@ -2014,7 +2013,6 @@ export async function onInit(defaultEngine) {
                         .limit(maxModelsPerUser).toArray());
             res.json(models);
         } catch (error) {
-            console.log(error);
             logger.error(error);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -2340,15 +2338,6 @@ export async function onInit(defaultEngine) {
             res.json({ success: true, value: resultValue, totalCount: totalCount });
 
         } catch (error) { // <--- CATCH PRINCIPAL
-            // --- Log de l'erreur BRUTE interceptée ---
-            console.log('--- CATCH PRINCIPAL - RAW ERROR OBJECT ---');
-            console.log('Type:', typeof error);
-            console.log('Instance of Error:', error instanceof Error);
-            console.log('Error Object:', error); // Affiche la structure brute
-            console.log('Error Message:', error?.message);
-            console.log('Error Stack:', error?.stack);
-            console.log('--- END CATCH PRINCIPAL ---');
-            // --- Fin Log ---
 
             // Tentative de log via le logger standard (qui peut encore échouer si l'erreur est vraiment étrange)
             try {
@@ -3244,7 +3233,8 @@ async function processDocuments(datas, model, collection, me) {
     const idMap = new Map();
     const allInsertedIds = [];
 
-    for (const doc of datas) {
+    const realData = Event.Trigger("OnDataInsert", "event", "system", datas) || datas;
+    for (const doc of realData) {
         try {
             const newDocId = await insertAndResolveRelations(doc, model, collection, me, idMap);
             if (newDocId) {
@@ -3445,10 +3435,12 @@ async function applyFieldFilters(docToProcess, model) {
     for (const field of model.fields) {
         docToProcess[field.name] = typeof(docToProcess[field.name]) === 'undefined' || docToProcess[field.name] === null ? field.default:docToProcess[field.name];
         if (dataTypes[field.type]?.filter) {
-            docToProcess[field.name] = await dataTypes[field.type].filter(
+            const filter = await dataTypes[field.type].filter(
                 docToProcess[field.name],
                 field
             );
+            const realFilter = Event.Trigger('OnDataFilter', "event", "system",filter, field, docToProcess );
+            docToProcess[field.name] = realFilter || filter;
         }
     }
 }
@@ -3478,7 +3470,9 @@ function validateModelData(doc, model, isPatch = false) {
         if (!fieldDef) continue; // On ignore les champs supplémentaires
 
         const validator = dataTypes[fieldDef.type]?.validate;
-        if (validator && !validator(value, fieldDef)) {
+        const valid = validator && validator(value, fieldDef);
+        const realValidation = Event.Trigger('OnDataValidate', "event", "system", value, fieldDef,doc );
+        if (!(valid || realValidation)) {
             throw new Error(i18n.t('api.field.validationFailed', { field: fieldName, value }));
         }
     }
@@ -3693,8 +3687,6 @@ export const patchData = async (modelName, filter, data, files, user, triggerWor
 export const editData = async (modelName, filter, data, files, user, triggerWorkflow = true, waitForWorkflow = false) => {
     return await internalEditOrPatchData(modelName, filter, data, files, user, false, triggerWorkflow, waitForWorkflow);
 };
-
-// Dans src/modules/data.js
 
 const internalEditOrPatchData = async (modelName, filter, data, files, user, isPatch, triggerWorkflow = true, waitForWorkflow = false) => {
     try {
@@ -3949,7 +3941,6 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
 
         }
 
-        console.log(util.inspect(findFilter, false, 8, true));
         // 2. Récupérer les documents à supprimer pour vérifier leur type et annuler les schedules
         const documentsToDelete = await collection.aggregate([{ $match: { $expr: { "$and": findFilter } } }]).toArray();
 
@@ -4129,8 +4120,6 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
         return ({ success: false, error: error.message || "An unexpected error occurred during deletion.", statusCode: error.statusCode || 500 });
     }
 }
-
-// ... (le reste du fichier data.js)
 
 export const searchData = async (query, user) => {
     const { page, limit, sort, model, ids, timeout, pack } = query; // Les filtres de la requête (attention aux injections MongoDB !)
@@ -4555,7 +4544,6 @@ export const searchData = async (query, user) => {
             } else if (fi.type === 'array') {
                 // Handle array filtering here
                 if (data[fi.name]) {
-                    console.log('array filtering', data[fi.name]);
                     pipelines.push({
                         $match: {
                             $expr: {
@@ -4591,7 +4579,6 @@ export const searchData = async (query, user) => {
 
     let pipelines = [];
     if( allIds.length ){
-        console.log({allIds});
         const id = {$in: ["$_id", allIds.map(m => new ObjectId(m))]};
         pipelines.push({
             $match: { $expr: id }
@@ -4617,7 +4604,7 @@ export const searchData = async (query, user) => {
         pipelines.push({$project: {_model: 0}});
     }
 
-    console.log(util.inspect(pipelines, false, 29, true));
+    //console.log(util.inspect(pipelines, false, 29, true));
 
     // 4. Exécuter la pipeline
     const ts = parseInt(timeout, 10)/2.0 || searchRequestTimeout;
@@ -5787,7 +5774,6 @@ export async function installPack(packId, user, lang) {
         if (documents.length === 0) continue;
 
         const docsToInsert = [];
-        console.log(modelName, user);
 
         const modelDefForHash = await getModel(modelName, user);
 
@@ -5921,10 +5907,7 @@ export async function installPack(packId, user, lang) {
 
 
 export const installAllPacks = async () => {
-
     const packs = await getAllPacks();
-
-    console.log(util.inspect(packs, false, 20, true));
     await packsCollection.deleteMany({ _user: { $exists : false }});
     await packsCollection.insertMany(packs);
 }

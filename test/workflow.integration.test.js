@@ -1,20 +1,16 @@
-// __tests__/workflow.integration.test.js
 import { expect, describe, it, beforeEach,afterEach, beforeAll, afterAll, vi } from 'vitest';
-import { Config } from "data-primals-engine/config";
+import { Config } from "../src/config";
 
-import {insertData, editData, deleteData, patchData} from 'data-primals-engine/modules/data';
-import { modelsCollection as getAppModelsCollection, getCollectionForUser } from 'data-primals-engine/modules/mongodb';
-import * as workflowModule from 'data-primals-engine/modules/workflow';
-import {getUniquePort, initEngine} from "../src/setenv.js";
-import process from "process";
-import {getUserCollectionName} from "../src/modules/mongodb.js";
-
+import {insertData, editData, deleteData, patchData} from '../src/index.js';
+import { modelsCollection as getAppModelsCollection, getCollectionForUser } from '../src/modules/mongodb.js';
+import * as workflowModule from '../src/modules/workflow.js';
+import {initEngine} from "../src/setenv.js";
 
 beforeAll(async () =>{
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
 })
-vi.mock('data-primals-engine/modules/workflow', { spy: true })
+vi.mock('../src/modules/workflow.js', { spy: true })
 // --- Données Mock pour les tests ---
 const mockUser = {
     username: 'testuserWorkflow',
@@ -139,8 +135,6 @@ const processWorkflowRunSpy = vi.spyOn(workflowModule, 'processWorkflowRun');
 beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = await getCollectionForUser(mockUser);
-    // Nettoyer les données avant chaque test
-    await testDatasColInstance.deleteMany({_user: "testuserWorkflow"});
 
     // Réinitialiser l'espion
     processWorkflowRunSpy.mockClear();
@@ -153,9 +147,15 @@ beforeEach(async () => {
             ...workflowMetaModels.map(m => ({...m})) // Copie pour éviter les mutations
         ]);
     }
-    console.log({mods})
-});
+    // tell vitest we use mocked time
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+})
 
+afterEach(() => {
+    vi.runOnlyPendingTimers();
+    // restoring date after each test run
+    vi.useRealTimers()
+})
 afterAll(async () => {
     const coll = await getCollectionForUser(mockUser);
     await coll.drop();
@@ -167,6 +167,9 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
 
     // Avant chaque test de ce bloc, on crée un workflow et une étape de base
     const initTest = async () => {
+        // Nettoyer les données avant chaque test
+        await testDatasColInstance.deleteMany({_user: "testuserWorkflow"});
+
         const workflowInsertResult = await insertData('workflow', { name: 'Test Workflow' }, {}, mockUser, false);
         testWorkflow = { _id: workflowInsertResult.insertedIds[0] };
 

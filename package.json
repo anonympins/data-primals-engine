@@ -1,6 +1,6 @@
 {
   "name": "data-primals-engine",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "data-primals-engine is a package responsible from handling large amount of data using MongoDB in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation. It also has integrated AI assistant.",
   "main": "src/engine.js",
   "type": "module",
@@ -39,7 +39,7 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./modules/*": "./src/modules/*.js",
+    "./modules/*": "./src/modules/*/index.js",
     "./client": "./client/index.js",
     "./*": "./src/*.js"
   },
@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@langchain/core": "^0.3.66",
+    "@langchain/deepseek": "^0.1.0",
     "@langchain/google-genai": "^0.2.16",
     "@langchain/openai": "^0.6.3",
     "archiver": "^7.0.1",
@@ -62,7 +63,6 @@
     "cookie-parser": "^1.4.7",
     "cronstrue": "^3.2.0",
     "csv-parse": "^6.1.0",
-    "data-primals-engine": "^1.0.14",
     "date-fns": "^4.1.0",
     "express-csrf-double-submit-cookie": "^2.0.0",
     "express-formidable": "^1.2.0",

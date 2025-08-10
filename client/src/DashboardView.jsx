@@ -13,10 +13,6 @@ import { useQuery, useQueryClient, useMutation } from "react-query";
 import { useAuthContext } from "./contexts/AuthContext.jsx";
 import { DialogProvider } from "./Dialog.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
-import FlexDataRenderer from "./FlexDataRenderer.jsx";
-import {conditionToApiSearchFilter} from "../../src/data.js";
-// --- MODIFICATION : Import de la fonction cssProps ---
-import { cssProps } from 'data-primals-engine/core';
 import {DashboardFlexViewItem} from "./DashboardFlexViewItem.jsx";
 
 // --- updateDashboardLayout (fonction utilitaire, peut rester ici ou être externalisée) ---
@@ -85,7 +81,6 @@ export function DashboardView({ dashboard }) {
         (newLayout) => updateDashboardLayout(dashboard, newLayout, me.username, t),
         {
             onMutate: async (newLayout) => {
-                console.log("Optimi stic update:", newLayout);
                 const previousLayout = layoutState;
                 setLayoutState(newLayout);
                 return { previousLayout };

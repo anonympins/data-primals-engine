@@ -1,4 +1,3 @@
-// Exemple conceptuel dans la fonction de planification
 import {getCollection, getCollectionForUser, isObjectId} from "./mongodb.js";
 import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
@@ -7,16 +6,16 @@ import crypto from "node:crypto";
 import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
-import {deleteData, insertData, patchData, searchData} from "./data.js";
-import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps, timeoutVM} from "../constants.js";
+import {deleteData, insertData, patchData, searchData} from "./data/index.js";
+import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
+import { ChatDeepSeek } from "@langchain/deepseek";
 import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
-import {isConditionMet} from "../filter.js";
 import util from "node:util";
 
 let logger = null;
@@ -1174,7 +1173,6 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
 
 
                         console.debug(`[Workflow Trigger] Vérification dataFilter pour trigger ${trigger._id} avec filtre combiné:`, JSON.stringify(finalFilter));
-                        console.log({triggerData, finalFilter});
                         const match = await searchData({ model: triggerData._model, filter: finalFilter, limit: 1 }, user);
                         if (!match.count) {
                             console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
@@ -1358,7 +1356,6 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (!isObjectId(actionId)) continue;
                             const actionDef = await dbCollection.findOne({ _id: new ObjectId(actionId), _model: 'workflowAction' });
                             if (!actionDef) return await logError(`Action definition ${actionId} not found.`);
-                            console.log({actionDef});
                             const actionResult = await workflowModule.executeStepAction(actionDef, contextData, user, dbCollection);
 
                             if (actionResult.status === 'paused') {
@@ -1403,7 +1400,7 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (actionResult.updatedContext) {
                                 contextData = { ...contextData, ...actionResult.updatedContext };
                             }
-                            console.log("action", util.inspect(actionResult, false, 8, true));
+                            //console.log("action", util.inspect(actionResult, false, 8, true));
                             logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}, Action ID: ${actionId}: Executed successfully.`);
                         }
                     }
@@ -1468,103 +1465,106 @@ export async function processWorkflowRun(workflowRunId, user) {
     }
 }
 /**
- * Exécute une action de génération de contenu par IA ('GenerateAIContent').
- * Récupère la clé API (priorité à l'environnement de l'utilisateur), initialise un client LangChain,
- * formate un prompt avec les données du contexte, appelle le LLM, et retourne le résultat
- * pour l'ajouter au contexte du workflow.
+ * Executes an AI content generation action ('GenerateAIContent').
+ * Retrieves the API key (prioritizing the user's environment), initializes a LangChain client,
+ * formats a prompt with context data, calls the LLM, and returns the result
+ * to be added to the workflow context.
  *
- * @param {object} action - La définition de l'action depuis le workflow.
- * @param {object} context - Le contexte d'exécution actuel du workflow.
- * @param {object} user - L'utilisateur qui exécute le workflow.
+ * @param {object} action - The action definition from the workflow.
+ * @param {object} context - The current workflow execution context.
+ * @param {object} user - The user executing the workflow.
  * @returns {Promise<{success: boolean, updatedContext?: object, message?: string}>}
  */
 async function executeGenerateAIContentAction(action, context, user) {
     const { aiProvider, aiModel, prompt } = action;
 
-    // 1. Récupérer la clé API (Environnement de l'utilisateur > Environnement de la machine)
+    // 1. Retrieve the API key (User Environment > Machine Environment)
     let apiKey;
 
     const providers = {
         "OpenAI" : "OPENAI_API_KEY",
-        "Google": "GOOGLE_API_KEY"
+        "Google": "GOOGLE_API_KEY",
+        "DeepSeek": "DEEPSEEK_API_KEY"
     }
     const envKeyName = providers[aiProvider];
     if( !envKeyName ) {
-        return {success: false, message: i18n.t('aiContent.env', `Clé API pour ${aiProvider} (${envKeyName}) non trouvée dans l'environnement de l'utilisateur.`)};
+        return {success: false, message: i18n.t('aiContent.env', `API key for provider ${aiProvider} (${envKeyName}) not found in user environment.`)};
     }
 
-    // Cherche d'abord dans les variables d'environnement de l'utilisateur
+    // First look in the user's environment variables
     const envCollection = await getCollectionForUser(user);
     const userEnvVar = await envCollection.findOne({ _model: 'env', name: envKeyName, _user: user.username });
 
     if (userEnvVar && userEnvVar.value) {
         apiKey = userEnvVar.value;
-        logger.debug(`[AI Action] Utilisation de la clé API de l'environnement de l'utilisateur pour ${aiProvider}.`);
+        logger.debug(`[AI Action] Using user environment API key for ${aiProvider}.`);
     } else {
         apiKey = process.env[envKeyName];
-        logger.debug(`[AI Action] Utilisation de la clé API de l'environnement de la machine pour ${aiProvider}.`);
+        logger.debug(`[AI Action] Using machine environment API key for ${aiProvider}.`);
     }
 
     if (!apiKey) {
-        const message = `Clé API pour ${aiProvider} (${envKeyName}) non trouvée dans l'environnement de l'utilisateur ou de la machine.`;
+        const message = `API key for ${aiProvider} (${envKeyName}) not found in user or machine environment.`;
         logger.error(`[AI Action] ${message}`);
         return { success: false, message };
     }
 
-    // 2. Initialiser le client LLM avec LangChain
+    // 2. Initialize the LLM client with LangChain
     let llm;
     try {
         switch (aiProvider) {
         case 'OpenAI':
-            llm = new ChatOpenAI({ apiKey, modelName: aiModel, temperature: 0.7 });
+            llm = new ChatOpenAI({ apiKey, model: aiModel, temperature: 0.7 });
             break;
-        case 'GoogleGemini':
-            llm = new ChatGoogleGenerativeAI({ apiKey, modelName: aiModel, temperature: 0.7 });
+        case 'Google':
+            llm = new ChatGoogleGenerativeAI({ apiKey, model: aiModel, temperature: 0.7 });
+            break;
+        case 'DeepSeek':
+            llm = new ChatDeepSeek({ apiKey, model: aiModel, temperature: 0.7 });
             break;
         default:
-            throw new Error(`Fournisseur IA non supporté : ${aiProvider}`);
+            throw new Error(`Unsupported AI provider: ${aiProvider}`);
         }
     } catch (initError) {
-        const message = `Échec de l'initialisation du client IA pour ${aiProvider}: ${initError.message}`;
+        const message = `Failed to initialize AI client for ${aiProvider}: ${initError.message}`;
         logger.error(`[AI Action] ${message}`);
         return { success: false, message };
     }
 
     try {
         const substitutedPrompt = await substituteVariables(prompt, context, user);
-        // 3. Créer le "Prompt Template"
-        // LangChain gère la substitution des variables comme {triggerData.name}
+        // 3. Create the "Prompt Template"
+        // LangChain handles variable substitution like {triggerData.name}
         const realPrompt = ChatPromptTemplate.fromTemplate(substitutedPrompt);
 
-        // 4. Créer la chaîne de traitement (Prompt + Modèle)
+        // 4. Create the processing chain (Prompt + Model)
         const chain = realPrompt.pipe(llm);
 
-        // 5. Invoquer la chaîne avec le contexte complet
-        // LangChain remplacera automatiquement les placeholders dans le prompt.
-        logger.debug(`[AI Action] Invocation de l'IA avec le modèle ${aiModel}.`);
+        // 5. Invoke the chain with the complete context
+        // LangChain will automatically replace placeholders in the prompt.
+        logger.debug(`[AI Action] Invoking AI with model ${aiModel}.`);
         const response = await chain.invoke(context);
 
-        // 6. Préparer le résultat pour le fusionner dans le contexte du workflow
+        // 6. Prepare the result to be merged into the workflow context
         const llmOutput = response.content;
         const outputVariable = 'aiContent';
         const updatedContext = {
             [outputVariable]: llmOutput
         };
 
-        logger.info(`[AI Action] Contenu généré avec succès et stocké dans la variable de contexte '${outputVariable}'.`);
+        logger.info(`[AI Action] Content generated successfully and stored in context variable '${outputVariable}'.`);
 
         return {
             success: true,
-            updatedContext // Cet objet sera fusionné au contexte principal par le moteur de workflow
+            updatedContext // This object will be merged into the main context by the workflow engine
         };
 
     } catch (llmError) {
-        const message = `Erreur durant la génération de contenu IA avec ${aiProvider}: ${llmError.message}`;
+        const message = `Error during AI content generation with ${aiProvider}: ${llmError.message}`;
         logger.error(`[AI Action] ${message}`, llmError.stack);
         return { success: false, message };
     }
 }
-
 
 /**
  * Gère l'action d'envoi d'e-mail d'un workflow.

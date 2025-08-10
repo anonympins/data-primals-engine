@@ -13,13 +13,15 @@ import {
 import http from "http";
 import cookieParser from "cookie-parser";
 import requestIp from 'request-ip';
-import {createModel, deleteModels, getModels, installAllPacks, validateModelStructure} from "./modules/data.js";
+import {createModel, deleteModels, getModels, installAllPacks, validateModelStructure} from "./modules/data/data.js";
 import {defaultModels} from "./defaultModels.js";
 import {DefaultUserProvider} from "./providers.js";
 import formidableMiddleware from 'express-formidable';
 import sirv from "sirv";
 import * as tls from "node:tls";
 import {Event} from "./events.js";
+import path from "node:path";
+import {isPathRelativeTo, isValidPath} from "./core.js";
 
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
@@ -49,23 +51,35 @@ const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TL
 const clientOptions = {
     maxPoolSize: databasePoolSize
 };
-// On ajoute les options TLS si elles sont activées
+
+// We add TLS options if enabled
 if (isTlsActive) {
     clientOptions.tls = true;
-    // Chemin vers le certificat de l'autorité de certification (pour faire confiance au serveur)
-    if (process.env.CA_CERT) {
-        clientOptions.tlsCAFile = process.env.CA_CERT;
+
+    // is mTLS ? (client certificate required instead of password)
+    if (process.env.CERT) {
+        clientOptions.secureContext = tls.createSecureContext({
+            ca: fs.readFileSync(process.env.CA_CERT),
+            cert: fs.readFileSync(process.env.CERT),
+            key: fs.readFileSync(process.env.CERT_KEY)
+        });
+    }else {
+        // Path to the authority certificate
+        if (process.env.CA_CERT) {
+            clientOptions.tlsCAFile = process.env.CA_CERT;
+        }
+        // Path to the certificate key
+        if (process.env.CERT_KEY) {
+            clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
+        }
     }
-    // Chemin vers le certificat et la clé du CLIENT (pour que le serveur vous fasse confiance)
-    if (process.env.CERT_KEY) {
-        clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
-    }
-    // Options pour le développement (à utiliser avec prudence)
     if (tlsAllowInvalidCertificates) {
         clientOptions.tlsAllowInvalidCertificates = true;
+        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidCertificates is ON. Server certificate will not be validated.");
     }
     if (tlsAllowInvalidHostnames) {
         clientOptions.tlsAllowInvalidHostnames = true;
+        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidHostnames is ON. Server hostname will not be validated.");
     }
 }
 
@@ -143,18 +157,44 @@ export const Engine = {
             }
         };
 
-        await Promise.all(Config.Get('modules', []).map(async module => {
+        await Promise.all(Config.Get('modules', []).map(async moduleIdentifier => {
             try {
-                if( fs.existsSync(module) ){
-                    return await importModule(module);
-                }else {
-                    return await importModule('./modules/' + module + ".js");
+                let moduleDir;
+                const moduleName = path.basename(moduleIdentifier);
+
+                const directPath = path.resolve(moduleIdentifier);
+                let isDir = fs.existsSync(directPath) && fs.statSync(directPath).isDirectory();
+                if (isDir) {
+                    moduleDir = directPath;
+                    if (!fs.existsSync(moduleDir) || !fs.statSync(moduleDir).isDirectory()) {
+                        logger.warn(`Le dossier du module est introuvable pour l'identifiant : '${moduleIdentifier}'. Chemin cherché : '${moduleDir}'.`);
+                        return null;
+                    }
+                } else {
+                    moduleDir = path.resolve('./src/modules', moduleIdentifier);
                 }
-            } catch (e){
-                logger.info('ERROR at loading module '+ module, e.stack);
+
+                let moduleEntryPoint;
+                const jsPath = moduleDir+'.js';
+                const indexJsPath = path.join(moduleDir, 'index.js');
+                const moduleJsPath = path.join(moduleDir, `${moduleName}.js`);
+
+                if (fs.existsSync(jsPath)) {
+                    moduleEntryPoint = 'file://'+jsPath;
+                } else if (fs.existsSync(indexJsPath)) {
+                    moduleEntryPoint = 'file://'+indexJsPath;
+                } else if (fs.existsSync(moduleJsPath)) {
+                    moduleEntryPoint = 'file://'+moduleJsPath;
+                }
+
+                return await importModule(moduleEntryPoint);
+            } catch (e) {
+                logger.error(`Échec du chargement du module '${moduleIdentifier}':`, e.stack);
+                return null;
             }
-        })).then(async e => {
-            engine._modules = e;
+        })).then(async results => {
+            // On filtre les modules qui n'ont pas pu être chargés
+            engine._modules = results.filter(Boolean);
             return Promise.resolve();
         });
 
@@ -239,4 +279,3 @@ export const Engine = {
         return engine;
     }
 }
-

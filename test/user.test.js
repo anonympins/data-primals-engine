@@ -1,11 +1,11 @@
 import { expect, describe, it, beforeEach, beforeAll, afterAll } from 'vitest';
 import { hasPermission, getUserActivePermissions } from '../src/modules/user.js';
-import {initEngine} from "data-primals-engine/setenv";
+import {initEngine} from "../src/setenv";
 import {generateUniqueName} from "../src/setenv.js";
 import {
     getCollectionForUser as getAppUserCollection,
     modelsCollection as getAppModelsCollection
-} from "data-primals-engine/modules/mongodb";
+} from "../src/modules/mongodb.js";
 import {Config} from "../src/index.js";
 let permRead, permWrite, permDelete, permManage;
 let roleEditor;

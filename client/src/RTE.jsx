@@ -28,7 +28,7 @@ import css from 'highlight.js/lib/languages/css'
 import js from 'highlight.js/lib/languages/javascript'
 import ts from 'highlight.js/lib/languages/typescript'
 import html from 'highlight.js/lib/languages/xml'
-import {escapeHtml, escapeRegex} from "data-primals-engine/core";
+import {escapeHtml} from "../../src/core";
 // create a lowlight instance
 const lowlight = createLowlight(all)
 
@@ -292,11 +292,6 @@ export const ExtendedImage = Image.extend({
         }
     }
 })
-
-const CodeBlockComponent = ({children, ...rest}) => {
-    console.log(rest);
-    return children;
-};
 
 const extensions = [
     HardBreak,

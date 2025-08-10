@@ -10,20 +10,19 @@ import { vi } from 'vitest'
 import {
     createModel,
     insertData
-} from 'data-primals-engine/modules/data';
+} from '../src/index.js';
 
 import {
     modelsCollection as getAppModelsCollection,
     getCollectionForUser as getAppUserCollection, getCollectionForUser
-} from 'data-primals-engine/modules/mongodb';
+} from '../src/modules/mongodb.js';
 import process from "node:process";
 
-import { dumpUserData, loadFromDump } from 'data-primals-engine/modules/data';
+import { dumpUserData, loadFromDump } from '../src/index.js';
 import fs from "node:fs";
 import {initEngine} from "../src/setenv.js";
-import {getUserCollectionName} from "../src/modules/mongodb.js";
 
-vi.mock('data-primals-engine/engine', async(importOriginal) => {
+vi.mock('../src/engine', async(importOriginal) => {
     const mod = await importOriginal() // type is inferred
     return {
         ...mod

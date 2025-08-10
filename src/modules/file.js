@@ -8,7 +8,7 @@ import {getFileExtension, isGUID, uuidv4} from "../core.js";
 import path from "node:path";
 import process from "node:process";
 import fs from "node:fs";
-import { checkServerCapacity} from "./data.js";
+import { checkServerCapacity} from "./data/index.js";
 import crypto from "node:crypto";
 import * as tar from "tar";
 import {promisify} from "node:util";

@@ -57,7 +57,7 @@ import PackGallery from "./PackGallery.jsx";
 import {HiddenableCell} from "./HiddenableCell.jsx";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import {pagedFilterToMongoConds} from "./filter.js";
-import {isConditionMet} from "data-primals-engine/filter";
+import {isConditionMet} from "../../src/filter";
 
 // Ajoutez cette constante pour la clé de sessionStorage
 const SESSION_STORAGE_IMPORT_JOBS_KEY = 'activeImportJobs';
@@ -685,10 +685,8 @@ export function DataTable({
                     />
                     <ExportDialog isOpen={showExportDialog} onClose={() => {
                         setExportDialogVisible(false);
-                        console.log("close")
                     }} availableModels={models} currentModel={selectedModel.name} hasSelection={true} onExport={(data)=>{
                         exportMutation(data);
-                        console.log(data);
                     }} />
                     {showPackGallery && (
                         <Dialog isClosable={true} isModal={true} onClose={() => setShowPackGallery(false)}>

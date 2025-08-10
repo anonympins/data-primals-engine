@@ -1,4 +1,4 @@
-import {getModels} from "./modules/data.js";
+import {getModels} from "./modules/data/index.js";
 
 
 /*
@@ -1359,6 +1359,9 @@ return { processedChunk: context.result.chunk };
                         value: "demo"
                     },{
                         name: "GOOGLE_API_KEY",
+                        value: "demo"
+                    },{
+                        name: "DEEPSEEK_API_KEY",
                         value: "demo"
                     }]
                 }

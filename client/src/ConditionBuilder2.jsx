@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import { Tooltip } from 'react-tooltip';
-import {FaPlus, FaProjectDiagram, FaTrash, FaInfoCircle, FaEdit, FaTags} from 'react-icons/fa';
+import {FaPlus, FaProjectDiagram, FaTrash, FaInfoCircle, FaEdit, FaTags, FaCalendarAlt} from 'react-icons/fa';
 import { Trans } from 'react-i18next';
 import {convertInputValue, MONGO_CALC_OPERATORS} from "./filter.js";
 import i18n from "i18next";
@@ -19,8 +19,9 @@ const isDateArg = (operator, argIndex) => {
     }
 
     // Cas spécial pour les opérateurs de date
-    if (operator === '$dateAdd' || operator === '$dateSubtract') {
-        return argIndex === 0; // Seul le premier argument est une date
+    if (operator === '$dateAdd' || operator === '$dateSubtract' ||
+        operator === '$dateDiff' || operator === '$dateToString') {
+        return true;
     }
 
     // Pour les autres opérateurs marqués isDate (comme $hour, $second, etc.)
@@ -118,7 +119,20 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                     regex: ""
                 }
             };
-        }else if (opConfig.converter || (!opConfig.multi && !opConfig.args)) {
+        } else if (opConfig.specialStructure) {
+            if (opConfig.args) {
+                // Initialiser seulement les champs obligatoires
+                const initialArgs = {};
+                opConfig.args.forEach(arg => {
+                    if (!arg.optional) {
+                        initialArgs[arg.name] = arg.type === 'select' ? (arg.options[0] || '') : '';
+                    }
+                });
+                newValue = { [operator]: initialArgs };
+            } else {
+                newValue = { [operator]: {} };
+            }
+        } else if (opConfig.converter || (!opConfig.multi && !opConfig.args)) {
             newValue = { [operator]: "" };
         } else {
             // Nouvelle logique qui prend en compte args et multi
@@ -140,9 +154,6 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
         setCurrentValue(newValue);
         setEditing(false);
     };
-
-    console.log(path);
-    console.log(isDateArg(path[path.length - 1]));
 
     const renderArgument = (arg, index, parentOperator, args) => {
         const isSimpleValue = typeof arg !== 'object' || arg === null || Array.isArray(arg);
@@ -271,7 +282,6 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                     relatedFieldNames = relatedModel.fields.map(f => f.name);
                     relatedModelFields = relatedModel.fields;
                 }
-                console.log({models,relatedModel})
             }
 
             // --- Fin de la correction ---
@@ -454,7 +464,25 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
         }
 
         if (opConfig.specialStructure) {
-            // Cas spécial pour les opérateurs comme $regexMatch
+            const handleSpecialArgChange = (argName, newValue) => {
+                const newArgs = {...args};
+
+                // Si la nouvelle valeur est vide et que l'argument est optionnel, on le supprime
+                if (newValue === '' || newValue === null || newValue === undefined) {
+                    delete newArgs[argName];
+                } else {
+                    newArgs[argName] = newValue;
+                }
+
+                // Si tous les arguments obligatoires sont vides, on supprime complètement
+                const hasRequiredArgs = opConfig.args?.some(a => !a.optional && newArgs[a.name]);
+                if (!hasRequiredArgs && Object.keys(newArgs).length === 0) {
+                    onChange(null, path);
+                } else {
+                    onChange({[operator]: newArgs}, path);
+                }
+            };
+
             return (
                 <div className="expression-block special-structure-block">
                     <div className="expression-header">
@@ -479,23 +507,66 @@ const ExpressionField = ({ value, onChange, path = [], fieldNames, isRoot = fals
                         </div>
                     </div>
                     <div className="special-structure-args">
-                        {Object.entries(args).map(([key, val]) => (
-                            <div key={key} className="special-arg">
-                                <label>{key}</label>
-                                <ExpressionField
-                                    value={val}
-                                    onChange={(newVal) => {
-                                        const newArgs = {...args, [key]: newVal};
-                                        onChange({[operator]: newArgs}, path);
-                                    }}
-                                    fieldNames={fieldNames}
-                                    path={[...path, operator, key]}
-                                    models={models}
-                                    currentModelFields={currentModelFields}
-                                    isInFindContext={isInFindContext}
-                                />
-                            </div>
-                        ))}
+                        {opConfig.args ? (
+                            opConfig.args.map((argConfig) => {
+                                const currentArgValue = args[argConfig.name] || '';
+                                return (
+                                    <div key={argConfig.name} className="special-arg">
+                                        <label>{argConfig.label}</label>
+                                        {argConfig.type === 'select' ? (
+                                            <select
+                                                value={currentArgValue}
+                                                onChange={(e) => handleSpecialArgChange(argConfig.name, e.target.value)}
+                                            >
+                                                <option value="">Select {argConfig.label}</option>
+                                                {argConfig.options.map(option => (
+                                                    <option key={option} value={option}>{option}</option>
+                                                ))}
+                                            </select>
+                                        ) : argConfig.type === 'date' ? (
+                                            <input
+                                                type="datetime-local"
+                                                value={currentArgValue ? new Date(currentArgValue).toISOString().slice(0, 16) : ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    handleSpecialArgChange(argConfig.name, val ? new Date(val).toISOString() : '');
+                                                }}
+                                            />
+                                        ) : (
+                                            <input
+                                                type={argConfig.type === 'number' ? 'number' : 'text'}
+                                                value={currentArgValue}
+                                                onChange={(e) => handleSpecialArgChange(argConfig.name, e.target.value)}
+                                                placeholder={argConfig.label}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            // Ancien cas pour les structures spéciales non configurées
+                            Object.entries(args).map(([key, val]) => (
+                                <div key={key} className="special-arg">
+                                    <label>{key}</label>
+                                    <ExpressionField
+                                        value={val}
+                                        onChange={(newVal) => {
+                                            const newArgs = {...args, [key]: newVal};
+                                            // Supprimer si vide
+                                            if (newVal === '' || newVal === null || newVal === undefined) {
+                                                delete newArgs[key];
+                                            }
+                                            onChange(Object.keys(newArgs).length > 0 ? {[operator]: newArgs} : null, path);
+                                        }}
+                                        fieldNames={fieldNames}
+                                        path={[...path, operator, key]}
+                                        models={models}
+                                        currentModelFields={currentModelFields}
+                                        isInFindContext={isInFindContext}
+                                    />
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             );
@@ -670,11 +741,20 @@ const FieldInput = ({
     const [inputValue, setInputValue] = useState(value);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isDateMode, setIsDateMode] = useState(isDate);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         setInputValue(value);
-    }, [value]);
+        // Détermine le mode d'affichage en fonction de la valeur
+        const shouldBeDateMode = isDate && (
+            // Soit c'est une date ISO valide
+            (typeof value === 'string' && !value.startsWith('$') && !isNaN(new Date(value).getTime())) ||
+            // Soit c'est une valeur vide et le champ est marqué comme date
+            (value === '' && isDate)
+        );
+        setIsDateMode(shouldBeDateMode);
+    }, [value, isDate]);
 
     useEffect(() => {
         // Filtrer les suggestions selon le contexte
@@ -706,6 +786,33 @@ const FieldInput = ({
         onChange(val);
     };
 
+    const handleDateChange = (dateValue) => {
+        // Convertir la date en format ISO
+        const isoDate = dateValue ? new Date(dateValue).toISOString() : '';
+        setInputValue(isoDate);
+        onChange(isoDate);
+    };
+
+
+    const toggleDateMode = () => {
+        const newMode = !isDateMode;
+        setIsDateMode(newMode);
+
+        if (newMode) {
+            // Si on passe en mode date et que la valeur actuelle est un champ, on la vide
+            if (inputValue && inputValue.startsWith('$')) {
+                setInputValue('');
+                onChange('');
+            }
+        } else {
+            // Si on quitte le mode date et que la valeur est une date, on la vide
+            if (inputValue && !isNaN(new Date(inputValue).getTime())) {
+                setInputValue('');
+                onChange('');
+            }
+        }
+    };
+
     const handleSuggestionClick = (suggestion) => {
         const prefix = isFieldName ? '' : (isInFindContext ? '$$this.' : '$');
         const newValue = `${prefix}${suggestion}`;
@@ -714,36 +821,54 @@ const FieldInput = ({
         setShowSuggestions(false);
     };
 
-    // Si c'est un champ date, on affiche le datepicker
-    if (isDate) {
-        return (
-            <div className="date-input-container">
-                <input
-                    type="datetime-local"
-                    value={inputValue ? new Date(inputValue).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => handleDateChange(e.target.value)}
-                />
-            </div>
-        );
-    }
     return (
         <div className="field-input-container">
-            <input
-                type="text"
-                value={inputValue}
-                onChange={handleInputChange}
-                placeholder={
-                    onlyRelations ? i18n.t("cb.selectRelationField") :
-                        isInFindContext ?i18n.t("cb.enterThisField") :
-                           i18n.t("cb.enterValueOrField")
-                }
-                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            />
+            {isDateMode ? (
+                <div className="date-input-wrapper">
+                    <input
+                        type="datetime-local"
+                        value={inputValue && !isNaN(new Date(inputValue)) ? new Date(inputValue).toISOString().slice(0, 16) : ''}
+                        onChange={(e) => handleDateChange(e.target.value)}
+                    />
+                    <button
+                        type="button"
+                        onClick={toggleDateMode}
+                        className="toggle-date-mode"
+                        title={i18n.t("cb.switchToField")}
+                    >
+                        <FaEdit />
+                    </button>
+                </div>
+            ) : (
+                <>
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        placeholder={
+                            onlyRelations ? i18n.t("cb.selectRelationField") :
+                                isInFindContext ? i18n.t("cb.enterThisField") :
+                                    i18n.t("cb.enterValueOrField")
+                        }
+                        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    />
+                    {isDate && (
+                        <button
+                            type="button"
+                            onClick={toggleDateMode}
+                            className="toggle-date-mode"
+                            title={i18n.t("cb.switchToDate")}
+                        >
+                            <FaCalendarAlt />
+                        </button>
+                    )}
+                </>
+            )}
+
             {showSuggestions && suggestions.length > 0 && (
                 <div className="suggestions-dropdown">
                     {suggestions.map((suggestion, index) => {
-                        // Trouver le champ complet pour afficher des infos supplémentaires
                         const fieldInfo = currentModelFields.find(f => f.name === suggestion);
                         return (
                             <div
@@ -751,7 +876,8 @@ const FieldInput = ({
                                 className="suggestion-item"
                                 onClick={() => handleSuggestionClick(suggestion)}
                                 data-tooltip-id="field-tooltip"
-                                data-tooltip-content={fieldInfo?.relation ? i18n.t('cb.relationTooltip', { relation: fieldInfo.relation}) : ''}
+                                data-tooltip-content={fieldInfo?.relation ?
+                                    i18n.t('cb.relationTooltip', { relation: fieldInfo.relation}) : ''}
                             >
                                 {suggestion}
                                 {fieldInfo?.relation && (

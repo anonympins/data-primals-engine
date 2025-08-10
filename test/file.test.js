@@ -1,16 +1,13 @@
-// __tests__/file.integration.test.js
-import { expect, describe, it, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
+import { expect, describe, it, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import { Config } from '../src/config.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ObjectId } from 'mongodb';
 import { initEngine, generateUniqueName } from "../src/setenv.js";
 import { addFile, removeFile, getFile, onInit } from "../src/modules/file.js";
 import {getCollection, getUserCollectionName} from "../src/modules/mongodb.js";
 import { Logger } from "../src/gameObject.js";
 import {maxPrivateFileSize} from "../src/constants.js";
-import {getCollectionForUser} from "data-primals-engine/modules/mongodb";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

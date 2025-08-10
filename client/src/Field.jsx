@@ -33,9 +33,7 @@ import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
-import CodeMirror, {basicSetup} from "@uiw/react-codemirror";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-import {maxStringLength} from "data-primals-engine/constants";
 
 export const Form = ({
   name,
@@ -893,7 +891,6 @@ const FileField = ({ inputProps, value, onChange, name, mimeTypes, maxSize, mult
         }
     }, [value]);
 
-    console.log(fileInfos)
     return (
         <div className="field field-file">
             <input
@@ -1421,12 +1418,10 @@ export const ModelField = ({field, disableable=false, showModel=true, value, fie
     const itemsFields = [...models.find(f=>f.name === modelValue && me?.username === f._user)?.fields.map(m => ({label: m.name, value: m.name})) || []];
 
     useEffect(() => {
-        console.log({value})
         setModelValue(value)
     }, [value]);
 
     useEffect(() => {
-        console.log(modelValue)
         onChange({name: field.name, value: modelValue});
     }, [modelValue]);
 

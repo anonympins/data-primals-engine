@@ -8,7 +8,7 @@ import {Config, Engine, BenchmarkTool, GameObject, Logger} from "./src/index.js"
 import sirv from "sirv";
 import express from "express";
 
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "swagger"])
+Config.Set("modules", ["data", "mongodb", "file", "bucket", "workflow","user", "assistant", "swagger"])
 Config.Set("middlewares", []);
 
 const bench = GameObject.Create("Benchmark");
@@ -30,7 +30,7 @@ if (process.argv.length === 3) {
 const port = process.env.PORT || 7633;
 engine.start(port, async (r) => {
     const logger = engine.getComponent(Logger);
-    console.log("Server started on port" + port);
+    console.log("Server started on port " + port);
     timer.stop();
 
 });

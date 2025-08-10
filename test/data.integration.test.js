@@ -7,19 +7,15 @@ import {
     editData,
     deleteData,
     searchData, installPack, deleteModels, createModel, patchData
-} from 'data-primals-engine/modules/data';
+} from '../src/index.js';
 
 import {
     modelsCollection as getAppModelsCollection,
     getCollection,
     getCollectionForUser as getAppUserCollection, getCollectionForUser
-} from 'data-primals-engine/modules/mongodb';
+} from '../src/modules/mongodb.js';
 import {getRandom} from "../src/core.js";
 import {generateUniqueName, initEngine} from "../src/setenv.js";
-import {processWorkflowRun} from "data-primals-engine/modules/workflow";
-import {sendEmail} from "../src/email.js";
-import {MongoDatabase} from "../src/engine.js";
-import {getUserCollectionName} from "../src/modules/mongodb.js";
 
 let testModelsColInstance;
 let testDatasColInstance;
