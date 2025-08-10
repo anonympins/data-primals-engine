@@ -29,6 +29,32 @@ Have an idea for a new feature or an improvement?
 - Clearly explain the "why": what problem does this feature solve?
 - Describe the "how": how do you imagine it would work?
 
+### ✍️ Creating a Module
+
+Modules are the primary way to extend the engine's functionality. They can add new API endpoints, listen to events, or perform background tasks.
+
+#### 1. File Structure
+
+The recommended way to create a module is to add a new directory inside `src/modules/`. The engine will automatically discover it if you follow the conventions.
+
+For a module named `greeter`:
+```
++src/
++└── modules/
+    •└── greeter/
+    •   ├── index.js       # The module's entry point
+    •   └── greeter-logic.js # (Optional) Other logic files
+```
+#### 2. The onInit function 
++ The entry point of your module (index.js) must export an async function called onInit :
+```javascript
+let engine, logger;
+export async function onInit(defaultEngine) {
+    engine = defaultEngine;
+    logger = engine.getComponent(Logger);
+    // ...
+};
+```
 ### 🚀 Submitting Pull Requests
 
 If you're ready to write code, that's fantastic!
