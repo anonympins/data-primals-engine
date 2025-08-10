@@ -416,7 +416,7 @@ export const getFieldValueHash = (model, data) => {
     const uniqueFields = model.fields.filter(f => f.unique).map(m => m.name);
     const fs = model.fields.map(m => m.name);
     const fields = ['_model', '_user', ...(uniqueFields.length ? uniqueFields : fs)];
-    return getObjectHash(data, fields, 'no_constraint');
+    return getObjectHash(data, fields);
 }
 
 
