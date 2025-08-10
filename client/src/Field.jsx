@@ -1420,12 +1420,10 @@ export const ModelField = ({field, disableable=false, showModel=true, value, fie
     const itemsFields = [...models.find(f=>f.name === modelValue && me?.username === f._user)?.fields.map(m => ({label: m.name, value: m.name})) || []];
 
     useEffect(() => {
-        console.log({value})
         setModelValue(value)
     }, [value]);
 
     useEffect(() => {
-        console.log(modelValue)
         onChange({name: field.name, value: modelValue});
     }, [modelValue]);
 

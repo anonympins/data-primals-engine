@@ -60,7 +60,6 @@ function _sanitize(target, options) {
 
         if( (key === 'regex' && obj.input) || key === '$regex' ){
             obj[key] = new RegExp(val, "ui");
-            console.log('regex san', obj[key]);
         }
         else if (!wl.includes(key) && regex.test(key)) {
             isSanitized = true;

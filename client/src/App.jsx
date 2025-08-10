@@ -303,7 +303,6 @@ function Layout ({header, routes, body, footer}) {
 
         return () => {
             if (eventSource) {
-                //console.log('[SSE] Fermeture de la connexion au serveur.');
                 eventSource.close();
             }
         };

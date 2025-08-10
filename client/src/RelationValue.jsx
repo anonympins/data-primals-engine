@@ -133,7 +133,6 @@ const RelationValue = ({ field, data, align }) => {
                 } catch (e) {
                     console.log(e);
                 }
-                //console.log(model, rel, displayValue)
                 const bgColor = // Returns a bright color in RGB
                     randomColor({
                         seed: rel._hash+rel._id,

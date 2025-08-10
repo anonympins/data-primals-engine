@@ -1,19 +1,17 @@
 // __tests__/data.integration.test.js
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeEach, afterEach, beforeAll, afterAll, vi} from 'vitest';
+import {expect, describe, it, beforeAll} from 'vitest';
 import { Config } from '../src/config.js';
 
 import {
-    modelsCollection as getAppModelsCollection,
-    datasCollection, getCollection // Accès direct pour vérifications
-} from 'data-primals-engine/modules/mongodb';
-import {generateUniqueName, getUniquePort, initEngine} from "../src/setenv.js";
-import {editModel} from "../src/modules/data.js";
-import {getCollectionForUser, getUserCollectionName} from "../src/modules/mongodb.js";
+    getCollection // Accès direct pour vérifications
+} from '../src/modules/mongodb.js';
+import {generateUniqueName, initEngine} from "../src/setenv.js";
+import {editModel} from "../src/index.js";
+import {getCollectionForUser} from "../src/modules/mongodb.js";
 
 let testModelsColInstance;
 let testModelId;
-let lastUser;
 // Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte
 async function setupTestContext() {
 
@@ -24,7 +22,7 @@ async function setupTestContext() {
     // Créer un utilisateur unique pour ce test
     const currentTestUser = {
         username: generateUniqueName('testuserModelIntegration'),
-        userPlan: 'premium',
+        userPlan: 'free',
         email: generateUniqueName('test') + '@example.com'
     };
 
@@ -125,7 +123,7 @@ describe('CRUD on model definitions and integrity tests', () => {
 
     describe('editModel unit tests', () => {
 
-        it.skip('should create and drop index when field.index is toggled (premium user)', async () => {
+        it('should create and drop index when field.index is toggled (premium user)', async () => {
             // --- SETUP ---
             const { coll, currentTestUser, comprehensiveTestModelDefinition } = await setupTestContext();
             const fieldToIndex = 'stringUnique'; // Utiliser un champ qui existe vraiment dans le modèle

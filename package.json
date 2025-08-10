@@ -39,7 +39,7 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./modules/*": "./src/modules/*.js",
+    "./modules/*": "./src/modules/*/index.js",
     "./client": "./client/index.js",
     "./*": "./src/*.js"
   },
