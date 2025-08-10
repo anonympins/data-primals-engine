@@ -2,7 +2,6 @@
 import process from "process";
 import {Logger} from "../gameObject.js";
 import {MongoDatabase} from "../engine.js";
-import fs from "node:fs";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
 

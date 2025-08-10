@@ -1,5 +1,5 @@
 import { expect, describe, it, beforeEach,afterEach, beforeAll, afterAll, vi } from 'vitest';
-import { Config } from "data-primals-engine/config";
+import { Config } from "../src/config";
 
 import {insertData, editData, deleteData, patchData} from '../src/index.js';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser } from '../src/modules/mongodb.js';

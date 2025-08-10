@@ -57,7 +57,7 @@ import PackGallery from "./PackGallery.jsx";
 import {HiddenableCell} from "./HiddenableCell.jsx";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import {pagedFilterToMongoConds} from "./filter.js";
-import {isConditionMet} from "data-primals-engine/filter";
+import {isConditionMet} from "../../src/filter";
 
 // Ajoutez cette constante pour la clé de sessionStorage
 const SESSION_STORAGE_IMPORT_JOBS_KEY = 'activeImportJobs';

@@ -8,7 +8,7 @@ import {Config, Engine, BenchmarkTool, GameObject, Logger} from "./src/index.js"
 import sirv from "sirv";
 import express from "express";
 
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "swagger"])
+Config.Set("modules", ["data", "mongodb", "file", "bucket", "workflow","user", "assistant", "swagger"])
 Config.Set("middlewares", []);
 
 const bench = GameObject.Create("Benchmark");

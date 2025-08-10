@@ -19,7 +19,7 @@ import {
     clearMappingsRecursive
 } from './FlexTreeUtils.js';
 import {Dialog, DialogProvider} from "./Dialog.jsx";
-import {safeAssignObject} from "data-primals-engine/core";
+import {safeAssignObject} from "../../src/core";
 
 const FlexBuilder = ({ initialConfig = null, models = [], onChange, data = [], lang = 'fr' }) => {
     const { me: user } = useAuthContext();

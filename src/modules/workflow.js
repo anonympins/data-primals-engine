@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
-import {deleteData, insertData, patchData, searchData} from "./data";
+import {deleteData, insertData, patchData, searchData} from "./data/index.js";
 import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
@@ -1399,7 +1399,7 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (actionResult.updatedContext) {
                                 contextData = { ...contextData, ...actionResult.updatedContext };
                             }
-                            console.log("action", util.inspect(actionResult, false, 8, true));
+                            //console.log("action", util.inspect(actionResult, false, 8, true));
                             logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}, Action ID: ${actionId}: Executed successfully.`);
                         }
                     }

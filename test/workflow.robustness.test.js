@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb';
 import {expect, describe, it, beforeEach, beforeAll, vi, afterAll, afterEach} from 'vitest';
-import { Config } from "data-primals-engine/config";
+import { Config } from "../src/config";
 
 import { insertData, editData } from '../src/index.js';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser, getCollection } from '../src/modules/mongodb.js';

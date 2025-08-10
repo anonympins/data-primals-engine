@@ -25,7 +25,7 @@ import Draggable from "./Draggable.jsx";
 import CronBuilder from "./CronBuilder.jsx";
 import RTETrans from "./RTETrans.jsx";
 import uniqid from "uniqid";
-import {isConditionMet} from "data-primals-engine/filter";
+import {isConditionMet} from "../../src/filter";
 
 // ... (fonction getInputType) ...
 // Fonction pour obtenir le type d'input HTML basé sur le type de champ du modèle

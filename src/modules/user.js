@@ -3,7 +3,7 @@ import {MongoDatabase} from "../engine.js";
 import {getCollection, getCollectionForUser, getUserCollectionName} from "./mongodb.js";
 import {isLocalUser} from "../data.js";
 import {ObjectId} from "mongodb";
-import {getAPILang} from "./data";
+import {getAPILang} from "./data/index.js";
 import {Logger} from "../gameObject.js";
 import rateLimit from "express-rate-limit";
 
