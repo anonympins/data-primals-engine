@@ -193,7 +193,6 @@ export const Engine = {
                 return null;
             }
         })).then(async results => {
-            console.log(results)
             // On filtre les modules qui n'ont pas pu être chargés
             engine._modules = results.filter(Boolean);
             return Promise.resolve();
