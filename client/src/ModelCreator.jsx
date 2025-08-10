@@ -526,33 +526,37 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                                 {/* Colonne de droite: Formulaire du modèle sélectionné */}
                                 <div className="model-form-container">
                                     {/* Le formulaire existant est placé ici */}
-                                    <div className="flex field-bg">
-                                        <label htmlFor="modelName"><Trans i18nKey={"modelcreator.name"}>Nom:</Trans></label>
+                                    <div className="field">
+                                        <div className="flex field-bg">
+                                            <label htmlFor="modelName"><Trans i18nKey={"modelcreator.name"}>Nom:</Trans></label>
+                                        </div>
+                                        <TextField
+                                            type="text"
+                                            id="modelName"
+                                            disabled={modelLocked}
+                                            value={modelName}
+                                            help={t('modelcreator.field.name.hint')}
+                                            onChange={(e) => setModelName(e.target.value)}
+                                            required
+                                        />
                                     </div>
-                                    <TextField
-                                        type="text"
-                                        id="modelName"
-                                        disabled={modelLocked}
-                                        value={modelName}
-                                        help={t('modelcreator.field.name.hint')}
-                                        onChange={(e) => setModelName(e.target.value)}
-                                        required
-                                    />
 
-                                    <div className="flex field-bg">
-                                        <label htmlFor="modelDescription"><Trans i18nKey={"modelcreator.description"}>Description:</Trans></label>
+                                    <div className="field">
+                                        <div className="flex field-bg">
+                                            <label htmlFor="modelDescription"><Trans i18nKey={"modelcreator.description"}>Description:</Trans></label>
+                                        </div>
+                                        <TextField
+                                            multiline
+                                            help={t('modelcreator.field.description')}
+                                            id="modelDescription"
+                                            disabled={modelLocked}
+                                            value={modelDescription}
+                                            onChange={(e) => {
+                                                setModelDescription(e.target.value);
+                                                setChanged(true)
+                                            }}
+                                        />
                                     </div>
-                                    <TextField
-                                        multiline
-                                        help={t('modelcreator.field.description')}
-                                        id="modelDescription"
-                                        disabled={modelLocked}
-                                        value={modelDescription}
-                                        onChange={(e) => {
-                                            setModelDescription(e.target.value);
-                                            setChanged(true)
-                                        }}
-                                    />
                                     <h3><Trans i18nKey={"modelcreator.fields"}>Champs du modèle :</Trans></h3>
                                     {fields.map((field, index) => <ModelCreatorField
                                         key={initialModel?.name + '_field_' + index}
