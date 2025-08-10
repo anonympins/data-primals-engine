@@ -1,4 +1,4 @@
-import {expect, describe, it, beforeEach, beforeAll, afterAll, vi} from 'vitest';
+import {expect, describe, it, beforeEach, beforeAll, afterAll, vi, afterEach} from 'vitest';
 
 // --- Importations des modules de votre application ---
 import {
@@ -38,13 +38,9 @@ const impexTestModel = {
 };
 
 // --- Setup de l'environnement de test ---
-let mongod;
-let testDbUri;
-const testDbName = 'testIntegrationDbHO_Impex';
 let testModelsColInstance;
 let testDatasColInstance;
-let engineInstance;
-const port = getUniquePort(); // Port unique pour cette suite de tests
+
 function blobToFile(theBlob, fileName){
     //A Blob() is almost a File() - it's just missing the two properties below which we will add
     theBlob.lastModifiedDate = new Date();
@@ -55,6 +51,17 @@ function blobToFile(theBlob, fileName){
 beforeAll(async () =>{
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
+})
+
+beforeEach(async() =>{
+// tell vitest we use mocked time
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+})
+
+afterEach(() => {
+    vi.runOnlyPendingTimers();
+    // restoring date after each test run
+    vi.useRealTimers()
 })
 afterAll(async () => {
     const coll = await getCollectionForUser(mockUser);
@@ -84,6 +91,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
 
     describe('Export de données', () => {
         it('devrait exporter les données en format JSON', async () => {
+
             const res= await exportData({
                 models: [impexTestModel.name],
                 depth: 1
@@ -107,6 +115,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
 
     describe('Import de données', () => {
         it('devrait importer des données depuis une chaîne JSON', async () => {
+
             const jsonDataToImport = [
                 { name: 'Produit D', sku: 'SKU-D', price: 1.00, inStock: true },
                 { name: 'Produit E', sku: 'SKU-E', price: 2.00 } // inStock utilisera la valeur par défaut
@@ -124,7 +133,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
             expect(result.success).toBe(true);
             expect(result.job.jobId).not.toBeNull();
 
-            await sleep(8000)
+            await sleep(5000);
 
             // Vérification directe en base de données
             const importedDocs = await testDatasColInstance.find({
@@ -158,7 +167,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
             expect(result.success).toBe(true);
             expect(result.job.jobId).not.toBeNull();
 
-            await sleep(8000);
+            await sleep(5000);
             // Vérification en base de données
             const importedDocs = await testDatasColInstance.find({
                 _model: impexTestModel.name,
@@ -194,8 +203,7 @@ Valide K,SKU-A,40,true`;
             expect(result.success).toBe(true);
             expect(result.job.jobId).not.toBeNull();
 
-            await sleep(8000);
-
+            await sleep(5000);
             // Vérifier que seule les données valides sont en BDD
             const count = await testDatasColInstance.countDocuments({ _model: impexTestModel.name, sku: 'SKU-H' });
             expect(count).toBe(1); // Seule la ligne valide 'SKU-H' doit être insérée.

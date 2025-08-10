@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeEach, beforeAll, vi, afterAll} from 'vitest';
+import {expect, describe, it, beforeEach, beforeAll, vi, afterAll, afterEach} from 'vitest';
 import { Config } from "data-primals-engine/config";
 // --- Importations des modules de l'application ---
 import { insertData, editData } from 'data-primals-engine/modules/data';
@@ -45,8 +45,15 @@ beforeEach(async () => {
     if( mods.length === 0){
         await testModelsColInstance.insertMany([targetDataModel, ...workflowMetaModels]);
     }
-});
+    // tell vitest we use mocked time
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+})
 
+afterEach(() => {
+    vi.runOnlyPendingTimers();
+    // restoring date after each test run
+    vi.useRealTimers()
+})
 afterAll(async () => {
     const coll = await getCollectionForUser(mockUser);
     await coll.drop();

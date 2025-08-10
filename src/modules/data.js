@@ -4620,7 +4620,7 @@ export const searchData = async (query, user) => {
         pipelines.push({$project: {_model: 0}});
     }
 
-    console.log(util.inspect(pipelines, false, 29, true));
+    //console.log(util.inspect(pipelines, false, 29, true));
 
     // 4. Exécuter la pipeline
     const ts = parseInt(timeout, 10)/2.0 || searchRequestTimeout;

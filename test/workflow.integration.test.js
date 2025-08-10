@@ -139,8 +139,6 @@ const processWorkflowRunSpy = vi.spyOn(workflowModule, 'processWorkflowRun');
 beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = await getCollectionForUser(mockUser);
-    // Nettoyer les données avant chaque test
-    await testDatasColInstance.deleteMany({_user: "testuserWorkflow"});
 
     // Réinitialiser l'espion
     processWorkflowRunSpy.mockClear();
@@ -153,8 +151,15 @@ beforeEach(async () => {
             ...workflowMetaModels.map(m => ({...m})) // Copie pour éviter les mutations
         ]);
     }
-});
+    // tell vitest we use mocked time
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+})
 
+afterEach(() => {
+    vi.runOnlyPendingTimers();
+    // restoring date after each test run
+    vi.useRealTimers()
+})
 afterAll(async () => {
     const coll = await getCollectionForUser(mockUser);
     await coll.drop();
@@ -166,6 +171,9 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
 
     // Avant chaque test de ce bloc, on crée un workflow et une étape de base
     const initTest = async () => {
+        // Nettoyer les données avant chaque test
+        await testDatasColInstance.deleteMany({_user: "testuserWorkflow"});
+
         const workflowInsertResult = await insertData('workflow', { name: 'Test Workflow' }, {}, mockUser, false);
         testWorkflow = { _id: workflowInsertResult.insertedIds[0] };
 
