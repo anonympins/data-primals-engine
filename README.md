@@ -26,7 +26,7 @@
 - **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
 - **Authentication & Authorization**: Robust role-based access control (RBAC) and pluggable user providers.
 - **Built-in File Management**: Handle file uploads seamlessly with integrated support for AWS S3 storage.
-- **🧠 AI Integration**: Natively supports OpenAI and Google Gemini models via LangChain for content generation, analysis, and more.
+- **🧠 AI Integration**: Natively supports OpenAI, DeepSeek and Google Gemini models via LangChain for content generation, analysis, and more.
 - **🌐 Internationalization (i18n)**: Fully supports multilingual interfaces and user-specific translated data.
 - **📦 Starter Packs**: Quickly bootstrap applications with pre-built data packs for CRM, e-commerce, and more.
 - **📄Auto-Generated API Documentation**: Interactive API documentation available via the interface or at `/api-docs`.

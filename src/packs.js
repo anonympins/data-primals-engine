@@ -1360,6 +1360,9 @@ return { processedChunk: context.result.chunk };
                     },{
                         name: "GOOGLE_API_KEY",
                         value: "demo"
+                    },{
+                        name: "DEEPSEEK_API_KEY",
+                        value: "demo"
                     }]
                 }
             }
