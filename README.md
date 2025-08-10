@@ -162,9 +162,20 @@ Define schemas using JSON:
 | model	      | Stores a model by name                                                              | –                                                                         |                                            
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
-### Modules
-Activatable features:
-- `mongodb`, `data`, `user`, `workflow`, `file`, `assistant`, `swagger`
+### Model constraints
+```javascript
+{
+    "name": "modelName",
+    "fields": [
+         { "name": "fieldName1", .... },
+         { "name": "fieldName2", .... }
+    ],
+    "constraints": [
+        // uniqueness
+        { "name": "uniqueConstraint", type: "unique", keys: ["fieldName1", "fieldName2"] }
+    ]
+}
+```
 
 ## 🏗️ Use Case Examples
 
