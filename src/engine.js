@@ -51,23 +51,35 @@ const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TL
 const clientOptions = {
     maxPoolSize: databasePoolSize
 };
-// On ajoute les options TLS si elles sont activées
+
+// We add TLS options if enabled
 if (isTlsActive) {
     clientOptions.tls = true;
-    // Chemin vers le certificat de l'autorité de certification (pour faire confiance au serveur)
-    if (process.env.CA_CERT) {
-        clientOptions.tlsCAFile = process.env.CA_CERT;
+
+    // is mTLS ? (client certificate required instead of password)
+    if (process.env.CERT) {
+        clientOptions.secureContext = tls.createSecureContext({
+            ca: fs.readFileSync(process.env.CA_CERT),
+            cert: fs.readFileSync(process.env.CERT),
+            key: fs.readFileSync(process.env.CERT_KEY)
+        });
+    }else {
+        // Path to the authority certificate
+        if (process.env.CA_CERT) {
+            clientOptions.tlsCAFile = process.env.CA_CERT;
+        }
+        // Path to the certificate key
+        if (process.env.CERT_KEY) {
+            clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
+        }
     }
-    // Chemin vers le certificat et la clé du CLIENT (pour que le serveur vous fasse confiance)
-    if (process.env.CERT_KEY) {
-        clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
-    }
-    // Options pour le développement (à utiliser avec prudence)
     if (tlsAllowInvalidCertificates) {
         clientOptions.tlsAllowInvalidCertificates = true;
+        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidCertificates is ON. Server certificate will not be validated.");
     }
     if (tlsAllowInvalidHostnames) {
         clientOptions.tlsAllowInvalidHostnames = true;
+        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidHostnames is ON. Server hostname will not be validated.");
     }
 }
 
