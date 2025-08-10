@@ -405,6 +405,14 @@ export function conditionToApiSearchFilter(condition) {
 
 
 export const getFieldValueHash = (model, data) => {
+    // Prioritize composite unique constraints if they exist
+    const uniqueConstraints = model.constraints?.filter(c => c.type === 'unique') || [];
+
+    if (uniqueConstraints.length > 0) {
+        // Combine keys from all unique constraints to create a truly unique hash.
+        const constraintKeys = [...new Set(uniqueConstraints.flatMap(c => c.keys))];
+        return getObjectHash(data, constraintKeys, 'constraint');
+    }
     const uniqueFields = model.fields.filter(f => f.unique).map(m => m.name);
     const fs = model.fields.map(m => m.name);
     const fields = ['_model', '_user', ...(uniqueFields.length ? uniqueFields : fs)];

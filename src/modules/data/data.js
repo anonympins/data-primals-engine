@@ -11,7 +11,15 @@ import {randomColor} from "randomcolor";
 import cronstrue from 'cronstrue/i18n.js';
 import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {mkdir} from 'node:fs/promises';
-import {anonymizeText, getDefaultForType, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../../data.js";
+import {
+    anonymizeText,
+    checkForUniqueness,
+    getDefaultForType,
+    getFieldValueHash,
+    getUserId,
+    isDemoUser,
+    isLocalUser
+} from "../../data.js";
 import {
     allowedFields,
     dbName,
@@ -622,6 +630,25 @@ export function validateModelStructure(modelStructure) {
     // Vérification de chaque champ dans le tableau fields
     for (const field of modelStructure.fields) {
         validateField(field);
+    }
+
+    if (modelStructure.constraints) {
+        if (!Array.isArray(modelStructure.constraints)) {
+            throw new Error('Model "constraints" property must be an array.');
+        }
+        const fieldNames = new Set(modelStructure.fields.map(f => f.name));
+        for (const constraint of modelStructure.constraints) {
+            if (constraint.type === 'unique') {
+                if (!constraint.name || !Array.isArray(constraint.keys) || constraint.keys.length === 0) {
+                    throw new Error('Unique constraint must have a "name" and a non-empty "keys" array.');
+                }
+                for (const key of constraint.keys) {
+                    if (!fieldNames.has(key)) {
+                        throw new Error(`Constraint key "${key}" in constraint "${constraint.name}" does not exist as a field in the model.`);
+                    }
+                }
+            }
+        }
     }
 
     return true; // La structure du modèle est valide
@@ -3137,15 +3164,22 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
  * @returns {Promise<Array<string>>} IDs des documents insérés/trouvés
  */
 export const pushDataUnsecure = async (data, modelName, me, files = {}) => {
-
     try {
         // 1. Initialisation et validation
         const {datas, model, collection} = await initializeAndValidate(data, modelName, me);
         if (datas.length === 0) {
             return [];
         }
-        // 2. Vérification des limites
-        await checkLimits(datas, model, collection, me);
+
+        // 2. Vérification des limites (en parallèle avec les contraintes)
+        const [_, violations] = await Promise.all([
+            checkLimits(datas, model, collection, me),
+            checkCompositeUniqueConstraints(datas, model, collection, me)
+        ]);
+
+        if (violations.length > 0) {
+            throw new Error(`Violation of unique constraints :\n${violations.join('\n')}`);
+        }
 
         // 3. Traitement des documents
         const {allInsertedIds, idMap} = await processDocuments(datas, model, collection, me);
@@ -3159,7 +3193,89 @@ export const pushDataUnsecure = async (data, modelName, me, files = {}) => {
     }
 };
 
-// ===== FONCTIONS AUXILIAIRES =====
+async function checkCompositeUniqueConstraints(datas, model, collection, user) {
+    if (!model.constraints?.length) return [];
+
+    const uniqueConstraints = model.constraints.filter(c => c.type === 'unique' && c.keys?.length);
+    if (!uniqueConstraints.length) return [];
+
+    // Préparation des vérifications
+    const violations = [];
+    const userId = user._user || user.username;
+
+    // Paralléliser par contrainte
+    await Promise.all(uniqueConstraints.map(async (constraint) => {
+        // Vérifier les champs de la contrainte
+        const invalidFields = constraint.keys.filter(key =>
+            !model.fields.some(f => f.name === key)
+        );
+
+        if (invalidFields.length) {
+            violations.push(`Fields used in constraint [${invalidFields.join(', ')}] '${constraint.name}' are inexistant.`);
+            return;
+        }
+
+        // Batch processing des documents (500 max)
+        const batchSize = 50;
+        for (let i = 0; i < datas.length; i += batchSize) {
+            const batch = datas.slice(i, i + batchSize);
+
+            // Créer toutes les requêtes pour ce batch
+            const queries = batch.flatMap(doc => {
+                const compositeKey = {};
+                let hasNull = false;
+
+                for (const key of constraint.keys) {
+                    if (doc[key] == null) {
+                        hasNull = true;
+                        break;
+                    }
+                    compositeKey[key] = doc[key];
+                }
+
+                return hasNull ? [] : [{
+                    collection,
+                    query: {
+                        ...compositeKey,
+                        _model: model.name,
+                        _user: userId
+                    }
+                }];
+            });
+
+            // Exécution en parallèle avec $or pour réduire les appels
+            if (queries.length) {
+                const matchingDocs = await collection.find({
+                    $or: queries.map(q => q.query)
+                }).toArray();
+
+                if (matchingDocs.length) {
+                    // Créer un Set des clés existantes pour recherche rapide
+                    const existingKeys = new Set(
+                        matchingDocs.map(doc =>
+                            constraint.keys.map(k => doc[k]).join('|')
+                        )
+                    );
+
+                    // Vérifier chaque document du batch
+                    batch.forEach(doc => {
+                        const keyValues = constraint.keys.map(k => doc[k]);
+                        if (keyValues.every(v => v != null)) {
+                            const compositeKey = keyValues.join('|');
+                            if (existingKeys.has(compositeKey)) {
+                                violations.push(
+                                    `[${constraint.name}] Existing data : ${constraint.keys.map((k, i) => `${k}=${keyValues[i]}`).join(', ')}`
+                                );
+                            }
+                        }
+                    });
+                }
+            }
+        }
+    }));
+
+    return violations;
+}
 
 /**
  * Initialise et valide les paramètres d'entrée
