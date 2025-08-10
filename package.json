@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@langchain/core": "^0.3.66",
+    "@langchain/deepseek": "^0.1.0",
     "@langchain/google-genai": "^0.2.16",
     "@langchain/openai": "^0.6.3",
     "archiver": "^7.0.1",
