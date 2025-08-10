@@ -1,5 +1,6 @@
 .model-creator {
   flex: 1;
+  width: 100%;
   max-width: 720px;
   form {
     padding: 0;
@@ -31,6 +32,9 @@
     border-radius: 8px;
     padding: 16px 8px;
     @media only screen and (min-width: 768px) {
+      padding: 1rem; // Plus d'espace intérieur
+    }
+    @media only screen and (min-width: 1024px) {
       padding: 1.5rem; // Plus d'espace intérieur
     }
     margin-bottom: 1.5rem; // Plus d'espace entre les champs
@@ -129,8 +133,17 @@
 
 .model-form-container {
   flex: 1; // Le formulaire prend le reste de la place
+  > .field {
+    box-sizing: border-box;
+    margin-bottom: 28px;
+  }
 }
 
+.actions.right {
+  margin-right: 0;
+  margin-left: auto;
+  width: fit-content;
+}
 // Styles pour la zone de prompt de l'IA
 .ai-prompt-container {
   background-color: #f8f9fa;
