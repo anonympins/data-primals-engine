@@ -61,7 +61,6 @@ import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
 
 import { Tooltip } from 'react-tooltip';
-import {availableLangs} from "data-primals-engine/constants";
 
 let queryClient = new QueryClient();
 

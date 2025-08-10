@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from 'react-query';
 import { useModelContext } from './contexts/ModelContext.jsx';
 import { TextField } from './Field.jsx';
 import { useAuthContext } from './contexts/AuthContext.jsx';
-import { getDataAsString, getUserId } from 'data-primals-engine/data';
+import { getDataAsString } from '../../src/data.js';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import Button from './Button.jsx';
 import { mainFieldsTypes } from "../../src/constants.js";

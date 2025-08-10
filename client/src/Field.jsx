@@ -33,9 +33,7 @@ import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
-import CodeMirror, {basicSetup} from "@uiw/react-codemirror";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-import {maxStringLength} from "data-primals-engine/constants";
 
 export const Form = ({
   name,

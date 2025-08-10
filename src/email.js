@@ -75,9 +75,9 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
 
     try {
         await Promise.all(sendPromises);
-        console.log(`Email(s) envoyé(s) avec succès à: ${emails.join(', ')}`);
+        console.log(`Email(s) sent successfully to : ${emails.join(', ')}`);
     } catch (error) {
-        console.error("Erreur lors de l'envoi d'un ou plusieurs emails :", error);
+        console.error("Error when sending to one ore more emails :", error);
         // Vous pouvez relancer l'erreur si vous voulez que l'appelant la gère
         throw error;
     }

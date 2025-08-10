@@ -1,6 +1,6 @@
 import { expect, describe, it, beforeEach, beforeAll, afterAll } from 'vitest';
 import { hasPermission, getUserActivePermissions } from '../src/modules/user.js';
-import {initEngine} from "data-primals-engine/setenv";
+import {initEngine} from "../src/setenv";
 import {generateUniqueName} from "../src/setenv.js";
 import {
     getCollectionForUser as getAppUserCollection,

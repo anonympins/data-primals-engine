@@ -168,11 +168,11 @@ export const Engine = {
                 const moduleJsPath = path.join(moduleDir, `${moduleName}.js`);
 
                 if (fs.existsSync(jsPath)) {
-                    moduleEntryPoint = jsPath;
+                    moduleEntryPoint = 'file://'+jsPath;
                 } else if (fs.existsSync(indexJsPath)) {
-                    moduleEntryPoint = indexJsPath;
+                    moduleEntryPoint = 'file://'+indexJsPath;
                 } else if (fs.existsSync(moduleJsPath)) {
-                    moduleEntryPoint = moduleJsPath;
+                    moduleEntryPoint = 'file://'+moduleJsPath;
                 }
 
                 return await importModule(moduleEntryPoint);
@@ -181,6 +181,7 @@ export const Engine = {
                 return null;
             }
         })).then(async results => {
+            console.log(results)
             // On filtre les modules qui n'ont pas pu être chargés
             engine._modules = results.filter(Boolean);
             return Promise.resolve();

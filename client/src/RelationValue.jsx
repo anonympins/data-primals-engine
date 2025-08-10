@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { useModelContext } from './contexts/ModelContext.jsx';
-import {getDataAsString, getUserId} from 'data-primals-engine/data';
+import {getDataAsString, getUserId} from '../../src/data.js';
 import { Trans, useTranslation } from 'react-i18next';
 import {Dialog, DialogProvider} from './Dialog.jsx';
 import {FaMagnifyingGlass} from "react-icons/fa6";

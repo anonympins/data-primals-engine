@@ -1295,7 +1295,7 @@ export async function onInit(defaultEngine) {
         "$rand",
         "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
         "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
-        "$dateSubtract", "$dateAdd", "$dateToString",
+        "$dateDiff", "$dateSubtract", "$dateAdd", "$dateToString",
         '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
     ]}));
 
@@ -3688,8 +3688,6 @@ export const editData = async (modelName, filter, data, files, user, triggerWork
     return await internalEditOrPatchData(modelName, filter, data, files, user, false, triggerWorkflow, waitForWorkflow);
 };
 
-// Dans src/modules/data.js
-
 const internalEditOrPatchData = async (modelName, filter, data, files, user, isPatch, triggerWorkflow = true, waitForWorkflow = false) => {
     try {
         // 1. Vérification des permissions
@@ -3943,7 +3941,6 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
 
         }
 
-        console.log(util.inspect(findFilter, false, 8, true));
         // 2. Récupérer les documents à supprimer pour vérifier leur type et annuler les schedules
         const documentsToDelete = await collection.aggregate([{ $match: { $expr: { "$and": findFilter } } }]).toArray();
 
@@ -4547,7 +4544,6 @@ export const searchData = async (query, user) => {
             } else if (fi.type === 'array') {
                 // Handle array filtering here
                 if (data[fi.name]) {
-                    console.log('array filtering', data[fi.name]);
                     pipelines.push({
                         $match: {
                             $expr: {
@@ -4583,7 +4579,6 @@ export const searchData = async (query, user) => {
 
     let pipelines = [];
     if( allIds.length ){
-        console.log({allIds});
         const id = {$in: ["$_id", allIds.map(m => new ObjectId(m))]};
         pipelines.push({
             $match: { $expr: id }

@@ -22,7 +22,7 @@ import { dumpUserData, loadFromDump } from '../src/index.js';
 import fs from "node:fs";
 import {initEngine} from "../src/setenv.js";
 
-vi.mock('data-primals-engine/engine', async(importOriginal) => {
+vi.mock('../src/engine', async(importOriginal) => {
     const mod = await importOriginal() // type is inferred
     return {
         ...mod

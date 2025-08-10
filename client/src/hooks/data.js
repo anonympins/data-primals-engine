@@ -1,10 +1,8 @@
 import {useQuery} from "react-query";
-import {getObjectHash} from "data-primals-engine/core";
 import {useAuthContext} from "../contexts/AuthContext.jsx";
-import {getUserHash, getUserId} from "../../../src/data";
+import {getUserId} from "../../../src/data";
 import {useTranslation} from "react-i18next";
 import {useEffect, useState} from "react";
-import {useUI} from "../contexts/UIContext.jsx";
 import {useNotificationContext} from "../NotificationProvider.jsx";
 
 export const useData = (model, filter, options) => {

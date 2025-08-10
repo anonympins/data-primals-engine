@@ -1,4 +1,4 @@
-import {getModels} from "./modules/data";
+import {getModels} from "./modules/data/index.js";
 
 
 /*

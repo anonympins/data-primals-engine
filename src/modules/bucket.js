@@ -3,7 +3,7 @@ import AWS from "aws-sdk";
 import fs from "node:fs";
 import path from "node:path";
 import {decryptValue, encryptValue} from "../data.js";
-import {loadFromDump, validateRestoreRequest} from "./data";
+import {loadFromDump, validateRestoreRequest} from "./data/index.js";
 import {Logger} from "../gameObject.js";
 import {middlewareAuthenticator, userInitiator} from "./user.js";
 import {awsDefaultConfig, maxBytesPerSecondThrottleData} from "../constants.js";
@@ -211,9 +211,9 @@ export const deleteFromS3 = async (s3Config, remoteFilename) => {
 
     try {
         await s3.deleteObject(params).promise();
-        console.log(`Fichier supprimé avec succès de S3 : ${bucketPath}`);
+        console.log(`File successfully removed from S3 : ${bucketPath}`);
     } catch (err) {
-        console.error("Erreur lors de la suppression sur S3 :", err);
+        console.error("Error when deleting S3 file :", err);
         throw err;
     }
 };

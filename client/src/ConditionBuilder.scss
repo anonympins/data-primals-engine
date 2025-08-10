@@ -694,3 +694,36 @@
   margin-bottom: 4px;
   color: #555;
 }
+.field-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toggle-date-mode {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-date-mode:hover {
+  color: #333;
+}
+
+input[type="datetime-local"] {
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
