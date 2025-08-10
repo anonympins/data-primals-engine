@@ -1295,7 +1295,7 @@ export async function onInit(defaultEngine) {
         "$rand",
         "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
         "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
-        "$dateSubtract", "$dateAdd", "$dateToString",
+        "$dateDiff", "$dateSubtract", "$dateAdd", "$dateToString",
         '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
     ]}));
 

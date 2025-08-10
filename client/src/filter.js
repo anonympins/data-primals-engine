@@ -62,6 +62,93 @@ export const MONGO_CALC_OPERATORS = {
     $minute: { label: 'minute', multi: false, isDate: true },
     $second: { label: 'second', multi: false, isDate: true },
     $millisecond: { label: 'ms', multi: false, isDate: true },
+    // Date operators
+    $dateAdd: {
+        label: 'Add to date',
+        description: 'Adds a duration to a date',
+        isDate: true,
+        specialStructure: true,
+        args: [
+            { name: 'startDate', label: 'Start Date', type: 'date' },
+            { name: 'unit', label: 'Unit', type: 'select', options: ['year', 'month', 'day', 'hour', 'minute', 'second'] },
+            { name: 'amount', label: 'Amount', type: 'number' },
+            { name: 'timezone', label: 'Timezone', type: 'text', optional: true }
+        ]
+    },
+    $dateSubtract: {
+        label: 'Subtract from date',
+        description: 'Subtracts a duration from a date',
+        isDate: true,
+        specialStructure: true,
+        args: [
+            { name: 'startDate', label: 'Start Date', type: 'date' },
+            { name: 'unit', label: 'Unit', type: 'select', options: ['year', 'month', 'day', 'hour', 'minute', 'second'] },
+            { name: 'amount', label: 'Amount', type: 'number' },
+            { name: 'timezone', label: 'Timezone', type: 'text', optional: true }
+        ]
+    },
+    $dateDiff: {
+        label: 'Date Difference',
+        description: 'Calculates the difference between two dates in specified units',
+        isDate: true,
+        specialStructure: true,
+        args: [
+            {
+                name: 'startDate',
+                label: 'Start Date',
+                type: 'date',
+                description: 'The starting date (inclusive)'
+            },
+            {
+                name: 'endDate',
+                label: 'End Date',
+                type: 'date',
+                description: 'The ending date (exclusive)'
+            },
+            {
+                name: 'unit',
+                label: 'Unit',
+                type: 'select',
+                options: ['year', 'month', 'week', 'day', 'hour', 'minute', 'second'],
+                description: 'The unit for the result'
+            },
+            {
+                name: 'timezone',
+                label: 'Timezone',
+                type: 'text',
+                optional: true,
+                description: 'The timezone (e.g. "Europe/Paris")'
+            }
+        ]
+    },
+    $dateToString: {
+        label: 'Format date as string',
+        description: 'Formats a date as a string',
+        isDate: true,
+        specialStructure: true,
+        args: [
+            {
+                name: 'date',
+                label: 'Date',
+                type: 'date'
+            },
+            {
+                name: 'format',
+                label: 'Format',
+                optional: true,
+                type: 'text'
+            },
+            {
+                name: 'timezone',
+                label: 'Timezone',
+                type: 'text',
+                optional: true,
+                description: 'The timezone (e.g. "Europe/Paris")'
+            }
+        ]
+    },
+
+    // Converters
     $toBool: { label: 'toBool', multi: false, converter: true },
     $toString: { label: 'toString', multi: false, converter: true },
     $toInt: { label: 'toInt', multi: false, converter: true },
