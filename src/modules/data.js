@@ -202,7 +202,6 @@ export const dataTypes = {
     },
     code: {
         validate: (value, field) => {
-            console.log(field,typeof(value));
             return value === null || (field.language === 'json' && typeof(value) === 'object') || (typeof value === 'string' && (field.maxlength === undefined || field.maxlength <= 0 || value.length <= field.maxlength));
         },
         filter: async (value, field) => {
@@ -2014,7 +2013,6 @@ export async function onInit(defaultEngine) {
                         .limit(maxModelsPerUser).toArray());
             res.json(models);
         } catch (error) {
-            console.log(error);
             logger.error(error);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -2340,15 +2338,6 @@ export async function onInit(defaultEngine) {
             res.json({ success: true, value: resultValue, totalCount: totalCount });
 
         } catch (error) { // <--- CATCH PRINCIPAL
-            // --- Log de l'erreur BRUTE interceptée ---
-            console.log('--- CATCH PRINCIPAL - RAW ERROR OBJECT ---');
-            console.log('Type:', typeof error);
-            console.log('Instance of Error:', error instanceof Error);
-            console.log('Error Object:', error); // Affiche la structure brute
-            console.log('Error Message:', error?.message);
-            console.log('Error Stack:', error?.stack);
-            console.log('--- END CATCH PRINCIPAL ---');
-            // --- Fin Log ---
 
             // Tentative de log via le logger standard (qui peut encore échouer si l'erreur est vraiment étrange)
             try {
@@ -5923,10 +5912,7 @@ export async function installPack(packId, user, lang) {
 
 
 export const installAllPacks = async () => {
-
     const packs = await getAllPacks();
-
-    console.log(util.inspect(packs, false, 20, true));
     await packsCollection.deleteMany({ _user: { $exists : false }});
     await packsCollection.insertMany(packs);
 }

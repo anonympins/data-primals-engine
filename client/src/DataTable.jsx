@@ -685,7 +685,6 @@ export function DataTable({
                     />
                     <ExportDialog isOpen={showExportDialog} onClose={() => {
                         setExportDialogVisible(false);
-                        console.log("close")
                     }} availableModels={models} currentModel={selectedModel.name} hasSelection={true} onExport={(data)=>{
                         exportMutation(data);
                     }} />

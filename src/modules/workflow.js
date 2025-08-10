@@ -1174,7 +1174,6 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
 
 
                         console.debug(`[Workflow Trigger] Vérification dataFilter pour trigger ${trigger._id} avec filtre combiné:`, JSON.stringify(finalFilter));
-                        console.log({triggerData, finalFilter});
                         const match = await searchData({ model: triggerData._model, filter: finalFilter, limit: 1 }, user);
                         if (!match.count) {
                             console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
@@ -1358,7 +1357,6 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (!isObjectId(actionId)) continue;
                             const actionDef = await dbCollection.findOne({ _id: new ObjectId(actionId), _model: 'workflowAction' });
                             if (!actionDef) return await logError(`Action definition ${actionId} not found.`);
-                            console.log({actionDef});
                             const actionResult = await workflowModule.executeStepAction(actionDef, contextData, user, dbCollection);
 
                             if (actionResult.status === 'paused') {

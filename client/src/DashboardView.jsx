@@ -85,7 +85,6 @@ export function DashboardView({ dashboard }) {
         (newLayout) => updateDashboardLayout(dashboard, newLayout, me.username, t),
         {
             onMutate: async (newLayout) => {
-                console.log("Optimi stic update:", newLayout);
                 const previousLayout = layoutState;
                 setLayoutState(newLayout);
                 return { previousLayout };
