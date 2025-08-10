@@ -1,4 +1,4 @@
-import {Logger} from "../gameObject.js";
+import {Logger} from "../../gameObject.js";
 import {BSON, ObjectId} from "mongodb";
 import * as util from 'node:util';
 import {promisify} from 'node:util';
@@ -9,9 +9,9 @@ import * as tar from "tar";
 import process from "node:process";
 import {randomColor} from "randomcolor";
 import cronstrue from 'cronstrue/i18n.js';
-import {setTimeoutMiddleware} from '../middlewares/timeout.js';
+import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {mkdir} from 'node:fs/promises';
-import {anonymizeText, getDefaultForType, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../data.js";
+import {anonymizeText, getDefaultForType, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../../data.js";
 import {
     allowedFields,
     dbName,
@@ -36,7 +36,7 @@ import {
     optionsSanitizer,
     searchRequestTimeout,
     storageSafetyMargin
-} from "../constants.js";
+} from "../../constants.js";
 import {
     getCollection,
     getCollectionForUser,
@@ -44,43 +44,43 @@ import {
     isObjectId,
     modelsCollection,
     packsCollection
-} from "./mongodb.js";
-import {dbUrl, MongoClient, MongoDatabase} from "../engine.js";
+} from "../mongodb.js";
+import {dbUrl, MongoClient, MongoDatabase} from "../../engine.js";
 import path from "node:path";
-import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sleep, uuidv4} from "../core.js";
-import {Event} from "../events.js";
+import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sleep, uuidv4} from "../../core.js";
+import {Event} from "../../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
-import {middleware} from "../middlewares/middleware-mongodb.js";
-import i18n from "../i18n.js";
+import {middleware} from "../../middlewares/middleware-mongodb.js";
+import i18n from "../../i18n.js";
 import {
     executeSafeJavascript, processWorkflowRun,
     runScheduledJobWithDbLock,
     scheduleWorkflowTriggers,
     triggerWorkflows
-} from "./workflow.js";
+} from "../workflow.js";
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
-import {openaiJobModel} from "../openai.jobs.js";
+import {openaiJobModel} from "../../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
 import {fileURLToPath} from 'url';
 import {Worker} from 'worker_threads';
-import {addFile, encryptFile, removeFile} from "./file.js";
-import {downloadFromS3, getS3Stream, getUserS3Config, listS3Backups, uploadToS3} from "./bucket.js";
+import {addFile, encryptFile, removeFile} from "../file.js";
+import {downloadFromS3, getS3Stream, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
 import {
     calculateTotalUserStorageUsage,
     generateLimiter,
     hasPermission,
     middlewareAuthenticator,
     userInitiator
-} from "./user.js";
-import {assistantGlobalLimiter} from "./assistant.js";
-import {getAllPacks} from "../packs.js";
-import {throttleMiddleware} from "../middlewares/throttle.js";
-import {Config} from "../config.js";
-import {profiles} from "../../client/src/constants.js";
-import {processFilterPlaceholders} from "../../client/src/filter.js";
-import {tutorialsConfig} from "../../client/src/tutorials.js";
+} from "../user.js";
+import {assistantGlobalLimiter} from "../assistant.js";
+import {getAllPacks} from "../../packs.js";
+import {throttleMiddleware} from "../../middlewares/throttle.js";
+import {Config} from "../../config.js";
+import {profiles} from "../../../client/src/constants.js";
+import {processFilterPlaceholders} from "../../../client/src/filter.js";
+import {tutorialsConfig} from "../../../client/src/tutorials.js";
 
 // Obtenir le chemin du répertoire courant de manière fiable avec ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -535,7 +535,7 @@ export const getAPILang = (langs) => {
  */
 function runImportExportWorker(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(__dirname, '../workers/import-export-worker.js');
+        const workerPath = path.resolve(process.cwd(), './src/workers/import-export-worker.js');
         const worker = new Worker(workerPath);
 
         worker.postMessage({ action, payload });
@@ -570,7 +570,7 @@ function runImportExportWorker(action, payload) {
  */
 function runCryptoWorkerTask(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(__dirname, '../workers/crypto-worker.js');
+        const workerPath = path.resolve(process.cwd(), './src/workers/crypto-worker.js');
         const worker = new Worker(workerPath);
 
         worker.postMessage({ action, payload });

@@ -5,7 +5,7 @@ import { Logger } from "../gameObject.js";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import {searchData,  patchData, deleteData, insertData} from "./data.js";
+import {searchData,  patchData, deleteData, insertData} from "./data";
 import { getDataAsString } from "../data.js";
 import i18n from "../../src/i18n.js";
 import {generateLimiter} from "./user.js";

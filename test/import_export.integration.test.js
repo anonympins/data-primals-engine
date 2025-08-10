@@ -10,12 +10,11 @@ import {
 import {
     modelsCollection as getAppModelsCollection,
     getCollectionForUser as getAppUserCollection, getCollectionForUser
-} from 'data-primals-engine/modules/mongodb';
+} from '../src/modules/mongodb.js';
 import {sleep} from "data-primals-engine/core";
 import fs from "node:fs";
-import {getUniquePort, initEngine} from "../src/setenv.js";
+import {initEngine} from "../src/setenv.js";
 import {Config} from "../src/index.js";
-import {ObjectId} from "mongodb";
 
 // --- Données Mock ---
 const mockUser = {

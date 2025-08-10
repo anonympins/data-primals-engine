@@ -1,7 +1,7 @@
 // events.test.js
 import { Event } from '../src/events.js';
 import {vitest} from "vitest";
-import {expect, describe, it, beforeEach, beforeAll, afterAll} from 'vitest';
+import {expect, describe, it, beforeEach} from 'vitest';
 
 describe('Event System', () => {
     beforeEach(() => {

@@ -3,7 +3,7 @@ import AWS from "aws-sdk";
 import fs from "node:fs";
 import path from "node:path";
 import {decryptValue, encryptValue} from "../data.js";
-import {loadFromDump, validateRestoreRequest} from "./data.js";
+import {loadFromDump, validateRestoreRequest} from "./data";
 import {Logger} from "../gameObject.js";
 import {middlewareAuthenticator, userInitiator} from "./user.js";
 import {awsDefaultConfig, maxBytesPerSecondThrottleData} from "../constants.js";

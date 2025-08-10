@@ -1,13 +1,13 @@
 // __tests__/data.integration.test.js
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeEach, afterEach, beforeAll, afterAll, vi} from 'vitest';
+import {expect, describe, it, beforeAll} from 'vitest';
 import { Config } from '../src/config.js';
 
 import {
     getCollection // Accès direct pour vérifications
-} from 'data-primals-engine/modules/mongodb';
+} from '../src/modules/mongodb.js';
 import {generateUniqueName, initEngine} from "../src/setenv.js";
-import {editModel} from "../src/modules/data.js";
+import {editModel} from "../src/index.js";
 import {getCollectionForUser} from "../src/modules/mongodb.js";
 
 let testModelsColInstance;

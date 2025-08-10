@@ -1,4 +1,3 @@
-// Exemple conceptuel dans la fonction de planification
 import {getCollection, getCollectionForUser, isObjectId} from "./mongodb.js";
 import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
@@ -7,8 +6,8 @@ import crypto from "node:crypto";
 import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
-import {deleteData, insertData, patchData, searchData} from "./data.js";
-import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps, timeoutVM} from "../constants.js";
+import {deleteData, insertData, patchData, searchData} from "./data";
+import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
@@ -16,7 +15,6 @@ import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
-import {isConditionMet} from "../filter.js";
 import util from "node:util";
 
 let logger = null;

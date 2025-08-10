@@ -1,20 +1,16 @@
-// __tests__/workflow.integration.test.js
 import { expect, describe, it, beforeEach,afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { Config } from "data-primals-engine/config";
 
-import {insertData, editData, deleteData, patchData} from 'data-primals-engine/modules/data';
-import { modelsCollection as getAppModelsCollection, getCollectionForUser } from 'data-primals-engine/modules/mongodb';
-import * as workflowModule from 'data-primals-engine/modules/workflow';
-import {getUniquePort, initEngine} from "../src/setenv.js";
-import process from "process";
-import {getUserCollectionName} from "../src/modules/mongodb.js";
-
+import {insertData, editData, deleteData, patchData} from '../src/index.js';
+import { modelsCollection as getAppModelsCollection, getCollectionForUser } from '../src/modules/mongodb.js';
+import * as workflowModule from '../src/modules/workflow.js';
+import {initEngine} from "../src/setenv.js";
 
 beforeAll(async () =>{
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
 })
-vi.mock('data-primals-engine/modules/workflow', { spy: true })
+vi.mock('../src/modules/workflow.js', { spy: true })
 // --- Données Mock pour les tests ---
 const mockUser = {
     username: 'testuserWorkflow',

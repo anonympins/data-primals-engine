@@ -10,6 +10,6 @@ export { UserProvider } from './providers.js';
 
 // --- Database & Data Modules ---
 export { datasCollection, filesCollection, modelsCollection, packsCollection } from './modules/mongodb.js';
-export { searchData, insertData, editData, exportData, importData, scheduleAlerts, cancelAlerts, validateModelStructure, installPack, jobDumpUserData, loadFromDump, dumpUserData, validateRestoreRequest, patchData, deleteData, createModel, editModel, deleteModels, getModel, getModels } from './modules/data.js';
+export { searchData, insertData, editData, exportData, importData, scheduleAlerts, cancelAlerts, validateModelStructure, installPack, jobDumpUserData, loadFromDump, dumpUserData, validateRestoreRequest, patchData, deleteData, createModel, editModel, deleteModels, getModel, getModels } from './modules/data/index.js';
 
 
