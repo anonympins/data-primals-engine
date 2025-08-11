@@ -315,7 +315,7 @@ curl -X DELETE http://localhost:7633/api/data?_user=demo \
 Make sure you use the code below to initialize the user : 
 ```javascript
 import express from "express";
-import {Engine, insertData, searchData } from './src/index';
+import {Engine, insertData, searchData } from 'data-primals-engine';
 
 // Ensure the engine is initialized
 
