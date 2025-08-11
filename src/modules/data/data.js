@@ -78,7 +78,7 @@ import {getAllPacks} from "../../packs.js";
 import {Config} from "../../config.js";
 import {profiles} from "../../../client/src/constants.js";
 import {registerRoutes, sendSseToUser} from "./data.routes.js";
-import {importJobs, modelsCache, mongoDBWhitelist} from "./data.core.js";
+import {importJobs, modelsCache, mongoDBWhitelist, runCryptoWorkerTask, runImportExportWorker} from "./data.core.js";
 import readXlsxFile from "read-excel-file/node";
 
 let engine;
@@ -500,75 +500,6 @@ export const getAPILang = (langs) => {
     }, []).sort(((p,r) => p.quality < r.quality ? 1 : -1))?.[0].lang.split(/[-_]/)?.[0];
 }
 
-/**
- * Exécute une tâche d'import/export (parsing, stringify) dans un worker thread.
- * @param {('parse-json'|'parse-csv'|'stringify-json')} action - L'action à effectuer.
- * @param {object} payload - Les données nécessaires pour l'action.
- * @returns {Promise<any>} - Une promesse qui se résout avec les données traitées.
- */
-function runImportExportWorker(action, payload) {
-    return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(process.cwd(), './src/workers/import-export-worker.js');
-        const worker = new Worker(workerPath);
-
-        worker.postMessage({ action, payload });
-
-        worker.on('message', (result) => {
-            if (result.success) {
-                resolve(result.data);
-            } else {
-                // Correction : On s'assure de toujours passer une chaîne de caractères à new Error()
-                const errorMessage = result.error || `Import/Export Worker failed with an unknown error. Action: ${action}.`;
-                reject(new Error(errorMessage));
-            }
-            worker.terminate();
-        });
-
-        worker.on('error', (err) => {
-            reject(err);
-            worker.terminate();
-        });
-
-        worker.on('exit', (code) => {
-            if (code !== 0) {
-                reject(new Error(`Import/Export Worker stopped with exit code ${code}`));
-            }
-        });
-    });
-}
-/** Exécute une tâche de cryptographie dans un worker thread.
- * @param {('encrypt'|'decrypt'|'hash')} action - L'action à effectuer.
- * @param {object} payload - Les données nécessaires pour l'action.
- * @returns {Promise<any>} - Une promesse qui se résout avec le résultat (si pertinent).
- */
-function runCryptoWorkerTask(action, payload) {
-    return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(process.cwd(), './src/workers/crypto-worker.js');
-        const worker = new Worker(workerPath);
-
-        worker.postMessage({ action, payload });
-
-        worker.on('message', (result) => {
-            if (result.success) {
-                resolve(result.data); // Résout avec les données (ex: le hash) ou undefined si pas de retour
-            } else {
-                reject(new Error(result.error));
-            }
-            worker.terminate();
-        });
-
-        worker.on('error', (err) => {
-            reject(err);
-            worker.terminate();
-        });
-
-        worker.on('exit', (code) => {
-            if (code !== 0) {
-                reject(new Error(`Crypto Worker stopped with exit code ${code}`));
-            }
-        });
-    });
-}
 
 export function validateModelStructure(modelStructure) {
 
