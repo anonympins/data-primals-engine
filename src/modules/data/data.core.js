@@ -13,3 +13,5 @@ export const mongoDBWhitelist = [
     "$dateDiff", "$dateSubtract", "$dateAdd", "$dateToString",
     '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
 ];
+export let importJobs = {};
+
