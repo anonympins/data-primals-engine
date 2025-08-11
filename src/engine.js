@@ -21,10 +21,14 @@ import sirv from "sirv";
 import * as tls from "node:tls";
 import {Event} from "./events.js";
 import path from "node:path";
-import {isPathRelativeTo, isValidPath} from "./core.js";
-
+import { fileURLToPath } from 'node:url';
 // Constants
-const isProduction = process.env.NODE_ENV === 'production'
+
+// On définit __dirname pour obtenir le chemin absolu du répertoire courant,
+// ce qui est la méthode standard en ES Modules.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 let caFile, certFile, keyFile;
 try {
@@ -157,46 +161,47 @@ export const Engine = {
             }
         };
 
-        await Promise.all(Config.Get('modules', []).map(async moduleIdentifier => {
+        engine._modules = [];
+        for (const moduleIdentifier of Config.Get('modules', [])) {
             try {
                 let moduleDir;
                 const moduleName = path.basename(moduleIdentifier);
 
                 const directPath = path.resolve(moduleIdentifier);
                 let isDir = fs.existsSync(directPath) && fs.statSync(directPath).isDirectory();
+
                 if (isDir) {
                     moduleDir = directPath;
-                    if (!fs.existsSync(moduleDir) || !fs.statSync(moduleDir).isDirectory()) {
-                        logger.warn(`Le dossier du module est introuvable pour l'identifiant : '${moduleIdentifier}'. Chemin cherché : '${moduleDir}'.`);
-                        return null;
-                    }
                 } else {
-                    moduleDir = path.resolve('./src/modules', moduleIdentifier);
+                    moduleDir = path.resolve(__dirname, 'modules', moduleIdentifier);
                 }
 
                 let moduleEntryPoint;
-                const jsPath = moduleDir+'.js';
+                const jsPath = moduleDir + '.js';
                 const indexJsPath = path.join(moduleDir, 'index.js');
                 const moduleJsPath = path.join(moduleDir, `${moduleName}.js`);
 
                 if (fs.existsSync(jsPath)) {
-                    moduleEntryPoint = 'file://'+jsPath;
+                    moduleEntryPoint = 'file://' + jsPath;
                 } else if (fs.existsSync(indexJsPath)) {
-                    moduleEntryPoint = 'file://'+indexJsPath;
+                    moduleEntryPoint = 'file://' + indexJsPath;
                 } else if (fs.existsSync(moduleJsPath)) {
-                    moduleEntryPoint = 'file://'+moduleJsPath;
+                    moduleEntryPoint = 'file://' + moduleJsPath;
                 }
 
-                return await importModule(moduleEntryPoint);
+                if (moduleEntryPoint) {
+                    const loadedModule = await importModule(moduleEntryPoint);
+                    if (loadedModule) {
+                        engine._modules.push(loadedModule);
+                    }
+                } else {
+                    logger.warn(`Aucun point d'entrée trouvé pour le module '${moduleIdentifier}'.`);
+                }
             } catch (e) {
                 logger.error(`Échec du chargement du module '${moduleIdentifier}':`, e.stack);
                 return null;
             }
-        })).then(async results => {
-            // On filtre les modules qui n'ont pas pu être chargés
-            engine._modules = results.filter(Boolean);
-            return Promise.resolve();
-        });
+        }
 
         let server;
 

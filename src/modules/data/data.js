@@ -1353,6 +1353,7 @@ export async function onInit(defaultEngine) {
         packsCollection = getCollection("packs");
     }
     await registerRoutes(engine);
+    logger = engine.getComponent(Logger);
 
     // set backup scheduler
     schedule.scheduleJob("0 2 * * *", jobDumpUserData);
@@ -1364,8 +1365,6 @@ export async function onInit(defaultEngine) {
         dt.setTime(dt.getTime()-1000*3600*24*14);
         await deleteData("request", {"$lt": ["$timestamp",dt.toISOString()]}, null, false);
     });
-    await scheduleWorkflowTriggers();
-
     await scheduleAlerts();
 
 }

@@ -10,15 +10,12 @@ export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
-    const isProduction = process.env.NODE_ENV === 'production'
-
-    modelsCollection = MongoDatabase.collection("models");
-    datasCollection = MongoDatabase.collection("datas");
-    filesCollection = MongoDatabase.collection("files");
-    packsCollection = MongoDatabase.collection("packs");
+    modelsCollection = getCollection("models");
+    datasCollection = getCollection("datas");
+    filesCollection = getCollection("files");
+    packsCollection = getCollection("packs");
 
     logger.info("MongoDB collections loaded.");
-
 };
 
 
