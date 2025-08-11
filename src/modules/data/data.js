@@ -1,6 +1,6 @@
 import {Logger} from "../../gameObject.js";
 import {BSON, ObjectId} from "mongodb";
-import {promisify} from 'node:util';
+import util, {promisify} from 'node:util';
 import crypto from "node:crypto";
 import {exec, execFile} from 'node:child_process';
 import sanitizeHtml from 'sanitize-html';
@@ -67,7 +67,6 @@ import {
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
 import checkDiskSpace from "check-disk-space";
-import {Worker} from 'worker_threads';
 import {addFile,  removeFile} from "../file.js";
 import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
 import {
@@ -2044,15 +2043,15 @@ async function insertAndResolveRelations(doc, model, collection, me, idMap) {
         if (field.type === 'relation' && field.relationFilter && docToProcess[field.name]) {
             const relatedIds = Array.isArray(docToProcess[field.name]) ? docToProcess[field.name] : [docToProcess[field.name]];
             for (const id of relatedIds) {
-                const targetCollection = await getCollectionForUser(me, field.targetModel);
                 const validationQuery = {
-                    _id: new ObjectId(id), // L'ID doit correspondre
-                    ...field.relationFilter // ET le document doit respecter le filtre
+                    "$and":[
+                        {"$eq":["$_id", {"$toObjectId":id}]},
+                        field.relationFilter
+                    ]
                 };
-                const relatedDoc = await targetCollection.findOne(validationQuery);
-                if (!relatedDoc) {
-                    // Si on ne trouve rien, c'est que l'ID est invalide ou ne respecte pas le filtre.
-                    throw new Error(`La valeur '${id}' pour le champ '${field.name}' ne respecte pas le filtre de relation défini.`);
+                const relatedDoc = await searchData({filter: validationQuery, model: field.relation, limit: 1}, me);
+                if (!relatedDoc?.count) {
+                    throw new Error(i18n.t('api.data.relationFilterFailed', 'La valeur {{value}} pour le champ {{field}} ne respecte pas le filtre de relation défini.', { field: field.name, value: id }));
                 }
             }
         }
