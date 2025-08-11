@@ -1,9 +1,11 @@
 
-import process from "process";
 import {Logger} from "../gameObject.js";
 import {MongoDatabase} from "../engine.js";
+import {ObjectId} from "mongodb";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
+
+export {ObjectId};
 
 let engine, logger;
 export async function onInit(defaultEngine) {

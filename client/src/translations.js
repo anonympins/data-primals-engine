@@ -2,6 +2,9 @@
 export const websiteTranslations = {
     fr: {
         translation: {
+
+            "api.data.relationFilterFailed": "La valeur {{value}} pour le champ {{field}} ne respecte pas le filtre de relation défini.",
+
             "dataimporter.excelPreview":"Aperçu des données Excel",
             "dataimporter.previewNote": "Note: Ceci est un aperçu des premières lignes. Les cellules vides sont affichées comme \"(vide)\".",
             "dataimporter.nullValue": "(vide)",
@@ -566,6 +569,8 @@ export const websiteTranslations = {
             "suggested_prompt.expenses.prompt": "A tracker of my monthly expenses, with a description, amount, and category (food, transportation, entertainment, etc.).",
             "suggested_prompt.recipes.title": "Cooking Recipes",
             "suggested_prompt.recipes.prompt": "A collection of cooking recipes, with ingredients, instructions, and preparation time.",
+
+            "api.data.relationFilterFailed": "The value {{value}} for field {{field}} does not match the defined relationship filter.",
 
             "api.data.duplicateValue": "The value '{{value}}' already exists for the unique field '{{field}}'.",
             "api.model.invalidStructure": "The model is invalid. Some fields are incorrect.",
@@ -1975,6 +1980,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "Una colección de recetas de cocina, con ingredientes, instrucciones y tiempo de preparación.",
 
             "api.data.duplicateValue": "El valor '{{value}}' ya existe para el campo único '{{field}}'.",
+            "api.data.relationFilterFailed": "El valor {{value}} del campo {{field}} no coincide con el filtro de relación definido.",
             "api.model.invalidStructure": "El modelo no es válido. Algunos campos son incorrectos.",
             "api.validate.fieldArray": "El campo '{{0}}' debe ser un array.",
             "api.validate.invalidMimeType": "Tipo de archivo '{{type}}' no válido. Los tipos permitidos son: {{authorized}}.",
@@ -3388,6 +3394,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "Uma coleção de receitas culinárias, com ingredientes, instruções e tempo de preparação.",
 
             "api.data.duplicateValue": "O valor '{{value}}' já existe para o campo exclusivo '{{field}}'.",
+            "api.data.relationFilterFailed": "O valor {{value}} para o campo {{field}} não corresponde ao filtro de relacionamento definido.",
             "api.model.invalidStructure": "O modelo é inválido. Alguns campos estão incorretos.",
             "api.validate.fieldArray": "O campo '{{0}}' deve ser um array.",
             "api.validate.invalidMimeType": "Tipo de ficheiro inválido '{{type}}'. Os tipos permitidos são: {{authorized}}.",
@@ -4782,6 +4789,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "Eine Sammlung von Kochrezepten mit Zutaten, Anweisungen und Vorbereitungszeit.",
 
             "api.data.duplicateValue": "Der Wert '{{value}}' ist für das eindeutige Feld '{{field}}' bereits vorhanden.",
+            "api.data.relationFilterFailed": "Der Wert {{value}} für das Feld {{field}} entspricht nicht dem definierten Beziehungsfilter.",
             "api.model.invalidStructure": "Das Modell ist ungültig. Einige Felder sind fehlerhaft.",
             "api.validate.fieldArray": "Feld '{{0}}' muss ein Array sein.",
             "api.validate.invalidMimeType": "Ungültiger Dateityp '{{type}}'. Zulässige Typen sind: {{authorized}}.",
@@ -6185,6 +6193,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "Una raccolta di ricette di cucina, con ingredienti, istruzioni e tempi di preparazione.",
 
             "api.data.duplicateValue": "Il valore '{{value}}' esiste già per il campo univoco '{{field}}'.",
+            "api.data.relationFilterFailed": "Il valore {{value}} per il campo {{field}} non corrisponde al filtro di relazione definito.",
             "api.model.invalidStructure": "Il modello non è valido. Alcuni campi sono errati.",
             "api.validate.fieldArray": "Il campo '{{0}}' deve essere un array.",
             "api.validate.invalidMimeType": "Tipo di file '{{type}}' non valido. I tipi consentiti sono: {{authorized}}.",
@@ -7589,6 +7598,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "Sbírka receptů na vaření s ingrediencemi, návodem a přípravou čas.",
 
             "api.data.duplicateValue": "Hodnota '{{value}}' pro jedinečné pole '{{field}}' již existuje.",
+            "api.data.relationFilterFailed": "Hodnota {{value}} pro pole {{field}} neodpovídá definovanému filtru vztahů.",
             "api.model.invalidStructure": "Model je neplatný. Některá pole jsou nesprávná.",
             "api.validate.fieldArray": "Pole '{{0}}' musí být pole.",
             "api.validate.invalidMimeType": "Neplatný typ souboru '{{type}}'. Povolené typy jsou: {{authorized}}.",
@@ -8988,6 +8998,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "Коллекция кулинарных рецептов с ингредиентами, инструкциями и описанием приготовления. время.",
 
             "api.data.duplicateValue": "Значение '{{value}}' уже существует для уникального поля '{{field}}'.",
+            "api.data.relationFilterFailed": "Значение {{value}} для поля {{field}} не соответствует заданному фильтру связи.",
             "api.model.invalidStructure": "Модель недействительна. Некоторые поля неверны.",
             "api.validate.fieldArray": "Поле '{{0}}' должно быть массивом.",
             "api.validate.invalidMimeType": "Недопустимый тип файла '{{type}}'. Допустимые типы: {{authorized}}.",
@@ -10396,6 +10407,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "مجموعة من وصفات الطبخ، مع المكونات، والتعليمات، ومدة التحضير.",
 
             "api.data.duplicateValue": "القيمة '{{value}}' موجودة بالفعل للحقل الفريد '{{field}}'.",
+            "api.data.relationFilterFailed": "القيمة {{value}} للحقل {{field}} لا تتطابق مع مرشح العلاقة المحدد.",
             "api.model.invalidStructure": "النموذج غير صالح. بعض الحقول غير صحيحة.",
             "api.validate.fieldArray": "يجب أن يكون الحقل '{{0}}' مصفوفة.",
             "api.validate.invalidMimeType": "نوع الملف '{{type}}' غير صالح. الأنواع المسموح بها هي: {{authorized}}.",
@@ -11823,6 +11835,7 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "En samling matlagningsrecept, med ingredienser, instruktioner, och förberedelsetid.",
 
             "api.data.duplicateValue": "Värdet '{{value}}' finns redan för det unika fältet '{{field}}'.",
+            "api.data.relationFilterFailed": "Värdet {{value}} för fältet {{field}} matchar inte det definierade relationsfiltret.",
             "api.model.invalidStructure": "Modellen är ogiltig. Vissa fält är felaktiga.",
             "api.validate.fieldArray": "Fältet '{{0}}' måste vara en array.",
             "api.validate.invalidMimeType": "Ogiltig filtyp '{{type}}'. Tillåtna typer är: {{authorized}}.",
@@ -13222,6 +13235,8 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "Μια συλλογή συνταγών μαγειρικής, με υλικά, οδηγίες και χρόνο προετοιμασίας.",
 
             "api.data.duplicateValue": "Η τιμή '{{value}}' υπάρχει ήδη για το μοναδικό πεδίο '{{field}}'.",
+            "api.data.relationFilterFailed": "Η τιμή {{value}} για το πεδίο {{field}} δεν ταιριάζει με το καθορισμένο φίλτρο σχέσης.",
+
             "api.model.invalidStructure": "Το μοντέλο δεν είναι έγκυρο. Ορισμένα πεδία είναι λανθασμένα.",
             "api.validate.fieldArray": "Το πεδίο '{{0}}' πρέπει να είναι ένας πίνακας.",
             "api.validate.invalidMimeType": "Μη έγκυρος τύπος αρχείου '{{type}}'. Οι επιτρεπόμενοι τύποι είναι: {{authorized}}.",
@@ -14629,6 +14644,8 @@ export const websiteTranslations = {
             "suggested_prompt.recipes.prompt": "مجموعه‌ای از دستور پخت غذا، با مواد لازم، دستورالعمل و زمان آماده‌سازی.",
 
             "api.data.duplicateValue": "مقدار '{{value}}' از قبل برای فیلد منحصر به فرد '{{field}}' وجود دارد.",
+            "api.data.relationFilterFailed": "مقدار {{value}} برای فیلد {{field}} با فیلتر رابطه تعریف شده مطابقت ندارد.",
+
             "api.model.invalidStructure": "مدل نامعتبر است. برخی از فیلدها نادرست هستند.",
             "api.validate.fieldArray": "فیلد '{{0}}' باید یک آرایه باشد.",
             "api.validate.invalidMimeType": "نوع فایل '{{type}}' نامعتبر است. انواع مجاز عبارتند از: {{authorized}}.",

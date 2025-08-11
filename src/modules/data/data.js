@@ -1,6 +1,6 @@
 import {Logger} from "../../gameObject.js";
 import {BSON, ObjectId} from "mongodb";
-import {promisify} from 'node:util';
+import util, {promisify} from 'node:util';
 import crypto from "node:crypto";
 import {exec, execFile} from 'node:child_process';
 import sanitizeHtml from 'sanitize-html';
@@ -67,7 +67,6 @@ import {
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
 import checkDiskSpace from "check-disk-space";
-import {Worker} from 'worker_threads';
 import {addFile,  removeFile} from "../file.js";
 import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
 import {
@@ -2042,21 +2041,40 @@ async function insertAndResolveRelations(doc, model, collection, me, idMap) {
 
     for (const field of model.fields) {
         if (field.type === 'relation' && field.relationFilter && docToProcess[field.name]) {
-            const relatedIds = Array.isArray(docToProcess[field.name]) ? docToProcess[field.name] : [docToProcess[field.name]];
-            for (const id of relatedIds) {
-                const targetCollection = await getCollectionForUser(me, field.targetModel);
-                const validationQuery = {
-                    _id: new ObjectId(id), // L'ID doit correspondre
-                    ...field.relationFilter // ET le document doit respecter le filtre
-                };
-                const relatedDoc = await targetCollection.findOne(validationQuery);
-                if (!relatedDoc) {
-                    // Si on ne trouve rien, c'est que l'ID est invalide ou ne respecte pas le filtre.
-                    throw new Error(`La valeur '${id}' pour le champ '${field.name}' ne respecte pas le filtre de relation défini.`);
-                }
+
+            const relatedIds = Array.isArray(docToProcess[field.name])
+                ? docToProcess[field.name]
+                : [docToProcess[field.name]];
+
+            // Préparer un filtre global : match si _id dans relatedIds ET respecte relationFilter
+            const validationQuery = {
+                $and: [
+                    { $in: ['$_id', relatedIds.map(id => ({ $toObjectId: id }))] },
+                    field.relationFilter
+                ]
+            };
+
+            const relatedDocs = await searchData({
+                filter: validationQuery,
+                model: field.relation,
+                limit: relatedIds.length
+            }, me);
+
+            if ((relatedDocs?.count || 0) !== relatedIds.length) {
+                const invalidIds = relatedIds.filter(id =>
+                    !relatedDocs.data.some(doc => doc._id.toString() === id.toString())
+                );
+                throw new Error(
+                    i18n.t(
+                        'api.data.relationFilterFailed',
+                        'Les valeurs {{values}} pour le champ {{field}} ne respectent pas le filtre de relation défini.',
+                        { field: field.name, values: invalidIds.join(', ') }
+                    )
+                );
             }
         }
     }
+
 
     // Insertion en conservant éventuellement l'ID original
     const result = docToProcess._id
@@ -2297,28 +2315,37 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         }
 
         for (const field of model.fields) {
-            // On ne vérifie que si un champ de relation avec un filtre est en cours de modification.
-            if (field.type === 'relation' && field.relationFilter && updateData[field.name] !== undefined) {
+            if (field.type === 'relation' && field.relationFilter && updateData[field.name]) {
+
                 const relatedIds = Array.isArray(updateData[field.name])
                     ? updateData[field.name]
-                    : (updateData[field.name] ? [updateData[field.name]] : []);
+                    : [updateData[field.name]];
 
-                for (const id of relatedIds) {
-                    if (!id || !isObjectId(id)) continue; // Ignorer les valeurs null/invalides
+                // Préparer un filtre global : match si _id dans relatedIds ET respecte relationFilter
+                const validationQuery = {
+                    $and: [
+                        { $in: ['$_id', relatedIds.map(id => ({ $toObjectId: id }))] },
+                        field.relationFilter
+                    ]
+                };
 
-                    const targetCollection = await getCollectionForUser(user, field.relation);
+                const relatedDocs = await searchData({
+                    filter: validationQuery,
+                    model: field.relation,
+                    limit: relatedIds.length
+                }, user);
 
-                    const validationQuery = {
-                        _id: new ObjectId(id),
-                        ...field.relationFilter
-                    };
-
-                    const relatedDoc = await targetCollection.findOne(validationQuery);
-
-                    if (!relatedDoc) {
-                        // Si on ne trouve rien, c'est que l'ID est invalide ou ne respecte pas le filtre.
-                        throw new Error(`La valeur '${id}' pour le champ '${field.name}' ne respecte pas le filtre de relation défini.`);
-                    }
+                if ((relatedDocs?.count || 0) !== relatedIds.length) {
+                    const invalidIds = relatedIds.filter(id =>
+                        !relatedDocs.data.some(doc => doc._id.toString() === id.toString())
+                    );
+                    throw new Error(
+                        i18n.t(
+                            'api.data.relationFilterFailed',
+                            'Les valeurs {{values}} pour le champ {{field}} ne respectent pas le filtre de relation défini.',
+                            { field: field.name, values: invalidIds.join(', ') }
+                        )
+                    );
                 }
             }
         }
