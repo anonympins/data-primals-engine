@@ -71,3 +71,20 @@
   background-color: #cccccc;
   cursor: not-allowed;
 }
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.preview-table td {
+  border: 1px solid #ddd;
+  padding: 4px;
+}
+
+.preview-table-container {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid #eee;
+  margin-bottom: 10px;
+}

@@ -1411,56 +1411,98 @@ export const ModelField = ({field, disableable=false, showModel=true, value, fie
     const {models} = useModelContext();
     const {me} = useAuthContext();
     const {t} = useTranslation()
-    const [modelValue, setModelValue] = useState(value);
-    const [modelFieldValue, setModelFieldValue] = useState(null);
     const [checked, setChecked] = useState(true);
 
-    const itemsFields = [...models.find(f=>f.name === modelValue && me?.username === f._user)?.fields.map(m => ({label: m.name, value: m.name})) || []];
+    // Trouver le modèle correspondant à la valeur
+    const selectedModel = models.find(m => m.name === value && m._user === me?.username);
 
-    useEffect(() => {
-        setModelValue(value)
-    }, [value]);
+    // Préparer les options pour les champs du modèle
+    const fieldOptions = selectedModel?.fields.map(f => ({
+        label: t(`field_${f.name}`, f.name),
+        value: f.name
+    })) || [];
 
-    useEffect(() => {
-        onChange({name: field.name, value: modelValue});
-    }, [modelValue]);
+    // Gestion du changement de modèle
+    const handleModelChange = (e) => {
+        const newModel = e.value;
+        const firstField = fieldOptions[0]?.value || null;
 
-    useEffect(() => {
-        if( !fieldValue){
-            setModelFieldValue(itemsFields.length > 0 ? itemsFields[0].value : null)
-        }else
-            setModelFieldValue(fieldValue)
-    }, [fieldValue]);
-
-    const dis = disableable ? <><CheckboxField checked={checked} onChange={e => {
-        setChecked(e.target.checked)
-        if (!e.target.checked) {
-            setModelValue(null);
+        if (fields) {
+            onChange({name: field?.name, value: { model: newModel, field: firstField }});
+        } else {
+            onChange({name: field?.name, value: newModel});
         }
-    }} /></> : null;
+    };
 
-    if( !fields )
-        return <div className={"flex flex-1"}>
-        {dis}{checked && (<SelectField className="flex-1" value={modelValue} onChange={(e) => {
-            setModelValue(e.value)
-            onChange({name: field.name, value: e.value});
-        }} items={[...models.filter(f=>f._user === me?.username).map(m => ({label: t(`model_${m.name}`, m.name), value: m.name}))]}/>
+    // Gestion du changement de champ
+    const handleFieldChange = (e) => {
+        onChange({name: field?.name, value: { model: value, field: e.value }});
+    };
+
+    const dis = disableable ? (
+        <CheckboxField
+            checked={checked}
+            onChange={e => {
+                setChecked(e.target.checked);
+                if (!e.target.checked) {
+                    onChange({name: field?.name, value: null});
+                }
+            }}
+        />
+    ) : null;
+
+    if (!fields) {
+        return (
+            <div className="flex flex-1">
+                {dis}
+                {checked && (
+                    <SelectField
+                        className="flex-1"
+                        value={value}
+                        onChange={handleModelChange}
+                        items={models
+                            .filter(m => m._user === me?.username)
+                            .map(m => ({
+                                label: t(`model_${m.name}`, m.name),
+                                value: m.name
+                            }))
+                        }
+                    />
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-1">
+            {dis}
+            {checked && (
+                <div className="flex flex-stretch" key={field?.name ?? 'def'}>
+                    {showModel && (
+                        <SelectField
+                            className="flex-1"
+                            value={value}
+                            onChange={handleModelChange}
+                            items={models
+                                .filter(m => m._user === me?.username)
+                                .map(m => ({
+                                    label: t(`model_${m.name}`, m.name),
+                                    value: m.name
+                                }))
+                            }
+                        />
+                    )}
+                    <SelectField
+                        className="flex-1"
+                        value={fieldValue || (fieldOptions[0]?.value || null)}
+                        onChange={handleFieldChange}
+                        items={fieldOptions}
+                    />
+                </div>
             )}
-    </div>;
-    return <div className={"flex flex-1"}>{dis}{checked && (<div className="flex flex-stretch" key={field?.name??'def'}>
-        {showModel && (<SelectField disabled={!!checked} className="flex-1" value={modelValue} onChange={(e) => {
-            setModelValue(e.value)
-            onChange({name: field.name, value: { model: e.value, field: itemsFields[0] }});
-        }} items={[...models.filter(f=>f._user === me?.username).map(m => ({label: t(`model_${m.name}`, m.name), value: m.name}))]}/>
-            )}
-        <SelectField className="flex-1" value={modelFieldValue} onChange={(e) =>{
-            setModelFieldValue(e.value)
-            onChange({name: field.name, value: { model: modelValue, field:e.value}});
-        }} items={itemsFields}/>
-    </div>)}
-    </div>
-}
-export const ColorField = ({name, label, value, disabled, onChange, className, ...rest}) => {
+        </div>
+    );
+};export const ColorField = ({name, label, value, disabled, onChange, className, ...rest}) => {
     // 1. État interne pour une réactivité immédiate de l'interface.
     const [internalValue, setInternalValue] = useState(value);
 
