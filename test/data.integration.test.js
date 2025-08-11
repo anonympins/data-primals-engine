@@ -795,7 +795,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                     name: 'produit',
                     type: 'relation',
                     relation: 'produitTestFiltre',
-                    relationFilter: { actif: true } // Only link active products
+                    relationFilter: { "$eq":["$actif", true] } // Only link active products
                 }
             ]
         };

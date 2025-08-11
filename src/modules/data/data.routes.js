@@ -40,10 +40,10 @@ import {tutorialsConfig} from "../../../client/src/tutorials.js";
 import {
     cancelAlerts, deleteData,
     dumpUserData,
-    editData, exportData,
+    editData, editModel, exportData,
     getModel, getResource,
     handleCustomEndpointRequest,
-    handleDemoInitialization, importData, insertData, installPack,
+    handleDemoInitialization, importData, insertData, installPack, loadFromDump,
     patchData, searchData, validateModelStructure
 } from "./data.js";
 import process from "node:process";
