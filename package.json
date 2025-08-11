@@ -1,6 +1,6 @@
 {
   "name": "data-primals-engine",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "data-primals-engine is a package responsible from handling large amount of data using MongoDB in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation. It also has integrated AI assistant.",
   "main": "src/engine.js",
   "type": "module",
