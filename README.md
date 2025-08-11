@@ -413,13 +413,14 @@ const results = await searchData({
 
 ## Import/Export
 ### importData(options, files, user)
-> Imports data from JSON/CSV files.
+> Imports data from Excel / JSON / CSV files.
 
 Supported Formats:
 
+- Excel with headers or field mapping
+- CSV with headers or field mapping
 - JSON arrays
 - JSON with model-keyed objects
-- CSV with headers or field mapping
 
 Example:
 
