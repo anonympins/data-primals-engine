@@ -11,7 +11,6 @@ import cronstrue from 'cronstrue/i18n.js';
 import {mkdir} from 'node:fs/promises';
 import {
     anonymizeText,
-    checkForUniqueness,
     getDefaultForType,
     getFieldValueHash,
     getUserId,
@@ -60,35 +59,27 @@ import schedule from "node-schedule";
 import {middleware} from "../../middlewares/middleware-mongodb.js";
 import i18n from "../../i18n.js";
 import {
-    executeSafeJavascript, processWorkflowRun,
+    executeSafeJavascript,
     runScheduledJobWithDbLock,
     scheduleWorkflowTriggers,
     triggerWorkflows
 } from "../workflow.js";
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
-import {openaiJobModel} from "../../openai.jobs.js";
 import checkDiskSpace from "check-disk-space";
-import {fileURLToPath} from 'url';
 import {Worker} from 'worker_threads';
-import {addFile, encryptFile, removeFile} from "../file.js";
-import {downloadFromS3, getS3Stream, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
+import {addFile,  removeFile} from "../file.js";
+import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
 import {
     calculateTotalUserStorageUsage,
-    generateLimiter,
-    hasPermission,
-    middlewareAuthenticator,
-    userInitiator
+    hasPermission
 } from "../user.js";
-import {assistantGlobalLimiter} from "../assistant.js";
 import {getAllPacks} from "../../packs.js";
-import {throttleMiddleware} from "../../middlewares/throttle.js";
 import {Config} from "../../config.js";
 import {profiles} from "../../../client/src/constants.js";
-import {processFilterPlaceholders} from "../../../client/src/filter.js";
-import {tutorialsConfig} from "../../../client/src/tutorials.js";
-import {registerRoutes} from "./data.routes.js";
-import {modelsCache, mongoDBWhitelist} from "./data.core.js";
+import {registerRoutes, sendSseToUser} from "./data.routes.js";
+import {importJobs, modelsCache, mongoDBWhitelist} from "./data.core.js";
+import readXlsxFile from "read-excel-file/node";
 
 let engine;
 let logger;
@@ -98,7 +89,6 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
 const getBackupDir = () => process.env.BACKUP_DIR || './backups'; // Répertoire de stockage des sauvegardes
 const execFileAsync = promisify(execFile);
 
-let importJobs = {};
 const IMPORT_CHUNK_SIZE = 100; // Nombre d'enregistrements à traiter par lot
 const IMPORT_CHUNK_DELAY_MS = 1000; // Délai en millisecondes entre le traitement des lots
 
@@ -866,7 +856,7 @@ function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                     }
                     break;
                 case 'array':
-                    if (sourceType === 'csv' && typeof value === 'string') {
+                    if (['csv','excel'].includes(sourceType) && typeof value === 'string') {
                         const arrayValues = value.split(/[,;]/).map(item => item.trim()).filter(item => item !== '');
                         if (field.itemsType === 'number') {
                             convertedRecord[field.name] = arrayValues.map(v => parseFloat(v)).filter(v => !isNaN(v));
@@ -893,7 +883,7 @@ function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                     }
                     break;
                 case 'object':
-                    if (typeof value === 'string') {
+                    if (['csv','excel'].includes(sourceType)) {
                         try {
                             convertedRecord[field.name] = JSON.parse(value);
                         } catch (e) {
@@ -902,7 +892,7 @@ function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                     }
                     break;
                 case 'code':
-                    if (field.language === 'json' && typeof value === 'string') {
+                    if (['csv','excel'].includes(sourceType) && typeof value === 'string') {
                         try {
                             convertedRecord[field.name] = JSON.parse(value);
                         } catch (e) {
@@ -3379,6 +3369,10 @@ export const importData = async(options, files, user) => {
                                 if (insertedIdsArray && insertedIdsArray.length > 0) {
                                     importJobs[importJobId].processedRecords += insertedIdsArray.length;
                                     logger.debug(`[Import Job ${importJobId}] Processed chunk for '${modelName}': ${insertedIdsArray.length} records. Total processed: ${importJobs[importJobId].processedRecords}`);
+                                    sendSseToUser(user.username, {
+                                        type: 'import_progress',
+                                        job: importJobs[importJobId]
+                                    });
                                 }
                             } catch (chunkError) {
                                 console.log(chunkError.stack);
@@ -3405,7 +3399,8 @@ export const importData = async(options, files, user) => {
                 }
                 // --- FIN DE LA MODIFICATION PRINCIPALE ---
 
-            } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+            }
+            else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
                 // --- Logique CSV (inchangée, mais maintenant elle est séparée de la logique JSON) ---
                 fileProcessed = true;
                 const modelNameForImport = options.model;
@@ -3478,6 +3473,10 @@ export const importData = async(options, files, user) => {
                                     const insertedIdsArray = await pushDataUnsecure(chunk, modelNameForImport, user, {});
                                     if (insertedIdsArray && insertedIdsArray.length > 0) {
                                         importJobs[importJobId].processedRecords += insertedIdsArray.length;
+                                        sendSseToUser(user.username, {
+                                            type: 'import_progress',
+                                            job: importJobs[importJobId]
+                                        });
                                     }
                                 } catch (chunkError) {
                                     const errorMsg = `[Import Job ${importJobId}] Error on CSV chunk: ${chunkError.message}`;
@@ -3500,7 +3499,100 @@ export const importData = async(options, files, user) => {
                         importJobs[importJobId].errors.push(`Model ${modelNameForImport} (CSV): ${modelProcessingError.message}`);
                     }
                 }
-            } else {
+            }
+            else if (['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(file.type) || file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
+                fileProcessed = true;
+                const modelNameForImport = options.model;
+                if (!modelNameForImport) {
+                    importResults.errors.push("Model name is required in the request body for Excel import.");
+                    importResults.success = false;
+                } else {
+                    try {
+                        const modelDef = await getModel(modelNameForImport, user);
+                        if (!modelDef) {
+                            throw new Error(i18n.t('api.model.notFound', { model: modelNameForImport }));
+                        }
+
+                        let datasToImport;
+                        let excelErrors = [];
+
+                        // Cas 2: Pas d'en-têtes. On lit les lignes brutes et on les mappe.
+                        const rows = await readXlsxFile(fileContent, { sheet: 1 });
+
+                        let userDefinedHeadersForMapping = [];
+                        if (csvHeadersString && typeof csvHeadersString === 'string') {
+                            userDefinedHeadersForMapping = csvHeadersString.split(',').map(h => h.trim());
+                        }
+
+                        const effectiveHeadersForMapping = (userDefinedHeadersForMapping.length > 0 && userDefinedHeadersForMapping.some(h => h !== ''))
+                            ? userDefinedHeadersForMapping
+                            : modelDef.fields.map(f => f.name);
+
+                        datasToImport = rows.map(recordRow => {
+                            const obj = {};
+                            if (Array.isArray(recordRow)) {
+                                recordRow.forEach((value, index) => {
+                                    const targetModelFieldName = effectiveHeadersForMapping[index];
+                                    if (targetModelFieldName && targetModelFieldName !== '') {
+                                        if (modelDef.fields.some(mf => mf.name === targetModelFieldName)) {
+                                            obj[targetModelFieldName] = value;
+                                        } else {
+                                            logger.warn(`Excel Import (!hasHeaders): Specified target field "${targetModelFieldName}" at column ${index + 1} does not exist in model "${modelNameForImport}". Skipping column.`);
+                                        }
+                                    }
+                                });
+                            }
+                            return obj;
+                        });
+
+                        if (excelErrors.length > 0) {
+                            excelErrors.forEach(error => {
+                                const errorMsg = `Excel Import Error (Row ${error.row}, Column "${error.column}"): ${error.error}.`;
+                                logger.error(`[Import Job ${importJobId}] ${errorMsg}`);
+                                importResults.errors.push(errorMsg);
+                                importJobs[importJobId].errors.push(errorMsg);
+                            });
+                            importResults.success = false;
+                        }
+
+                        if (datasToImport && datasToImport.length > 0) {
+                            const allProcessedData = convertDataTypes(datasToImport, modelDef.fields, 'excel');
+
+                            importJobs[importJobId].totalRecords = allProcessedData.length;
+                            importJobs[importJobId].status = 'processing';
+
+                            for (let i = 0; i < allProcessedData.length; i += IMPORT_CHUNK_SIZE) {
+                                const chunk = allProcessedData.slice(i, i + IMPORT_CHUNK_SIZE);
+                                try {
+                                    const insertedIdsArray = await pushDataUnsecure(chunk, modelNameForImport, user, {});
+                                    if (insertedIdsArray && insertedIdsArray.length > 0) {
+                                        importJobs[importJobId].processedRecords += insertedIdsArray.length;
+                                        sendSseToUser(user.username, {
+                                            type: 'import_progress',
+                                            job: importJobs[importJobId]
+                                        });
+                                    }
+                                } catch (chunkError) {
+                                    const errorMsg = `[Import Job ${importJobId}] Error on Excel chunk: ${chunkError.message}`;
+                                    logger.error(errorMsg, chunkError.stack);
+                                    importResults.errors.push(errorMsg);
+                                    importJobs[importJobId].errors.push(errorMsg);
+                                    importResults.success = false;
+                                }
+                                if (i + IMPORT_CHUNK_SIZE < allProcessedData.length) await delay(IMPORT_CHUNK_DELAY_MS);
+                            }
+                            importResults.counts[modelNameForImport] = (importResults.counts[modelNameForImport] || 0) + allProcessedData.length;
+                        }
+
+                    } catch (modelProcessingError) {
+                        logger.error(`[Import Excel] Error processing model ${modelNameForImport}: ${modelProcessingError.message}`);
+                        importResults.errors.push(`Model ${modelNameForImport} (Excel): ${modelProcessingError.message}`);
+                        importResults.success = false;
+                        importJobs[importJobId].errors.push(`Model ${modelNameForImport} (Excel): ${modelProcessingError.message}`);
+                    }
+                }
+            }
+            else {
                 importResults.errors.push("Unsupported file type. Please upload a JSON or CSV file.");
                 importResults.success = false;
                 importJobs[importJobId].errors.push("Unsupported file type. Please upload a JSON or CSV file.");
@@ -3520,6 +3612,10 @@ export const importData = async(options, files, user) => {
                 } else {
                     importJobs[importJobId].status = 'completed';
                 }
+                sendSseToUser(user.username, {
+                    type: 'import_progress',
+                    job: importJobs[importJobId]
+                });
             }
             if (file && file.path && fs.existsSync(file.path)) {
                 fs.unlinkSync(file.path);
@@ -3530,6 +3626,10 @@ export const importData = async(options, files, user) => {
         if (importJobs[importJobId]) {
             importJobs[importJobId].status = 'failed';
             importJobs[importJobId].errors.push(error.message || "An unhandled error occurred in background process.");
+            sendSseToUser(user.username, {
+                type: 'import_progress',
+                job: importJobs[importJobId]
+            });
         }
     });
     return ({success: true, message: "Import initiated. Check progress via SSE.", job: importJob});

@@ -43,18 +43,16 @@ import {
     editData, exportData,
     getModel, getResource,
     handleCustomEndpointRequest,
-    handleDemoInitialization, installPack,
+    handleDemoInitialization, importData, installPack,
     patchData, searchData, validateModelStructure
 } from "./data.js";
 import process from "node:process";
 import {throttleMiddleware} from "../../middlewares/throttle.js";
-import {modelsCache} from "./data.core.js";
+import {importJobs, modelsCache} from "./data.core.js";
 
 let logger;
 
 const sseConnections = new Map();
-
-let importJobs = {};
 
 const throttle = throttleMiddleware(maxBytesPerSecondThrottleData);
 
@@ -100,8 +98,8 @@ const middlewareLogger = async (req, res, next) => {
 export function sendSseToUser(username, data) {
     const res = sseConnections.get(username);
     if (res) {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-        Event.Trigger("sendSseToUser", "system", "calls");
+        const ssePlugin = Event.Trigger("sendSseToUser", "system", "calls", data) || data;
+        res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
         return true;
     }
     logger.warn(`[SSE] Attempted to send event to disconnected user: ${username}`);
@@ -342,7 +340,7 @@ export async function registerRoutes(engine){
         }
     });
 
-    engine.get('/api/import/progress/:jobId', [middlewareAuthenticator], async (req, res) => {
+    engine.get('/api/import/progress/:jobId', middlewareAuthenticator, async (req, res) => {
         const { jobId } = req.params;
         const user = req.me;
 
