@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
-import {deleteData, insertData, patchData, searchData} from "./data/index.js";
+import {deleteData, insertData, patchData, scheduleAlerts, searchData} from "./data/index.js";
 import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
@@ -21,6 +21,8 @@ import util from "node:util";
 let logger = null;
 export async function onInit(defaultEngine) {
     logger = defaultEngine.getComponent(Logger);
+
+    await scheduleWorkflowTriggers();
 }
 
 /**
