@@ -1352,6 +1352,7 @@ export async function onInit(defaultEngine) {
         filesCollection = getCollection("files");
         packsCollection = getCollection("packs");
     }
+    await registerRoutes(engine);
 
     // set backup scheduler
     schedule.scheduleJob("0 2 * * *", jobDumpUserData);
@@ -1367,7 +1368,6 @@ export async function onInit(defaultEngine) {
 
     await scheduleAlerts();
 
-    await registerRoutes(engine);
 }
 
 export const createModel = async (data) => {

@@ -48,7 +48,7 @@ function blobToFile(theBlob, fileName){
 }
 
 beforeAll(async () =>{
-    Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+    Config.Set("modules", ["data", "mongodb", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
 })
 
