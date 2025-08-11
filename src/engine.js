@@ -199,7 +199,6 @@ export const Engine = {
                 }
             } catch (e) {
                 logger.error(`Échec du chargement du module '${moduleIdentifier}':`, e.stack);
-                return null;
             }
         }
 
