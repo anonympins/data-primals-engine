@@ -14,3 +14,4 @@ export const mongoDBWhitelist = [
     '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
 ];
 export let importJobs = {};
+

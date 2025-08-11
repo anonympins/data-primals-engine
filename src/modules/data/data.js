@@ -4284,53 +4284,6 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
     }
 }
 
-async function logApiRequest(req, res, user, startTime, responseBody = null, error = null) {
-    const endTime = process.hrtime(startTime);
-    const latencyMs = (endTime[0] * 1e3 + endTime[1] * 1e-6); // Calculer la latence en ms
-
-    const headers = req.headers;
-    delete headers['Cookie'];
-    delete headers['Authorization'];
-
-    // 1. Préparer l'objet de données pour le modèle 'request'
-    const logEntryData = {
-        // Champs requis
-        timestamp: new Date(),
-        method: req.method,
-        url: req.originalUrl || req.url, // Utiliser originalUrl si disponible (Express)
-        status: res.statusCode,
-        latencyMs: parseFloat(latencyMs.toFixed(3)), // Arrondir et convertir en nombre
-
-        // Champs optionnels
-        ip: req.clientIp.substring('::ffff:'.length) || req.clientIp, // Obtenir l'IP du client
-        //requestHeaders: JSON.stringify(req.headers).substring(0, maxStringLength), // Optionnel: Peut être volumineux
-        requestBody: req.fields,
-        responseBody: res.statusCode >= 400 && responseBody ? JSON.stringify(responseBody).substring(0, maxStringLength) : null, // Optionnel: Peut être volumineux
-        error: error ? String(error.message || error) : null // Message d'erreur si applicable
-    };
-
-    try {
-        // 2. Appeler insertData pour enregistrer le log
-        //    - 'request' est le nom du modèle
-        //    - logEntryData contient les données
-        //    - [] car pas de fichiers associés à ce log
-        //    - null pour l'utilisateur (le log est système) ou 'user' si tu veux lier l'action à l'utilisateur
-        //    - false pour ne pas bypasser la validation (important !)
-        const result = await insertData('request', logEntryData, [], user._user ? { username: user._user } : user, false);
-
-        if (result.success) {
-            console.log(`[API Log] Request logged successfully. ID: ${result.insertedIds?.join(', ')}`);
-        } else {
-            // Gérer l'échec de l'insertion du log (ne devrait pas bloquer la réponse principale)
-            console.error(`[API Log] Failed to log request: ${result.error}`);
-        }
-    } catch (insertError) {
-        // Gérer les erreurs inattendues lors de l'insertion
-        console.error(`[API Log] Unexpected error during logging: ${insertError.message}`, insertError.stack);
-    }
-}
-
-
 /**
  * Installe les modèles et les données d'un pack pour un utilisateur.
  * Gère les modèles, les données, et les relations complexes (y compris les références futures)
