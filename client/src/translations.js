@@ -2,7 +2,9 @@
 export const websiteTranslations = {
     fr: {
         translation: {
-
+            "dataimporter.excelPreview":"Aperçu des données Excel",
+            "dataimporter.previewNote": "Note: Ceci est un aperçu des premières lignes. Les cellules vides sont affichées comme \"(vide)\".",
+            "dataimporter.nullValue": "(vide)",
             "cb.searchOperator": "Rechercher un opérateur...",
             "cb.changeOperator": "Changer d'opérateur",
             "cb.deleteBlock": "Supprimer ce bloc",
@@ -530,6 +532,9 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "dataimporter.excelPreview": "Excel Data Preview",
+            "dataimporter.previewNote": "Note: This is a preview of the first few rows. Empty cells are displayed as \"(empty)\".",
+            "dataimporter.nullValue": "(empty)",
             "cb.searchOperator": "Search for an operator...",
             "cb.changeOperator": "Change operator",
             "cb.deleteBlock": "Delete this block",
@@ -1934,6 +1939,9 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
+            "dataimporter.excelPreview": "Vista previa de datos de Excel",
+            "dataimporter.previewNote": "Nota: Esta es una vista previa de las primeras filas. Las celdas vacías se muestran como \"(vacío)\".",
+            "dataimporter.nullValue": "(vacío)",
             "cb.searchOperator": "Buscar un operador...",
             "cb.changeOperator": "Cambiar operador",
             "cb.deleteBlock": "Eliminar este bloque",
@@ -3343,6 +3351,9 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
+            "dataimporter.excelPreview": "Visualização de Dados do Excel",
+            "dataimporter.previewNote": "Observação: Esta é uma visualização das primeiras linhas. Células vazias são exibidas como \"(vazio)\".",
+            "dataimporter.nullValue": "(vazio)",
             "cb.searchOperator": "Procurar um operador...",
             "cb.changeOperator": "Alterar operador",
             "cb.deleteBlock": "Apagar este bloco",
@@ -4747,6 +4758,9 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
+            "dataimporter.excelPreview": "Excel-Datenvorschau",
+            "dataimporter.previewNote": "Hinweis: Dies ist eine Vorschau der ersten Zeilen. Leere Zellen werden als \"(leer)\" angezeigt.",
+            "dataimporter.nullValue": "(leer)",
             "cb.searchOperator": "Suche nach einem Operator...", "cb.changeOperator": "Operator ändern", "cb.deleteBlock": "Diesen Block löschen", "cb.cancel": "Abbrechen", "cb.enterValue": "Wert eingeben", "cb.convertToExpression": "In Ausdruck konvertieren", "cb.deleteArgument": "Dieses Argument löschen", "cb.condition": "Bedingung", "cb.addArgument": "Argument hinzufügen", "cb.selectRelationField": "Beziehungsfeld auswählen", "cb.enterThisField": "$$this.field eingeben", "cb.enterValueOrField": "Wert oder $field eingeben", "cb.relationTooltip": "Beziehung mit {{relation}}",
 
             "collapse": "Reduzieren",
@@ -6135,6 +6149,9 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
+            "dataimporter.excelPreview": "Anteprima dati Excel",
+            "dataimporter.previewNote": "Nota: questa è un'anteprima delle prime righe. Le celle vuote vengono visualizzate come \"(vuoto)\".",
+            "dataimporter.nullValue": "(vuoto)",
             "cb.searchOperator": "Cerca un operatore...",
             "cb.changeOperator": "Cambia operatore",
             "cb.deleteBlock": "Elimina questo blocco",
@@ -7536,6 +7553,9 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
+            "dataimporter.excelPreview": "Náhled dat v Excelu",
+            "dataimporter.previewNote": "Poznámka: Toto je náhled prvních několika řádků. Prázdné buňky se zobrazují jako \"(prázdné)\".",
+            "dataimporter.nullValue": "(prázdné)",
             "cb.searchOperator": "Hledat operátor...",
             "cb.changeOperator": "Změnit operátor",
             "cb.deleteBlock": "Smazat tento blok",
@@ -8932,6 +8952,9 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
+            "dataimporter.excelPreview": "Предварительный просмотр данных Excel",
+            "dataimporter.previewNote": "Примечание: Это предварительный просмотр первых нескольких строк. Пустые ячейки отображаются как \"(пусто)\".",
+            "dataimporter.nullValue": "(пусто)",
             "cb.searchOperator": "Найти оператор...",
             "cb.changeOperator": "Изменить оператор",
             "cb.deleteBlock": "Удалить этот блок",
@@ -10338,6 +10361,9 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
+            "dataimporter.excelPreview": "معاينة بيانات إكسل",
+            "dataimporter.previewNote": "ملاحظة: هذه معاينة للصفوف القليلة الأولى. تُعرض الخلايا الفارغة كـ \"(فارغة)\".",
+            "dataimporter.nullValue": "(فارغة)",
             "cb.searchOperator": "ابحث عن مُعامل...",
             "cb.changeOperator": "غيّر المُعامل",
             "cb.deleteBlock": "حذف هذه الكتلة",
@@ -11761,6 +11787,9 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
+            "dataimporter.excelPreview": "Förhandsgranskning av Excel-data",
+            "dataimporter.previewNote": "Obs! Detta är en förhandsgranskning av de första raderna. Tomma celler visas som \"(tomma)\"",
+            "dataimporter.nullValue": "(tomma)",
             "cb.searchOperator": "Sök efter en operator...",
             "cb.changeOperator": "Ändra operator",
             "cb.deleteBlock": "Ta bort detta block",
@@ -13157,6 +13186,9 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
+            "dataimporter.excelPreview": "Προεπισκόπηση δεδομένων Excel",
+            "dataimporter.previewNote": "Σημείωση: Αυτή είναι μια προεπισκόπηση των πρώτων γραμμών. Τα κενά κελιά εμφανίζονται ως \"(κενό)\".",
+            "dataimporter.nullValue": "(κενό)",
             "cb.searchOperator": "Αναζήτηση τελεστή...",
             "cb.changeOperator": "Αλλαγή τελεστή",
             "cb.deleteBlock": "Διαγραφή αυτού του μπλοκ",
@@ -14560,6 +14592,9 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
+            "dataimporter.excelPreview": "پیش‌نمایش داده‌های اکسل",
+            "dataimporter.previewNote": "توجه: این پیش‌نمایشی از چند ردیف اول است. سلول‌های خالی به صورت \"(empty)\" نمایش داده می‌شوند.",
+            "dataimporter.nullValue": "(empty)",
             "links.demo": "شروع نسخهٔ نمایشی",
             "cb.searchOperator": "جستجوی یک عملگر...",
             "cb.changeOperator": "تغییر عملگر",

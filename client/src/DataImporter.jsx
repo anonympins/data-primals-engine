@@ -11,14 +11,19 @@ import {FileField, ModelField} from "./Field.jsx";
 import Button from "./Button.jsx";
 import {FaInfo, FaTrash} from "react-icons/fa";
 import {Dialog} from "./Dialog.jsx";
-
+import readXlsxFile from 'read-excel-file'
 // Ajoutez cette constante pour la clé de sessionStorage
 const SESSION_STORAGE_IMPORT_JOBS_KEY = 'activeImportJobs';
 
 export function DataImporter({onClose}) {
-
+    const [previewData, setPreviewData] = useState(null);
     const [file, setFile] = useState(null);
     const {selectedModel, page} = useModelContext();
+
+    const isCsvFile = file && (file.name.endsWith('.csv') || file.type === 'text/csv');
+    const isExcelFile = file && ((file.name.endsWith('.xlsx') ||
+        ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel'].includes(file.type)));
 
     const {me} = useAuthContext();
     const {t, i18n} = useTranslation();
@@ -194,6 +199,35 @@ export function DataImporter({onClose}) {
         eventSourceRefs.current = {}; // Effacer les références
         onClose();
     };
+    const handleFilePreview = async (file) => {
+        console.log('handleFilePreview');
+        if (!file) {
+            setPreviewData(null);
+            return;
+        }
+
+        const isExcelFile = file && ((file.name.endsWith('.xlsx') ||
+            ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-excel'].includes(file.type)));
+
+        if (isExcelFile) {
+            console.log('excel');
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const rows = await readXlsxFile(arrayBuffer);
+                setPreviewData(rows);
+                console.log(rows);
+            } catch (error) {
+                console.error('Error reading Excel file:', error);
+                addNotification({
+                    title: t('dataimporter.excelReadError', 'Erreur lors de la lecture du fichier Excel'),
+                    status: 'error'
+                });
+            }
+        } else {
+            setPreviewData(null);
+        }
+    };
 
     // Déterminer si une importation est actuellement en cours (pour désactiver les boutons)
     const isAnyImportInProgress = Object.values(importJobs).some(job => job.status === 'pending' || job.status === 'processing');
@@ -205,10 +239,7 @@ export function DataImporter({onClose}) {
         return statusOrder[a.status] - statusOrder[b.status];
     });
 
-    const isCsvFile = file && (file.name.endsWith('.csv') || file.type === 'text/csv');
-    const isExcelFile = file && ((file.name.endsWith('.xlsx') ||
-        ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel'].includes(file.type)));
+    const { models } = useModelContext();
 
     return (
         <Dialog isClosable={true} isModal={true} onClose={handleCloseModal}>
@@ -218,7 +249,7 @@ export function DataImporter({onClose}) {
                         Importer des données dans {t('model_' + selectedModel?.name, selectedModel?.name)}
                     </Trans>
                 </h2>
-                <p>
+                <p className="msg msg-info">
                     <Trans i18nKey="dataimporter.info" values={{constante: (maxBytesPerSecondThrottleData / kilobytes) + 'ko/s'}}></Trans>
                 </p>
 
@@ -234,10 +265,13 @@ export function DataImporter({onClose}) {
                     ]}
                     type="file"
                     multiple={false}
-                    onChange={(files) => {
-                        setFile(files && files.length > 0 ? files[files.length - 1].file : null);
+                    onChange={async (files) => {
+                        const newFile = files && files.length > 0 ? files[files.length - 1].file : null;
+                        setFile(newFile);
+                        await handleFilePreview(newFile);
                     }}
                 />
+
                 {file && (isExcelFile || isCsvFile) && (
                     <div className="checkbox-label flex flex-row">
                         {isCsvFile && (<label htmlFor="hasHeadersCheckbox">
@@ -258,16 +292,9 @@ export function DataImporter({onClose}) {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {csvHeaders.map((mappedFieldName, index) => {
-                                    let fieldObjectForModelField = null;
-                                    let currentFieldValueForModelField = null;
-
-                                    if (mappedFieldName && mappedFieldName.trim() !== '') {
-                                        fieldObjectForModelField = selectedModel?.fields.find(f_model => f_model.name === mappedFieldName);
-                                        if (fieldObjectForModelField) {
-                                            currentFieldValueForModelField = fieldObjectForModelField.name;
-                                        }
-                                    }
+                                {selectedModel?.fields.map((field, index) => {
+                                    const currentFieldValue = csvHeaders[index] || '';
+                                    const fieldObject = selectedModel.fields.find(f => f.name === currentFieldValue);
 
                                     return (
                                         <tr key={`${selectedModel.name}-csvmap-${index}`}>
@@ -278,7 +305,7 @@ export function DataImporter({onClose}) {
                                                         disableable={true}
                                                         showModel={false}
                                                         value={selectedModel.name}
-                                                        fieldValue={currentFieldValueForModelField}
+                                                        fieldValue={currentFieldValue}
                                                         onChange={({name: propName, value: selectedValue}) => {
                                                             const newCsvHeaders = [...csvHeaders];
                                                             newCsvHeaders[index] = selectedValue?.field ?? '';
@@ -286,11 +313,12 @@ export function DataImporter({onClose}) {
                                                         }}
                                                         fields={true}
                                                         model={selectedModel}
-                                                        field={fieldObjectForModelField}
+                                                        field={fieldObject}
                                                     />
                                                     <Button className="flex" onClick={() => {
-                                                        const csvH = [...csvHeaders];
-                                                        setCSVHeaders(csvH.filter((_, i) => i !== index));
+                                                        const newHeaders = [...csvHeaders];
+                                                        newHeaders.splice(index, 1);
+                                                        setCSVHeaders(newHeaders);
                                                     }}><FaTrash/></Button>
                                                 </div>
                                             </td>
@@ -309,6 +337,59 @@ export function DataImporter({onClose}) {
                                 </tbody>
                             </table>
                         )}
+                    </div>
+                )}
+
+                {previewData && (
+                    <div className="excel-preview mt-4">
+                        <h3><Trans i18nKey="dataimporter.excelPreview">Aperçu des données Excel</Trans></h3>
+                        <div className="msg msg-tiny">
+                            <Trans i18nKey="dataimporter.previewNote">
+                                Note: Ceci est un aperçu des premières lignes. Les cellules vides sont affichées comme "(vide)".
+                            </Trans>
+                        </div>
+                        <div className="preview-table-container" style={{ maxHeight: '300px', overflow: 'auto' }}>
+                            <table className="preview-table">
+                                <thead>
+                                <tr>
+                                    {previewData[0].map((_, colIndex) => {
+                                        // Récupérer le nom du champ mappé pour cette colonne depuis l'état `csvHeaders`
+                                        const mappedFieldName = csvHeaders[colIndex];
+
+                                        // Si un champ est mappé, on affiche son nom traduit.
+                                        // Sinon, on affiche un nom générique comme "Colonne X".
+                                        const headerLabel = mappedFieldName
+                                            ? t(`field_${mappedFieldName}`, mappedFieldName)
+                                            : t('dataimporter.column', 'Colonne {{count}}', { count: colIndex + 1 });
+
+                                        return (
+                                            <th key={`header-${colIndex}`}>
+                                                {headerLabel}
+                                            </th>
+                                        );
+                                    })}
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {previewData.map((row, rowIndex) => (
+                                    <tr key={`row-${rowIndex}`}>
+                                        {row.map((cell, cellIndex) => (
+                                            <td
+                                                key={`cell-${rowIndex}-${cellIndex}`}
+                                                style={{
+                                                    border: '1px solid #ddd',
+                                                    padding: '4px',
+                                                    backgroundColor: rowIndex === 0 && hasHeaders ? '#f0f0f0' : 'transparent'
+                                                }}
+                                            >
+                                                {cell !== null ? String(cell) : <span style={{ color: '#999' }}><Trans i18nKey="dataimporter.nullValue">(vide)</Trans></span>}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
                 <div>
