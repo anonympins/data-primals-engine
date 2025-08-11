@@ -48,7 +48,7 @@ function blobToFile(theBlob, fileName){
 }
 
 beforeAll(async () =>{
-    Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
+    Config.Set("modules", ["data", "mongodb", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
 })
 
@@ -191,7 +191,7 @@ Valide J,SKU-J,,false
 Valide K,SKU-A,40,true`;
 
             // Exécution de la fonction d'import (hypothétique)x
-            var blob = new Blob([csvStringToImport], {type: "text/csv"});
+            const blob = new Blob([csvStringToImport], {type: "text/csv"});
             fs.writeFileSync('test.csv', csvStringToImport);
             blob.path = 'test.csv';
             blob.originalFilename = 'test.csv';

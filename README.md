@@ -162,9 +162,20 @@ Define schemas using JSON:
 | model	      | Stores a model by name                                                              | –                                                                         |                                            
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
-### Modules
-Activatable features:
-- `mongodb`, `data`, `user`, `workflow`, `file`, `assistant`, `swagger`
+### Model constraints
+```javascript
+{
+    "name": "modelName",
+    "fields": [
+         { "name": "fieldName1", .... },
+         { "name": "fieldName2", .... }
+    ],
+    "constraints": [
+        // uniqueness
+        { "name": "uniqueConstraint", type: "unique", keys: ["fieldName1", "fieldName2"] }
+    ]
+}
+```
 
 ## 🏗️ Use Case Examples
 
@@ -402,13 +413,14 @@ const results = await searchData({
 
 ## Import/Export
 ### importData(options, files, user)
-> Imports data from JSON/CSV files.
+> Imports data from Excel / JSON / CSV files.
 
 Supported Formats:
 
+- Excel with headers or field mapping
+- CSV with headers or field mapping
 - JSON arrays
 - JSON with model-keyed objects
-- CSV with headers or field mapping
 
 Example:
 
