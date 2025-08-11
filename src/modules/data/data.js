@@ -2041,21 +2041,40 @@ async function insertAndResolveRelations(doc, model, collection, me, idMap) {
 
     for (const field of model.fields) {
         if (field.type === 'relation' && field.relationFilter && docToProcess[field.name]) {
-            const relatedIds = Array.isArray(docToProcess[field.name]) ? docToProcess[field.name] : [docToProcess[field.name]];
-            for (const id of relatedIds) {
-                const validationQuery = {
-                    "$and":[
-                        {"$eq":["$_id", {"$toObjectId":id}]},
-                        field.relationFilter
-                    ]
-                };
-                const relatedDoc = await searchData({filter: validationQuery, model: field.relation, limit: 1}, me);
-                if (!relatedDoc?.count) {
-                    throw new Error(i18n.t('api.data.relationFilterFailed', 'La valeur {{value}} pour le champ {{field}} ne respecte pas le filtre de relation défini.', { field: field.name, value: id }));
-                }
+
+            const relatedIds = Array.isArray(docToProcess[field.name])
+                ? docToProcess[field.name]
+                : [docToProcess[field.name]];
+
+            // Préparer un filtre global : match si _id dans relatedIds ET respecte relationFilter
+            const validationQuery = {
+                $and: [
+                    { $in: ['$_id', relatedIds.map(id => ({ $toObjectId: id }))] },
+                    field.relationFilter
+                ]
+            };
+
+            const relatedDocs = await searchData({
+                filter: validationQuery,
+                model: field.relation,
+                limit: relatedIds.length
+            }, me);
+
+            if ((relatedDocs?.count || 0) !== relatedIds.length) {
+                const invalidIds = relatedIds.filter(id =>
+                    !relatedDocs.data.some(doc => doc._id.toString() === id.toString())
+                );
+                throw new Error(
+                    i18n.t(
+                        'api.data.relationFilterFailed',
+                        'Les valeurs {{values}} pour le champ {{field}} ne respectent pas le filtre de relation défini.',
+                        { field: field.name, values: invalidIds.join(', ') }
+                    )
+                );
             }
         }
     }
+
 
     // Insertion en conservant éventuellement l'ID original
     const result = docToProcess._id
@@ -2296,28 +2315,37 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         }
 
         for (const field of model.fields) {
-            // On ne vérifie que si un champ de relation avec un filtre est en cours de modification.
-            if (field.type === 'relation' && field.relationFilter && updateData[field.name] !== undefined) {
+            if (field.type === 'relation' && field.relationFilter && updateData[field.name]) {
+
                 const relatedIds = Array.isArray(updateData[field.name])
                     ? updateData[field.name]
-                    : (updateData[field.name] ? [updateData[field.name]] : []);
+                    : [updateData[field.name]];
 
-                for (const id of relatedIds) {
-                    if (!id || !isObjectId(id)) continue; // Ignorer les valeurs null/invalides
+                // Préparer un filtre global : match si _id dans relatedIds ET respecte relationFilter
+                const validationQuery = {
+                    $and: [
+                        { $in: ['$_id', relatedIds.map(id => ({ $toObjectId: id }))] },
+                        field.relationFilter
+                    ]
+                };
 
-                    const targetCollection = await getCollectionForUser(user, field.relation);
+                const relatedDocs = await searchData({
+                    filter: validationQuery,
+                    model: field.relation,
+                    limit: relatedIds.length
+                }, user);
 
-                    const validationQuery = {
-                        _id: new ObjectId(id),
-                        ...field.relationFilter
-                    };
-
-                    const relatedDoc = await targetCollection.findOne(validationQuery);
-
-                    if (!relatedDoc) {
-                        // Si on ne trouve rien, c'est que l'ID est invalide ou ne respecte pas le filtre.
-                        throw new Error(`La valeur '${id}' pour le champ '${field.name}' ne respecte pas le filtre de relation défini.`);
-                    }
+                if ((relatedDocs?.count || 0) !== relatedIds.length) {
+                    const invalidIds = relatedIds.filter(id =>
+                        !relatedDocs.data.some(doc => doc._id.toString() === id.toString())
+                    );
+                    throw new Error(
+                        i18n.t(
+                            'api.data.relationFilterFailed',
+                            'Les valeurs {{values}} pour le champ {{field}} ne respectent pas le filtre de relation défini.',
+                            { field: field.name, values: invalidIds.join(', ') }
+                        )
+                    );
                 }
             }
         }

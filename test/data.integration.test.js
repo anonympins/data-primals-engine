@@ -832,7 +832,6 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         it('should ALLOW inserting data with a valid relation', async () => {
-            console.log(await searchData({ model: productModel.name }, user))
             const result = await insertData(orderModel.name, { ref: 'CMD-OK', produit: activeProductId }, {}, user);
             expect(result.success).toBe(true);
             expect(result.insertedIds).toHaveLength(1);
