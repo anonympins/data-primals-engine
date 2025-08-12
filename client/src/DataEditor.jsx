@@ -239,7 +239,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
                                    onChange={(e) => handleChange({name: field.name, value: e})}/>
             case 'boolean':
                 return <CheckboxField
-                    help={value && t('field_' + model.name + '_' + field.name + '_hint', field.hint || '')}
+                    help={t('field_' + model.name + '_' + field.name + '_hint', field.hint || '')}
                     key={field.name} {...inputProps} checked={value}
                     onChange={(e) => handleChange({name: field.name, value: e.target.checked})}/>
             case 'string':
