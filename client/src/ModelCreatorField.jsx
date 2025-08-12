@@ -284,7 +284,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         checked={field.multiline}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            newFields[index].multiline = e.target.checked;
+                                            newFields[index].multiline = e;
                                             setFields(newFields);
                                         }}
                                         help={field.multiline && t('modelcreator.multiline.hint')}
@@ -373,7 +373,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     checked={field.multiple}
                                     onChange={(e) => {
                                         const newFields = [...fields];
-                                        newFields[index].multiple = e.target.checked;
+                                        newFields[index].multiple = e;
                                         setFields(newFields);
                                     }}
                                 /></div>
@@ -422,7 +422,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         checked={field.required}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            newFields[index].required = e.target.checked;
+                                            newFields[index].required = e;
                                             setFields(newFields);
                                         }}
                                         help={field.required && t('modelcreator.required.hint')}
@@ -440,7 +440,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         checked={field.unique}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            newFields[index].unique = e.target.checked;
+                                            newFields[index].unique = e;
                                             setFields(newFields);
                                         }}
                                         help={field.unique && t('modelcreator.unique.hint')}
@@ -522,7 +522,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                             disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                             onChange={(e) => {
                                                 const newFields = [...fields];
-                                                newFields[index].default = e.target.checked;
+                                                newFields[index].default = e;
                                                 setFields(newFields);
                                             }}
                                         />
@@ -612,7 +612,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         checked={field.condition !== undefined}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            if (e.target.checked) {
+                                            if (e) {
                                                 newFields[index].condition = null;
                                             } else {
                                                 delete newFields[index].condition;
@@ -701,7 +701,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         checked={field.asMain}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            newFields[index].asMain = e.target.checked;
+                                            newFields[index].asMain = e;
                                             setFields(newFields);
                                         }}
                                         help={field.asMain && t('modelcreator.asMain.hint')}
@@ -752,7 +752,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         checked={field.hiddenable}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            newFields[index].hiddenable = e.target.checked;
+                                            newFields[index].hiddenable = e;
                                             setFields(newFields);
                                         }}
                                         help={field.unique && t('modelcreator.hiddenable.hint')}
@@ -768,7 +768,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     checked={field.anonymized}
                                     onChange={(e) => {
                                         const newFields = [...fields];
-                                        newFields[index].anonymized = e.target.checked;
+                                        newFields[index].anonymized = e;
                                         setFields(newFields);
                                     }}
                                 />

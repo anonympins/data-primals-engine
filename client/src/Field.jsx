@@ -1431,8 +1431,8 @@ export const ModelField = ({field, disableable=false, showModel=true, value, fie
         <CheckboxField
             checked={checked}
             onChange={e => {
-                setChecked(e.target.checked);
-                if (!e.target.checked) {
+                setChecked(e);
+                if (!e) {
                     onChange({name: field?.name, value: null});
                 }
             }}

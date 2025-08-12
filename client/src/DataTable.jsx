@@ -458,7 +458,7 @@ export function DataTable({
                                         <CheckboxField className={"input-ref"}
                                                        checked={checkedItems.some(i => i._id === item._id)}
                                                        onChange={(e) => {
-                                                           if (e.target.checked) {
+                                                           if (e) {
                                                                setCheckedItems(items => {
                                                                    return [...items, item];
                                                                });

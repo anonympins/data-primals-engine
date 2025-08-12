@@ -99,7 +99,7 @@ function ExportDialog({ isOpen, onClose, onExport, currentModel, availableModels
                     name="exportSelection"
                     label={t('exportDialog.exportSelection.label', "Exporter la sélection")}
                     checked={exportSelection}
-                    onChange={(e) => setExportSelection(e.target.checked)}
+                    onChange={(e) => setExportSelection(e)}
                     disabled={!hasSelection}
                     hint={hasSelection
                         ? t('exportDialog.exportSelection.hint', "Exportera uniquement les lignes actuellement sélectionnées dans le tableau.")
@@ -119,7 +119,7 @@ function ExportDialog({ isOpen, onClose, onExport, currentModel, availableModels
                     multiple={true}
                 />
 
-                <CheckboxField label={t('exportDialog.withModels.label', "Inclure les modèles ?")} checked={withModels} onChange={(e) => setWithModels(e.target.checked)} />
+                <CheckboxField label={t('exportDialog.withModels.label', "Inclure les modèles ?")} checked={withModels} onChange={(e) => setWithModels(e)} />
 
                 {/* OU: Utiliser un composant MultiSelectField (à créer/importer) pour plusieurs modèles */}
                 {/*
