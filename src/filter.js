@@ -175,15 +175,45 @@ export const isConditionMet = (model, cond, formData, allModels, user) => {
 
     if (!condition) return true;
 
+    // Cas 0: Condition est une valeur primitive (string, number, boolean)
+    // On la considère comme toujours vraie (comportement de searchData)
+    if (typeof condition !== 'object' || condition === null) {
+        return true;
+    }
+
     // Cas 1: Condition simple {field: value} → transformée en {field: {$eq: value}}
     if (typeof condition === 'object' && !Array.isArray(condition)) {
         const keys = Object.keys(condition);
+
+        // Cas spécial pour les conditions de type {field: value} (pas d'opérateur $)
         if (keys.length === 1 && !keys[0].startsWith('$') &&
             typeof condition[keys[0]] !== 'object') {
-            const simpleCondition = {
-                [keys[0]]: {$eq: condition[keys[0]]}
-            };
-            return evaluateSingleCondition(model, simpleCondition, formData, allModels, user);
+            const fieldName = keys[0];
+            const value = condition[fieldName];
+
+            // Si la valeur est null/undefined, on vérifie simplement l'existence
+            if (value === null || value === undefined) {
+                return formData[fieldName] === value;
+            }
+
+            // Sinon on fait une comparaison d'égalité simple
+            return formData[fieldName] == value;
+        }
+
+        // Cas spécial pour les tableaux - vérifie si la valeur est incluse
+        if (keys.length === 1 && !keys[0].startsWith('$') &&
+            Array.isArray(condition[keys[0]])) {
+            const fieldName = keys[0];
+            const values = condition[fieldName];
+            const fieldValue = formData[fieldName];
+
+            // Si le champ est aussi un tableau, vérifie l'intersection
+            if (Array.isArray(fieldValue)) {
+                return fieldValue.some(v => values.includes(v));
+            }
+
+            // Sinon vérifie si la valeur est dans le tableau
+            return values.includes(fieldValue);
         }
     }
 

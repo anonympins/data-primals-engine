@@ -455,7 +455,7 @@ describe('Intégration des Actions de Workflow', () => {
             onEvent: 'DataAdded',
             isActive: true,
             workflow: workflowRes.insertedIds[0].toString(),
-            dataFilter: { "status": "done" } // Le filtre crucial
+            dataFilter: { "$eq": ["$status","done"] } // Le filtre crucial
         }, {}, mockUser, false);
 
         // 1. Déclencher avec une donnée qui NE correspond PAS au filtre
