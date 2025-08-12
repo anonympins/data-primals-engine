@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
-import {deleteData, insertData, patchData, scheduleAlerts, searchData} from "./data/index.js";
+import {deleteData, getModel, insertData, patchData, scheduleAlerts, searchData} from "./data/index.js";
 import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
@@ -17,6 +17,8 @@ import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
 import util from "node:util";
+import {object_equals} from "../core.js";
+import {isConditionMet} from "../filter.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -219,12 +221,18 @@ export async function executeSafeJavascript(actionDef, context, user) {
         };
 
         // 1. Build the sandboxed API
-        await jail.set('_db_create', new ivm.Reference((modelName, dataObject) => insertData(modelName, JSON.parse(dataObject), {}, user, false)));
+        await jail.set('_db_create', new ivm.Reference(async (modelName, dataObject) => {
+            const result = await insertData(modelName, JSON.parse(dataObject), {}, user, false);
+            if (result.success && result.insertedIds) {
+                result.insertedIds = result.insertedIds.map(id => id.toString());
+            }
+            return new ivm.ExternalCopy(result).copyInto();
+        }));
         await jail.set('_db_find', new ivm.Reference(find));
         await jail.set('_db_findOne', new ivm.Reference(findOne));
 
-        await jail.set('_db_update', new ivm.Reference((modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false)));
-        await jail.set('_db_delete', new ivm.Reference((modelName, filter) => deleteData(modelName, JSON.parse(filter), user, false)));
+        await jail.set('_db_update', new ivm.Reference(async (modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false)));
+        await jail.set('_db_delete', new ivm.Reference(async (modelName, filter) => deleteData(modelName, JSON.parse(filter), user, false)));
 
         const createLoggerMethod = (level) => {
             return (...args) => {
@@ -1099,102 +1107,96 @@ export async function substituteVariables(template, contextData, user) {
 }
 
 /**
- * Déclenche l'instanciation d'un workflowRun si les conditions sont remplies.
- * Vérifie le type d'événement et le filtre de données du déclencheur.
- * Crée un document 'workflowRun' pour une exécution asynchrone ultérieure.
+ * Triggers the instantiation of a workflowRun if conditions are met.
+ * Checks the event type and trigger's data filter.
+ * Creates a 'workflowRun' document for later asynchronous execution.
  *
- * @param {object} triggerData - La donnée qui a déclenché le(s) workflow(s) (peut être un document de données ou un document de modèle).
- * @param {object} user - L'utilisateur associé.
- * @param {'DataAdded' | 'DataEdited' | 'DataDeleted' | 'ModelAdded' | 'ModelEdited' | 'ModelDeleted'} eventType - Le type d'événement.
+ * @param {object} triggerData - The data that triggered the workflow(s) (can be a data document or model document).
+ * @param {object} user - The associated user.
+ * @param {'DataAdded' | 'DataEdited' | 'DataDeleted' | 'ModelAdded' | 'ModelEdited' | 'ModelDeleted'} eventType - The event type.
  */
-export async function triggerWorkflows(triggerData, user, eventType)  {
-    const dataId = eventType.startsWith('Model') ? null : triggerData._id;
-
+export async function triggerWorkflows(triggerData, user, eventType) {
     const trigger = async (triggerData, user, eventType) => {
-
         // Basic validation
         if (!triggerData || !user || !eventType) {
-            console.warn("triggerWorkflows: Appel invalide - triggerData, user, ou eventType manquant.", { hasTriggerData: !!triggerData, hasUser: !!user, eventType });
+            console.warn("triggerWorkflows: Invalid call - missing triggerData, user, or eventType.", {
+                hasTriggerData: !!triggerData,
+                hasUser: !!user,
+                eventType
+            });
             return;
         }
-        // Determine the model name and data ID based on the event type
+
+        // Determine model name and data ID based on event type
         const targetModelName = eventType.startsWith('Model') ? triggerData.name : triggerData._model;
-        const dataId = eventType.startsWith('Model') ? null : triggerData._id; // ID only relevant for data events
+        const dataId = eventType.startsWith('Model') ? null : triggerData._id;
 
         if (!targetModelName) {
-            console.warn(`triggerWorkflows: Impossible de déterminer le nom du modèle pour l'événement ${eventType}.`, triggerData);
+            console.warn(`triggerWorkflows: Cannot determine model name for event ${eventType}.`, triggerData);
             return;
         }
 
         console.log(`[Workflow Trigger] Event: ${eventType}, Model: ${targetModelName}${dataId ? `, Data ID: ${dataId}` : ''}, User: ${user.username}`);
 
         try {
-            const dbCollection = await getCollectionForUser(user); // Collection des données utilisateur
+            const dbCollection = await getCollectionForUser(user);
 
-            // 1. Trouver les WorkflowTriggers pertinents
+            // 1. Find relevant WorkflowTriggers
             const workflowTriggers = await dbCollection.find({
                 _model: 'workflowTrigger',
                 targetModel: targetModelName,
                 isActive: true,
-                onEvent: eventType, // Assurez-vous que le champ s'appelle bien 'onEvent' dans votre modèle
+                onEvent: eventType,
                 $or: [{_user: user._user}, {_user: user.username}]
             }).toArray();
 
             if (workflowTriggers.length === 0) {
-                console.debug(`[Workflow Trigger] Aucun déclencheur actif trouvé pour ${targetModelName} / ${eventType}.`);
+                console.debug(`[Workflow Trigger] No active triggers found for ${targetModelName}/${eventType}.`);
                 return;
             }
-            console.debug(`[Workflow Trigger] Trouvé ${workflowTriggers.length} déclencheur(s) potentiel(s) pour ${targetModelName} / ${eventType}.`);
+            console.debug(`[Workflow Trigger] Found ${workflowTriggers.length} potential trigger(s) for ${targetModelName}/${eventType}.`);
 
-            // 2. Pour chaque déclencheur trouvé, vérifier le filtre de données et créer un workflowRun
+            // 2. For each trigger, verify data filter and create workflowRun
             for (const trigger of workflowTriggers) {
-                console.debug(`[Workflow Trigger] Vérification du déclencheur ${trigger._id} (${trigger.name || 'Sans nom'})...`);
+                console.debug(`[Workflow Trigger] Evaluating trigger ${trigger._id} (${trigger.name || 'Unnamed'})...`);
 
-                // 3. Vérifier le filtre de données (dataFilter) si applicable
-                if (eventType.startsWith('Data') && trigger.dataFilter && dataId) {
+                // 3. Check data filter if applicable
+                if (eventType.startsWith('Data') && trigger.dataFilter) {
                     let dataFilterCondition = null;
                     try {
-                        // dataFilter est supposé être stocké comme un objet (ou une string JSON valide)
+                        // dataFilter is expected to be stored as an object or valid JSON string
                         if (typeof trigger.dataFilter === 'string') {
                             dataFilterCondition = JSON.parse(trigger.dataFilter);
                         } else if (typeof trigger.dataFilter === 'object' && trigger.dataFilter !== null) {
                             dataFilterCondition = trigger.dataFilter;
                         }
                     } catch (parseError) {
-                        console.error(`[Workflow Trigger] Erreur de parsing JSON pour dataFilter du trigger ${trigger._id}:`, parseError);
-                        continue; // Passer au trigger suivant si le filtre est invalide
+                        console.error(`[Workflow Trigger] JSON parsing error for dataFilter in trigger ${trigger._id}:`, parseError);
+                        continue; // Skip to next trigger if filter is invalid
                     }
 
                     try {
-                        const finalFilter = {
-                            '$and': [
-                                {"_id": { "$toObjectId": triggerData._id.toString() }},
-                                dataFilterCondition                      // Applique la condition du trigger
-                            ]
-                        };
+                        const mod = await getModel(targetModelName, user);
+                        const filterMatches = isConditionMet(mod, dataFilterCondition, triggerData, [], user);
 
-
-                        console.debug(`[Workflow Trigger] Vérification dataFilter pour trigger ${trigger._id} avec filtre combiné:`, JSON.stringify(finalFilter));
-                        const match = await searchData({ model: triggerData._model, filter: finalFilter, limit: 1 }, user);
-                        if (!match.count) {
-                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
-                            continue; // Passer au trigger suivant
-                        } else {
-                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter satisfait par la donnée ${dataId}.`);
+                        if (!filterMatches) {
+                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter not satisfied by data. Skipping workflowRun creation.`);
+                            continue;
                         }
+                        console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter satisfied.`);
                     } catch (filterError) {
-                        console.error(`[Workflow Trigger] Erreur lors de la conversion ou de l'exécution du dataFilter pour le trigger ${trigger._id}:`, filterError);
-                        continue; // Ne pas créer en cas d'erreur de filtre
+                        console.error(`[Workflow Trigger] Error evaluating dataFilter for trigger ${trigger._id}:`, filterError);
+                        continue;
                     }
-                } // Fin de la vérification dataFilter
+                }
 
-                // 4. Si les filtres (eventType, dataFilter) sont passés, créer l'instance workflowRun
+                // 4. If filters passed, create workflowRun instance
                 if (!trigger.workflow || !isObjectId(trigger.workflow)) {
-                    console.warn(`[Workflow Trigger] Trigger ${trigger._id} n'a pas de workflow valide associé.`);
+                    console.warn(`[Workflow Trigger] Trigger ${trigger._id} has no valid associated workflow.`);
                     continue;
                 }
 
-                // a. Récupérer la définition du Workflow (juste pour vérifier qu'il existe)
+                // a. Verify workflow exists
                 const workflowDefinition = await dbCollection.findOne({
                     _id: new ObjectId(trigger.workflow),
                     _model: 'workflow',
@@ -1202,21 +1204,20 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
                 });
 
                 if (!workflowDefinition) {
-                    console.warn(`[Workflow Trigger] Workflow ${trigger.workflow} associé au trigger ${trigger._id} non trouvé.`);
+                    console.warn(`[Workflow Trigger] Workflow ${trigger.workflow} associated with trigger ${trigger._id} not found.`);
                     continue;
                 }
 
-                // b. Créer le document workflowRun
+                // b. Create workflowRun document
                 const workflowRunData = {
                     _model: 'workflowRun',
                     _user: user._user || user.username,
-                    workflow: workflowDefinition._id, // Référence au workflow parent
-                    contextData: {                        // Contexte initial
-                        triggerDataModel: targetModelName,// Modèle de la donnée déclencheuse
-                        triggerData: triggerData      // Inclure la donnée déclencheuse
-                        // Vous pourriez ajouter d'autres infos ici si nécessaire
+                    workflow: workflowDefinition._id,
+                    contextData: {
+                        triggerDataModel: targetModelName,
+                        triggerData: triggerData
                     },
-                    status: 'pending',                // Statut initial
+                    status: 'pending',
                     owner: null,
                     startedAt: new Date()
                 };
@@ -1224,30 +1225,25 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
                 try {
                     const insertResult = await dbCollection.insertOne(workflowRunData);
                     if (insertResult.insertedId) {
-                        console.info(`[Workflow Trigger] WorkflowRun ${insertResult.insertedId} créé pour le workflow ${workflowDefinition.name} (ID: ${workflowDefinition._id}) déclenché par ${trigger._id}.`);
-
+                        console.info(`[Workflow Trigger] Created workflowRun ${insertResult.insertedId} for workflow ${workflowDefinition.name} (ID: ${workflowDefinition._id}) triggered by ${trigger._id}.`);
                         await workflowModule.processWorkflowRun(insertResult.insertedId, user);
                     } else {
-                        console.error(`[Workflow Trigger] Échec de la création du WorkflowRun pour le workflow ${workflowDefinition._id} (Trigger: ${trigger._id}).`);
+                        console.error(`[Workflow Trigger] Failed to create workflowRun for workflow ${workflowDefinition._id} (Trigger: ${trigger._id}).`);
                     }
                 } catch (insertError) {
-                    console.error(`[Workflow Trigger] Erreur lors de l'insertion du WorkflowRun pour le workflow ${workflowDefinition._id} (Trigger: ${trigger._id}):`, insertError);
+                    console.error(`[Workflow Trigger] Error creating workflowRun for workflow ${workflowDefinition._id} (Trigger: ${trigger._id}):`, insertError);
                 }
-
-            } // Fin de la boucle des triggers
-
+            }
         } catch (error) {
-            console.error(`[Workflow Trigger] Erreur générale dans triggerWorkflows pour ${targetModelName}${dataId ? ` ID: ${dataId}` : ''} (Event: ${eventType}):`, error);
+            console.error(`[Workflow Trigger] General error in triggerWorkflows for ${targetModelName}${dataId ? ` ID: ${dataId}` : ''} (Event: ${eventType}):`, error);
         }
     }
 
     return new Promise((resolve) => setTimeout(async () => {
         await trigger(triggerData, user, eventType);
         resolve();
-    }, 0)
-    );
+    }, 0));
 }
-
 /**
  * Processes a workflowRun instance step-by-step.
  * Fetches the run, evaluates conditions, executes actions, and transitions

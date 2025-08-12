@@ -34,7 +34,7 @@ import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-
+import Switch from "react-switch";
 export const Form = ({
   name,
   onValidate,
@@ -492,20 +492,6 @@ const CheckboxField = forwardRef(
     return (
         <>
             <div className={cn({field: true, "field-checkbox": true,"field-bg": true})}>
-                <div className="inline"><input
-                    aria-required={required}
-                    aria-readonly={readOnly}
-                    readOnly={readOnly}
-                    type="checkbox"
-                    checked={value}
-                    placeholder={placeholder}
-                    id={id}
-                    name={name}
-                    onChange={handleChange}
-                    minLength={minlength}
-                    maxLength={maxlength}
-                    {...rest}
-                />
                 {label && (
                     <label
                         contentEditable={editable}
@@ -522,7 +508,9 @@ const CheckboxField = forwardRef(
                         )}
                     </label>
                 )}
-                </div>
+                <Switch
+                    onChange={handleChange}
+                    checked={value} />
                 {help && <div className="flex help">{help}</div>}
             </div>
             {errors.length > 0 && (
