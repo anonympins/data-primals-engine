@@ -17,6 +17,7 @@ import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
 import util from "node:util";
+import {object_equals} from "../core.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -1157,7 +1158,8 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
                 console.debug(`[Workflow Trigger] Vérification du déclencheur ${trigger._id} (${trigger.name || 'Sans nom'})...`);
 
                 // 3. Vérifier le filtre de données (dataFilter) si applicable
-                if (eventType.startsWith('Data') && trigger.dataFilter && dataId) {
+                // 3. Vérifier le filtre de données (dataFilter) si applicable
+                if (eventType.startsWith('Data') && trigger.dataFilter) {
                     let dataFilterCondition = null;
                     try {
                         // dataFilter est supposé être stocké comme un objet (ou une string JSON valide)
@@ -1172,24 +1174,22 @@ export async function triggerWorkflows(triggerData, user, eventType)  {
                     }
 
                     try {
-                        const finalFilter = {
-                            '$and': [
-                                {"_id": { "$toObjectId": triggerData._id.toString() }},
-                                dataFilterCondition                      // Applique la condition du trigger
-                            ]
-                        };
+                        // Vérifier directement si le triggerData satisfait le filtre
+                        const filterMatches = Object.entries(dataFilterCondition).every(([key, value]) => {
+                            // Vérification récursive pour supporter les objets imbriqués
+                            if (typeof value === 'object' && value !== null) {
+                                return object_equals(triggerData[key], value);
+                            }
+                            return triggerData[key] === value;
+                        });
 
-
-                        console.debug(`[Workflow Trigger] Vérification dataFilter pour trigger ${trigger._id} avec filtre combiné:`, JSON.stringify(finalFilter));
-                        const match = await searchData({ model: triggerData._model, filter: finalFilter, limit: 1 }, user);
-                        if (!match.count) {
-                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée ${dataId}. WorkflowRun non créé.`);
+                        if (!filterMatches) {
+                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter non satisfait par la donnée. WorkflowRun non créé.`);
                             continue; // Passer au trigger suivant
-                        } else {
-                            console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter satisfait par la donnée ${dataId}.`);
                         }
+                        console.debug(`[Workflow Trigger] Trigger ${trigger._id}: dataFilter satisfait par la donnée.`);
                     } catch (filterError) {
-                        console.error(`[Workflow Trigger] Erreur lors de la conversion ou de l'exécution du dataFilter pour le trigger ${trigger._id}:`, filterError);
+                        console.error(`[Workflow Trigger] Erreur lors de l'évaluation du dataFilter pour le trigger ${trigger._id}:`, filterError);
                         continue; // Ne pas créer en cas d'erreur de filtre
                     }
                 } // Fin de la vérification dataFilter

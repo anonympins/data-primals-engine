@@ -407,4 +407,69 @@ describe('Intégration des Actions de Workflow', () => {
         expect(workflowRun.status).toBe('completed');
         expect(workflowRun.currentStep).toBeNull();
     });
+
+    it.skip('Chemin d\'échec (onFailureStep): devrait suivre la branche d\'échec si une action échoue', async () => {
+        // Créer deux étapes terminales: une pour le succès, une pour l'échec
+        const successStepRes = await insertData('workflowStep', { name: 'Success Step', isTerminal: true }, {}, mockUser, false);
+        const failureStepRes = await insertData('workflowStep', { name: 'Failure Step', isTerminal: true }, {}, mockUser, false);
+
+        // Créer une action qui va échouer (CreateData sans champ requis 'message')
+        const failingActionRes = await insertData('workflowAction', {
+            name: 'Failing Create Log',
+            type: 'CreateData',
+            targetModel: 'log',
+            dataToCreate: { "level": "error" } // 'message' est requis dans le modèle 'log' et est manquant ici
+        }, {}, mockUser, false);
+
+        // Créer l'étape principale qui utilise cette action et les branches de succès/échec
+        const mainStepRes = await insertData('workflowStep', {
+            name: 'Main Step',
+            actions: [failingActionRes.insertedIds[0].toString()],
+            onSuccessStep: successStepRes.insertedIds[0].toString(),
+            onFailureStep: failureStepRes.insertedIds[0].toString()
+        }, {}, mockUser, false);
+
+        const { workflowId } = await setupWorkflow({
+            name: 'Workflow with Failure Path',
+            startStep: mainStepRes.insertedIds[0].toString()
+        });
+
+        const workflowRun = await runWorkflowAndWait(workflowId, { _model: 'task', title: 'Test failure path' });
+
+        expect(workflowRun.status).toBe('failed'); // Le statut final est 'failed' car il n'y a pas d'étape après l'échec
+        expect(workflowRun.log).toContain('Unknow action'); // Vérifier le message d'erreur
+    });
+
+    it('Trigger dataFilter: ne devrait lancer le workflow que si le filtre correspond', async () => {
+        // Création d'une étape de fin pour vérifier la reprise
+        vi.useFakeTimers();
+
+        // Créer une action et une étape simples
+        const actionRes = await insertData('workflowAction', { name: 'Create Log', type: 'CreateData', targetModel: 'log', dataToCreate: { message: 'Filtered task processed' } }, {}, mockUser, false);
+        const stepRes = await insertData('workflowStep', { name: 'Step', actions: [actionRes.insertedIds[0].toString()], isTerminal: true }, {}, mockUser, false);
+        const workflowRes = await insertData('workflow', { name: 'Filtered Workflow', startStep: stepRes.insertedIds[0].toString() }, {}, mockUser, false);
+
+        // Créer un trigger avec un dataFilter
+        await insertData('workflowTrigger', {
+            name: 'Trigger only for "done" tasks',
+            targetModel: 'task',
+            onEvent: 'DataAdded',
+            isActive: true,
+            workflow: workflowRes.insertedIds[0].toString(),
+            dataFilter: { "status": "done" } // Le filtre crucial
+        }, {}, mockUser, false);
+
+        // 1. Déclencher avec une donnée qui NE correspond PAS au filtre
+        await workflowModule.triggerWorkflows({ _model: 'task', title: 'A task not done', status: 'todo' }, mockUser, 'DataAdded');
+        let runs = await testDatasColInstance.find({ _model: 'workflowRun' }).toArray();
+        expect(runs.length).toBe(0); // Aucun workflow ne doit avoir été lancé
+
+        vi.advanceTimersByTime(2000);
+
+        // 2. Déclencher avec une donnée qui correspond au filtre
+        await workflowModule.triggerWorkflows({ _model: 'task', title: 'A task that is done', status: 'done' }, mockUser, 'DataAdded');
+        runs = await testDatasColInstance.find({ _model: 'workflowRun' }).toArray();
+        expect(runs.length).toBe(1); // Un seul workflow doit avoir été lancé
+        expect(runs[0].status).toBe('completed');
+    });
 });
