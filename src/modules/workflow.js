@@ -332,7 +332,7 @@ export async function executeSafeJavascript(actionDef, context, user) {
 }
 
 /**
- * Handles the 'Webhook' workflow action.
+ * Handles the 'HttpRequest' workflow action.
  * Sends an HTTP request to a specified URL with substituted data using native fetch.
  *
  * @param {object} actionDef - The definition of the 'Webhook' action.
@@ -341,17 +341,17 @@ export async function executeSafeJavascript(actionDef, context, user) {
  * @param {object} dbCollection - The MongoDB collection (moins pertinent ici, mais gardé pour la cohérence).
  * @returns {Promise<{success: boolean, message?: string, responseStatus?: number, responseBody?: any}>} - Result of the action.
  */
-async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
+async function handleHttpRequestAction(actionDef, contextData, user, dbCollection) {
     const { name: actionName, _id: actionId, url, method = 'POST', headers: headersTemplate, body: bodyTemplate } = actionDef;
 
     // 1. Basic Validation
     if (!url) {
-        const msg = `[handleWebhookAction] Action ${actionName} (${actionId}): Missing 'url'.`;
+        const msg = `[handleHttpRequestAction] Action ${actionName} (${actionId}): Missing 'url'.`;
         logger.error(msg);
         return { success: false, message: msg };
     }
 
-    logger.info(`[handleWebhookAction] Action ${actionName} (${actionId}): Executing webhook. Method: ${method}`);
+    logger.info(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Executing webhook. Method: ${method}`);
 
     try {
         // 2. Substitute Variables
@@ -368,7 +368,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
             } else if (typeof headersTemplate === 'object') {
                 headersObject = await substituteVariables(headersTemplate, contextData, user);
             } else {
-                logger.warn(`[handleWebhookAction] Action ${actionName} (${actionId}): 'headers' has an invalid type (${typeof headersTemplate}). Ignoring.`);
+                logger.warn(`[handleHttpRequestAction] Action ${actionName} (${actionId}): 'headers' has an invalid type (${typeof headersTemplate}). Ignoring.`);
             }
         }
 
@@ -379,7 +379,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
             } else if (typeof bodyTemplate === 'object') {
                 bodyObject = await substituteVariables(bodyTemplate, contextData, user);
             } else {
-                logger.warn(`[handleWebhookAction] Action ${actionName} (${actionId}): 'body' has an invalid type (${typeof bodyTemplate}). Ignoring.`);
+                logger.warn(`[handleHttpRequestAction] Action ${actionName} (${actionId}): 'body' has an invalid type (${typeof bodyTemplate}). Ignoring.`);
             }
         }
 
@@ -391,7 +391,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
                     throw new Error("Parsed headers is not a valid object.");
                 }
             } catch (parseError) {
-                logger.error(`[handleWebhookAction] Action ${actionName} (${actionId}): Failed to parse substituted 'headers' JSON. Error: ${parseError.message}. Using default headers. Substituted string: ${substitutedHeadersString}`);
+                logger.error(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Failed to parse substituted 'headers' JSON. Error: ${parseError.message}. Using default headers. Substituted string: ${substitutedHeadersString}`);
                 headersObject = { 'Content-Type': 'application/json' }; // Fallback
             }
         }
@@ -433,7 +433,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
         }
 
         // 5. Execute Fetch Request using native fetch
-        logger.info(`[handleWebhookAction] Action ${actionName} (${actionId}): Calling URL: ${substitutedUrl}`);
+        logger.info(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Calling URL: ${substitutedUrl}`);
         const response = await fetch(substitutedUrl, fetchOptions); // Utilisation de fetch natif
 
         // 6. Process Response
@@ -446,7 +446,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
                 responseBody = await response.text();
             }
         } catch (responseParseError) {
-            logger.error(`[handleWebhookAction] Action ${actionName} (${actionId}): Failed to parse response body. Error: ${responseParseError.message}`);
+            logger.error(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Failed to parse response body. Error: ${responseParseError.message}`);
             // Try reading as text again in case of error during json parsing
             try {
                 responseBody = await response.text();
@@ -455,7 +455,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
             }
         }
 
-        logger.info(`[handleWebhookAction] Action ${actionName} (${actionId}): Received response. Status: ${response.status}`);
+        logger.info(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Received response. Status: ${response.status}`);
 
         // 7. Return Result
         if (response.ok) { // Status code 200-299
@@ -469,7 +469,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
         } else {
             // Handle non-successful responses (4xx, 5xx)
             const errorMsg = `Webhook execution failed. Status: ${response.status}. Response: ${typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody)}`;
-            logger.error(`[handleWebhookAction] Action ${actionName} (${actionId}): ${errorMsg}`);
+            logger.error(`[handleHttpRequestAction] Action ${actionName} (${actionId}): ${errorMsg}`);
             return {
                 success: false,
                 message: errorMsg,
@@ -480,7 +480,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
 
     } catch (error) {
         // Catch network errors or other unexpected errors during the process
-        const msg = `[handleWebhookAction] Action ${actionName} (${actionId}): Unexpected error during webhook execution. Error: ${error.message}`;
+        const msg = `[handleHttpRequestAction] Action ${actionName} (${actionId}): Unexpected error during webhook execution. Error: ${error.message}`;
         logger.error(msg, error.stack);
         return { success: false, message: msg };
     }
@@ -797,8 +797,8 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
             logger.info(`[Workflow Log Action] Action: ${actionDef.name}. Contexte:`, contextData);
             result = { success: true, message: 'Log action executed successfully.' }; // <--- CORRECTION
             break;
-        case 'Webhook':
-            result = await handleWebhookAction(actionDef, contextData, user, dbCollection);
+        case 'HttpRequest':
+            result = await handleHttpRequestAction(actionDef, contextData, user, dbCollection);
             break;
         case 'CreateData':
             result = await handleCreateDataAction(actionDef, contextData, user, dbCollection);

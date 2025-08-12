@@ -1121,7 +1121,7 @@ export const translations = {
             "CreateData": "Créer une donnée",
             "DeleteData": "Supprimer une donnée",
             "ExecuteScript": "Exécuter un script",
-            "CallWebhook": "Appeler un Webhook",
+            "HttpRequest": "Appeler un Webhook",
             "SendEmail": "Envoyer un Email",
             "Wait": "Attendre",
             "GenerateAIContent": "Générer un contenu IA",
