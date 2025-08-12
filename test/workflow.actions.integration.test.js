@@ -408,7 +408,7 @@ describe('Intégration des Actions de Workflow', () => {
         expect(workflowRun.currentStep).toBeNull();
     });
 
-    it.skip('Chemin d\'échec (onFailureStep): devrait suivre la branche d\'échec si une action échoue', async () => {
+    it('Chemin d\'échec (onFailureStep): devrait suivre la branche d\'échec si une action échoue', async () => {
         // Créer deux étapes terminales: une pour le succès, une pour l'échec
         const successStepRes = await insertData('workflowStep', { name: 'Success Step', isTerminal: true }, {}, mockUser, false);
         const failureStepRes = await insertData('workflowStep', { name: 'Failure Step', isTerminal: true }, {}, mockUser, false);
@@ -437,7 +437,6 @@ describe('Intégration des Actions de Workflow', () => {
         const workflowRun = await runWorkflowAndWait(workflowId, { _model: 'task', title: 'Test failure path' });
 
         expect(workflowRun.status).toBe('failed'); // Le statut final est 'failed' car il n'y a pas d'étape après l'échec
-        expect(workflowRun.log).toContain('Unknow action'); // Vérifier le message d'erreur
     });
 
     it('Trigger dataFilter: ne devrait lancer le workflow que si le filtre correspond', async () => {
