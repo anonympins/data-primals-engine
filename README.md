@@ -538,7 +538,7 @@ A workflow is composed of two main parts: **Triggers** and **Actions**.
 - **CreateData**: Create a new document in any model.
 - **UpdateData**: Modify one or more existing documents that match a filter.
 - **SendEmail**: Send a transactional email using dynamic data from the trigger.
-- **CallWebhook**: Make an HTTP request (GET, POST, etc.) to an external service or API.
+- **HttpRequest**: Make an HTTP request (GET, POST, etc.) to an external service or API.
 - **ExecuteScript**: Run a custom JavaScript snippet for complex logic, data transformation, or conditional branching.
 - **GenerateAIContent**: Use an integrated AI provider (like OpenAI or Gemini) to generate text, summarize content, or make decisions.
 - **Wait**: Pause the workflow for a specific duration before continuing to the next step

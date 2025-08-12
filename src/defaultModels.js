@@ -897,7 +897,7 @@ export const defaultModels = {
                 name: 'type',
                 type: 'enum',
                 required: true,
-                items: ['UpdateData', 'CreateData', 'DeleteData', 'ExecuteScript', 'CallWebhook', 'SendEmail', 'Wait', 'GenerateAIContent'],
+                items: ['UpdateData', 'CreateData', 'DeleteData', 'ExecuteScript', 'HttpRequest', 'SendEmail', 'Wait', 'GenerateAIContent'],
                 hint: "The type of operation to perform."
             },
             // For UpdateData / CreateData / DeleteData
@@ -926,11 +926,11 @@ export const defaultModels = {
             // For ExecuteScript
             { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', hint: "The script to execute." },
 
-            // For CallWebhook
-            { name: 'url', condition: {$eq: ["$type", "CallWebhook"]}, type: 'string', hint: "The URL to call." },
-            { name: 'method', condition: {$eq: ["$type", "CallWebhook"]}, type: 'enum', items: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], default: 'POST', hint: "HTTP method." },
-            { name: 'headers', condition: {$eq: ["$type", "CallWebhook"]}, type: 'code', language: 'json',default: {},  hint: "HTTP headers as key-value pairs." },
-            { name: 'body', condition: {$eq: ["$type", "CallWebhook"]}, type: 'code', language: 'json',default: {},  hint: "Request body, can include variables." },
+            // For HttpRequest
+            { name: 'url', condition: {$eq: ["$type", "HttpRequest"]}, type: 'string', hint: "The URL to call." },
+            { name: 'method', condition: {$eq: ["$type", "HttpRequest"]}, type: 'enum', items: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], default: 'POST', hint: "HTTP method." },
+            { name: 'headers', condition: {$eq: ["$type", "HttpRequest"]}, type: 'code', language: 'json',default: {},  hint: "HTTP headers as key-value pairs." },
+            { name: 'body', condition: {$eq: ["$type", "HttpRequest"]}, type: 'code', language: 'json',default: {},  hint: "Request body, can include variables." },
 
             // For SendEmail
             {
