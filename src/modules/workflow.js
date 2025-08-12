@@ -219,12 +219,18 @@ export async function executeSafeJavascript(actionDef, context, user) {
         };
 
         // 1. Build the sandboxed API
-        await jail.set('_db_create', new ivm.Reference((modelName, dataObject) => insertData(modelName, JSON.parse(dataObject), {}, user, false)));
+        await jail.set('_db_create', new ivm.Reference(async (modelName, dataObject) => {
+            const result = await insertData(modelName, JSON.parse(dataObject), {}, user, false);
+            if (result.success && result.insertedIds) {
+                result.insertedIds = result.insertedIds.map(id => id.toString());
+            }
+            return new ivm.ExternalCopy(result).copyInto();
+        }));
         await jail.set('_db_find', new ivm.Reference(find));
         await jail.set('_db_findOne', new ivm.Reference(findOne));
 
-        await jail.set('_db_update', new ivm.Reference((modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false)));
-        await jail.set('_db_delete', new ivm.Reference((modelName, filter) => deleteData(modelName, JSON.parse(filter), user, false)));
+        await jail.set('_db_update', new ivm.Reference(async (modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false)));
+        await jail.set('_db_delete', new ivm.Reference(async (modelName, filter) => deleteData(modelName, JSON.parse(filter), user, false)));
 
         const createLoggerMethod = (level) => {
             return (...args) => {
