@@ -421,6 +421,7 @@ input[type=number]::-webkit-outer-spin-button {
 form .field {
   width: 100%;
   .help {
+    flex: 1;
     color: #575757;
     padding: 4px;
   }
