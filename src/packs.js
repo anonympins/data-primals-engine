@@ -4748,13 +4748,6 @@ return { success: true };
                             }
                         },
                         {
-                            "name": "Daily Subscription Check",
-                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
-                            "type": "scheduled",
-                            "cronExpression": "0 9 * * *", // Daily at 9 AM
-                            "isActive": true
-                        },
-                        {
                             "name": "On Payment Failure",
                             "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
                             "type": "manual",
@@ -4793,15 +4786,6 @@ return { success: true };
                                 ]
                             },
                             "isActive": true
-                        },
-                        {
-                            "name": "On Subscription Renewal",
-                            "workflow": "Subscription Lifecycle Management",
-                            "type": "scheduled",
-                            "cronExpression": "0 8 * * *", // Tous les jours à 8h
-                            "dataFilter": {
-                                "$lt": ["$currentPeriodEnd", {"$add": ["$$NOW", 86400000]}] // J-1
-                            }
                         }
                     ],
                     "dashboard": [
