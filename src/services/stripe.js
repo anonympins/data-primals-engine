@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import {editData, insertData, searchData} from '../data.js';
+import {editData, insertData, searchData} from '../modules/data/index.js';
 import {getEnv} from "../modules/user.js";
 
 

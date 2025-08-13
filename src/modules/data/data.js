@@ -193,7 +193,7 @@ export const dataTypes = {
             }
             return value;
         },
-        anonymize: anonymizeText
+        anonymize: (str) => anonymizeText(typeof(str) ==='object' ? JSON.stringify(str): str)
     },
     richtext: {
         validate: (value, field) => {

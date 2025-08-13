@@ -926,7 +926,7 @@ export const defaultModels = {
             { name: 'dataToCreate', condition: {$eq: ["$type", "CreateData"]}, type: 'code', language: 'json', default: {}, hint: "Object template for the new document to create" },
 
             // For ExecuteScript
-            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', hint: "The script to execute." },
+            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', language: 'javascript', hint: "The script to execute." },
 
             // For HttpRequest
             { name: 'url', condition: {$eq: ["$type", "HttpRequest"]}, type: 'string', hint: "The URL to call." },

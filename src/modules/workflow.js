@@ -7,7 +7,7 @@ import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
 import {deleteData, getModel, insertData, patchData, scheduleAlerts, searchData} from "./data/index.js";
-import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
+import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps, port} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
@@ -16,12 +16,10 @@ import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
-import util from "node:util";
-import {object_equals} from "../core.js";
 import {isConditionMet} from "../filter.js";
-import {urlData} from "../../client/src/core/data.js";
 import { services } from '../services/index.js';
 import {getEnv} from "./user.js";
+import {getHost} from "../constants.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -1137,7 +1135,7 @@ export async function substituteVariables(template, contextData, user) {
         } else if (path === 'randomUUID') {
             return crypto.randomUUID();
         } else if( path === "baseUrl" ){
-            return urlData;
+            return process.env.NODE_ENV === 'production' ? 'https://'+getHost()+'/' : 'http://localhost:/'+port;
         }
 
         // Détecter si le chemin est complexe (contient plus d'un point)
