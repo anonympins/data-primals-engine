@@ -19,7 +19,7 @@ const KanbanConfigModal = ({ isOpen, onClose, onSave, model, initialSettings }) 
     const groupableFields = useMemo(() => {
         // ... (pas de changement ici)
         return modelFields
-            .filter(field => ['select', 'string', 'string_t'].includes(field.type))
+            .filter(field => ['enum', 'model', 'string', 'string_t'].includes(field.type))
             .map(field => ({
                 label: t(`field_${model.name}_${field.name}`, field.name),
                 value: field.name,
@@ -29,7 +29,7 @@ const KanbanConfigModal = ({ isOpen, onClose, onSave, model, initialSettings }) 
     const subItemFields = useMemo(() => {
         // ... (pas de changement ici)
         return modelFields
-            .filter(field => field.type === 'relation' && field.multiple)
+            .filter(field => (field.type === 'relation' && field.multiple) || field.type === 'array')
             .map(field => ({
                 label: t(`field_${field.name}`, { defaultValue: field.name }),
                 value: field.name,
@@ -64,11 +64,9 @@ const KanbanConfigModal = ({ isOpen, onClose, onSave, model, initialSettings }) 
         onSave({ groupByField, subItemsField: subItemsField || '' });
     };
 
-    // --- MODIFICATION 3 : Supprimer le useEffect fautif ---
-    // useEffect(() => {
-    //     setGroupByField(groupableFields[0]?.value || '');
-    // }, []); // <--- CE BLOC EST SUPPRIMÉ
-
+    useEffect(() => {
+        setSubItemsField(subItemFields[0]?.value);
+    })
     if (!isOpen) return null;
 
     return (

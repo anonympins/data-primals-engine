@@ -4055,7 +4055,7 @@ return { processedChunk: context.result.chunk };
         },
         {
             "name": "Stripe Integration Pro",
-            "description": "Complete Stripe integration for payments, subscriptions, invoices and customer management. Includes webhook handling, reconciliation workflows and detailed reporting.",
+            "description": "Complete Stripe integration for payments, subscriptions, invoices and customer management. Includes webhook handling, reconciliation workflows and detailed reporting.\n\n### Webhook Configuration\n\nTo make the integration fully work, you need to configure a webhook in your Stripe Dashboard. This allows Stripe to send real-time notifications (like `payment.succeeded` or `customer.subscription.created`) to your application.\n\n1.  **Get Your Webhook URL:**\n    Your application's webhook URL is:\n    `https://<your-domain.com>/api/actions/stripe-webhook`\n    Replace `<your-domain.com>` with your actual public domain.\n\n2.  **Add Endpoint in Stripe:**\n    *   Go to your Stripe Dashboard.\n    *   Navigate to **Developers > Webhooks**.\n    *   Click **+ Add an endpoint**.\n    *   Paste your URL in the **Endpoint URL** field.\n\n3.  **Select Events:**\n    Click on **+ Select events** and choose the following events to listen to:\n    *   `invoice.paid`\n    *   `invoice.payment_failed`\n    *   `customer.subscription.created`\n    *   `customer.subscription.updated`\n    *   `customer.subscription.deleted`\n    *   `payment_intent.succeeded`\n\n4.  **Secure Your Webhook:**\n    *   After creating the endpoint, Stripe will show a **Signing secret**. Click to reveal it.\n    *   Copy this secret (it starts with `whsec_...`).\n    *   In your application's **`env` model**, find the variable named `STRIPE_WEBHOOK_SECRET` and paste the key there.\n\nThis ensures that your application only processes legitimate requests from Stripe.",
             "tags": ["payment", "stripe", "e-commerce", "subscription", "billing"],
             "models": [
                 "endpoint",
@@ -4221,27 +4221,27 @@ return { status: 200, body: { received: true } };`
                         {
                             "name": "Process Stripe Webhook Events",
                             "description": "Processes incoming Stripe webhook events and triggers appropriate actions.",
-                            "startStep": { "$link": { "name": "Identify Event Type", "_model": "workflowStep" } }
+                            "startStep": { "$link": { "name": "Check for Invoice Paid", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Subscription Lifecycle Management",
                             "description": "Handles subscription creation, updates, and cancellations.",
-                            "startStep": { "$link": { "name": "Subscription Created", "_model": "workflowStep" } }
+                            "startStep": { "$link": { "name": "Handle Subscription Created", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Payment Reconciliation",
                             "description": "Ensures payments are properly recorded and reconciled with orders.",
-                            "startStep": { "$link": { "name": "Payment Succeeded", "_model": "workflowStep" } }
+                            "startStep": { "$link": { "name": "Handle Payment Succeeded", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Invoice Processing",
                             "description": "Handles invoice generation, payment, and reminders.",
-                            "startStep": { "$link": { "name": "Invoice Created", "_model": "workflowStep" } }
+                            "startStep": { "$link": { "name": "Handle Invoice Created", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Create Stripe Checkout Session",
                             "description": "Creates a Stripe Checkout session for a one-time payment or a subscription.",
-                            "startStep": { "$link": { "name": "Create Session via API", "_model": "workflowStep" } }
+                            "startStep": { "$link": { "name": "Select Session Type", "_model": "workflowStep" } }
                         }
                     ],
                     "workflowAction": [
@@ -4310,8 +4310,7 @@ return { success: true, customerId: newCustomer._id };
                             "description": "Crée un enregistrement d'abonnement local à partir d'un événement Stripe.",
                             "type": "ExecuteScript",
                             "script": `
-const event = context.triggerData;
-const subscriptionData = event.data.object;
+const subscriptionData = context.triggerData;
 
 // Trouver le client associé
 const customer = await db.findOne('StripeCustomer', {
@@ -4618,96 +4617,123 @@ if (payment.order) {
 
 return { success: true };
 `
+                        },
+                        {
+                            "name": "Log Unhandled Stripe Event",
+                            "description": "Logs the type and ID of a Stripe event that was not handled by any other workflow step.",
+                            "type": "ExecuteScript",
+                            "script": `
+ logger.warn('Unhandled Stripe Event Received: Type=' + context.triggerData.event.type + ', ID=' + context.triggerData.event.id);
+ return { success: true, message: 'Event logged as unhandled.' };
+ `
                         }
                     ],
                     "workflowStep": [
                         {
-                            "name": "Invoice Created",
-                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Process Invoice Payment", "_model": "workflowAction" } },
-                            "onSuccessStep": { "$link": { "name": "Send Invoice Email", "_model": "workflowStep" } }
+                            "name": "Log Unhandled Event",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Log Unhandled Stripe Event", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        // --- Main Webhook Router Steps ---
+                        {
+                            "name": "Check for Invoice Paid",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$eq": ["{triggerData.event.type}", "invoice.paid"] },
+                            "onSuccessStep": { "$link": { "name": "Handle Paid Invoice", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Invoice Payment Failed", "_model": "workflowStep" } }
                         },
                         {
-                            "name": "Send Invoice Email",
-                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Send Invoice Email", "_model": "workflowAction" } },
+                            "name": "Check for Invoice Payment Failed",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$eq": ["{triggerData.event.type}", "invoice.payment_failed"] },
+                            "onSuccessStep": { "$link": { "name": "Handle Failed Invoice", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Subscription Created", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Check for Subscription Created",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$eq": ["{triggerData.event.type}", "customer.subscription.created"] },
+                            "onSuccessStep": { "$link": { "name": "Handle Subscription Created", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Subscription Updated", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Check for Subscription Updated",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$in": ["{triggerData.event.type}", ["customer.subscription.updated", "customer.subscription.deleted"]] },
+                            "onSuccessStep": { "$link": { "name": "Handle Subscription Update/Delete", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Payment Succeeded", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Check for Payment Succeeded",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$eq": ["{triggerData.event.type}", "payment_intent.succeeded"] },
+                            "onSuccessStep": { "$link": { "name": "Handle Payment Succeeded", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Log Unhandled Event", "_model": "workflowStep" } }
+                        },
+
+                        // --- Action-performing Steps ---
+                        {
+                            "name": "Handle Paid Invoice",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Process Invoice Payment", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
                         {
-                            "name": "Invoice Paid",
-                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Process Invoice Payment", "_model": "workflowAction" } },
-                            "isTerminal": true
-                        },
-                        {
-                            "name": "Invoice Payment Failed",
-                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
+                            "name": "Handle Failed Invoice",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Send Payment Failure Email", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
                         {
-                            "name": "Update Subscription Status",
-                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Update Subscription Status", "_model": "workflowAction" } },
-                            "isTerminal": true
-                        },
-                        // Webhook Processing Workflow
-                        {
-                            "name": "Identify Event Type",
+                            "name": "Handle Subscription Created",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": {
-                                "$or": [
-                                    { "$eq": ["$type", "customer.subscription.deleted"] },
-                                    { "$eq": ["$type", "customer.created"] },
-                                    { "$regexMatch": ["$type", "^customer.subscription\\."] },
-                                    { "$eq": ["$type", "payment_intent.succeeded"] },
-                                    { "$regexMatch": ["$type", "^invoice\\."] },
-                                    { "$regexMatch": ["$type", "^charge\\."] }
-                                ]
-                            },
-                            "isTerminal": true
-                        },
-                        {
-                            "name": "Process New Customer",
-                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Create Stripe Customer", "_model": "workflowAction" } },
-                            "isTerminal": true
-                        },
-
-                        // Subscription Workflow Steps
-                        {
-                            "name": "Subscription Created",
-                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Create Local Subscription", "_model": "workflowAction" } },
-                            "onSuccessStep": { "$link": { "name": "Send Welcome Email", "_model": "workflowStep" } }
+                            "onSuccessStep": { "$link": { "name": "Handle Send Welcome Email", "_model": "workflowStep" } }
                         },
                         {
-                            "name": "Send Welcome Email",
-                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
+                            "name": "Handle Send Welcome Email",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Send Subscription Welcome", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
-
-                        // Payment Workflow Steps
                         {
-                            "name": "Payment Succeeded",
-                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } },
-                            "actions": { "$link": { "$or": [
-                                { "$eq": ["$name", "Stripe: Retrieve Payment Intent"] },
-                                { "$eq": ["$name", "Save Successful Payment to DB"] }
-                            ], "_model": "workflowAction" } },
-                            "onSuccessStep": { "$link": { "name": "Send Payment Receipt", "_model": "workflowStep" } }
-                        },
-                        {
-                            "name": "Send Payment Receipt",
-                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Send Payment Receipt", "_model": "workflowAction" } },
+                            "name": "Handle Subscription Update/Delete",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Update Subscription Status", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
                         {
-                            "name": "Create Session via API",
+                            "name": "Handle Payment Succeeded",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Save Successful Payment to DB", "_model": "workflowAction" } },
+                            "onSuccessStep": { "$link": { "name": "Handle Send Payment Receipt", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Handle Send Payment Receipt",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Send Payment Receipt", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+
+                        // --- Other Workflows Steps (Checkout, etc.) ---
+                        {
+                            "name": "Select Session Type",
+                            "workflow": { "$link": { "name": "Create Stripe Checkout Session", "_model": "workflow" } },
+                            "conditions": { "$eq": ["{triggerData.mode}", "subscription"] },
+                            "onSuccessStep": { "$link": { "name": "Create Subscription Checkout Session", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Create Payment Checkout Session", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Create Payment Checkout Session",
                             "workflow": { "$link": { "name": "Create Stripe Checkout Session", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Stripe: Create Checkout Session (Payment)", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Create Subscription Checkout Session",
+                            "workflow": { "$link": { "name": "Create Stripe Checkout Session", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Stripe: Create Checkout Session (Subscription)", "_model": "workflowAction" } },
                             "isTerminal": true
                         }
                     ],
