@@ -4251,13 +4251,12 @@ return { status: 200, body: { received: true } };`
                             "emailContent": `
 <h1>Payment Failed</h1>
 <p>We couldn't process your payment for invoice #{triggerData.number}.</p>
-<p>Amount due: {triggerData.amount_due / 100} {triggerData.currency.symbol}</p>
+<p>Amount due: {triggerData.amountDue} {triggerData.currency.symbol}</p>
 <p><strong>Please update your payment method:</strong></p>
-<a href="{triggerData.hosted_invoice_url}" style="background-color: #E53E3E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+<a href="{triggerData.hostedInvoiceUrl}" style="background-color: #E53E3E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
     Update Payment Method
 </a>
 <p>If you believe this is an error, please contact our support team.</p>
-<p>Your service will continue uninterrupted until {new Date(new Date().setDate(new Date().getDate() + 3)).toLocaleDateString()}.</p>
 `
                         },
                         {
@@ -4682,6 +4681,12 @@ return { success: true };
                             "isTerminal": true
                         },
                         {
+                            "name": "Handle Invoice Created",
+                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Send Payment Failure Email", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
                             "name": "Handle Subscription Created",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Create Local Subscription", "_model": "workflowAction" } },
@@ -4731,61 +4736,6 @@ return { success: true };
                             "workflow": { "$link": { "name": "Create Stripe Checkout Session", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Stripe: Create Checkout Session (Subscription)", "_model": "workflowAction" } },
                             "isTerminal": true
-                        }
-                    ],
-                    "workflowTrigger": [
-                        {
-                            "name": "On Stripe Payment Success",
-                            "workflow": "Payment Reconciliation",
-                            "type": "manual",
-                            "onEvent": "DataAdded",
-                            "targetModel": "StripePayment",
-                            "dataFilter": {
-                                "$and": [
-                                    { "$eq": ["$status", "succeeded"] },
-                                    { "$exists": ["$invoice", false] }
-                                ]
-                            }
-                        },
-                        {
-                            "name": "On Payment Failure",
-                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
-                            "type": "manual",
-                            "onEvent": "DataAdded",
-                            "targetModel": "StripeInvoice",
-                            "dataFilter": {
-                                "$and": [
-                                    { "$eq": ["$status", "open"] },
-                                    { "$lt": ["$amountPaid", "$amountDue"] },
-                                    { "$lt": ["$dueDate", "$$NOW"] }
-                                ]
-                            },
-                            "isActive": true
-                        },
-                        {
-                            "name": "On New Subscription",
-                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
-                            "type": "manual",
-                            "onEvent": "DataAdded",
-                            "targetModel": "StripeSubscription",
-                            "dataFilter": {
-                                "$eq": ["$status", "active"]
-                            },
-                            "isActive": true
-                        },
-                        {
-                            "name": "On Stripe Webhook Event",
-                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "type": "manual",
-                            "onEvent": "DataAdded",
-                            "targetModel": "workflowRun",
-                            "dataFilter": {
-                                "$and": [
-                                    { "$eq": ["$workflow.name", "Process Stripe Webhook Events"] },
-                                    { "$exists": ["$triggerData.type", true] }
-                                ]
-                            },
-                            "isActive": true
                         }
                     ],
                     "dashboard": [
