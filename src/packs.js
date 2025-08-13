@@ -106,6 +106,7 @@ export const getAllPacks = async () => {
                         "description": "A scalable workflow that sends campaign emails in chunks by dynamically querying contacts from an audience.",
                         "startStep": { "$link": { "name": "Start Campaign Processing", "_model": "workflowStep" } }
                     }],
+
                     "workflowAction": [
                         {
                             "name": "Set Campaign to 'in_progress'",
@@ -4050,6 +4051,811 @@ return { processedChunk: context.result.chunk };
                     ]
                 }
 
+            }
+        },
+        {
+            "name": "Stripe Integration Pro",
+            "description": "Complete Stripe integration for payments, subscriptions, invoices and customer management. Includes webhook handling, reconciliation workflows and detailed reporting.",
+            "tags": ["payment", "stripe", "e-commerce", "subscription", "billing"],
+            "models": [
+                "endpoint",
+                "dashboard",
+                "kpi",
+                "workflow",
+                "workflowStep",
+                "workflowAction",
+                "workflowTrigger",
+                "env",
+                "currency",
+                {
+                    "name": "StripeCustomer",
+                    "description": "Maps local users to Stripe customers with billing details.",
+                    "fields": [
+                        { "name": "user", "type": "relation", "relation": "user", "required": true, "asMain": true },
+                        { "name": "stripeCustomerId", "type": "string", "required": true, "unique": true, "hiddenable": true },
+                        { "name": "email", "type": "string", "required": true },
+                        { "name": "name", "type": "string" },
+                        { "name": "phone", "type": "string" },
+                        { "name": "address", "type": "code","language": "json"}/* "fields": [
+                            { "name": "line1", "type": "string" },
+                            { "name": "line2", "type": "string" },
+                            { "name": "city", "type": "string" },
+                            { "name": "state", "type": "string" },
+                            { "name": "postal_code", "type": "string" },
+                            { "name": "country", "type": "string" }
+                        ]}*/,
+                        { "name": "taxExempt", "type": "enum", "items": ["none", "exempt", "reverse"], "default": "none" },
+                        { "name": "defaultPaymentMethod", "type": "string" },
+                        { "name": "invoiceSettings", "type": "code", "language": "json"}/* "fields": [
+                            { "name": "customFields", "type": "array", "itemsType": "object" },
+                            { "name": "footer", "type": "string" }
+                        ]}*/,
+                        { "name": "metadata", "type": "code", "language": "json" }
+                    ]
+                },
+                {
+                    "name": "StripeSubscription",
+                    "description": "Tracks all subscription details with Stripe.",
+                    "fields": [
+                        { "name": "stripeSubscriptionId", "type": "string", "required": true, "unique": true, "asMain": true },
+                        { "name": "user", "type": "relation", "relation": "user", "required": true },
+                        { "name": "customer", "type": "relation", "relation": "StripeCustomer", "required": true },
+                        { "name": "plan", "type": "relation", "relation": "StripePlan", "required": true },
+                        { "name": "status", "type": "enum", "items": ["trialing", "active", "past_due", "canceled", "unpaid", "incomplete", "incomplete_expired"], "required": true },
+                        { "name": "currentPeriodStart", "type": "datetime" },
+                        { "name": "currentPeriodEnd", "type": "datetime" },
+                        { "name": "cancelAtPeriodEnd", "type": "boolean", "default": false },
+                        { "name": "canceledAt", "type": "datetime" },
+                        { "name": "daysUntilDue", "type": "number" },
+                        { "name": "defaultPaymentMethod", "type": "string" },
+                        { "name": "latestInvoice", "type": "relation", "relation": "StripeInvoice" },
+                        { "name": "startDate", "type": "datetime" },
+                        { "name": "trialEnd", "type": "datetime" },
+                        { "name": "metadata", "type": "code", "language": "json" }
+                    ]
+                },
+                {
+                    "name": "StripePlan",
+                    "description": "Subscription plans with detailed pricing information.",
+                    "fields": [
+                        { "name": "name", "type": "string", "required": true, "asMain": true },
+                        { "name": "description", "type": "richtext" },
+                        { "name": "stripeProductId", "type": "string", "required": true, "unique": true },
+                        { "name": "stripePriceId", "type": "string", "required": true, "unique": true },
+                        { "name": "price", "type": "number", "required": true },
+                        { "name": "currency", "type": "relation", "relation": "currency", "required": true },
+                        { "name": "interval", "type": "enum", "items": ["day", "week", "month", "year"], "required": true },
+                        { "name": "intervalCount", "type": "number", "default": 1 },
+                        { "name": "trialPeriodDays", "type": "number" },
+                        { "name": "active", "type": "boolean", "default": true },
+                        { "name": "metadata", "type": "code", "language": "json" },
+                        { "name": "features", "type": "array", "itemsType": "string" }
+                    ]
+                },
+                {
+                    "name": "StripePayment",
+                    "description": "Detailed payment records with reconciliation data.",
+                    "fields": [
+                        { "name": "stripePaymentIntentId", "type": "string", "required": true, "unique": true, "asMain": true, "hiddenable": true },
+                        { "name": "user", "type": "relation", "relation": "user", "required": true },
+                        { "name": "customer", "type": "relation", "relation": "StripeCustomer" },
+                        { "name": "subscription", "type": "relation", "relation": "StripeSubscription" },
+                        { "name": "invoice", "type": "relation", "relation": "StripeInvoice" },
+                        { "name": "amount", "type": "number", "required": true },
+                        { "name": "amountReceived", "type": "number" },
+                        { "name": "currency", "type": "relation", "relation": "currency", "required": true },
+                        { "name": "status", "type": "enum", "items": ["requires_payment_method", "requires_confirmation", "requires_action", "processing", "requires_capture", "canceled", "succeeded"], "required": true },
+                        { "name": "paymentMethod", "type": "string" },
+                        { "name": "paymentMethodDetails", "type": "code", "language": "json", "anonymized": true },
+                        { "name": "receiptEmail", "type": "string" },
+                        { "name": "receiptUrl", "type": "string" },
+                        { "name": "created", "type": "datetime", "default": "now" },
+                        { "name": "metadata", "type": "code", "language": "json" }
+                    ]
+                },
+                {
+                    "name": "StripeInvoice",
+                    "description": "Complete invoice records from Stripe.",
+                    "fields": [
+                        { "name": "stripeInvoiceId", "type": "string", "required": true, "unique": true, "asMain": true },
+                        { "name": "customer", "type": "relation", "relation": "StripeCustomer", "required": true },
+                        { "name": "subscription", "type": "relation", "relation": "StripeSubscription" },
+                        { "name": "number", "type": "string" },
+                        { "name": "amountDue", "type": "number", "required": true },
+                        { "name": "amountPaid", "type": "number" },
+                        { "name": "amountRemaining", "type": "number" },
+                        { "name": "currency", "type": "relation", "relation": "currency", "required": true },
+                        { "name": "status", "type": "enum", "items": ["draft", "open", "paid", "uncollectible", "void"], "required": true },
+                        { "name": "periodStart", "type": "datetime" },
+                        { "name": "periodEnd", "type": "datetime" },
+                        { "name": "dueDate", "type": "datetime" },
+                        { "name": "pdfUrl", "type": "string" },
+                        { "name": "hostedInvoiceUrl", "type": "string" },
+                        { "name": "lines", "type": "code", "language": "json" },
+                        { "name": "created", "type": "datetime", "default": "now" },
+                        { "name": "metadata", "type": "code", "language": "json" }
+                    ]
+                },
+                {
+                    "name": "StripeRefund",
+                    "description": "Records of refunds processed through Stripe.",
+                    "fields": [
+                        { "name": "stripeRefundId", "type": "string", "required": true, "unique": true, "asMain": true },
+                        { "name": "payment", "type": "relation", "relation": "StripePayment", "required": true },
+                        { "name": "amount", "type": "number", "required": true },
+                        { "name": "currency", "type": "relation", "relation": "currency", "required": true },
+                        { "name": "reason", "type": "enum", "items": ["duplicate", "fraudulent", "requested_by_customer", "expired_uncaptured_charge"] },
+                        { "name": "status", "type": "enum", "items": ["pending", "succeeded", "failed", "canceled"], "required": true },
+                        { "name": "receiptNumber", "type": "string" },
+                        { "name": "created", "type": "datetime", "default": "now" }
+                    ]
+                }
+            ],
+            "data": {
+                "all": {
+                    "env": [
+                        { "name": "STRIPE_PUBLIC_KEY", "value": "pk_test_YOUR_PUBLIC_KEY" },
+                        { "name": "STRIPE_SECRET_KEY", "value": "sk_test_YOUR_SECRET_KEY" },
+                        { "name": "STRIPE_WEBHOOK_SECRET", "value": "whsec_YOUR_WEBHOOK_SECRET" },
+                        { "name": "STRIPE_API_VERSION", "value": "2022-11-15" },
+                        { "name": "STRIPE_MAX_NETWORK_RETRIES", "value": "2" },
+                        { "name": "STRIPE_TIMEOUT", "value": "30000" }
+                    ],
+                    "endpoint": [
+                        {
+                            "name": "Stripe Webhook Handler",
+                            "path": "stripe-webhook",
+                            "method": "POST",
+                            "isActive": true,
+                            "webhook": {
+                                "provider": "stripe",
+                                "secretEnvVar": "STRIPE_WEBHOOK_SECRET"
+                            },
+                            "code": `// The webhook signature has already been verified by the engine.
+// The verified event is available in context.webhookEvent.
+await workflow.run('Process Stripe Webhook Events', { event: context.webhookEvent });
+return { status: 200, body: { received: true } };`
+                        }
+                    ],
+                    "workflow": [
+                        {
+                            "name": "Process Stripe Webhook Events",
+                            "description": "Processes incoming Stripe webhook events and triggers appropriate actions.",
+                            "startStep": { "$link": { "name": "Identify Event Type", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Subscription Lifecycle Management",
+                            "description": "Handles subscription creation, updates, and cancellations.",
+                            "startStep": { "$link": { "name": "Subscription Created", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Payment Reconciliation",
+                            "description": "Ensures payments are properly recorded and reconciled with orders.",
+                            "startStep": { "$link": { "name": "Payment Succeeded", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Invoice Processing",
+                            "description": "Handles invoice generation, payment, and reminders.",
+                            "startStep": { "$link": { "name": "Invoice Created", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Create Stripe Checkout Session",
+                            "description": "Creates a Stripe Checkout session for a one-time payment or a subscription.",
+                            "startStep": { "$link": { "name": "Create Session via API", "_model": "workflowStep" } }
+                        }
+                    ],
+                    "workflowAction": [
+                        // Ajout dans la section workflowAction
+                        {
+                            "name": "Send Payment Failure Email",
+                            "description": "Envoie un email au client quand un paiement échoue avec instructions pour mettre à jour sa méthode de paiement.",
+                            "type": "SendEmail",
+                            "emailRecipients": ["{triggerData.customer.email}"],
+                            "emailSubject": "Payment Failed for Your Subscription",
+                            "emailContent": `
+<h1>Payment Failed</h1>
+<p>We couldn't process your payment for invoice #{triggerData.number}.</p>
+<p>Amount due: {triggerData.amount_due / 100} {triggerData.currency.symbol}</p>
+<p><strong>Please update your payment method:</strong></p>
+<a href="{triggerData.hosted_invoice_url}" style="background-color: #E53E3E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+    Update Payment Method
+</a>
+<p>If you believe this is an error, please contact our support team.</p>
+<p>Your service will continue uninterrupted until {new Date(new Date().setDate(new Date().getDate() + 3)).toLocaleDateString()}.</p>
+`
+                        },
+                        {
+                            "name": "Create Stripe Customer",
+                            "description": "Crée un enregistrement de client Stripe dans la base locale à partir d'un événement webhook.",
+                            "type": "ExecuteScript",
+                            "script": `
+const event = context.triggerData;
+const customerData = event.data.object;
+
+// Vérifier si le client existe déjà
+const existingCustomer = await db.findOne('StripeCustomer', {
+    stripeCustomerId: customerData.id
+});
+
+if (existingCustomer) {
+    logger.info('Customer already exists:', customerData.id);
+    return { success: true, customerId: existingCustomer._id };
+}
+
+// Trouver l'utilisateur correspondant si possible
+let user = null;
+if (customerData.metadata && customerData.metadata.userId) {
+    user = await db.findOne('user', { _id: customerData.metadata.userId });
+}
+
+// Créer le client dans la base locale
+const newCustomer = await db.create('StripeCustomer', {
+    stripeCustomerId: customerData.id,
+    user: user?._id,
+    email: customerData.email,
+    name: customerData.name,
+    phone: customerData.phone,
+    address: customerData.address ? JSON.stringify(customerData.address) : null,
+    taxExempt: customerData.tax_exempt || 'none',
+    defaultPaymentMethod: customerData.invoice_settings?.default_payment_method,
+    invoiceSettings: customerData.invoice_settings ? JSON.stringify(customerData.invoice_settings) : null,
+    metadata: customerData.metadata ? JSON.stringify(customerData.metadata) : null
+});
+
+return { success: true, customerId: newCustomer._id };
+`
+                        },
+                        {
+                            "name": "Create Local Subscription",
+                            "description": "Crée un enregistrement d'abonnement local à partir d'un événement Stripe.",
+                            "type": "ExecuteScript",
+                            "script": `
+const event = context.triggerData;
+const subscriptionData = event.data.object;
+
+// Trouver le client associé
+const customer = await db.findOne('StripeCustomer', {
+    stripeCustomerId: subscriptionData.customer
+});
+
+if (!customer) {
+    logger.error('Customer not found for subscription:', subscriptionData.customer);
+    return { success: false, message: 'Customer not found' };
+}
+
+// Trouver le plan associé
+const priceId = subscriptionData.items.data[0].price.id;
+const plan = await db.findOne('StripePlan', {
+    stripePriceId: priceId
+});
+
+if (!plan) {
+    logger.error('Plan not found for price ID:', priceId);
+    return { success: false, message: 'Plan not found' };
+}
+
+// Créer l'abonnement dans la base locale
+await db.create('StripeSubscription', {
+    stripeSubscriptionId: subscriptionData.id,
+    user: customer.user,
+    customer: customer._id,
+    plan: plan._id,
+    status: subscriptionData.status,
+    currentPeriodStart: new Date(subscriptionData.current_period_start * 1000),
+    currentPeriodEnd: new Date(subscriptionData.current_period_end * 1000),
+    cancelAtPeriodEnd: subscriptionData.cancel_at_period_end,
+    canceledAt: subscriptionData.canceled_at ? new Date(subscriptionData.canceled_at * 1000) : null,
+    daysUntilDue: subscriptionData.days_until_due,
+    defaultPaymentMethod: subscriptionData.default_payment_method,
+    startDate: new Date(subscriptionData.start_date * 1000),
+    trialEnd: subscriptionData.trial_end ? new Date(subscriptionData.trial_end * 1000) : null,
+    metadata: subscriptionData.metadata ? JSON.stringify(subscriptionData.metadata) : null
+});
+
+return { success: true };
+`
+                        },
+                        {
+                            "name": "Send Subscription Welcome",
+                            "description": "Envoie un email de bienvenue pour un nouvel abonnement.",
+                            "type": "SendEmail",
+                            "emailRecipients": ["{triggerData.customer_email}"],
+                            "emailSubject": "Welcome to your new subscription!",
+                            "emailContent": `
+<h1>Thank you for subscribing!</h1>
+<p>We're excited to have you on board. Here are the details of your subscription:</p>
+<ul>
+    <li>Plan: {context.plan.name}</li>
+    <li>Amount: {context.plan.price} {context.plan.currency.code}/month</li>
+    <li>Next billing date: {context.subscription.currentPeriodEnd}</li>
+</ul>
+<p>If you have any questions, please don't hesitate to contact our support team.</p>
+`
+                        },
+                        {
+                            "name": "Process Invoice Payment",
+                            "description": "Traite le paiement d'une facture et met à jour le statut.",
+                            "type": "ExecuteScript",
+                            "script": `
+const invoice = context.triggerData.data.object;
+
+// Trouver l'abonnement associé
+const subscription = await db.findOne('StripeSubscription', {
+    stripeSubscriptionId: invoice.subscription
+});
+
+if (!subscription) {
+    logger.warn('Subscription not found for invoice:', invoice.id);
+    return { success: false, message: 'Subscription not found' };
+}
+
+// Créer/mettre à jour l'enregistrement de facture
+const invoiceData = {
+    stripeInvoiceId: invoice.id,
+    customer: subscription.customer,
+    subscription: subscription._id,
+    number: invoice.number,
+    amountDue: invoice.amount_due / 100,
+    amountPaid: invoice.amount_paid / 100,
+    amountRemaining: invoice.amount_remaining / 100,
+    currency: subscription.plan.currency,
+    status: invoice.status,
+    periodStart: new Date(invoice.period_start * 1000),
+    periodEnd: new Date(invoice.period_end * 1000),
+    dueDate: invoice.due_date ? new Date(invoice.due_date * 1000) : null,
+    pdfUrl: invoice.invoice_pdf,
+    hostedInvoiceUrl: invoice.hosted_invoice_url,
+    lines: JSON.stringify(invoice.lines.data),
+    created: new Date(invoice.created * 1000),
+    metadata: invoice.metadata ? JSON.stringify(invoice.metadata) : null
+};
+
+await db.upsert('StripeInvoice', 
+    { stripeInvoiceId: invoice.id },
+    invoiceData
+);
+
+// Si la facture est payée, mettre à jour le statut de l'abonnement
+if (invoice.status === 'paid') {
+    await db.update('StripeSubscription', 
+        { _id: subscription._id },
+        { 
+            status: 'active',
+            latestInvoice: invoice.id
+        }
+    );
+}
+
+return { success: true };
+`
+                        },
+                        {
+                            "name": "Send Invoice Email",
+                            "description": "Envoie la facture par email au client.",
+                            "type": "SendEmail",
+                            "emailRecipients": ["{triggerData.customer_email}"],
+                            "emailSubject": "Your invoice is ready",
+                            "emailContent": `
+<h1>Your Invoice #{triggerData.number}</h1>
+<p>Amount due: {triggerData.amount_due / 100} {triggerData.currency.toUpperCase()}</p>
+<p>Due date: {triggerData.due_date ? new Date(triggerData.due_date * 1000).toLocaleDateString() : 'Immediately'}</p>
+<p>You can view and pay your invoice <a href="{triggerData.hosted_invoice_url}">here</a>.</p>
+<p>Thank you for your business!</p>
+`
+                        },
+                        {
+                            "name": "Stripe: Create Customer",
+                            "description": "Creates a new customer in Stripe. Expects 'email' and 'name' in the triggerData.",
+                            "type": "HttpRequest",
+                            "method": "POST",
+                            "url": "https://api.stripe.com/v1/customers",
+                            "headers": { "Authorization": "Bearer {env.STRIPE_SECRET_KEY}", "Content-Type": "application/x-www-form-urlencoded" },
+                            "body": "email={triggerData.email}&name={triggerData.name}&description=Customer for {triggerData.email}&metadata[userId]={triggerData.user._id}"
+                        },
+                        {
+                            "name": "Stripe: Retrieve Payment Intent",
+                            "description": "Retrieves a Payment Intent object from Stripe.",
+                            "type": "HttpRequest",
+                            "method": "GET",
+                            "url": "https://api.stripe.com/v1/payment_intents/{triggerData.event.id}",
+                            "headers": { "Authorization": "Bearer {env.STRIPE_SECRET_KEY}" }
+                        },
+                        {
+                            "name": "Stripe Service: Verify Webhook",
+                            "description": "Uses the native Stripe service to securely verify a webhook signature.",
+                            "type": "ExecuteServiceFunction",
+                            "serviceName": "stripe",
+                            "functionName": "verifyWebhookSignature",
+                            "args": ["{triggerData.request.headers}", "{triggerData.request.rawBody}"]
+                        },
+                        {
+                            "name": "Stripe: Create Checkout Session (Payment)",
+                            "description": "Creates a Stripe Checkout session for a one-time payment.",
+                            "type": "HttpRequest",
+                            "method": "POST",
+                            "url": "https://api.stripe.com/v1/checkout/sessions",
+                            "headers": { "Authorization": "Bearer {env.STRIPE_SECRET_KEY}", "Content-Type": "application/json" },
+                            "body": {
+                                "payment_method_types": ["card"],
+                                "line_items": [{
+                                    "price_data": {
+                                        "currency": "{triggerData.currencyCode}",
+                                        "product_data": { "name": "{triggerData.productName}" },
+                                        "unit_amount": "{triggerData.amountInCents}"
+                                    },
+                                    "quantity": "{triggerData.quantity}"
+                                }],
+                                "mode": "payment",
+                                "success_url": "{triggerData.successUrl}",
+                                "cancel_url": "{triggerData.cancelUrl}",
+                                "customer_email": "{triggerData.customerEmail}",
+                                "metadata": "{triggerData.metadata}"
+                            }
+                        },
+                        {
+                            "name": "Stripe: Create Checkout Session (Subscription)",
+                            "description": "Creates a Stripe Checkout session for a new subscription.",
+                            "type": "HttpRequest",
+                            "method": "POST",
+                            "url": "https://api.stripe.com/v1/checkout/sessions",
+                            "headers": { "Authorization": "Bearer {env.STRIPE_SECRET_KEY}", "Content-Type": "application/json" },
+                            "body": {
+                                "payment_method_types": ["card"],
+                                "line_items": [{ "price": "{triggerData.priceId}", "quantity": 1 }],
+                                "mode": "subscription",
+                                "success_url": "{triggerData.successUrl}",
+                                "cancel_url": "{triggerData.cancelUrl}",
+                                "customer": "{triggerData.stripeCustomerId}"
+                            }
+                        },
+                        {
+                            "name": "Update Subscription Status",
+                            "description": "Updates subscription status based on Stripe event.",
+                            "type": "ExecuteScript",
+                            "script": `
+const { subscription } = context.triggerData.payload;
+
+// Find existing subscription
+const existingSub = await db.findOne('StripeSubscription', {
+    stripeSubscriptionId: subscription.id
+});
+
+if (!existingSub) {
+    logger.warn('Subscription not found:', subscription.id);
+    return { success: false, message: 'Subscription not found' };
+}
+
+// Update status
+await db.update('StripeSubscription', 
+    { _id: existingSub._id },
+    { 
+        status: subscription.status,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000)
+    }
+);
+
+return { success: true };
+`
+                        },
+                        {
+                            "name": "Save Successful Payment to DB",
+                            "description": "Saves the details of a successful payment intent to the local database.",
+                            "type": "ExecuteScript",
+                            "script": `
+const intent = context.httpResponse; // The result from "Stripe: Retrieve Payment Intent"
+
+const customer = await db.findOne('StripeCustomer', { stripeCustomerId: intent.customer });
+const currency = await db.findOne('currency', { code: intent.currency.toUpperCase() });
+
+await db.create('StripePayment', {
+    stripePaymentIntentId: intent.id,
+    user: customer?.user,
+    customer: customer?._id,
+    amount: intent.amount / 100,
+    amountReceived: intent.amount_received / 100,
+    currency: currency?._id,
+    status: intent.status,
+    paymentMethod: intent.payment_method,
+    receiptEmail: intent.receipt_email,
+    created: new Date(intent.created * 1000)
+});
+
+return { success: true };
+`
+                        },
+                        {
+                            "name": "Send Payment Receipt",
+                            "description": "Sends a receipt email for successful payments.",
+                            "type": "SendEmail",
+                            "emailRecipients": ["{context.httpResponse.receipt_email}"],
+                            "emailSubject": "Your Payment Receipt",
+                            "emailContent": `
+<h1>Thank you for your payment!</h1>
+<p>We've received your payment of {context.httpResponse.amount / 100} {context.httpResponse.currency.toUpperCase()}.</p>
+<p>Payment ID: {triggerData.payload.id}</p>
+<p>You can view your receipt <a href="{triggerData.payload.receipt_url}">here</a>.</p>
+<p>If you have any questions, please contact our support team.</p>
+`
+                        },
+                        {
+                            "name": "Process Refund",
+                            "description": "Handles refund creation and updates order status.",
+                            "type": "ExecuteScript",
+                            "script": `
+const { refund } = context.triggerData.payload;
+
+// Find the original payment
+const payment = await db.findOne('StripePayment', {
+    stripePaymentIntentId: refund.payment_intent
+});
+
+if (!payment) {
+    logger.warn('Original payment not found for refund:', refund.id);
+    return { success: false, message: 'Original payment not found' };
+}
+
+// Create refund record
+await db.create('StripeRefund', {
+    stripeRefundId: refund.id,
+    payment: payment._id,
+    amount: refund.amount / 100,
+    currency: payment.currency,
+    reason: refund.reason,
+    status: refund.status,
+    receiptNumber: refund.receipt_number,
+    created: new Date(refund.created * 1000)
+});
+
+// Update order status if linked
+if (payment.order) {
+    await db.update('order', 
+        { _id: payment.order },
+        { status: 'refunded', refundId: refund.id }
+    );
+}
+
+return { success: true };
+`
+                        }
+                    ],
+                    "workflowStep": [
+                        {
+                            "name": "Invoice Created",
+                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Process Invoice Payment", "_model": "workflowAction" } },
+                            "onSuccessStep": { "$link": { "name": "Send Invoice Email", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Send Invoice Email",
+                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Send Invoice Email", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Invoice Paid",
+                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Process Invoice Payment", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Invoice Payment Failed",
+                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Send Payment Failure Email", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Update Subscription Status",
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Update Subscription Status", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        // Webhook Processing Workflow
+                        {
+                            "name": "Identify Event Type",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": {
+                                "$or": [
+                                    { "$eq": ["$type", "customer.subscription.deleted"] },
+                                    { "$eq": ["$type", "customer.created"] },
+                                    { "$regexMatch": ["$type", "^customer.subscription\\."] },
+                                    { "$eq": ["$type", "payment_intent.succeeded"] },
+                                    { "$regexMatch": ["$type", "^invoice\\."] },
+                                    { "$regexMatch": ["$type", "^charge\\."] }
+                                ]
+                            },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Process New Customer",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Create Stripe Customer", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+
+                        // Subscription Workflow Steps
+                        {
+                            "name": "Subscription Created",
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Create Local Subscription", "_model": "workflowAction" } },
+                            "onSuccessStep": { "$link": { "name": "Send Welcome Email", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Send Welcome Email",
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Send Subscription Welcome", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+
+                        // Payment Workflow Steps
+                        {
+                            "name": "Payment Succeeded",
+                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } },
+                            "actions": { "$link": { "$or": [
+                                { "$eq": ["$name", "Stripe: Retrieve Payment Intent"] },
+                                { "$eq": ["$name", "Save Successful Payment to DB"] }
+                            ], "_model": "workflowAction" } },
+                            "onSuccessStep": { "$link": { "name": "Send Payment Receipt", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Send Payment Receipt",
+                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Send Payment Receipt", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Create Session via API",
+                            "workflow": { "$link": { "name": "Create Stripe Checkout Session", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Stripe: Create Checkout Session (Payment)", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        }
+                    ],
+                    "workflowTrigger": [
+                        {
+                            "name": "On Stripe Payment Success",
+                            "workflow": "Payment Reconciliation",
+                            "type": "manual",
+                            "onEvent": "DataAdded",
+                            "targetModel": "StripePayment",
+                            "dataFilter": {
+                                "$and": [
+                                    { "$eq": ["$status", "succeeded"] },
+                                    { "$exists": ["$invoice", false] }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "Daily Subscription Check",
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
+                            "type": "scheduled",
+                            "cronExpression": "0 9 * * *", // Daily at 9 AM
+                            "isActive": true
+                        },
+                        {
+                            "name": "On Payment Failure",
+                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
+                            "type": "manual",
+                            "onEvent": "DataAdded",
+                            "targetModel": "StripeInvoice",
+                            "dataFilter": {
+                                "$and": [
+                                    { "$eq": ["$status", "open"] },
+                                    { "$lt": ["$amountPaid", "$amountDue"] },
+                                    { "$lt": ["$dueDate", "$$NOW"] }
+                                ]
+                            },
+                            "isActive": true
+                        },
+                        {
+                            "name": "On New Subscription",
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
+                            "type": "manual",
+                            "onEvent": "DataAdded",
+                            "targetModel": "StripeSubscription",
+                            "dataFilter": {
+                                "$eq": ["$status", "active"]
+                            },
+                            "isActive": true
+                        },
+                        {
+                            "name": "On Stripe Webhook Event",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "type": "manual",
+                            "onEvent": "DataAdded",
+                            "targetModel": "workflowRun",
+                            "dataFilter": {
+                                "$and": [
+                                    { "$eq": ["$workflow.name", "Process Stripe Webhook Events"] },
+                                    { "$exists": ["$triggerData.type", true] }
+                                ]
+                            },
+                            "isActive": true
+                        },
+                        {
+                            "name": "On Subscription Renewal",
+                            "workflow": "Subscription Lifecycle Management",
+                            "type": "scheduled",
+                            "cronExpression": "0 8 * * *", // Tous les jours à 8h
+                            "dataFilter": {
+                                "$lt": ["$currentPeriodEnd", {"$add": ["$$NOW", 86400000]}] // J-1
+                            }
+                        }
+                    ],
+                    "dashboard": [
+                        {
+                            "name": "Stripe Payments Overview",
+                            "description": "Key metrics and recent activity for Stripe payments.",
+                            "layout": [
+                                {
+                                    "name": "Payment Metrics",
+                                    "kpis": [
+                                        "Total Revenue",
+                                        "Successful Payments",
+                                        "Avg. Payment Value",
+                                        "Refund Rate"
+                                    ],
+                                    "chartConfigs": [
+                                        {
+                                            "title": "Payments by Day",
+                                            "type": "line",
+                                            "model": "StripePayment",
+                                            "xAxis": { "field": "created", "interval": "day" },
+                                            "yAxis": { "field": "amount", "aggregation": "sum" },
+                                            "filter": { "status": "succeeded" }
+                                        }
+                                    ]
+                                }/*
+                                {
+                                    "name": "Recent Activity",
+                                    "component": "DataTable",
+                                    "config": {
+                                        "model": "StripePayment",
+                                        "columns": ["created", "amount", "currency", "status", "user"],
+                                        "limit": 10,
+                                        "sort": { "created": -1 }
+                                    }
+                                }*/
+                            ]
+                        }
+                    ],
+                    "kpi": [
+                        {
+                            "name": "Total Revenue",
+                            "targetModel": "StripePayment",
+                            "aggregationType": "sum",
+                            "aggregationField": "amount",
+                            "filter": { "status": "succeeded" },
+                            "unit": "$",
+                            "icon": "FaMoneyBillWave"
+                        },
+                        {
+                            "name": "Successful Payments",
+                            "targetModel": "StripePayment",
+                            "aggregationType": "count",
+                            "filter": { "status": "succeeded" },
+                            "icon": "FaCreditCard"
+                        },
+                        {
+                            "name": "Avg. Payment Value",
+                            "targetModel": "StripePayment",
+                            "aggregationType": "avg",
+                            "aggregationField": "amount",
+                            "filter": { "status": "succeeded" },
+                            "unit": "$",
+                            "icon": "FaCalculator"
+                        },
+                        {
+                            "name": "Refund Rate",
+                            "targetModel": "StripeRefund",
+                            "aggregationType": "ratio",
+                            "numerator": { "model": "StripeRefund", "aggregation": "count" },
+                            "denominator": { "model": "StripePayment", "aggregation": "count" },
+                            "unit": "%",
+                            "icon": "FaExchangeAlt"
+                        }
+                    ]
+                }
             }
         }
     ];

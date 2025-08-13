@@ -3,9 +3,10 @@ import {MongoDatabase} from "../engine.js";
 import {getCollection, getCollectionForUser, getUserCollectionName} from "./mongodb.js";
 import {isLocalUser} from "../data.js";
 import {ObjectId} from "mongodb";
-import {getAPILang} from "./data/index.js";
+import {getAPILang, searchData} from "./data/index.js";
 import {Logger} from "../gameObject.js";
 import rateLimit from "express-rate-limit";
+import ivm from "isolated-vm";
 
 export const userInitiator = async (req, res, next) => {
 
@@ -255,4 +256,14 @@ export async function calculateTotalUserStorageUsage(user) {
 
     logger.debug(`[Storage] User ${userId}: Data size = ${dataSize} bytes, Files size = ${filesSize} bytes. Total = ${dataSize + filesSize} bytes.`);
     return dataSize + filesSize;
+}
+
+
+export async function getEnv(user){
+    const result = await searchData({ model: 'env' }, user);
+    const envObject = result.data.reduce((acc, v) => {
+        acc[v.name] = v.value;
+        return acc;
+    }, {});
+    return envObject;
 }

@@ -420,6 +420,7 @@ export const defaultModels = {
             { "name": "products", "type": "relation", "relation": "cartItem", "required": true, multiple: true },
             { "name": "customer", "type": "relation", relation: 'user' }, // Relation vers le modèle 'user'
             { "name": "totalAmount", "type": "number", "required": true },
+            { "name": "paymentIntentId", "type": "string", "hint": "Stripe Payment Intent ID for this order." },
             { "name": "currency", "type": "relation", "relation": "currency" },
             { "name": "paymentMethod", "type": "string" },
             { "name": "shippingAddress", "type": "relation", "relation": "location" },
@@ -506,6 +507,7 @@ export const defaultModels = {
         name: "return",
         "description": "",
         fields: [
+            { "name": "order", "type": "relation", "relation": "order", "required": true },
             { "name": "user", "type": "relation", relation: "user" },
             { "name": "reason", "type": "string", maxlength: 2048, required: true },
             { "name": "channel", "type": "relation", relation: 'channel' },
@@ -924,7 +926,7 @@ export const defaultModels = {
             { name: 'dataToCreate', condition: {$eq: ["$type", "CreateData"]}, type: 'code', language: 'json', default: {}, hint: "Object template for the new document to create" },
 
             // For ExecuteScript
-            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', hint: "The script to execute." },
+            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', language: 'javascript', hint: "The script to execute." },
 
             // For HttpRequest
             { name: 'url', condition: {$eq: ["$type", "HttpRequest"]}, type: 'string', hint: "The URL to call." },

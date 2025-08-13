@@ -1,4 +1,5 @@
-import {getHost, MONGO_OPERATORS} from "../constants.js";
+import { MONGO_OPERATORS} from "../constants.js";
+import {getHost} from "../../../src/constants";
 
 const isProd = import.meta.env.MODE === 'production';
 export const urlData = isProd ? 'https://'+getHost()+'/' : 'http://localhost:7633/';

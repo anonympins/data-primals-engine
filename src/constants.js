@@ -24,6 +24,8 @@ export const dbName = "engine";
  */
 export const host = 'localhost'; // or myhost.tld
 
+export const port = 7633;
+
 /**
  * Cookie secret key (if COOKIES_SECRET is set, it will override this variable)
  * @type {string}
@@ -301,3 +303,7 @@ metaModels['erp'] = { load: [ 'accountingExercise', 'accountingLineItem', 'accou
 export const allowedFields = ['locked', 'hiddenable', 'anonymized', 'condition', 'color', 'index', 'type', 'required', 'hint', 'default', 'validate', 'unique', 'name', 'placeholder', 'asMain'];
 
 
+
+export const getHost = () => {
+    return process.env.HOST || host || 'localhost';
+}

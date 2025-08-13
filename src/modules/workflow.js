@@ -7,7 +7,7 @@ import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
 import {deleteData, getModel, insertData, patchData, scheduleAlerts, searchData} from "./data/index.js";
-import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
+import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps, port} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
@@ -16,9 +16,10 @@ import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
-import util from "node:util";
-import {object_equals} from "../core.js";
 import {isConditionMet} from "../filter.js";
+import { services } from '../services/index.js';
+import {getEnv} from "./user.js";
+import {getHost} from "../constants.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -27,6 +28,51 @@ export async function onInit(defaultEngine) {
     await scheduleWorkflowTriggers();
 }
 
+
+
+/**
+ * Déclenche un workflow par son nom et lui passe des données de contexte.
+ * C'est la fonction clé à exposer aux endpoints pour lancer des processus métier.
+ *
+ * @param {string} name - Le nom du workflow à exécuter.
+ * @param {object} data - Les données à injecter dans context.triggerData.
+ * @param {object} user - L'objet utilisateur qui initie l'action.
+ * @returns {Promise<{success: boolean, message?: string, runId?: ObjectId}>}
+ */
+export async function runWorkflowByName(name, data, user) {
+    if (!name) {
+        return { success: false, message: "Workflow name is required." };
+    }
+
+    const dbCollection = await getCollectionForUser(user);
+
+    // 1. Trouver la définition du workflow par son nom
+    const workflowDefinition = await dbCollection.findOne({ _model: 'workflow', name });
+
+    if (!workflowDefinition) {
+        const msg = `Workflow with name "${name}" not found.`;
+        logger.error(`[runWorkflowByName] ${msg}`);
+        return { success: false, message: msg };
+    }
+
+    // 2. Créer le document workflowRun
+    const workflowRunData = {
+        _model: 'workflowRun',
+        _user: user._user || user.username,
+        workflow: workflowDefinition._id,
+        contextData: { triggerData: data }, // Les données passées deviennent le triggerData
+        status: 'pending',
+        startedAt: new Date()
+    };
+
+    const insertResult = await dbCollection.insertOne(workflowRunData);
+    logger.info(`[runWorkflowByName] Created workflowRun ${insertResult.insertedId} for workflow "${name}".`);
+
+    // 3. Lancer le traitement de manière asynchrone
+    await processWorkflowRun(insertResult.insertedId, user);
+
+    return { success: true, runId: insertResult.insertedId };
+}
 /**
  * Exécute une fonction de manière sécurisée en s'assurant qu'une seule instance
  * s'exécute à la fois, grâce à un système de verrouillage distribué basé sur la base de données.
@@ -220,7 +266,11 @@ export async function executeSafeJavascript(actionDef, context, user) {
             return new ivm.ExternalCopy(result.data?.[0] || null).copyInto();
         };
 
-        // 1. Build the sandboxed API
+        // 1. Build the sandboxed API methods
+        await jail.set('_workflow_run', new ivm.Reference(async (name, contextData) => {
+            const result = await runWorkflowByName(name, JSON.parse(contextData), user);
+            return new ivm.ExternalCopy(result).copyInto();
+        }));
         await jail.set('_db_create', new ivm.Reference(async (modelName, dataObject) => {
             const result = await insertData(modelName, JSON.parse(dataObject), {}, user, false);
             if (result.success && result.insertedIds) {
@@ -255,12 +305,8 @@ export async function executeSafeJavascript(actionDef, context, user) {
             return new ivm.ExternalCopy(result.data?.[0]?.value || null).copyInto();
         }));
         await jail.set('_env_get_all', new ivm.Reference(async () => {
-            const result = await searchData({ model: 'env' }, user);
-            const envObject = result.data.reduce((acc, v) => {
-                acc[v.name] = v.value;
-                return acc;
-            }, {});
-            return new ivm.ExternalCopy(envObject).copyInto();
+            const result = await getEnv(user);
+            return new ivm.ExternalCopy(result).copyInto();
         }));
 
         // Contexte sécurisé
@@ -281,6 +327,10 @@ export async function executeSafeJavascript(actionDef, context, user) {
                 findOne: (...args) => _db_findOne.applySyncPromise(null, normalizeArgs(args)),
                 update: (...args) => _db_update.applySyncPromise(null, normalizeArgs(args)),
                 delete: (...args) => _db_delete.applySyncPromise(null, normalizeArgs(args))
+            };
+            
+            const workflow = {
+                run: (...args) => _workflow_run.applySyncPromise(null, normalizeArgs(args))
             };
 
             const logger = {
@@ -463,8 +513,8 @@ async function handleHttpRequestAction(actionDef, contextData, user, dbCollectio
                 success: true,
                 message: `Webhook executed successfully. Status: ${response.status}`,
                 responseStatus: response.status,
-                responseBody: responseBody
-                // updatedContext: { webhookResponse: responseBody } // Optionnel: Ajouter la réponse au contexte
+                responseBody: responseBody,
+                updatedContext: { httpResponse: responseBody }
             };
         } else {
             // Handle non-successful responses (4xx, 5xx)
@@ -786,6 +836,52 @@ async function handleDeleteDataAction(actionDef, contextData, user, dbCollection
     }
 }
 
+/**
+ * Handles the 'ExecuteServiceFunction' workflow action.
+ * Acts as a secure bridge between the workflow engine and native service modules.
+ *
+ * @param {object} actionDef - The action definition.
+ * @param {object} contextData - The current workflow context.
+ * @param {object} user - The user object.
+ * @returns {Promise<{success: boolean, message?: string, updatedContext?: object}>}
+ */
+async function handleExecuteServiceFunction(actionDef, contextData, user) {
+    const { serviceName, functionName, args: argsTemplate } = actionDef;
+
+    if (!serviceName || !functionName) {
+        return { success: false, message: "Action requires 'serviceName' and 'functionName'." };
+    }
+
+    const service = services[serviceName];
+    if (!service) {
+        return { success: false, message: `Service '${serviceName}' not found in the registry.` };
+    }
+
+    const func = service[functionName];
+    if (typeof func !== 'function') {
+        return { success: false, message: `Function '${functionName}' not found in service '${serviceName}'.` };
+    }
+
+    try {
+        // Substitute variables in the arguments array
+        const substitutedArgs = Array.isArray(argsTemplate)
+            ? await substituteVariables(argsTemplate, contextData, user)
+            : [];
+
+        logger.info(`[Service Call] Calling ${serviceName}.${functionName} with ${substitutedArgs.length} argument(s).`);
+        const result = await func(...substitutedArgs, user);
+
+        return {
+            success: true,
+            updatedContext: { serviceResult: result } // Store result in context
+        };
+    } catch (error) {
+        const msg = `Error executing ${serviceName}.${functionName}: ${error.message}`;
+        logger.error(`[Service Call] ${msg}`, error.stack);
+        return { success: false, message: msg };
+    }
+}
+
 // Dans workflow.js
 export async function executeStepAction(actionDef, contextData, user, dbCollection) {
     logger.info(`[executeStepAction] Executing action type ${actionDef.type} for action ${actionDef._id} (${actionDef.name})`);
@@ -820,6 +916,9 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
             break;
         case 'ExecuteScript':
             result = await executeSafeJavascript(actionDef, contextData, user);
+            break;
+        case 'ExecuteServiceFunction':
+            result = await handleExecuteServiceFunction(actionDef, contextData, user);
             break;
         default:
             logger.error(`[executeStepAction] Unknown action type: ${actionDef.type}`);
@@ -1035,6 +1134,8 @@ export async function substituteVariables(template, contextData, user) {
             return new Date().toISOString();
         } else if (path === 'randomUUID') {
             return crypto.randomUUID();
+        } else if( path === "baseUrl" ){
+            return process.env.NODE_ENV === 'production' ? 'https://'+getHost()+'/' : 'http://localhost:/'+port;
         }
 
         // Détecter si le chemin est complexe (contient plus d'un point)

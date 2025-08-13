@@ -65,7 +65,7 @@ export const OPERAND_TYPES = {
 
 
 export const getHost = () => {
-    return process.env.HOST || host || 'localhost';
+    return import.meta.env.HOST || host || 'localhost';
 }
 
 
