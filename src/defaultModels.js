@@ -899,7 +899,7 @@ export const defaultModels = {
                 name: 'type',
                 type: 'enum',
                 required: true,
-                items: ['UpdateData', 'CreateData', 'DeleteData', 'ExecuteScript', 'HttpRequest', 'SendEmail', 'Wait', 'GenerateAIContent'],
+                items: ['UpdateData', 'CreateData', 'DeleteData', 'ExecuteScript', 'HttpRequest', 'SendEmail', 'Wait', 'GenerateAIContent', 'ExecuteServiceFunction'],
                 hint: "The type of operation to perform."
             },
             // For UpdateData / CreateData / DeleteData
@@ -924,9 +924,6 @@ export const defaultModels = {
 
             // For CreateData
             { name: 'dataToCreate', condition: {$eq: ["$type", "CreateData"]}, type: 'code', language: 'json', default: {}, hint: "Object template for the new document to create" },
-
-            // For ExecuteScript
-            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', language: 'javascript', hint: "The script to execute." },
 
             // For HttpRequest
             { name: 'url', condition: {$eq: ["$type", "HttpRequest"]}, type: 'string', hint: "The URL to call." },
@@ -979,7 +976,15 @@ export const defaultModels = {
                 condition: { $eq: ["$type", "GenerateAIContent"] },
                 type: 'richtext', // richtext est bien pour les longs prompts
                 hint: "Le modèle de prompt. Utilise des variables comme {triggerData.field} ou {context.variable}."
-            }
+            },
+
+            // For ExecuteScript
+            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', language: 'javascript', hint: "The script to execute." },
+
+            // For ExecuteServiceFunction
+            { name: 'serviceName', condition: {$eq: ["$type", "ExecuteServiceFunction"]}, type: 'string', hint: "The name of the registered service to call (e.g., 'stripe')." },
+            { name: 'functionName', condition: {$eq: ["$type", "ExecuteServiceFunction"]}, type: 'string', hint: "The name of the function to execute within the service." },
+            { name: 'args', condition: {$eq: ["$type", "ExecuteServiceFunction"]}, type: 'code', language: 'json', default: [], hint: "An array of arguments to pass to the function. Can include variables." }
 
         ]
     },
