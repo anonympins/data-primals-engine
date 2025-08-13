@@ -4255,9 +4255,9 @@ return { status: 200, body: { received: true } };`
                             "emailContent": `
 <h1>Payment Failed</h1>
 <p>We couldn't process your payment for invoice #{triggerData.number}.</p>
-<p>Amount due: {triggerData.data.object.amount_due / 100} {triggerData.currency.symbol}</p>
+<p>Amount due: {triggerData.amount_due / 100} {triggerData.currency.symbol}</p>
 <p><strong>Please update your payment method:</strong></p>
-<a href="{triggerData.data.object.hosted_invoice_url}" style="background-color: #E53E3E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+<a href="{triggerData.hosted_invoice_url}" style="background-color: #E53E3E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
     Update Payment Method
 </a>
 <p>If you believe this is an error, please contact our support team.</p>
@@ -4359,7 +4359,7 @@ return { success: true };
                             "name": "Send Subscription Welcome",
                             "description": "Envoie un email de bienvenue pour un nouvel abonnement.",
                             "type": "SendEmail",
-                            "emailRecipients": ["{triggerData.data.object.customer_email}"],
+                            "emailRecipients": ["{triggerData.customer_email}"],
                             "emailSubject": "Welcome to your new subscription!",
                             "emailContent": `
 <h1>Thank you for subscribing!</h1>
@@ -4433,13 +4433,13 @@ return { success: true };
                             "name": "Send Invoice Email",
                             "description": "Envoie la facture par email au client.",
                             "type": "SendEmail",
-                            "emailRecipients": ["{triggerData.data.object.customer_email}"],
+                            "emailRecipients": ["{triggerData.customer_email}"],
                             "emailSubject": "Your invoice is ready",
                             "emailContent": `
-<h1>Your Invoice #{triggerData.data.object.number}</h1>
-<p>Amount due: {triggerData.data.object.amount_due / 100} {triggerData.data.object.currency.toUpperCase()}</p>
-<p>Due date: {triggerData.data.object.due_date ? new Date(triggerData.data.object.due_date * 1000).toLocaleDateString() : 'Immediately'}</p>
-<p>You can view and pay your invoice <a href="{triggerData.data.object.hosted_invoice_url}">here</a>.</p>
+<h1>Your Invoice #{triggerData.number}</h1>
+<p>Amount due: {triggerData.amount_due / 100} {triggerData.currency.toUpperCase()}</p>
+<p>Due date: {triggerData.due_date ? new Date(triggerData.due_date * 1000).toLocaleDateString() : 'Immediately'}</p>
+<p>You can view and pay your invoice <a href="{triggerData.hosted_invoice_url}">here</a>.</p>
 <p>Thank you for your business!</p>
 `
                         },
@@ -4457,7 +4457,7 @@ return { success: true };
                             "description": "Retrieves a Payment Intent object from Stripe.",
                             "type": "HttpRequest",
                             "method": "GET",
-                            "url": "https://api.stripe.com/v1/payment_intents/{triggerData.event.data.object.id}",
+                            "url": "https://api.stripe.com/v1/payment_intents/{triggerData.event.id}",
                             "headers": { "Authorization": "Bearer {env.STRIPE_SECRET_KEY}" }
                         },
                         {
@@ -4713,6 +4713,19 @@ return { success: true };
                     ],
                     "workflowTrigger": [
                         {
+                            "name": "On Stripe Payment Success",
+                            "workflow": "Payment Reconciliation",
+                            "type": "manual",
+                            "onEvent": "DataAdded",
+                            "targetModel": "StripePayment",
+                            "dataFilter": {
+                                "$and": [
+                                    { "$eq": ["$status", "succeeded"] },
+                                    { "$exists": ["$invoice", false] }
+                                ]
+                            }
+                        },
+                        {
                             "name": "Daily Subscription Check",
                             "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
                             "type": "scheduled",
@@ -4724,7 +4737,7 @@ return { success: true };
                             "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
                             "type": "manual",
                             "onEvent": "DataAdded",
-                            "targetModel": "StripeInvoice", // ← Modifié pour utiliser le bon modèle
+                            "targetModel": "StripeInvoice",
                             "dataFilter": {
                                 "$and": [
                                     { "$eq": ["$status", "open"] },
@@ -4733,6 +4746,40 @@ return { success: true };
                                 ]
                             },
                             "isActive": true
+                        },
+                        {
+                            "name": "On New Subscription",
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
+                            "type": "manual",
+                            "onEvent": "DataAdded",
+                            "targetModel": "StripeSubscription",
+                            "dataFilter": {
+                                "$eq": ["$status", "active"]
+                            },
+                            "isActive": true
+                        },
+                        {
+                            "name": "On Stripe Webhook Event",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "type": "manual",
+                            "onEvent": "DataAdded",
+                            "targetModel": "workflowRun",
+                            "dataFilter": {
+                                "$and": [
+                                    { "$eq": ["$workflow.name", "Process Stripe Webhook Events"] },
+                                    { "$exists": ["$triggerData.type", true] }
+                                ]
+                            },
+                            "isActive": true
+                        },
+                        {
+                            "name": "On Subscription Renewal",
+                            "workflow": "Subscription Lifecycle Management",
+                            "type": "scheduled",
+                            "cronExpression": "0 8 * * *", // Tous les jours à 8h
+                            "dataFilter": {
+                                "$lt": ["$currentPeriodEnd", {"$add": ["$$NOW", 86400000]}] // J-1
+                            }
                         }
                     ],
                     "dashboard": [
