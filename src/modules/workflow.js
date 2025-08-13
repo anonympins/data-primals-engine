@@ -21,6 +21,7 @@ import {object_equals} from "../core.js";
 import {isConditionMet} from "../filter.js";
 import {urlData} from "../../client/src/core/data.js";
 import { services } from '../services/index.js';
+import {getEnv} from "./user.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -306,12 +307,8 @@ export async function executeSafeJavascript(actionDef, context, user) {
             return new ivm.ExternalCopy(result.data?.[0]?.value || null).copyInto();
         }));
         await jail.set('_env_get_all', new ivm.Reference(async () => {
-            const result = await searchData({ model: 'env' }, user);
-            const envObject = result.data.reduce((acc, v) => {
-                acc[v.name] = v.value;
-                return acc;
-            }, {});
-            return new ivm.ExternalCopy(envObject).copyInto();
+            const result = await getEnv(user);
+            return new ivm.ExternalCopy(result).copyInto();
         }));
 
         // Contexte sécurisé
@@ -874,7 +871,7 @@ async function handleExecuteServiceFunction(actionDef, contextData, user) {
             : [];
 
         logger.info(`[Service Call] Calling ${serviceName}.${functionName} with ${substitutedArgs.length} argument(s).`);
-        const result = await func(...substitutedArgs);
+        const result = await func(...substitutedArgs, user);
 
         return {
             success: true,

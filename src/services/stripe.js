@@ -1,9 +1,6 @@
 import Stripe from 'stripe';
-import { insertData, searchData, editData } from '../data.js';
-
-// Initialisation de Stripe avec la clé secrète (à charger depuis une config sécurisée)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+import {editData, insertData, searchData} from '../data.js';
+import {getEnv} from "../modules/user.js";
 
 
 /**
@@ -83,7 +80,15 @@ export async function verifyCheckoutSession(sessionId) {
  * @returns {Stripe.Event} L'objet événement Stripe vérifié.
  * @throws {Error} Si la signature est invalide ou si les en-têtes/body sont manquants.
  */
-export function verifyWebhookSignature(headers, rawBody) {
+export async function verifyWebhookSignature(headers, rawBody, user) {
+    // Initialisation de Stripe avec la clé secrète (à charger depuis une config sécurisée)
+    const env = await getEnv(user);
+    const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null;
+    const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
+
+    if( !stripe ){
+        throw new Error("Stripe unknown API key.");
+    }
     if (!webhookSecret) {
         throw new Error("Stripe webhook secret (STRIPE_WEBHOOK_SECRET) is not configured on the server.");
     }
@@ -94,8 +99,7 @@ export function verifyWebhookSignature(headers, rawBody) {
     }
 
     try {
-        const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-        return event;
+        return stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
     } catch (err) {
         console.error(`❌ Error verifying Stripe webhook signature: ${err.message}`);
         throw new Error(`Webhook signature verification failed: ${err.message}`);
