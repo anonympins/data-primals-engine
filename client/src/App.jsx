@@ -138,8 +138,8 @@ function Layout ({header, routes, body, footer}) {
                 const availableKeys = response.data;
 
                 const newConfig = {
-                    openai: availableKeys.find(key => key.name === 'OPENAI_API_KEY')?.value || (useAI ? process.env.OPENAI_API_KEY : undefined),
-                    google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value || (useAI ? process.env.GOOGLE_API_KEY : undefined),
+                    openai: availableKeys.find(key => key.name === 'OPENAI_API_KEY')?.value || undefined,
+                    google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value || undefined,
                 };
 
                 // On met à jour l'état si au moins une clé est disponible
