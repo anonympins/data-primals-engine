@@ -4194,12 +4194,8 @@ return { processedChunk: context.result.chunk };
             "data": {
                 "all": {
                     "env": [
-                        { "name": "STRIPE_PUBLIC_KEY", "value": "pk_test_YOUR_PUBLIC_KEY" },
                         { "name": "STRIPE_SECRET_KEY", "value": "sk_test_YOUR_SECRET_KEY" },
-                        { "name": "STRIPE_WEBHOOK_SECRET", "value": "whsec_YOUR_WEBHOOK_SECRET" },
-                        { "name": "STRIPE_API_VERSION", "value": "2022-11-15" },
-                        { "name": "STRIPE_MAX_NETWORK_RETRIES", "value": "2" },
-                        { "name": "STRIPE_TIMEOUT", "value": "30000" }
+                        { "name": "STRIPE_WEBHOOK_SECRET", "value": "whsec_YOUR_WEBHOOK_SECRET" }
                     ],
                     "endpoint": [
                         {
