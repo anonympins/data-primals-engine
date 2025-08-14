@@ -4272,14 +4272,15 @@ This ensures that your application only processes legitimate requests from Strip
                             "path": "stripe-webhook",
                             "method": "POST",
                             "isActive": true,
-                            "webhook": {
-                                "provider": "stripe",
-                                "secretEnvVar": "STRIPE_WEBHOOK_SECRET"
-                            },
-                            "code": `// The webhook signature has already been verified by the engine.
-// The verified event is available in context.webhookEvent.
-await workflow.run('Process Stripe Webhook Events', { event: context.webhookEvent });
-return { status: 200, body: { received: true } };`
+                            "isPublic": true,
+                            "code": `
+ // The entire Stripe event object is passed in the request body.
+ const stripeEvent = context.request.body;
+ 
+ // We pass this event to the workflow for processing.
+ await workflow.run('Process Stripe Webhook Events', { event: stripeEvent });
+ 
+ return { received: true };`
                         },
                         {
                             "name": "Create Customer Portal",

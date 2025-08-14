@@ -43,7 +43,7 @@ import {
     editData, editModel, exportData,
     getModel, getResource,
     handleCustomEndpointRequest,
-    handleDemoInitialization, importData, insertData, installPack, loadFromDump,
+    handleDemoInitialization, importData, insertData, installPack, loadFromDump, middlewareEndpointAuthenticator,
     patchData, searchData, validateModelStructure
 } from "./data.js";
 import process from "node:process";
@@ -161,7 +161,7 @@ export async function registerRoutes(engine){
 
     logger = engine.getComponent(Logger);
 
-    engine.all('/api/actions/:path', [middlewareAuthenticator, userInitiator], handleCustomEndpointRequest);
+    engine.all('/api/actions/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
 
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {

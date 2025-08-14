@@ -71,7 +71,7 @@ import {addFile,  removeFile} from "../file.js";
 import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
 import {
     calculateTotalUserStorageUsage,
-    hasPermission
+    hasPermission, middlewareAuthenticator
 } from "../user.js";
 import {getAllPacks} from "../../packs.js";
 import {Config} from "../../config.js";
@@ -1129,38 +1129,71 @@ export const editModel = async (user, id, data) => {
 };
 
 
-export async function handleCustomEndpointRequest(req, res) {
+export async function middlewareEndpointAuthenticator(req, res, next) {
     const { path } = req.params;
     const method = req.method.toUpperCase();
-
-    const user = req.me;
-    if (!user) {
-        return res.status(401).json({ success: false, message: 'Authentication required.' });
-    }
+    const datasCollection = getCollection('datas');
 
     try {
-        // 1. Trouver l'endpoint correspondant dans la base de données
-        const endpointSearch = await searchData({
-            model: 'endpoint',
-            filter: {
-                path: path,
-                method: method,
-                isActive: true
-            },
-            limit: 1
-        }, user);
+        const endpointDef = await datasCollection.findOne({
+            _model: 'endpoint',
+            path: path,
+            method: method,
+            isActive: true
+        });
 
-        if (endpointSearch.count === 0) {
-            logger.warn(`[Endpoint] 404 - No active endpoint found for user '${user.username}', path '${path}', method '${method}'.`);
+        if (!endpointDef) {
             return res.status(404).json({ success: false, message: 'Endpoint not found.' });
         }
 
-        const endpointDef = endpointSearch.data[0];
+        // Attacher la définition à la requête pour que le handler suivant puisse l'utiliser
+        req.endpointDef = endpointDef;
+
+        // Si l'endpoint n'est PAS public, on exécute le vrai middleware d'authentification
+        if (!endpointDef.isPublic) {
+            // On "chaîne" vers le middleware authenticator standard.
+            // Il se chargera de vérifier le token et de renvoyer une 401 si nécessaire.
+            return middlewareAuthenticator(req, res, next);
+        }
+
+        // Si l'endpoint EST public, on passe simplement à la suite.
+        next();
+
+    } catch (error) {
+        logger.error(`[EndpointAuth] Critical error: ${error.message}`, error.stack);
+        res.status(500).json({ success: false, message: 'Internal server error during endpoint authentication.' });
+    }
+}
+
+export async function handleCustomEndpointRequest(req, res) {
+    const endpointDef = req.endpointDef;
+
+    try {
+        let executionUser = null;
+
+        // 1. Déterminer le contexte utilisateur pour l'exécution
+        if (endpointDef.isPublic) {
+            // Pour les endpoints publics, on exécute le script en tant que propriétaire de l'endpoint.
+            if (!endpointDef._user) {
+                logger.error(`[Endpoint] Misconfiguration: Public endpoint '${endpointDef.name}' (ID: ${endpointDef._id}) has no owner.`);
+                return res.status(500).json({ success: false, message: 'Endpoint misconfigured: owner missing.' });
+            }
+            executionUser = await engine.userProvider.findUserByUsername(endpointDef._user);
+            if (!executionUser) {
+                logger.error(`[Endpoint] Execution failed: Owner '${endpointDef._user}' for public endpoint '${endpointDef.name}' not found.`);
+                return res.status(500).json({ success: false, message: 'Endpoint owner not found.' });
+            }
+            logger.info(`[Endpoint] Public endpoint '${endpointDef.name}' running as owner '${executionUser.username}'.`);
+        } else {
+            // Pour les endpoints privés, l'utilisateur a déjà été authentifié par le middleware.
+            // req.me est garanti d'exister ici.
+            executionUser = req.me;
+            logger.info(`[Endpoint] Private endpoint '${endpointDef.name}' running as authenticated user '${executionUser.username}'.`);
+        }
 
         // 2. Préparer le contexte pour le script
-        // On donne au script accès au corps, aux paramètres de la requête, etc.
         const contextData = {
-            request:{
+            request: {
                 body: req.fields,
                 query: req.query,
                 params: req.params,
@@ -1168,34 +1201,29 @@ export async function handleCustomEndpointRequest(req, res) {
             }
         };
 
-        // 3. Exécuter le code de l'endpoint en utilisant notre sandbox sécurisé
-        logger.info(`[Endpoint] Executing endpoint '${endpointDef.name}' for user '${user.username}'.`);
+        // 3. Exécuter le code de l'endpoint
         const result = await executeSafeJavascript(
-            { script: endpointDef.code }, // On passe la définition du script
+            { script: endpointDef.code },
             contextData,
-            user
+            executionUser // Use the determined user for execution
         );
 
         // 4. Envoyer la réponse
         if (result.success) {
-            // Le script a réussi, on retourne sa sortie
             res.status(200).json(result.data);
         } else {
-            // Le script a échoué, on retourne une erreur 500 avec les logs
             logger.error(`[Endpoint] Execution failed for '${endpointDef.name}'. Error: ${result.message}`);
-
-            const r = {
+            const responseError = {
                 success: false,
                 message: 'Endpoint script execution failed.',
-                // On peut choisir d'exposer les logs pour le débogage
-                details: result.message
+                details: result.message,
+                logs: result.logs
             };
-            r.logs = result.logs;
-            res.status(500).json(r);
+            res.status(500).json(responseError);
         }
 
     } catch (error) {
-        logger.error(`[Endpoint] Critical error handling request for path '${path}': ${error.message}`, process.env.NODE_ENV === 'development'? error.stack : error.stack[0]);
+        logger.error(`[Endpoint] Critical error handling request for path '${endpointDef.path}': ${error.message}`, error.stack);
         res.status(500).json({ success: false, message: 'An internal server error occurred.' });
     }
 }

@@ -1455,6 +1455,12 @@ export const defaultModels = {
                 hint: "The HTTP method required to call this endpoint."
             },
             {
+                name: 'isPublic',
+                type: 'boolean',
+                default: false,
+                hint: "Si coché, ce point d'accès sera accessible sans authentification."
+            },
+            {
                 name: "code",
                 type: "code",
                 language: "javascript",

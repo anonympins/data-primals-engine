@@ -3,6 +3,14 @@ export const websiteTranslations = {
     fr: {
         translation: {
 
+            "field_endpoint_isPublic": "Accès public",
+            "field_endpoint_isPublic_hint": "Si coché, ce point d'accès sera accessible sans authentification. Le script s'exécutera avec les droits du propriétaire du point d'accès.",
+
+            "packs.manualInstall": "Importer",
+            "packs.manualInstall.title": "Installation manuelle de pack",
+            "packs.manualInstall.instructions": "Collez ici le JSON de configuration du pack que vous souhaitez installer.",
+            "packs.manualInstall.placeholder": "{\"name\": \"Mon Pack\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "api.data.relationFilterFailed": "La valeur {{value}} pour le champ {{field}} ne respecte pas le filtre de relation défini.",
 
             "dataimporter.excelPreview":"Aperçu des données Excel",
