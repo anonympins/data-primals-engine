@@ -9,10 +9,37 @@ import i18n from "../../i18n.js";
 import {generateLimiter} from "../user.js";
 import rateLimit from "express-rate-limit";
 import {maxAIReflectiveSteps} from "../../constants.js";
-import {providers} from "./assistant.constant.js";
+import {providers} from "./constants.js";
+import {ChatDeepSeek} from "@langchain/deepseek";
+import {ChatAnthropic} from "@langchain/anthropic";
 
 let logger = null;
 
+export const getAIProvider= (aiProvider, aiModel, apiKey)=>{
+    let llm;
+    try {
+        switch (aiProvider) {
+        case 'OpenAI':
+            llm = new ChatOpenAI({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        case 'Google':
+            llm = new ChatGoogleGenerativeAI({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        case 'DeepSeek':
+            llm = new ChatDeepSeek({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        case 'Anthropic':
+            llm = new ChatAnthropic({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        default:
+            throw new Error(`Unsupported AI provider: ${aiProvider}`);
+        }
+        return llm;
+    }
+    catch (e) {
+        return null;
+    }
+}
 export const assistantGlobalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // Fenêtre de 15 minutes
     max: 100, // Limite à 100 requêtes globales pour l'assistant pendant la fenêtre (vous pouvez ajuster cette valeur)
@@ -241,28 +268,16 @@ async function handleChatRequest(message, history, provider, context, user, conf
     let llm;
     try {
         const p = provider || 'OpenAI';
-        const envKeyName = providers[p];
+        const envKeyName = providers[p].key;
         if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
 
         const envCollection = await getCollectionForUser(user);
         const userEnvVar = await envCollection.findOne({_model: 'env', name: envKeyName, _user: user.username});
         const apiKey = userEnvVar?.value || process.env[envKeyName];
 
-        if (!apiKey) return {success: false, message: `Clé API pour ${provider} (${envKeyName}) non trouvée.`};
+        if (!apiKey) return {success: false, message: `Clé API pour ${p} (${envKeyName}) non trouvée.`};
 
-        llm = p === 'openai'
-            ? new ChatOpenAI({
-                apiKey,
-                modelName: "gpt-4o-mini",
-                temperature: 0.2,
-                response_format: {"type": "json_object"}
-            })
-            : new ChatGoogleGenerativeAI({
-                apiKey,
-                modelName: "gemini-1.5-pro-latest",
-                temperature: 0.2,
-                response_format: {"type": "json_object"}
-            });
+        llm = getAIProvider(p, providers[p]?.defaultModel, apiKey);
     } catch (initError) {
         logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);
         return {success: false, message: `Erreur d'initialisation du client IA: ${initError.message}`};

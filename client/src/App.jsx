@@ -61,7 +61,7 @@ import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
 
 import { Tooltip } from 'react-tooltip';
-import {providers} from "data-primals-engine/modules/assistant/assistant.constant";
+import {providers} from "../../src/modules/assistant/constants.js";
 
 let queryClient = new QueryClient();
 
@@ -114,7 +114,7 @@ function Layout ({header, routes, body, footer}) {
                 },
                 body: JSON.stringify({
                     model: 'env', // On cible le modèle 'env'
-                    filter: { "name": { "$in": Object.values(providers) } },
+                    filter: { "name": { "$in": Object.values(providers).map(p => p.key) } },
                     limit: Object.values(providers).length
                 })
             }).then(res => res.json());
@@ -129,7 +129,7 @@ function Layout ({header, routes, body, footer}) {
                 }
                 const availableKeys = response.data;
                 const newConfig = Object.keys(providers).reduce((config, providerKey) => {
-                    const envVarName = providers[providerKey];
+                    const envVarName = providers[providerKey].key;
                     const foundKey = availableKeys.find(key => key.name === envVarName);
                     if (foundKey) {
                         config[providerKey] = foundKey.value;

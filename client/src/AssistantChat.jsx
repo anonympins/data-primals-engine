@@ -7,7 +7,7 @@ import { useModelContext } from "./contexts/ModelContext.jsx";
 import { Trans, useTranslation } from "react-i18next";
 import Markdown from 'react-markdown';
 import {useQueryClient} from "react-query";
-import {providers} from "data-primals-engine/modules/assistant/assistant.constant";
+import {providers} from "../../src/modules/assistant/constants.js";
 
 const AssistantChat = ({ config }) => {
     const { selectedModel } = useModelContext();
@@ -172,7 +172,7 @@ const AssistantChat = ({ config }) => {
     // Logique pour le sélecteur de fournisseur (OpenAI/Google)
     const availableProviders = useMemo(() => {
         const prs = Object.keys(providers).map(p => {
-            return config[p] ? ({value: p, label: p}) : null;
+            return config?.[p] ? ({value: p, label: p}) : null;
         })
         return prs.filter(Boolean);
     }, [config]);

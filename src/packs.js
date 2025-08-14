@@ -1,4 +1,5 @@
 import {getModels} from "./modules/data/index.js";
+import {providers} from "./modules/assistant/constants.js";
 
 
 /*
@@ -1356,7 +1357,7 @@ return { processedChunk: context.result.chunk };
                         "isActive": true
                     }],
                     "env": Object.values(providers).map(m => ({
-                        name: m,
+                        name: m.key,
                         value: "demo"
                     }))
                 }
