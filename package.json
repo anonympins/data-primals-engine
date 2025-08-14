@@ -35,7 +35,7 @@
   },
   "overrides": {
     "refractor": {
-        "prismjs": "1.30.0"
+      "prismjs": "1.30.0"
     }
   },
   "repository": {
@@ -55,6 +55,7 @@
     "react-query": ">=3.0.0"
   },
   "dependencies": {
+    "@langchain/anthropic": "^0.3.26",
     "@langchain/core": "^0.3.66",
     "@langchain/deepseek": "^0.1.0",
     "@langchain/google-genai": "^0.2.16",

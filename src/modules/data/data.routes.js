@@ -33,7 +33,7 @@ import {
     middlewareAuthenticator,
     userInitiator
 } from "../user.js";
-import {assistantGlobalLimiter} from "../assistant.js";
+import {assistantGlobalLimiter} from "../assistant/assistant.js";
 import {Config} from "../../config.js";
 import {processFilterPlaceholders} from "../../../client/src/filter.js";
 import {tutorialsConfig} from "../../../client/src/tutorials.js";

@@ -20,6 +20,8 @@ import {isConditionMet} from "../filter.js";
 import { services } from '../services/index.js';
 import {getEnv} from "./user.js";
 import {getHost} from "../constants.js";
+import {providers} from "./assistant/assistant.constant.js";
+import {ChatAnthropic} from "@langchain/anthropic";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -1580,11 +1582,6 @@ async function executeGenerateAIContentAction(action, context, user) {
     // 1. Retrieve the API key (User Environment > Machine Environment)
     let apiKey;
 
-    const providers = {
-        "OpenAI" : "OPENAI_API_KEY",
-        "Google": "GOOGLE_API_KEY",
-        "DeepSeek": "DEEPSEEK_API_KEY"
-    }
     const envKeyName = providers[aiProvider];
     if( !envKeyName ) {
         return {success: false, message: i18n.t('aiContent.env', `API key for provider ${aiProvider} (${envKeyName}) not found in user environment.`)};
@@ -1620,6 +1617,9 @@ async function executeGenerateAIContentAction(action, context, user) {
             break;
         case 'DeepSeek':
             llm = new ChatDeepSeek({ apiKey, model: aiModel, temperature: 0.7 });
+            break;
+        case 'Anthropic':
+            llm = new ChatAnthropic({ apiKey, model: aiModel, temperature: 0.7 });
             break;
         default:
             throw new Error(`Unsupported AI provider: ${aiProvider}`);

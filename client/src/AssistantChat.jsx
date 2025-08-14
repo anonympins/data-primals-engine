@@ -7,6 +7,7 @@ import { useModelContext } from "./contexts/ModelContext.jsx";
 import { Trans, useTranslation } from "react-i18next";
 import Markdown from 'react-markdown';
 import {useQueryClient} from "react-query";
+import {providers} from "data-primals-engine/modules/assistant/assistant.constant";
 
 const AssistantChat = ({ config }) => {
     const { selectedModel } = useModelContext();
@@ -170,10 +171,10 @@ const AssistantChat = ({ config }) => {
 
     // Logique pour le sélecteur de fournisseur (OpenAI/Google)
     const availableProviders = useMemo(() => {
-        const providers = [];
-        if (config?.openai) providers.push({ value: 'openai', label: 'OpenAI' });
-        if (config?.google) providers.push({ value: 'google', label: 'Google' });
-        return providers;
+        const prs = Object.keys(providers).map(p => {
+            return config[p] ? ({value: p, label: p}) : null;
+        })
+        return prs.filter(Boolean);
     }, [config]);
 
     const [selectedProvider, setSelectedProvider] = useState(null);

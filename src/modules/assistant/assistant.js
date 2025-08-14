@@ -1,14 +1,15 @@
-import { getCollectionForUser, modelsCollection } from "./mongodb.js";
-import { Logger } from "../gameObject.js";
+import { getCollectionForUser, modelsCollection } from "../mongodb.js";
+import { Logger } from "../../gameObject.js";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import {searchData,  patchData, deleteData, insertData} from "./data/index.js";
-import { getDataAsString } from "../data.js";
-import i18n from "../../src/i18n.js";
-import {generateLimiter} from "./user.js";
+import {searchData,  patchData, deleteData, insertData} from "../data/index.js";
+import { getDataAsString } from "../../data.js";
+import i18n from "../../i18n.js";
+import {generateLimiter} from "../user.js";
 import rateLimit from "express-rate-limit";
-import {maxAIReflectiveSteps} from "../constants.js";
+import {maxAIReflectiveSteps} from "../../constants.js";
+import {providers} from "./assistant.constant.js";
 
 let logger = null;
 
@@ -207,7 +208,7 @@ async function executeTool(action, params, user, allModels) {
  * soit en lançant la boucle de raisonnement de l'IA.
  * @param {string} message - Le message de l'utilisateur.
  * @param {Array} history - L'historique de la conversation.
- * @param {string} provider - Le fournisseur d'IA ('openai' ou 'google').
+ * @param {string} provider - Le fournisseur d'IA ('OpenAI' ou 'google').
  * @param {object} context - Contexte additionnel.
  * @param {object} user - L'objet utilisateur.
  * @param {object} confirmedAction - Une action pré-approuvée par l'utilisateur.
@@ -239,8 +240,7 @@ async function handleChatRequest(message, history, provider, context, user, conf
     // --- INITIALISATION DE L'IA ---
     let llm;
     try {
-        const p = provider || 'openai';
-        const providers = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"};
+        const p = provider || 'OpenAI';
         const envKeyName = providers[p];
         if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
 
@@ -371,7 +371,7 @@ async function executeConfirmedAction(action, params, user) {
 export async function onInit(engine) {
     logger = engine.getComponent(Logger);
 
-    const {middlewareAuthenticator, userInitiator} = await import('./user.js');
+    const {middlewareAuthenticator, userInitiator} = await import('../user.js');
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée
