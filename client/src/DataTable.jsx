@@ -165,6 +165,51 @@ const Header = ({
     ;
 }
 
+
+const RichText = ({ value, initialLang }) => {
+    const availableLangs = useMemo(() => (value ? Object.keys(value).filter(k => value[k]) : []), [value]);
+
+    const [selectedLang, setSelectedLang] = useState(() => {
+        if (availableLangs.includes(initialLang)) {
+            return initialLang;
+        }
+        return availableLangs[0] || null;
+    });
+
+    useEffect(() => {
+        setSelectedLang(initialLang);
+    }, [initialLang]);
+
+    if (!value || availableLangs.length === 0) {
+        return null;
+    }
+
+    if (availableLangs.length === 1) {
+        return <div className="rte-value" dangerouslySetInnerHTML={{ __html: value[availableLangs[0]] || '' }} />;
+    }
+
+    return (
+        <div className="richtext-t-cell">
+            <div className="lang-switcher">
+                {availableLangs.map(langCode => (
+                    <button
+                        key={langCode}
+                        className={`lang-btn ${selectedLang === langCode ? 'active' : ''}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedLang(langCode);
+                        }}
+                        title={langCode.toUpperCase()}
+                    >
+                        {langCode.toUpperCase()}
+                    </button>
+                ))}
+            </div>
+            <div className="rte-value" dangerouslySetInnerHTML={{ __html: value[selectedLang] || '' }} />
+        </div>
+    );
+};
+
 export function DataTable({
                               model,
                               checkedItems,
@@ -630,8 +675,7 @@ export function DataTable({
                                         }
                                         if (field.type === 'richtext_t') {
                                             return <td key={field.name}  className={isLightColor(field.color)?"lighted":""}>
-                                                {hiddenable(<div className="rte-value"
-                                                     dangerouslySetInnerHTML={{__html: item[field.name]?.[lang] || ''}}></div>)}
+                                                {hiddenable(<RichText value={item[field.name]} initialLang={lang} />)}
                                             </td>;
                                         }
                                         if (field.type === 'color') {
