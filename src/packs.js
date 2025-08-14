@@ -4097,7 +4097,7 @@ Ajoutez ces événements supplémentaires pour une synchronisation complète :
   
   ### Webhook Configuration
 
-To make the integration fully work, you need to configure a webhook in your Stripe Dashboard. This allows Stripe to send real-time notifications (like `payment.succeeded` or `customer.subscription.created`) to your application.
+To make the integration fully work, you need to configure a webhook in your Stripe Dashboard. This allows Stripe to send real-time notifications (like \`payment.succeeded\` or \`customer.subscription.created\`) to your application.
 
 1. **Get Your Webhook URL:** 
 Your application's webhook URL is: 
