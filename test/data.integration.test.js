@@ -830,6 +830,8 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                     level: 'important'
                 }
             });
+
+            await getCollection('packs').deleteMany({ _id: packId});
         });
     });
     // In test/data.integration.test.js

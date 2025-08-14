@@ -543,6 +543,11 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "packs.manualInstall": "Import",
+            "packs.manualInstall.title": "Manual Pack Installation",
+            "packs.manualInstall.instructions": "Paste the configuration JSON of the pack you want to install here.",
+            "packs.manualInstall.placeholder": "{\"name\": \"My Pack\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Excel Data Preview",
             "dataimporter.previewNote": "Note: This is a preview of the first few rows. Empty cells are displayed as \"(empty)\".",
             "dataimporter.nullValue": "(empty)",
@@ -1952,6 +1957,11 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
+            "packs.manualInstall": "Importar",
+            "packs.manualInstall.title": "Instalación manual del paquete",
+            "packs.manualInstall.instructions": "Pegue aquí el JSON de configuración del paquete que desea instalar.",
+            "packs.manualInstall.placeholder": "{\"name\": \"Mi paquete\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Vista previa de datos de Excel",
             "dataimporter.previewNote": "Nota: Esta es una vista previa de las primeras filas. Las celdas vacías se muestran como \"(vacío)\".",
             "dataimporter.nullValue": "(vacío)",
@@ -3365,6 +3375,11 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
+            "packs.manualInstall": "Importar",
+            "packs.manualInstall.title": "Instalação manual do pacote",
+            "packs.manualInstall.instructions": "Cole o JSON de configuração do pacote que você deseja instalar aqui.",
+            "packs.manualInstall.placeholder": "{\"name\": \"Meu pacote\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Visualização de Dados do Excel",
             "dataimporter.previewNote": "Observação: Esta é uma visualização das primeiras linhas. Células vazias são exibidas como \"(vazio)\".",
             "dataimporter.nullValue": "(vazio)",
@@ -4773,6 +4788,11 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
+            "packs.manualInstall": "Importieren",
+            "packs.manualInstall.title": "Manuelle Paketinstallation",
+            "packs.manualInstall.instructions": "Fügen Sie hier die JSON-Konfiguration des zu installierenden Pakets ein.",
+            "packs.manualInstall.placeholder": "{\"name\": \"Mein Paket\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Excel-Datenvorschau",
             "dataimporter.previewNote": "Hinweis: Dies ist eine Vorschau der ersten Zeilen. Leere Zellen werden als \"(leer)\" angezeigt.",
             "dataimporter.nullValue": "(leer)",
@@ -6165,6 +6185,11 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
+            "packs.manualInstall": "Importa",
+            "packs.manualInstall.title": "Installazione manuale del pacchetto",
+            "packs.manualInstall.instructions": "Incolla qui il file JSON di configurazione del pacchetto che desideri installare.",
+            "packs.manualInstall.placeholder": "{\"name\": \"My Pack\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Anteprima dati Excel",
             "dataimporter.previewNote": "Nota: questa è un'anteprima delle prime righe. Le celle vuote vengono visualizzate come \"(vuoto)\".",
             "dataimporter.nullValue": "(vuoto)",
@@ -7570,6 +7595,11 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
+            "packs.manualInstall": "Importovat",
+            "packs.manualInstall.title": "Ruční instalace balíčku",
+            "packs.manualInstall.instructions": "Sem vložte konfigurační JSON balíčku, který chcete nainstalovat.",
+            "packs.manualInstall.placeholder": "{\"name\": \"Můj balíček\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Náhled dat v Excelu",
             "dataimporter.previewNote": "Poznámka: Toto je náhled prvních několika řádků. Prázdné buňky se zobrazují jako \"(prázdné)\".",
             "dataimporter.nullValue": "(prázdné)",
@@ -8970,6 +9000,11 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
+            "packs.manualInstall": "Импорт",
+            "packs.manualInstall.title": "Ручная установка пакета",
+            "packs.manualInstall.instructions": "Вставьте сюда JSON-файл конфигурации пакета, который вы хотите установить.",
+            "packs.manualInstall.placeholder": "{\"name\": \"My Pack\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Предварительный просмотр данных Excel",
             "dataimporter.previewNote": "Примечание: Это предварительный просмотр первых нескольких строк. Пустые ячейки отображаются как \"(пусто)\".",
             "dataimporter.nullValue": "(пусто)",
@@ -10380,6 +10415,10 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
+            "packs.manualInstall": "استيراد",
+            "packs.manualInstall.title": "تثبيت الحزمة يدويًا",
+            "packs.manualInstall.instructions": "الصق ملف JSON الخاص بتكوين الحزمة التي تريد تثبيتها هنا",
+            "packs.manualInstall.placeholder": "{\"name\": \"My Pack\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
             "dataimporter.excelPreview": "معاينة بيانات إكسل",
             "dataimporter.previewNote": "ملاحظة: هذه معاينة للصفوف القليلة الأولى. تُعرض الخلايا الفارغة كـ \"(فارغة)\".",
             "dataimporter.nullValue": "(فارغة)",
@@ -11807,6 +11846,11 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
+            "packs.manualInstall": "Importera",
+            "packs.manualInstall.title": "Manuell paketinstallation",
+            "packs.manualInstall.instructions": "Klistra in konfigurations-JSON-filen för paketet du vill installera här.",
+            "packs.manualInstall.placeholder": "{\"namn\": \"Mitt paket\", \"beskrivning\": \"...\", \"modeller\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "Förhandsgranskning av Excel-data",
             "dataimporter.previewNote": "Obs! Detta är en förhandsgranskning av de första raderna. Tomma celler visas som \"(tomma)\"",
             "dataimporter.nullValue": "(tomma)",
@@ -13207,6 +13251,11 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
+            "packs.manualInstall": "Εισαγωγή",
+            "packs.manualInstall.title": "Χειροκίνητη εγκατάσταση πακέτου",
+            "packs.manualInstall.instructions": "Επικολλήστε εδώ το JSON διαμόρφωσης του πακέτου που θέλετε να εγκαταστήσετε.",
+            "packs.manualInstall.placeholder": "{\"name\": \"Το πακέτο μου\", \"περιγραφή\": \"...\", \"μοντέλα\": [...], \"δεδομένα\": [...]}",
+
             "dataimporter.excelPreview": "Προεπισκόπηση δεδομένων Excel",
             "dataimporter.previewNote": "Σημείωση: Αυτή είναι μια προεπισκόπηση των πρώτων γραμμών. Τα κενά κελιά εμφανίζονται ως \"(κενό)\".",
             "dataimporter.nullValue": "(κενό)",
@@ -14615,6 +14664,12 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
+
+            "packs.manualInstall": "وارد کردن",
+            "packs.manualInstall.title": "نصب دستی بسته",
+            "packs.manualInstall.instructions": "فایل JSON پیکربندی بسته‌ای که می‌خواهید نصب کنید را اینجا جای‌گذاری کنید.",
+            "packs.manualInstall.placeholder": "{\"name\": \"بسته من\", \"description\": \"...\", \"models\": [...], \"data\": [...]}",
+
             "dataimporter.excelPreview": "پیش‌نمایش داده‌های اکسل",
             "dataimporter.previewNote": "توجه: این پیش‌نمایشی از چند ردیف اول است. سلول‌های خالی به صورت \"(empty)\" نمایش داده می‌شوند.",
             "dataimporter.nullValue": "(empty)",
