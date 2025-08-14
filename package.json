@@ -33,6 +33,11 @@
     "brace-expansion": "2.0.2",
     "prismjs": "1.30.0"
   },
+  "overrides": {
+    "refractor": {
+        "prismjs": "1.30.0"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/anonympins/data-primals-engine.git"
