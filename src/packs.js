@@ -4280,6 +4280,38 @@ This ensures that your application only processes legitimate requests from Strip
 // The verified event is available in context.webhookEvent.
 await workflow.run('Process Stripe Webhook Events', { event: context.webhookEvent });
 return { status: 200, body: { received: true } };`
+                        },
+                        {
+                            "name": "Create Customer Portal",
+                            "path": "stripe/create-portal-session",
+                            "method": "POST",
+                            "isActive": true,
+                            "code": `
+// Expects the local user ID in the request body to find the Stripe Customer
+const { userId } = context.body;
+if (!userId) {
+    return { status: 400, body: { error: 'User ID is required.' } };
+}
+
+// Find the corresponding Stripe Customer
+const stripeCustomer = await db.findOne('StripeCustomer', { user: userId });
+if (!stripeCustomer) {
+    return { status: 404, body: { error: 'Stripe customer not found for this user.' } };
+}
+
+// Run the workflow to get the portal URL
+const result = await workflow.run('Create Stripe Customer Portal Session', {
+    stripeCustomerId: stripeCustomer.stripeCustomerId,
+    returnUrl: 'https://votre-site.com/account/billing' // URL where user returns
+});
+
+// The result of the workflow run will contain the portal session URL
+// (This part requires a way to retrieve the result of the workflow action)
+// For now, we can assume the workflow returns the URL in its context
+// A more advanced implementation would be needed here.
+
+return { status: 200, body: { message: "Workflow started", runId: result.runId } };
+`
                         }
                     ],
                     "workflow": [
@@ -4307,6 +4339,11 @@ return { status: 200, body: { received: true } };`
                             "name": "Create Stripe Checkout Session",
                             "description": "Creates a Stripe Checkout session for a one-time payment or a subscription.",
                             "startStep": { "$link": { "name": "Select Session Type", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Create Stripe Customer Portal Session",
+                            "description": "Generates a secure URL for a customer to access their Stripe portal.",
+                            "startStep": { "$link": { "name": "Generate Portal URL", "_model": "workflowStep" } }
                         }
                     ],
                     "workflowAction": [
@@ -4482,32 +4519,6 @@ return { success: true };
                             }
                         },
                         {
-                            "name": "Save Successful Payment to DB",
-                            "description": "Saves the details of a successful payment intent to the local database.",
-                            "type": "ExecuteScript",
-                            "script": `
-const intent = context.httpResponse; // The result from "Stripe: Retrieve Payment Intent"
-
-const customer = await db.findOne('StripeCustomer', { stripeCustomerId: intent.customer });
-const currency = await db.findOne('currency', { code: intent.currency.toUpperCase() });
-
-await db.create('StripePayment', {
-    stripePaymentIntentId: intent.id,
-    user: customer?.user,
-    customer: customer?._id,
-    amount: intent.amount / 100,
-    amountReceived: intent.amount_received / 100,
-    currency: currency?._id,
-    status: intent.status,
-    paymentMethod: intent.payment_method,
-    receiptEmail: intent.receipt_email,
-    created: new Date(intent.created * 1000)
-});
-
-return { success: true };
-`
-                        },
-                        {
                             "name": "Send Payment Receipt",
                             "description": "Sends a receipt email for successful payments.",
                             "type": "SendEmail",
@@ -4571,6 +4582,18 @@ return { success: true };
  `
                         },
                         {
+                            "name": "Stripe: Create Customer Portal Session",
+                            "description": "Creates a session for the Stripe Customer Portal.",
+                            "type": "HttpRequest",
+                            "method": "POST",
+                            "url": "https://api.stripe.com/v1/billing_portal/sessions",
+                            "headers": {
+                                "Authorization": "Bearer {env.STRIPE_SECRET_KEY}",
+                                "Content-Type": "application/x-www-form-urlencoded"
+                            },
+                            "body": "customer={triggerData.stripeCustomerId}&return_url={triggerData.returnUrl}"
+                        },
+                        {
                             "name": "Sync Stripe Entity to Local DB",
                             "description": "Synchronise une entité Stripe avec la base locale sans utiliser upsert",
                             "type": "ExecuteScript",
@@ -4593,6 +4616,55 @@ const safeStringify = (obj) => {
     return null;
   }
 };
+
+const findCurrencyByCode = async (code) => {
+    if (!code) return null;
+    const currency = await db.findOne('currency', { code: code.toUpperCase() });
+    return currency ? currency._id : null;
+};
+
+const findCustomerByStripeId = async (stripeId) => {
+    if (!stripeId) return null;
+    const customer = await db.findOne('StripeCustomer', { stripeCustomerId: stripeId });
+    return customer || null;
+};
+
+const findSubscriptionByStripeId = async (stripeId) => {
+    if (!stripeId) return null;
+    const subscription = await db.findOne('StripeSubscription', { stripeSubscriptionId: stripeId });
+    return subscription || null;
+};
+
+const findInvoiceByStripeId = async (stripeId) => {
+    if (!stripeId) return null;
+    const invoice = await db.findOne('StripeInvoice', { stripeInvoiceId: stripeId });
+    return invoice || null;
+};
+
+const findUserFromCustomer = (customer) => {
+    return customer ? customer.user : null;
+};
+
+const findOrCreateCustomer = async (stripeCustomerId, email, name) => {
+    let customer = await findCustomerByStripeId(stripeCustomerId);
+    if (!customer) {
+        logger.info(\`Customer not found locally, creating a new one for Stripe ID: \${stripeCustomerId}\`);
+        const newCustomerData = {
+            stripeCustomerId: stripeCustomerId,
+            email: email,
+            name: name
+        };
+        // Try to link to an existing user by email
+        const user = await db.findOne('user', { email: email });
+        if (user) {
+            newCustomerData.user = user._id;
+        }
+        const result = await db.create('StripeCustomer', newCustomerData);
+        customer = { _id: result.insertedIds[0], ...newCustomerData };
+    }
+    return customer;
+};
+
 
 let modelName;
 let idField;
@@ -4676,6 +4748,62 @@ switch (objectType) {
       if (currency) dataToUpsert.currency = currency._id;
     }
     break;
+
+  case 'invoice':
+    modelName = 'StripeInvoice';
+    idField = 'stripeInvoiceId';
+    
+    const customerForInvoice = await findCustomerByStripeId(stripeObject.customer);
+    const subscriptionForInvoice = await findSubscriptionByStripeId(stripeObject.subscription);
+
+    dataToUpsert = {
+        stripeInvoiceId: stripeObject.id,
+        customer: customerForInvoice ? customerForInvoice._id : null,
+        subscription: subscriptionForInvoice ? subscriptionForInvoice._id : null,
+        number: stripeObject.number,
+        amountDue: stripeObject.amount_due / 100,
+        amountPaid: stripeObject.amount_paid / 100,
+        amountRemaining: stripeObject.amount_remaining / 100,
+        currency: await findCurrencyByCode(stripeObject.currency),
+        status: stripeObject.status,
+        periodStart: new Date(stripeObject.period_start * 1000),
+        periodEnd: new Date(stripeObject.period_end * 1000),
+        dueDate: stripeObject.due_date ? new Date(stripeObject.due_date * 1000) : null,
+        pdfUrl: stripeObject.invoice_pdf,
+        hostedInvoiceUrl: stripeObject.hosted_invoice_url,
+        lines: safeStringify(stripeObject.lines?.data),
+        created: new Date(stripeObject.created * 1000),
+        metadata: safeStringify(stripeObject.metadata)
+    };
+    break;
+
+  case 'payment_intent':
+    modelName = 'StripePayment';
+    idField = 'stripePaymentIntentId';
+
+    const customerForPayment = await findCustomerByStripeId(stripeObject.customer);
+    const userForPayment = findUserFromCustomer(customerForPayment);
+    const invoiceForPayment = await findInvoiceByStripeId(stripeObject.invoice);
+    const subscriptionForPayment = invoiceForPayment ? await findSubscriptionByStripeId(invoiceForPayment.subscription) : null;
+
+    dataToUpsert = {
+        stripePaymentIntentId: stripeObject.id,
+        user: userForPayment,
+        customer: customerForPayment ? customerForPayment._id : null,
+        subscription: subscriptionForPayment ? subscriptionForPayment._id : null,
+        invoice: invoiceForPayment ? invoiceForPayment._id : null,
+        amount: stripeObject.amount / 100,
+        amountReceived: stripeObject.amount_received / 100,
+        currency: await findCurrencyByCode(stripeObject.currency),
+        status: stripeObject.status,
+        paymentMethod: stripeObject.payment_method,
+        paymentMethodDetails: safeStringify(stripeObject.payment_method_details),
+        receiptEmail: stripeObject.receipt_email,
+        receiptUrl: getNested(stripeObject, 'charges.data.0.receipt_url'),
+        created: new Date(stripeObject.created * 1000),
+        metadata: safeStringify(stripeObject.metadata)
+    };
+    break;
     
   default:
     logger.warn('Unsupported Stripe object type:', objectType);
@@ -4756,7 +4884,7 @@ try {
                         {
                             "name": "Handle Paid Invoice",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Process Invoice Payment", "_model": "workflowAction" } },
+                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
                         {
@@ -4795,7 +4923,7 @@ try {
                         {
                             "name": "Handle Payment Succeeded",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Save Successful Payment to DB", "_model": "workflowAction" } },
+                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
                             "onSuccessStep": { "$link": { "name": "Handle Send Payment Receipt", "_model": "workflowStep" } }
                         },
                         {
@@ -4849,6 +4977,12 @@ try {
                             "name": "Handle Product Update",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Generate Portal URL",
+                            "workflow": { "$link": { "name": "Create Stripe Customer Portal Session", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Stripe: Create Customer Portal Session", "_model": "workflowAction" } },
                             "isTerminal": true
                         }
                     ],
