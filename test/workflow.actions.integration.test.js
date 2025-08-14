@@ -251,7 +251,7 @@ describe('Intégration des Actions de Workflow', () => {
         expect(deletedTask).toBeNull();
     });
 
-    it('Action Webhook: devrait appeler fetch avec les bonnes informations substituées', async () => {
+    it('Action HttpRequest: devrait appeler fetch avec les bonnes informations substituées', async () => {
         global.fetch.mockResolvedValue({
             ok: true,
             status: 200,
@@ -261,7 +261,7 @@ describe('Intégration des Actions de Workflow', () => {
 
         const { workflowId } = await setupWorkflow({
             name: 'Notify External System',
-            type: 'Webhook',
+            type: 'HttpRequest',
             method: 'POST',
             url: 'https://api.example.com/notify/{triggerData.status}',
             headers: { "Authorization": "Bearer {env.API_KEY}" },

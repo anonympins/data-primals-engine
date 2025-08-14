@@ -187,8 +187,7 @@ const RelationValue = ({ field, data, align }) => {
                                         if (f.type === 'code') {
                                             let t;
                                             try {
-                                                 t = f.language === 'json' ? JSON.stringify(intVal[f.name], null, 2) : '';
-
+                                                t = f.language === 'json' ? JSON.stringify(intVal[f.name], null, 2) : t = intVal[f.name].toString();
                                             } catch (e) {
                                                 t = intVal[f.name].toString();
                                             }
@@ -196,8 +195,8 @@ const RelationValue = ({ field, data, align }) => {
                                                 <dt>{columnName} {span}</dt>
                                                 <dd>
                                                     <CodeField onChange={() => {
-                                                    }} language={field.language || 'json'}
-                                                               name={f.name} value={field.language === 'json' ? JSON.stringify(intVal[f.name], null, 2) : t} />
+                                                    }} language={f.language || 'json'}
+                                                               name={f.name} value={f.language === 'json' ? JSON.stringify(intVal[f.name], null, 2) : t}  />
                                                 </dd>
                                             </>;
                                         }

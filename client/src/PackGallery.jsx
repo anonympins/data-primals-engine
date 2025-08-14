@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import {useMutation, useQuery, useQueryClient} from 'react-query';
 import { Trans, useTranslation } from 'react-i18next';
-import { FaBoxOpen, FaChevronLeft, FaDownload, FaStar, FaTag, FaUser } from 'react-icons/fa';
+import {FaBoxOpen, FaChevronLeft, FaDownload, FaPlus, FaStar, FaTag, FaUser} from 'react-icons/fa';
 import Button from './Button.jsx';
 import { useNotificationContext } from './NotificationProvider.jsx';
 import { useModelContext } from './contexts/ModelContext.jsx';
 
 import './PackGallery.scss';
 import {elementsPerPage} from "../../src/constants.js";
+import Markdown from "react-markdown";
+import {Dialog, DialogProvider} from "./Dialog.jsx";
+import {TextField} from "./Field.jsx";
 
 // --- API Fetching Functions ---
 const fetchPacks = async (sortBy, lang) => {
@@ -117,7 +120,8 @@ const PackDetail = ({ packId, onBack }) => {
             </div>
             <div className="pack-content">
                 <h2><Trans i18nKey="packs.description">Description</Trans></h2>
-                <div className="description-content" dangerouslySetInnerHTML={{__html: pack.description || ''}}/>
+
+                <div className="description-content"><Markdown>{pack.description}</Markdown></div>
 
                 <h2><Trans i18nKey="packs.modelsIncluded">Modèles inclus</Trans></h2>
                 <p>{renderModelsList(pack.models)}</p>
@@ -127,6 +131,8 @@ const PackDetail = ({ packId, onBack }) => {
                     <pre>{JSON.stringify(pack.data, null, 2)}</pre>
                 </div>
             </div>
+
+
         </div>
     );
 };
@@ -151,16 +157,54 @@ const installPackMutationFn = async ({packId, lang}) => {
 const PackGallery = () => {
     const { t, i18n } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
+    const { addNotification } = useNotificationContext();
 
+    const [showManualInstallDialog, setShowManualInstallDialog] = useState(false);
+    const [manualPackJson, setManualPackJson] = useState('');
     const [view, setView] = useState('list'); // 'list' ou 'detail'
     const [selectedPackId, setSelectedPackId] = useState(null);
     const [sortBy, setSortBy] = useState({ field: '_updatedAt', order: -1 });
 
+    const queryClient = useQueryClient()
     const { data: packs, isLoading, isError } = useQuery(['packs', sortBy], () => fetchPacks(sortBy, lang));
 
     const handleSelectPack = (packId) => {
         setSelectedPackId(packId);
         setView('detail');
+    };
+
+    const handleManualInstall = async () => {
+        try {
+            const packData = JSON.parse(manualPackJson.trim());
+            addNotification({ status: 'info', title: t('packs.install.started', `Installation du pack personnalisé...`) });
+
+            const response = await fetch('/api/packs/install', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ packData, lang }),
+            });
+
+            if (!response.ok) {
+                throw new Error(await response.text());
+            }
+
+            addNotification({
+                status: 'completed',
+                title: t('datatable.pack.install.success', 'Pack installé avec succès !')
+            });
+            setShowManualInstallDialog(false);
+            setManualPackJson('');
+            queryClient.invalidateQueries(['packs', sortBy]); // Rafraîchir la liste
+
+        } catch (error) {
+            addNotification({
+                status: 'error',
+                title: t('datatable.pack.install.error', `Échec de l'installation`),
+                message: error.message
+            });
+        }
     };
 
     const handleBackToList = () => {
@@ -182,16 +226,52 @@ const PackGallery = () => {
             <>
                 <div className="gallery-header">
                     <h1><Trans i18nKey="packs.galleryTitle">Galerie de Packs</Trans></h1>
-                    <div className="sort-options">
-                        <span><Trans i18nKey="packs.sortBy">Trier par :</Trans></span>
-                        <Button onClick={() => setSortBy({ field: '_updatedAt', order: -1 })} className={sortBy.field === '_updatedAt' ? 'active' : ''}>
-                            <Trans i18nKey="packs.sort.lastUpdated">Derniers ajouts</Trans>
-                        </Button>
-                        <Button onClick={() => setSortBy({ field: 'stars', order: -1 })} className={sortBy.field === 'stars' ? 'active' : ''}>
-                            <Trans i18nKey="packs.sort.mostStarred">Plus populaires</Trans>
+                    <div className="header-actions">
+                        <div className="sort-options">
+                            <span><Trans i18nKey="packs.sortBy">Trier par :</Trans></span>
+                            <Button onClick={() => setSortBy({ field: '_updatedAt', order: -1 })} className={sortBy.field === '_updatedAt' ? 'active' : ''}>
+                                <Trans i18nKey="packs.sort.lastUpdated">Derniers ajouts</Trans>
+                            </Button>
+                            <Button onClick={() => setSortBy({ field: 'stars', order: -1 })} className={sortBy.field === 'stars' ? 'active' : ''}>
+                                <Trans i18nKey="packs.sort.mostStarred">Plus populaires</Trans>
+                            </Button>
+                        </div>
+                        <Button
+                            onClick={() => setShowManualInstallDialog(true)}
+                            className="add-pack-button"
+                        >
+                            <FaPlus /> <Trans i18nKey="packs.manualInstall">Importer</Trans>
                         </Button>
                     </div>
                 </div>
+                {showManualInstallDialog && (
+                    <DialogProvider>
+                        <Dialog
+                            isModal={true}
+                            onClose={() => setShowManualInstallDialog(false)}
+                            title={t('packs.manualInstall.title', 'Installation manuelle de pack')}
+                        >
+                            <div className="manual-install-dialog">
+                                <p>
+                                    <Trans i18nKey="packs.manualInstall.instructions">
+                                        Collez ici le JSON de configuration du pack que vous souhaitez installer.
+                                    </Trans>
+                                </p>
+                                <TextField
+                                    multiline={true}
+                                    value={manualPackJson}
+                                    onChange={(e) => setManualPackJson(e.target.value)}
+                                    placeholder={t('packs.manualInstall.placeholder', '{"name": "Mon Pack", "description": "...", "models": [...], "data": [...]}')}
+                                    rows={15}
+                                />
+                                <div className="flex actions right">
+                                    <Button onClick={() => setShowManualInstallDialog(false)}><Trans i18nKey={"btns.cancel"}>Annuler</Trans></Button>
+                                    <Button disabled={!manualPackJson.trim()} className="btn-primary" onClick={() => handleManualInstall()}><Trans i18nKey={"packs.install"}>Installer</Trans></Button>
+                                </div>
+                            </div>
+                        </Dialog>
+                    </DialogProvider>
+                )}
                 <div className="pack-list">
                     {packs.map(pack => (
                         <PackCard key={pack._id} pack={pack} onSelect={handleSelectPack} />

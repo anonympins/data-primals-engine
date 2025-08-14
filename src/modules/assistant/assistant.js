@@ -1,17 +1,45 @@
-import { getCollectionForUser, modelsCollection } from "./mongodb.js";
-import { Logger } from "../gameObject.js";
+import { getCollectionForUser, modelsCollection } from "../mongodb.js";
+import { Logger } from "../../gameObject.js";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import {searchData,  patchData, deleteData, insertData} from "./data/index.js";
-import { getDataAsString } from "../data.js";
-import i18n from "../../src/i18n.js";
-import {generateLimiter} from "./user.js";
+import {searchData,  patchData, deleteData, insertData} from "../data/index.js";
+import { getDataAsString } from "../../data.js";
+import i18n from "../../i18n.js";
+import {generateLimiter} from "../user.js";
 import rateLimit from "express-rate-limit";
-import {maxAIReflectiveSteps} from "../constants.js";
+import {maxAIReflectiveSteps} from "../../constants.js";
+import {providers} from "./constants.js";
+import {ChatDeepSeek} from "@langchain/deepseek";
+import {ChatAnthropic} from "@langchain/anthropic";
 
 let logger = null;
 
+export const getAIProvider= (aiProvider, aiModel, apiKey)=>{
+    let llm;
+    try {
+        switch (aiProvider) {
+        case 'OpenAI':
+            llm = new ChatOpenAI({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        case 'Google':
+            llm = new ChatGoogleGenerativeAI({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        case 'DeepSeek':
+            llm = new ChatDeepSeek({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        case 'Anthropic':
+            llm = new ChatAnthropic({apiKey, model: aiModel, temperature: 0.7});
+            break;
+        default:
+            throw new Error(`Unsupported AI provider: ${aiProvider}`);
+        }
+        return llm;
+    }
+    catch (e) {
+        return null;
+    }
+}
 export const assistantGlobalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // Fenêtre de 15 minutes
     max: 100, // Limite à 100 requêtes globales pour l'assistant pendant la fenêtre (vous pouvez ajuster cette valeur)
@@ -207,7 +235,7 @@ async function executeTool(action, params, user, allModels) {
  * soit en lançant la boucle de raisonnement de l'IA.
  * @param {string} message - Le message de l'utilisateur.
  * @param {Array} history - L'historique de la conversation.
- * @param {string} provider - Le fournisseur d'IA ('openai' ou 'google').
+ * @param {string} provider - Le fournisseur d'IA ('OpenAI' ou 'google').
  * @param {object} context - Contexte additionnel.
  * @param {object} user - L'objet utilisateur.
  * @param {object} confirmedAction - Une action pré-approuvée par l'utilisateur.
@@ -239,30 +267,17 @@ async function handleChatRequest(message, history, provider, context, user, conf
     // --- INITIALISATION DE L'IA ---
     let llm;
     try {
-        const p = provider || 'openai';
-        const providers = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"};
-        const envKeyName = providers[p];
+        const p = provider || 'OpenAI';
+        const envKeyName = providers[p].key;
         if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
 
         const envCollection = await getCollectionForUser(user);
         const userEnvVar = await envCollection.findOne({_model: 'env', name: envKeyName, _user: user.username});
         const apiKey = userEnvVar?.value || process.env[envKeyName];
 
-        if (!apiKey) return {success: false, message: `Clé API pour ${provider} (${envKeyName}) non trouvée.`};
+        if (!apiKey) return {success: false, message: `Clé API pour ${p} (${envKeyName}) non trouvée.`};
 
-        llm = p === 'openai'
-            ? new ChatOpenAI({
-                apiKey,
-                modelName: "gpt-4o-mini",
-                temperature: 0.2,
-                response_format: {"type": "json_object"}
-            })
-            : new ChatGoogleGenerativeAI({
-                apiKey,
-                modelName: "gemini-1.5-pro-latest",
-                temperature: 0.2,
-                response_format: {"type": "json_object"}
-            });
+        llm = getAIProvider(p, providers[p]?.defaultModel, apiKey);
     } catch (initError) {
         logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);
         return {success: false, message: `Erreur d'initialisation du client IA: ${initError.message}`};
@@ -371,7 +386,7 @@ async function executeConfirmedAction(action, params, user) {
 export async function onInit(engine) {
     logger = engine.getComponent(Logger);
 
-    const {middlewareAuthenticator, userInitiator} = await import('./user.js');
+    const {middlewareAuthenticator, userInitiator} = await import('../user.js');
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée

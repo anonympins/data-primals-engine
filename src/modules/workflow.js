@@ -7,7 +7,7 @@ import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
 import {deleteData, getModel, insertData, patchData, scheduleAlerts, searchData} from "./data/index.js";
-import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps} from "../constants.js";
+import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps, port} from "../constants.js";
 import {ChatOpenAI} from "@langchain/openai";
 import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
@@ -16,9 +16,13 @@ import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
 import * as workflowModule from './workflow.js';
-import util from "node:util";
-import {object_equals} from "../core.js";
 import {isConditionMet} from "../filter.js";
+import { services } from '../services/index.js';
+import {getEnv} from "./user.js";
+import {getHost} from "../constants.js";
+import {providers} from "./assistant/constants.js";
+import {ChatAnthropic} from "@langchain/anthropic";
+import {getAIProvider} from "./assistant/assistant.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -27,6 +31,51 @@ export async function onInit(defaultEngine) {
     await scheduleWorkflowTriggers();
 }
 
+
+
+/**
+ * Déclenche un workflow par son nom et lui passe des données de contexte.
+ * C'est la fonction clé à exposer aux endpoints pour lancer des processus métier.
+ *
+ * @param {string} name - Le nom du workflow à exécuter.
+ * @param {object} data - Les données à injecter dans context.triggerData.
+ * @param {object} user - L'objet utilisateur qui initie l'action.
+ * @returns {Promise<{success: boolean, message?: string, runId?: ObjectId}>}
+ */
+export async function runWorkflowByName(name, data, user) {
+    if (!name) {
+        return { success: false, message: "Workflow name is required." };
+    }
+
+    const dbCollection = await getCollectionForUser(user);
+
+    // 1. Trouver la définition du workflow par son nom
+    const workflowDefinition = await dbCollection.findOne({ _model: 'workflow', name });
+
+    if (!workflowDefinition) {
+        const msg = `Workflow with name "${name}" not found.`;
+        logger.error(`[runWorkflowByName] ${msg}`);
+        return { success: false, message: msg };
+    }
+
+    // 2. Créer le document workflowRun
+    const workflowRunData = {
+        _model: 'workflowRun',
+        _user: user._user || user.username,
+        workflow: workflowDefinition._id,
+        contextData: { triggerData: data }, // Les données passées deviennent le triggerData
+        status: 'pending',
+        startedAt: new Date()
+    };
+
+    const insertResult = await dbCollection.insertOne(workflowRunData);
+    logger.info(`[runWorkflowByName] Created workflowRun ${insertResult.insertedId} for workflow "${name}".`);
+
+    // 3. Lancer le traitement de manière asynchrone
+    await processWorkflowRun(insertResult.insertedId, user);
+
+    return { success: true, runId: insertResult.insertedId };
+}
 /**
  * Exécute une fonction de manière sécurisée en s'assurant qu'une seule instance
  * s'exécute à la fois, grâce à un système de verrouillage distribué basé sur la base de données.
@@ -220,7 +269,11 @@ export async function executeSafeJavascript(actionDef, context, user) {
             return new ivm.ExternalCopy(result.data?.[0] || null).copyInto();
         };
 
-        // 1. Build the sandboxed API
+        // 1. Build the sandboxed API methods
+        await jail.set('_workflow_run', new ivm.Reference(async (name, contextData) => {
+            const result = await runWorkflowByName(name, JSON.parse(contextData), user);
+            return new ivm.ExternalCopy(result).copyInto();
+        }));
         await jail.set('_db_create', new ivm.Reference(async (modelName, dataObject) => {
             const result = await insertData(modelName, JSON.parse(dataObject), {}, user, false);
             if (result.success && result.insertedIds) {
@@ -255,12 +308,8 @@ export async function executeSafeJavascript(actionDef, context, user) {
             return new ivm.ExternalCopy(result.data?.[0]?.value || null).copyInto();
         }));
         await jail.set('_env_get_all', new ivm.Reference(async () => {
-            const result = await searchData({ model: 'env' }, user);
-            const envObject = result.data.reduce((acc, v) => {
-                acc[v.name] = v.value;
-                return acc;
-            }, {});
-            return new ivm.ExternalCopy(envObject).copyInto();
+            const result = await getEnv(user);
+            return new ivm.ExternalCopy(result).copyInto();
         }));
 
         // Contexte sécurisé
@@ -281,6 +330,10 @@ export async function executeSafeJavascript(actionDef, context, user) {
                 findOne: (...args) => _db_findOne.applySyncPromise(null, normalizeArgs(args)),
                 update: (...args) => _db_update.applySyncPromise(null, normalizeArgs(args)),
                 delete: (...args) => _db_delete.applySyncPromise(null, normalizeArgs(args))
+            };
+            
+            const workflow = {
+                run: (...args) => _workflow_run.applySyncPromise(null, normalizeArgs(args))
             };
 
             const logger = {
@@ -332,7 +385,7 @@ export async function executeSafeJavascript(actionDef, context, user) {
 }
 
 /**
- * Handles the 'Webhook' workflow action.
+ * Handles the 'HttpRequest' workflow action.
  * Sends an HTTP request to a specified URL with substituted data using native fetch.
  *
  * @param {object} actionDef - The definition of the 'Webhook' action.
@@ -341,17 +394,17 @@ export async function executeSafeJavascript(actionDef, context, user) {
  * @param {object} dbCollection - The MongoDB collection (moins pertinent ici, mais gardé pour la cohérence).
  * @returns {Promise<{success: boolean, message?: string, responseStatus?: number, responseBody?: any}>} - Result of the action.
  */
-async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
+async function handleHttpRequestAction(actionDef, contextData, user, dbCollection) {
     const { name: actionName, _id: actionId, url, method = 'POST', headers: headersTemplate, body: bodyTemplate } = actionDef;
 
     // 1. Basic Validation
     if (!url) {
-        const msg = `[handleWebhookAction] Action ${actionName} (${actionId}): Missing 'url'.`;
+        const msg = `[handleHttpRequestAction] Action ${actionName} (${actionId}): Missing 'url'.`;
         logger.error(msg);
         return { success: false, message: msg };
     }
 
-    logger.info(`[handleWebhookAction] Action ${actionName} (${actionId}): Executing webhook. Method: ${method}`);
+    logger.info(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Executing webhook. Method: ${method}`);
 
     try {
         // 2. Substitute Variables
@@ -368,7 +421,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
             } else if (typeof headersTemplate === 'object') {
                 headersObject = await substituteVariables(headersTemplate, contextData, user);
             } else {
-                logger.warn(`[handleWebhookAction] Action ${actionName} (${actionId}): 'headers' has an invalid type (${typeof headersTemplate}). Ignoring.`);
+                logger.warn(`[handleHttpRequestAction] Action ${actionName} (${actionId}): 'headers' has an invalid type (${typeof headersTemplate}). Ignoring.`);
             }
         }
 
@@ -379,7 +432,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
             } else if (typeof bodyTemplate === 'object') {
                 bodyObject = await substituteVariables(bodyTemplate, contextData, user);
             } else {
-                logger.warn(`[handleWebhookAction] Action ${actionName} (${actionId}): 'body' has an invalid type (${typeof bodyTemplate}). Ignoring.`);
+                logger.warn(`[handleHttpRequestAction] Action ${actionName} (${actionId}): 'body' has an invalid type (${typeof bodyTemplate}). Ignoring.`);
             }
         }
 
@@ -391,7 +444,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
                     throw new Error("Parsed headers is not a valid object.");
                 }
             } catch (parseError) {
-                logger.error(`[handleWebhookAction] Action ${actionName} (${actionId}): Failed to parse substituted 'headers' JSON. Error: ${parseError.message}. Using default headers. Substituted string: ${substitutedHeadersString}`);
+                logger.error(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Failed to parse substituted 'headers' JSON. Error: ${parseError.message}. Using default headers. Substituted string: ${substitutedHeadersString}`);
                 headersObject = { 'Content-Type': 'application/json' }; // Fallback
             }
         }
@@ -433,7 +486,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
         }
 
         // 5. Execute Fetch Request using native fetch
-        logger.info(`[handleWebhookAction] Action ${actionName} (${actionId}): Calling URL: ${substitutedUrl}`);
+        logger.info(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Calling URL: ${substitutedUrl}`);
         const response = await fetch(substitutedUrl, fetchOptions); // Utilisation de fetch natif
 
         // 6. Process Response
@@ -446,7 +499,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
                 responseBody = await response.text();
             }
         } catch (responseParseError) {
-            logger.error(`[handleWebhookAction] Action ${actionName} (${actionId}): Failed to parse response body. Error: ${responseParseError.message}`);
+            logger.error(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Failed to parse response body. Error: ${responseParseError.message}`);
             // Try reading as text again in case of error during json parsing
             try {
                 responseBody = await response.text();
@@ -455,7 +508,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
             }
         }
 
-        logger.info(`[handleWebhookAction] Action ${actionName} (${actionId}): Received response. Status: ${response.status}`);
+        logger.info(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Received response. Status: ${response.status}`);
 
         // 7. Return Result
         if (response.ok) { // Status code 200-299
@@ -463,13 +516,13 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
                 success: true,
                 message: `Webhook executed successfully. Status: ${response.status}`,
                 responseStatus: response.status,
-                responseBody: responseBody
-                // updatedContext: { webhookResponse: responseBody } // Optionnel: Ajouter la réponse au contexte
+                responseBody: responseBody,
+                updatedContext: { httpResponse: responseBody }
             };
         } else {
             // Handle non-successful responses (4xx, 5xx)
             const errorMsg = `Webhook execution failed. Status: ${response.status}. Response: ${typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody)}`;
-            logger.error(`[handleWebhookAction] Action ${actionName} (${actionId}): ${errorMsg}`);
+            logger.error(`[handleHttpRequestAction] Action ${actionName} (${actionId}): ${errorMsg}`);
             return {
                 success: false,
                 message: errorMsg,
@@ -480,7 +533,7 @@ async function handleWebhookAction(actionDef, contextData, user, dbCollection) {
 
     } catch (error) {
         // Catch network errors or other unexpected errors during the process
-        const msg = `[handleWebhookAction] Action ${actionName} (${actionId}): Unexpected error during webhook execution. Error: ${error.message}`;
+        const msg = `[handleHttpRequestAction] Action ${actionName} (${actionId}): Unexpected error during webhook execution. Error: ${error.message}`;
         logger.error(msg, error.stack);
         return { success: false, message: msg };
     }
@@ -786,6 +839,52 @@ async function handleDeleteDataAction(actionDef, contextData, user, dbCollection
     }
 }
 
+/**
+ * Handles the 'ExecuteServiceFunction' workflow action.
+ * Acts as a secure bridge between the workflow engine and native service modules.
+ *
+ * @param {object} actionDef - The action definition.
+ * @param {object} contextData - The current workflow context.
+ * @param {object} user - The user object.
+ * @returns {Promise<{success: boolean, message?: string, updatedContext?: object}>}
+ */
+async function handleExecuteServiceFunction(actionDef, contextData, user) {
+    const { serviceName, functionName, args: argsTemplate } = actionDef;
+
+    if (!serviceName || !functionName) {
+        return { success: false, message: "Action requires 'serviceName' and 'functionName'." };
+    }
+
+    const service = services[serviceName];
+    if (!service) {
+        return { success: false, message: `Service '${serviceName}' not found in the registry.` };
+    }
+
+    const func = service[functionName];
+    if (typeof func !== 'function') {
+        return { success: false, message: `Function '${functionName}' not found in service '${serviceName}'.` };
+    }
+
+    try {
+        // Substitute variables in the arguments array
+        const substitutedArgs = Array.isArray(argsTemplate)
+            ? await substituteVariables(argsTemplate, contextData, user)
+            : [];
+
+        logger.info(`[Service Call] Calling ${serviceName}.${functionName} with ${substitutedArgs.length} argument(s).`);
+        const result = await func(...substitutedArgs, user);
+
+        return {
+            success: true,
+            updatedContext: { serviceResult: result } // Store result in context
+        };
+    } catch (error) {
+        const msg = `Error executing ${serviceName}.${functionName}: ${error.message}`;
+        logger.error(`[Service Call] ${msg}`, error.stack);
+        return { success: false, message: msg };
+    }
+}
+
 // Dans workflow.js
 export async function executeStepAction(actionDef, contextData, user, dbCollection) {
     logger.info(`[executeStepAction] Executing action type ${actionDef.type} for action ${actionDef._id} (${actionDef.name})`);
@@ -797,8 +896,8 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
             logger.info(`[Workflow Log Action] Action: ${actionDef.name}. Contexte:`, contextData);
             result = { success: true, message: 'Log action executed successfully.' }; // <--- CORRECTION
             break;
-        case 'Webhook':
-            result = await handleWebhookAction(actionDef, contextData, user, dbCollection);
+        case 'HttpRequest':
+            result = await handleHttpRequestAction(actionDef, contextData, user, dbCollection);
             break;
         case 'CreateData':
             result = await handleCreateDataAction(actionDef, contextData, user, dbCollection);
@@ -820,6 +919,9 @@ export async function executeStepAction(actionDef, contextData, user, dbCollecti
             break;
         case 'ExecuteScript':
             result = await executeSafeJavascript(actionDef, contextData, user);
+            break;
+        case 'ExecuteServiceFunction':
+            result = await handleExecuteServiceFunction(actionDef, contextData, user);
             break;
         default:
             logger.error(`[executeStepAction] Unknown action type: ${actionDef.type}`);
@@ -1035,6 +1137,8 @@ export async function substituteVariables(template, contextData, user) {
             return new Date().toISOString();
         } else if (path === 'randomUUID') {
             return crypto.randomUUID();
+        } else if( path === "baseUrl" ){
+            return process.env.NODE_ENV === 'production' ? 'https://'+getHost()+'/' : 'http://localhost:/'+port;
         }
 
         // Détecter si le chemin est complexe (contient plus d'un point)
@@ -1479,12 +1583,7 @@ async function executeGenerateAIContentAction(action, context, user) {
     // 1. Retrieve the API key (User Environment > Machine Environment)
     let apiKey;
 
-    const providers = {
-        "OpenAI" : "OPENAI_API_KEY",
-        "Google": "GOOGLE_API_KEY",
-        "DeepSeek": "DEEPSEEK_API_KEY"
-    }
-    const envKeyName = providers[aiProvider];
+    const envKeyName = providers[aiProvider].key;
     if( !envKeyName ) {
         return {success: false, message: i18n.t('aiContent.env', `API key for provider ${aiProvider} (${envKeyName}) not found in user environment.`)};
     }
@@ -1508,22 +1607,8 @@ async function executeGenerateAIContentAction(action, context, user) {
     }
 
     // 2. Initialize the LLM client with LangChain
-    let llm;
-    try {
-        switch (aiProvider) {
-        case 'OpenAI':
-            llm = new ChatOpenAI({ apiKey, model: aiModel, temperature: 0.7 });
-            break;
-        case 'Google':
-            llm = new ChatGoogleGenerativeAI({ apiKey, model: aiModel, temperature: 0.7 });
-            break;
-        case 'DeepSeek':
-            llm = new ChatDeepSeek({ apiKey, model: aiModel, temperature: 0.7 });
-            break;
-        default:
-            throw new Error(`Unsupported AI provider: ${aiProvider}`);
-        }
-    } catch (initError) {
+    let llm = getAIProvider(aiProvider, aiModel, apiKey);
+    if( !llm ) {
         const message = `Failed to initialize AI client for ${aiProvider}: ${initError.message}`;
         logger.error(`[AI Action] ${message}`);
         return { success: false, message };

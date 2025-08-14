@@ -12,9 +12,9 @@ const KanbanCard = ({ card, model, subItemsField }) => {
     const subItems = subItemsField && card[subItemsField] ? card[subItemsField] : [];
     const tr = useTranslation();
     // Logique du Drag & Drop natif pour la carte
-
     const lang = (tr.i18n.resolvedLanguage || tr.i18n.language).split(/[-_]/)?.[0];
 
+    console.log(subItems)
     const getfield = (model, data) => {
         const v = getDataAsString(model, data, tr, models);
         if(!v){
@@ -66,6 +66,8 @@ const KanbanCard = ({ card, model, subItemsField }) => {
                 <div className="kanban-card-subitems">
                     {subItems.map((subItem, index) => {
                         const it = subItem;
+                        if( typeof(subItem) === 'string')
+                            return subItem;
                         const v = getDataAsString(model, subItem, tr, models);
                         if (!v) {
                             const r = `
@@ -81,7 +83,7 @@ const KanbanCard = ({ card, model, subItemsField }) => {
                                 className="image" src={`/resources/${it.guid}`}
                                 alt={`${it.name} (${it.guid})`}/></a>
                         }
-                        return '';
+                        return v;
                     })}
                 </div>
             )}

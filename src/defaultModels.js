@@ -420,6 +420,7 @@ export const defaultModels = {
             { "name": "products", "type": "relation", "relation": "cartItem", "required": true, multiple: true },
             { "name": "customer", "type": "relation", relation: 'user' }, // Relation vers le modèle 'user'
             { "name": "totalAmount", "type": "number", "required": true },
+            { "name": "paymentIntentId", "type": "string", "hint": "Stripe Payment Intent ID for this order." },
             { "name": "currency", "type": "relation", "relation": "currency" },
             { "name": "paymentMethod", "type": "string" },
             { "name": "shippingAddress", "type": "relation", "relation": "location" },
@@ -506,6 +507,7 @@ export const defaultModels = {
         name: "return",
         "description": "",
         fields: [
+            { "name": "order", "type": "relation", "relation": "order", "required": true },
             { "name": "user", "type": "relation", relation: "user" },
             { "name": "reason", "type": "string", maxlength: 2048, required: true },
             { "name": "channel", "type": "relation", relation: 'channel' },
@@ -897,7 +899,7 @@ export const defaultModels = {
                 name: 'type',
                 type: 'enum',
                 required: true,
-                items: ['UpdateData', 'CreateData', 'DeleteData', 'ExecuteScript', 'CallWebhook', 'SendEmail', 'Wait', 'GenerateAIContent'],
+                items: ['UpdateData', 'CreateData', 'DeleteData', 'ExecuteScript', 'HttpRequest', 'SendEmail', 'Wait', 'GenerateAIContent', 'ExecuteServiceFunction'],
                 hint: "The type of operation to perform."
             },
             // For UpdateData / CreateData / DeleteData
@@ -923,14 +925,11 @@ export const defaultModels = {
             // For CreateData
             { name: 'dataToCreate', condition: {$eq: ["$type", "CreateData"]}, type: 'code', language: 'json', default: {}, hint: "Object template for the new document to create" },
 
-            // For ExecuteScript
-            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', hint: "The script to execute." },
-
-            // For CallWebhook
-            { name: 'url', condition: {$eq: ["$type", "CallWebhook"]}, type: 'string', hint: "The URL to call." },
-            { name: 'method', condition: {$eq: ["$type", "CallWebhook"]}, type: 'enum', items: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], default: 'POST', hint: "HTTP method." },
-            { name: 'headers', condition: {$eq: ["$type", "CallWebhook"]}, type: 'code', language: 'json',default: {},  hint: "HTTP headers as key-value pairs." },
-            { name: 'body', condition: {$eq: ["$type", "CallWebhook"]}, type: 'code', language: 'json',default: {},  hint: "Request body, can include variables." },
+            // For HttpRequest
+            { name: 'url', condition: {$eq: ["$type", "HttpRequest"]}, type: 'string', hint: "The URL to call." },
+            { name: 'method', condition: {$eq: ["$type", "HttpRequest"]}, type: 'enum', items: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], default: 'POST', hint: "HTTP method." },
+            { name: 'headers', condition: {$eq: ["$type", "HttpRequest"]}, type: 'code', language: 'json',default: {},  hint: "HTTP headers as key-value pairs." },
+            { name: 'body', condition: {$eq: ["$type", "HttpRequest"]}, type: 'code', language: 'json',default: {},  hint: "Request body, can include variables." },
 
             // For SendEmail
             {
@@ -977,7 +976,15 @@ export const defaultModels = {
                 condition: { $eq: ["$type", "GenerateAIContent"] },
                 type: 'richtext', // richtext est bien pour les longs prompts
                 hint: "Le modèle de prompt. Utilise des variables comme {triggerData.field} ou {context.variable}."
-            }
+            },
+
+            // For ExecuteScript
+            { name: 'script', condition: {$eq: ["$type", "ExecuteScript"]}, type: 'code', language: 'javascript', hint: "The script to execute." },
+
+            // For ExecuteServiceFunction
+            { name: 'serviceName', condition: {$eq: ["$type", "ExecuteServiceFunction"]}, type: 'string', hint: "The name of the registered service to call (e.g., 'stripe')." },
+            { name: 'functionName', condition: {$eq: ["$type", "ExecuteServiceFunction"]}, type: 'string', hint: "The name of the function to execute within the service." },
+            { name: 'args', condition: {$eq: ["$type", "ExecuteServiceFunction"]}, type: 'code', language: 'json', default: [], hint: "An array of arguments to pass to the function. Can include variables." }
 
         ]
     },
@@ -1446,6 +1453,12 @@ export const defaultModels = {
                 required: true,
                 default: "POST",
                 hint: "The HTTP method required to call this endpoint."
+            },
+            {
+                name: 'isPublic',
+                type: 'boolean',
+                default: false,
+                hint: "Si coché, ce point d'accès sera accessible sans authentification."
             },
             {
                 name: "code",

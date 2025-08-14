@@ -33,7 +33,7 @@ import {
     middlewareAuthenticator,
     userInitiator
 } from "../user.js";
-import {assistantGlobalLimiter} from "../assistant.js";
+import {assistantGlobalLimiter} from "../assistant/assistant.js";
 import {Config} from "../../config.js";
 import {processFilterPlaceholders} from "../../../client/src/filter.js";
 import {tutorialsConfig} from "../../../client/src/tutorials.js";
@@ -43,7 +43,7 @@ import {
     editData, editModel, exportData,
     getModel, getResource,
     handleCustomEndpointRequest,
-    handleDemoInitialization, importData, insertData, installPack, loadFromDump,
+    handleDemoInitialization, importData, insertData, installPack, loadFromDump, middlewareEndpointAuthenticator,
     patchData, searchData, validateModelStructure
 } from "./data.js";
 import process from "node:process";
@@ -161,7 +161,7 @@ export async function registerRoutes(engine){
 
     logger = engine.getComponent(Logger);
 
-    engine.all('/api/actions/:path', [middlewareAuthenticator, userInitiator], handleCustomEndpointRequest);
+    engine.all('/api/actions/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
 
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
@@ -1542,6 +1542,32 @@ export async function registerRoutes(engine){
             }
 
             const result = await installPack(id, user, lang);
+
+            if (result.success) {
+                res.status(200).json({ success: true, message: `Pack installed successfully.`, summary: result.summary });
+            } else if (!result.success && !result.modifiedCount) {
+                res.status(200).json({ success: true, message: `No data to insert.`, summary: result.summary });
+            } else {
+                res.status(400).json({ success: false, error: 'Pack installation had errors.', errors: result.errors, summary: result.summary });
+            }
+
+        } catch (error) {
+            logger.error(`[POST /api/packs/${id}/install] Critical error:`, error);
+            res.status(500).json({ success: false, error: error.message || 'An internal server error occurred.' });
+        }
+    });
+    engine.post('/api/packs/install', [throttle, middlewareAuthenticator, userInitiator, setTimeoutMiddleware(60000)], async (req, res) => {
+        const { id } = req.params;
+        const user = req.me;
+        const lang   = req.query.lang || req.fields.lang;
+
+        try {
+            // Vérification des permissions
+            if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_INSTALL_PACK"], user)) {
+                return res.status(403).json({ success: false, error: i18n.t('api.permission.installPack') });
+            }
+
+            const result = await installPack(req.fields.packData, user, lang);
 
             if (result.success) {
                 res.status(200).json({ success: true, message: `Pack installed successfully.`, summary: result.summary });

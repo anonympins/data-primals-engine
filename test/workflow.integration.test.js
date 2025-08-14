@@ -113,7 +113,7 @@ const workflowMetaModels = [
             { name: 'updateMultiple', type: 'boolean' },
             { name: 'deleteMultiple', type: 'boolean' },
             // GenerateAIContent
-            { name: 'aiProvider', type: 'enum', items: ['OpenAI', 'GoogleGemini'] },
+            { name: 'aiProvider', type: 'enum', items: ['OpenAI', 'Google', 'Anthropic', 'DeepSeek'] },
             { name: 'aiModel', type: 'string' },
             { name: 'prompt', type: 'richtext' },
             // SendEmail

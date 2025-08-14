@@ -53,6 +53,16 @@ const RTETrans = ({ value, onChange, field }) => {
     };
     const languagesToAdd = availableLangs.filter(lang => !existingLangs.includes(lang.code));
 
+    const confirmDelete = (e, lang) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if( !confirm(t('rte.confirmLangDeletion', 'Confirm lang deletion ?')))
+            return;
+        const val = {...value};
+        delete val[lang];
+        onChange(val);
+        setActiveTab(Object.keys(val)[0]     || null);
+    }
     return (
         <div className="rte-trans-container">
             <div className="tabs-container flex items-center border-b border-gray-200">
@@ -64,6 +74,7 @@ const RTETrans = ({ value, onChange, field }) => {
                         title={availableLangs.find(f=>f.code===lang)?.name.value || ''}
                     >
                         {lang.toUpperCase()}
+                        <button onClick={(e) => confirmDelete(e, lang)}>x</button>
                     </button>
                 ))}
                 {languagesToAdd.length > 0 && (

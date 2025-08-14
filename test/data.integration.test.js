@@ -697,7 +697,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
 
             // 2. Insérer le pack dans la collection pour le rendre disponible au test
             const packInsertResult = await testPacksColInstance.insertOne(mockPack);
-            const packId = packInsertResult.insertedId;
+            const packId = packInsertResult.insertedId.toString();
 
             // 3. Appeler la fonction à tester avec la nouvelle signature
             const result = await installPack(packId, currentTestUser, 'en');
@@ -751,7 +751,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             };
 
             const packInsertResult = await testPacksColInstance.insertOne(mockPackWithInvalidModel);
-            const packId = packInsertResult.insertedId;
+            const packId = packInsertResult.insertedId.toString();
 
             const result = await installPack(packId, currentTestUser, 'en');
 
@@ -769,6 +769,69 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             // Vérifier en BDD que le modèle valide a bien été créé
             const validModel = await testModelsColInstance.findOne({ name: 'validPackModel', _user: currentTestUser.username });
             expect(validModel).not.toBeNull();
+        });
+
+        it('devrait correctement insérer des données JSON depuis un pack', async () => {
+            const { currentTestUser } = await setupTestContext();
+            // 1. Définir le pack avec des données JSON
+            const mockPackWithJson = {
+                name: 'test-pack-with-json',
+                models: [
+                    {
+                        name: 'packConfig',
+                        description: 'Modèle avec un champ JSON',
+                        fields: [
+                            { name: 'configName', type: 'string', required: true },
+                            { name: 'settings', type: 'code', language: 'json' }
+                        ]
+                    }
+                ],
+                data: {
+                    all: {
+                        packConfig: [
+                            {
+                                configName: 'mainConfig',
+                                settings: {
+                                    theme: 'dark',
+                                    notifications: {
+                                        enabled: true,
+                                        level: 'important'
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            // 2. Insérer le pack
+            const packInsertResult = await testPacksColInstance.insertOne(mockPackWithJson);
+            const packId = packInsertResult.insertedId.toString();
+
+            // 3. Appeler la fonction à tester
+            const result = await installPack(packId, currentTestUser, 'en');
+
+            // 4. Assertions
+            expect(result.success, `L'installation du pack JSON a échoué: ${result.errors?.join('; ')}`).toBe(true);
+            expect(result.summary.models.installed).toHaveLength(1);
+            expect(result.summary.datas.inserted).toBe(1);
+
+            // 5. Vérifier les données insérées en BDD
+            const datasCol = await getCollectionForUser(currentTestUser);
+            const insertedConfig = await datasCol.findOne({ _model: 'packConfig', _user: currentTestUser.username });
+
+            expect(insertedConfig).not.toBeNull();
+            expect(insertedConfig.configName).toBe('mainConfig');
+            expect(typeof insertedConfig.settings).toBe('object');
+            expect(insertedConfig.settings).toEqual({
+                theme: 'dark',
+                notifications: {
+                    enabled: true,
+                    level: 'important'
+                }
+            });
+
+            await getCollection('packs').deleteMany({ _id: packId});
         });
     });
     // In test/data.integration.test.js
