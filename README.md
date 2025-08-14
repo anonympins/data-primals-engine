@@ -489,15 +489,49 @@ await loadFromDump(currentUser, { modelsOnly: false });
 
 ### installPack(packId, user, lang)
 
-> Installs a predefined data pack.
+> Installs a data pack.
 
 Example:
+
+```javascript
+const result = await installPack([
+    {
+        "name": "My custom pack",
+        "description": "Markdown **description** of the pack",
+        "tags": ["customPack", "tag1", "tag2"],
+        "models": [
+            "env", // default model 
+            {
+                "name": "post",
+                "description": "Defines a post",
+                "fields": [
+                    {"name": "subject", "type": "string", "required": true},
+                ]
+            }, // or custom
+        ],
+        "data": {
+            "all": { // all languages installed data
+                "post": [
+                    {"subject": "My pack first data"}
+                ]
+            },
+            "en": { // English specific installed data
+                "post": [
+                    {"subject": "My english first post"}
+                ]
+            }
+        }
+    }
+], user, "en");
+// Returns installation summary
+```
 
 ```javascript
 const result = await installPack("61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
 // Returns installation summary
 ```
 
+> You can also open the pack gallery to see the JSON structure of each pack, before installing them.
 
 ---
 

@@ -4242,68 +4242,94 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
 }
 
 /**
- * Installe les modèles et les données d'un pack pour un utilisateur.
- * Gère les modèles, les données, et les relations complexes (y compris les références futures)
- * via un système en deux passes optimisé.
+ * Installs pack models and data for a user or globally.
+ * Can accept either a pack ID (to install from database) or a direct pack JSON object.
  *
- * @param {object} logger - L'instance du logger.
- * @param {string} packId - L'ID du pack à installer depuis la collection 'packs'.
- * @param {object} user - L'objet utilisateur pour qui installer le pack.
- * @param {string} lang - Le code de langue pour les données spécifiques.
+ * @param {object} logger - Logger instance
+ * @param {string|object} packIdentifier - Either pack ID (string) or pack JSON object
+ * @param {object|null} user - User object (if installing for user) or null (for global install)
+ * @param {string} [lang='en'] - Language code for localized data
  * @returns {Promise<{success: boolean, summary: object, errors: Array, modifiedCount: number}>}
  */
-export async function installPack(packId, user, lang) {
+export async function installPack(packIdentifier, user = null, lang = 'en') {
+    let pack;
     const packsCollection = getCollection('packs');
-    const pack = await packsCollection.findOne({ _id: new ObjectId(packId) });
 
-    if (!pack) {
-        throw new Error(`Pack with ID ${packId} not found.`);
+    // Determine if we're working with an ID or direct pack object
+    if (typeof packIdentifier === 'string') {
+        // Existing behavior - fetch from database
+        pack = await packsCollection.findOne({ _id: new ObjectId(packIdentifier) });
+        if (!pack) {
+            throw new Error(`Pack with ID ${packIdentifier} not found.`);
+        }
+    } else if (typeof packIdentifier === 'object' && packIdentifier !== null) {
+        // New behavior - use provided pack object directly
+        pack = packIdentifier;
+
+        // Validate basic pack structure
+        if (!pack.name || (!pack.models && !pack.data)) {
+            throw new Error('Invalid pack structure - must contain at least name and models or data');
+        }
+    } else {
+        throw new Error('Invalid pack identifier - must be either pack ID string or pack object');
     }
 
-    logger.info(`--- Starting installation of pack '${pack.name}' for user '${user.username}' ---`);
+    const username = user ? user.username : null;
+    const logPrefix = username
+        ? `Installing pack '${pack.name}' for user '${username}'`
+        : `Installing pack '${pack.name}' globally`;
+
+    logger.info(`--- ${logPrefix} ---`);
 
     const summary = {
         models: { installed: [], skipped: [], failed: [] },
         datas: { inserted: 0, updated: 0, skipped: 0, failed: 0 }
     };
     const errors = [];
-    const collection = await getCollectionForUser(user);
+    const collection = user ? await getCollectionForUser(user) : getCollection('data');
     const tempIdToNewIdMap = {};
     const linkCache = new Map();
 
-    // --- PHASE 1: Installation des Modèles ---
+    // --- PHASE 1: MODEL INSTALLATION ---
     if (Array.isArray(pack.models)) {
-        const userModels = await modelsCollection.find({ _user: user.username }).toArray();
-        const userModelNames = userModels.map(m => m.name);
+        // For user installs, check existing models
+        const existingModels = user
+            ? await modelsCollection.find({ _user: username }).toArray()
+            : await modelsCollection.find({ _user: { $exists: false } }).toArray();
+
+        const existingModelNames = existingModels.map(m => m.name);
 
         for (const modelOrName of pack.models) {
             try {
                 const modelName = typeof modelOrName === 'string' ? modelOrName : modelOrName?.name;
                 if (!modelName) throw new Error('Model definition in pack is missing a name.');
 
-                if (userModelNames.includes(modelName)) {
-                    logger.debug(`[Model Install] Skipping '${modelName}': already exists for user.`);
+                if (existingModelNames.includes(modelName)) {
+                    logger.debug(`[Model Install] Skipping '${modelName}': already exists`);
                     summary.models.skipped.push(modelName);
                     continue;
                 }
 
-                let modelToInstall;
-                if (typeof modelOrName === 'string') {
-                    const sharedModel = await modelsCollection.findOne({ name: modelName, _user: { $exists: false } });
-                    if (!sharedModel) throw new Error(`Shared model '${modelName}' not found.`);
-                    const { _id, ...sharedModelData } = sharedModel;
-                    modelToInstall = sharedModelData;
-                } else {
-                    modelToInstall = { ...modelOrName };
+                const modelToInstall = typeof modelOrName === 'string'
+                    ? await modelsCollection.findOne({ name: modelName, _user: { $exists: false } })
+                    : { ...modelOrName };
+
+                if (!modelToInstall) {
+                    throw new Error(`Model '${modelName}' not found in shared models`);
                 }
 
-                modelToInstall._user = user.username;
-                delete modelToInstall._id;
-                modelToInstall.locked = false;
-                if (modelToInstall.fields) modelToInstall.fields.forEach(f => f.locked = false);
+                // Prepare model for installation
+                const preparedModel = { ...modelToInstall };
+                if (user) preparedModel._user = username;
+                delete preparedModel._id;
+                preparedModel.locked = false;
 
-                validateModelStructure(modelToInstall);
-                await modelsCollection.insertOne(modelToInstall);
+                if (preparedModel.fields) {
+                    preparedModel.fields.forEach(f => f.locked = false);
+                }
+
+                validateModelStructure(preparedModel);
+                await modelsCollection.insertOne(preparedModel);
                 summary.models.installed.push(modelName);
 
             } catch (e) {
@@ -4314,13 +4340,14 @@ export async function installPack(packId, user, lang) {
         }
     }
 
-    // --- PHASE 2: Installation des Données ---
-    const dataToInstall = { ...pack.data?.all, ...pack.data?.[user.lang || lang || 'en'] };
-    if (!dataToInstall || typeof dataToInstall !== 'object' || Object.keys(dataToInstall).length === 0) {
+    // --- PHASE 2: DATA INSTALLATION ---
+    const dataToInstall = { ...pack.data?.all, ...pack.data?.[lang] };
+    if (!dataToInstall || Object.keys(dataToInstall).length === 0) {
         logger.warn(`Pack '${pack.name}' has no data to install.`);
         return { success: errors.length === 0, summary, errors, modifiedCount: 0 };
     }
 
+    // Process link references (same as original)
     const linkQueue = [];
     for (const modelName in dataToInstall) {
         if (Array.isArray(dataToInstall[modelName])) {
@@ -4330,7 +4357,6 @@ export async function installPack(packId, user, lang) {
 
                 for (const fieldName in docSource) {
                     if (isPlainObject(docSource[fieldName]) && docSource[fieldName].$link) {
-                        // CORRECTION 1: On ajoute le nom du modèle source à la file d'attente
                         linkQueue.push({
                             sourceTempId: tempId,
                             sourceModelName: modelName,
@@ -4343,21 +4369,21 @@ export async function installPack(packId, user, lang) {
         }
     }
 
-    // --- PASSE 1: INSERTION PAR LOT ---
-    logger.info("[Pack Install] Starting Pass 1: Batch Insertion & ID Mapping.");
+    // --- PASS 1: BATCH INSERTION ---
+    logger.info("[Pack Install] Starting Pass 1: Batch Insertion & ID Mapping");
     for (const modelName in dataToInstall) {
-        if (!Object.prototype.hasOwnProperty.call(dataToInstall, modelName) || !Array.isArray(dataToInstall[modelName])) continue;
+        if (!Array.isArray(dataToInstall[modelName])) continue;
 
         const documents = dataToInstall[modelName];
         if (documents.length === 0) continue;
 
         const docsToInsert = [];
-
         const modelDefForHash = await getModel(modelName, user);
 
         for (const docSource of documents) {
             let docForInsert = { ...docSource };
 
+            // Clear $link fields for first pass
             for (const key in docForInsert) {
                 if (isPlainObject(docForInsert[key]) && docForInsert[key].$link) {
                     docForInsert[key] = null;
@@ -4368,11 +4394,18 @@ export async function installPack(packId, user, lang) {
             delete docForInsert._id;
             delete docForInsert._temp_pack_id;
 
-            docForInsert._user = user.username;
+            if (user) docForInsert._user = username;
             docForInsert._model = modelName;
             docForInsert._hash = getFieldValueHash(modelDefForHash, docForInsert);
 
-            const existingDoc = await collection.findOne({ _hash: docForInsert._hash, _user: user.username, _model: modelName }, { projection: { _id: 1 } });
+            // Check for existing document
+            const existingQuery = {
+                _hash: docForInsert._hash,
+                _model: modelName
+            };
+            if (user) existingQuery._user = username;
+
+            const existingDoc = await collection.findOne(existingQuery, { projection: { _id: 1 } });
             if (existingDoc) {
                 tempIdToNewIdMap[tempId] = existingDoc._id;
                 summary.datas.skipped++;
@@ -4398,7 +4431,6 @@ export async function installPack(packId, user, lang) {
                         tempIdToNewIdMap[doc._temp_pack_id_for_mapping] = result.insertedIds[index];
                     }
                 });
-
             } catch (e) {
                 summary.datas.failed += docsToInsert.length;
                 errors.push(`Error inserting batch for ${modelName}: ${e.message}`);
@@ -4407,82 +4439,78 @@ export async function installPack(packId, user, lang) {
         }
     }
 
-    // --- PASSE 2: LIAISON DES RÉFÉRENCES ---
-    logger.info(`[Pack Install] Starting Pass 2: Linking ${linkQueue.length} references.`);
+    // --- PASS 2: REFERENCE LINKING ---
+    logger.info(`[Pack Install] Starting Pass 2: Linking ${linkQueue.length} references`);
     for (const linkOp of linkQueue) {
-        // CORRECTION 2: On récupère le nom du modèle source
         const { sourceTempId, sourceModelName, fieldName, linkSelector } = linkOp;
-
         const sourceId = tempIdToNewIdMap[sourceTempId];
+
         if (!sourceId) {
             logger.warn(`[LINK FAILED] Could not find newly inserted document for temp ID ${sourceTempId}. Skipping link.`);
             continue;
         }
 
-        const cacheKey = JSON.stringify({ selector: linkSelector, user: user.username });
-        let targetIds = null; // Renommé en 'targetIds' car c'est toujours un tableau
-
-        const targetModelName = linkSelector._model;
-        delete linkSelector['_model'];
-
-        // CORRECTION 3: On récupère la définition du modèle SOURCE
-        const sourceModelDef = await getModel(sourceModelName, user);
-
         try {
-            if (linkCache.has(cacheKey)) {
-                targetIds = linkCache.get(cacheKey);
-                logger.debug(`[LINK CACHE HIT] for ${cacheKey}`);
-            } else {
-                const finalSelector = { ...linkSelector };
-                delete finalSelector['_model']; // nécessaire
-                // CORRECTION 4: Appel corrigé à searchData
-                const { data: targetDocs } = await searchData({model: targetModelName, filter: finalSelector }, user);
+            const targetModelName = linkSelector._model;
+            delete linkSelector._model;
 
-                if (targetDocs && targetDocs.length > 0) {
-                    targetIds = targetDocs.map(d => d._id); // Récupère un tableau d'ObjectIds
-                    linkCache.set(cacheKey, targetIds);
-                }
+            const sourceModelDef = await getModel(sourceModelName, user);
+            const fieldDef = sourceModelDef.fields.find(f => f.name === fieldName);
+
+            if (!fieldDef) {
+                logger.warn(`[LINK FAILED] Field '${fieldName}' not found in source model '${sourceModelName}'`);
+                errors.push(`[LINK FAILED] Field '${fieldName}' not found in source model '${sourceModelName}'`);
+                summary.datas.failed++;
+                continue;
             }
 
-            if (targetIds && targetIds.length > 0) {
-                // CORRECTION 5: On cherche le champ dans la définition du modèle SOURCE
-                const fieldDef = sourceModelDef.fields.find(f => f.name === fieldName);
-                if (!fieldDef) {
-                    logger.warn(`[LINK FAILED] Field '${fieldName}' not found in source model '${sourceModelName}' for doc ${sourceId}.`);
-                    errors.push(`[LINK FAILED] Field '${fieldName}' not found in source model '${sourceModelName}' for doc ${sourceId}.`);
-                    summary.datas.failed++;
-                    continue;
-                }
+            // Search for target documents
+            const { data: targetDocs } = await searchData(
+                { model: targetModelName, filter: linkSelector },
+                user
+            );
 
-                // CORRECTION 6: On gère correctement les cas multiples et uniques
-                const valueToSet = fieldDef.multiple ? targetIds.map(id => id.toString()) : targetIds[0].toString();
-
-                await collection.updateOne(
-                    { _id: sourceId },
-                    { $set: { [fieldName]: valueToSet } }
-                );
-                summary.datas.updated++;
-            } else {
-                const errorMsg = `[LINK FAILED] Could not find target document for linking: ${JSON.stringify(linkSelector)}`;
+            if (!targetDocs || targetDocs.length === 0) {
+                const errorMsg = `[LINK FAILED] No target found for ${JSON.stringify(linkSelector)}`;
                 logger.warn(errorMsg);
                 errors.push(errorMsg);
                 summary.datas.failed++;
+                continue;
             }
+
+            // Update source document with reference
+            const valueToSet = fieldDef.multiple
+                ? targetDocs.map(d => d._id.toString())
+                : targetDocs[0]._id.toString();
+
+            await collection.updateOne(
+                { _id: sourceId },
+                { $set: { [fieldName]: valueToSet } }
+            );
+            summary.datas.updated++;
+
         } catch (e) {
-            const errorMsg = `[LINK CRITICAL] Error during linking for doc ${sourceId}: ${e.message}`;
+            const errorMsg = `[LINK CRITICAL] Error linking ${sourceModelName}.${fieldName}: ${e.message}`;
             logger.error(errorMsg, e.stack);
             errors.push(errorMsg);
             summary.datas.failed++;
         }
     }
 
-    Event.Trigger("OnPackInstalled", "event", "system", pack);
+    // Trigger event only if pack came from database (original behavior)
+    if (typeof packIdentifier === 'string') {
+        Event.Trigger("OnPackInstalled", "event", "system", pack);
+    }
 
     const modifiedCount = summary.datas.inserted + summary.datas.updated;
-    logger.info(`--- Installation of pack '${pack.name}' finished. ---`);
-    return { success: errors.length === 0, summary, errors, modifiedCount };
+    logger.info(`--- ${logPrefix} completed ---`);
+    return {
+        success: errors.length === 0,
+        summary,
+        errors,
+        modifiedCount
+    };
 }
-
 
 export const installAllPacks = async () => {
     const packs = await getAllPacks();
