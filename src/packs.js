@@ -4055,7 +4055,76 @@ return { processedChunk: context.result.chunk };
         },
         {
             "name": "Stripe Integration Pro",
-            "description": "Complete Stripe integration for payments, subscriptions, invoices and customer management. Includes webhook handling, reconciliation workflows and detailed reporting.\n\n### Webhook Configuration\n\nTo make the integration fully work, you need to configure a webhook in your Stripe Dashboard. This allows Stripe to send real-time notifications (like `payment.succeeded` or `customer.subscription.created`) to your application.\n\n1.  **Get Your Webhook URL:**\n    Your application's webhook URL is:\n    `https://<your-domain.com>/api/actions/stripe-webhook`\n    Replace `<your-domain.com>` with your actual public domain.\n\n2.  **Add Endpoint in Stripe:**\n    *   Go to your Stripe Dashboard.\n    *   Navigate to **Developers > Webhooks**.\n    *   Click **+ Add an endpoint**.\n    *   Paste your URL in the **Endpoint URL** field.\n\n3.  **Select Events:**\n    Click on **+ Select events** and choose the following events to listen to:\n    *   `invoice.paid`\n    *   `invoice.payment_failed`\n    *   `customer.subscription.created`\n    *   `customer.subscription.updated`\n    *   `customer.subscription.deleted`\n    *   `payment_intent.succeeded`\n\n4.  **Secure Your Webhook:**\n    *   After creating the endpoint, Stripe will show a **Signing secret**. Click to reveal it.\n    *   Copy this secret (it starts with `whsec_...`).\n    *   In your application's **`env` model**, find the variable named `STRIPE_WEBHOOK_SECRET` and paste the key there.\n\nThis ensures that your application only processes legitimate requests from Stripe.",
+            "description": `
+This package is a comprehensive solution for integrating Stripe into your application. It not only manages payments, but also automates the entire billing and customer management ecosystem. In summary, this package allows you to:
+
+### 1. Automatically synchronize your Stripe data:
+Thanks to webhooks, all important information (customers, subscriptions, products, prices, invoices) is created and updated in real time in your local database. This gives you a reliable source of truth without manual effort.
+
+### 2. Manage the complete subscription lifecycle:
+• Creation: When a customer subscribes, the package creates the subscription locally and can send a welcome email.
+• Updates: Status changes (e.g., from trial to active) or cancellations are automatically reflected. • Payment failures: If a subscription payment fails, an email is automatically sent to the customer asking them to update their payment information.
+
+### 3. Automate payment and invoice processing:
+• Records every successful payment in your database. • Sends receipts by email after a payment. • Manages invoices (creation, payment, failure) and can send them to customers.
+
+### 4. Facilitate the payment process for your users:
+• Includes a workflow to create Stripe Checkout sessions, whether for a one-time payment or to start a new subscription.
+
+### 5. Provide an overview of your finances:
+• Offers a pre-configured dashboard with essential key performance indicators (KPIs):
+• Total revenue • Number of successful payments • Average payment value
+• Refund rate
+• Displays a graph of payment trends over time.
+
+In short, this pack transforms your application into a robust and automated billing platform, while improving your customers' experience through clear and timely communications.
+
+        ### Webhook Configuration
+
+Ajoutez ces événements supplémentaires pour une synchronisation complète :
+
+* Customer Events:
+  - customer.created
+  - customer.updated
+  - customer.deleted
+
+* Product Events:
+  - product.created
+  - product.updated
+  - product.deleted
+  - price.created
+  - price.updated
+  
+  ### Webhook Configuration
+
+To make the integration fully work, you need to configure a webhook in your Stripe Dashboard. This allows Stripe to send real-time notifications (like `payment.succeeded` or `customer.subscription.created`) to your application.
+
+1. **Get Your Webhook URL:** 
+Your application's webhook URL is: 
+https://<your-domain.com>/api/actions/stripe-webhook
+Replace <your-domain.com> with your actual public domain.
+
+2. **Add Endpoint in Stripe:** 
+* Go to your Stripe Dashboard. 
+* Navigate to **Developers > Webhooks**. 
+* Click **+ Add an endpoint**. 
+* Paste your URL in the **Endpoint URL** field.
+
+3. **Select Events:** 
+Click on **+ Select events** and choose the following events to listen to: 
+* invoice.paid
+* invoice.payment_failed
+* customer.subscription.created 
+* customer.subscription.updated 
+* customer.subscription.deleted 
+* payment_intent.succeeded
+
+4. **Secure Your Webhook:** 
+* After creating the endpoint, Stripe will show a **Signing secret**. Click to reveal it. 
+* Copy this secret (it starts with \`whsec_...\`). 
+* In your application's **\`env\` model**, find the variable named \`STRIPE_WEBHOOK_SECRET\` and paste the key there.
+
+This ensures that your application only processes legitimate requests from Stripe.`,
             "tags": ["payment", "stripe", "e-commerce", "subscription", "billing"],
             "models": [
                 "endpoint",
@@ -4260,96 +4329,6 @@ return { status: 200, body: { received: true } };`
 `
                         },
                         {
-                            "name": "Create Stripe Customer",
-                            "description": "Crée un enregistrement de client Stripe dans la base locale à partir d'un événement webhook.",
-                            "type": "ExecuteScript",
-                            "script": `
-const event = context.triggerData;
-const customerData = event.data.object;
-
-// Vérifier si le client existe déjà
-const existingCustomer = await db.findOne('StripeCustomer', {
-    stripeCustomerId: customerData.id
-});
-
-if (existingCustomer) {
-    logger.info('Customer already exists:', customerData.id);
-    return { success: true, customerId: existingCustomer._id };
-}
-
-// Trouver l'utilisateur correspondant si possible
-let user = null;
-if (customerData.metadata && customerData.metadata.userId) {
-    user = await db.findOne('user', { _id: customerData.metadata.userId });
-}
-
-// Créer le client dans la base locale
-const newCustomer = await db.create('StripeCustomer', {
-    stripeCustomerId: customerData.id,
-    user: user?._id,
-    email: customerData.email,
-    name: customerData.name,
-    phone: customerData.phone,
-    address: customerData.address ? JSON.stringify(customerData.address) : null,
-    taxExempt: customerData.tax_exempt || 'none',
-    defaultPaymentMethod: customerData.invoice_settings?.default_payment_method,
-    invoiceSettings: customerData.invoice_settings ? JSON.stringify(customerData.invoice_settings) : null,
-    metadata: customerData.metadata ? JSON.stringify(customerData.metadata) : null
-});
-
-return { success: true, customerId: newCustomer._id };
-`
-                        },
-                        {
-                            "name": "Create Local Subscription",
-                            "description": "Crée un enregistrement d'abonnement local à partir d'un événement Stripe.",
-                            "type": "ExecuteScript",
-                            "script": `
-const subscriptionData = context.triggerData;
-
-// Trouver le client associé
-const customer = await db.findOne('StripeCustomer', {
-    stripeCustomerId: subscriptionData.customer
-});
-
-if (!customer) {
-    logger.error('Customer not found for subscription:', subscriptionData.customer);
-    return { success: false, message: 'Customer not found' };
-}
-
-// Trouver le plan associé
-const priceId = subscriptionData.items.data[0].price.id;
-const plan = await db.findOne('StripePlan', {
-    stripePriceId: priceId
-});
-
-if (!plan) {
-    logger.error('Plan not found for price ID:', priceId);
-    return { success: false, message: 'Plan not found' };
-}
-
-// Créer l'abonnement dans la base locale
-await db.create('StripeSubscription', {
-    stripeSubscriptionId: subscriptionData.id,
-    user: customer.user,
-    customer: customer._id,
-    plan: plan._id,
-    status: subscriptionData.status,
-    currentPeriodStart: new Date(subscriptionData.current_period_start * 1000),
-    currentPeriodEnd: new Date(subscriptionData.current_period_end * 1000),
-    cancelAtPeriodEnd: subscriptionData.cancel_at_period_end,
-    canceledAt: subscriptionData.canceled_at ? new Date(subscriptionData.canceled_at * 1000) : null,
-    daysUntilDue: subscriptionData.days_until_due,
-    defaultPaymentMethod: subscriptionData.default_payment_method,
-    startDate: new Date(subscriptionData.start_date * 1000),
-    trialEnd: subscriptionData.trial_end ? new Date(subscriptionData.trial_end * 1000) : null,
-    metadata: subscriptionData.metadata ? JSON.stringify(subscriptionData.metadata) : null
-});
-
-return { success: true };
-`
-                        },
-                        {
                             "name": "Send Subscription Welcome",
                             "description": "Envoie un email de bienvenue pour un nouvel abonnement.",
                             "type": "SendEmail",
@@ -4503,37 +4482,6 @@ return { success: true };
                             }
                         },
                         {
-                            "name": "Update Subscription Status",
-                            "description": "Updates subscription status based on Stripe event.",
-                            "type": "ExecuteScript",
-                            "script": `
-const { subscription } = context.triggerData.payload;
-
-// Find existing subscription
-const existingSub = await db.findOne('StripeSubscription', {
-    stripeSubscriptionId: subscription.id
-});
-
-if (!existingSub) {
-    logger.warn('Subscription not found:', subscription.id);
-    return { success: false, message: 'Subscription not found' };
-}
-
-// Update status
-await db.update('StripeSubscription', 
-    { _id: existingSub._id },
-    { 
-        status: subscription.status,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000)
-    }
-);
-
-return { success: true };
-`
-                        },
-                        {
                             "name": "Save Successful Payment to DB",
                             "description": "Saves the details of a successful payment intent to the local database.",
                             "type": "ExecuteScript",
@@ -4621,6 +4569,143 @@ return { success: true };
  logger.warn('Unhandled Stripe Event Received: Type=' + context.triggerData.event.type + ', ID=' + context.triggerData.event.id);
  return { success: true, message: 'Event logged as unhandled.' };
  `
+                        },
+                        {
+                            "name": "Sync Stripe Entity to Local DB",
+                            "description": "Synchronise une entité Stripe avec la base locale sans utiliser upsert",
+                            "type": "ExecuteScript",
+                            "script": `
+const event = context.triggerData;
+const stripeObject = event.data.object;
+const objectType = stripeObject.object;
+
+// Helper function to safely get nested properties
+const getNested = (obj, path) => {
+  return path.split('.').reduce((o, p) => (o && o[p] !== undefined ? o[p] : null), obj);
+};
+
+// Helper function to safely stringify objects
+const safeStringify = (obj) => {
+  try {
+    return obj ? JSON.stringify(obj) : null;
+  } catch (e) {
+    logger.warn('Failed to stringify object:', e);
+    return null;
+  }
+};
+
+let modelName;
+let idField;
+let dataToUpsert = {};
+
+switch (objectType) {
+  case 'customer':
+    modelName = 'StripeCustomer';
+    idField = 'stripeCustomerId';
+    dataToUpsert = {
+      stripeCustomerId: stripeObject.id,
+      email: stripeObject.email || null,
+      name: stripeObject.name || null,
+      phone: stripeObject.phone || null,
+      address: stripeObject.address ? safeStringify(stripeObject.address) : null,
+      taxExempt: stripeObject.tax_exempt || 'none',
+      defaultPaymentMethod: getNested(stripeObject, 'invoice_settings.default_payment_method'),
+      invoiceSettings: stripeObject.invoice_settings ? safeStringify(stripeObject.invoice_settings) : null,
+      metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
+    };
+    break;
+    
+  case 'subscription':
+    modelName = 'StripeSubscription';
+    idField = 'stripeSubscriptionId';
+    dataToUpsert = {
+      stripeSubscriptionId: stripeObject.id,
+      status: stripeObject.status,
+      currentPeriodStart: stripeObject.current_period_start ? new Date(stripeObject.current_period_start * 1000) : null,
+      currentPeriodEnd: stripeObject.current_period_end ? new Date(stripeObject.current_period_end * 1000) : null,
+      cancelAtPeriodEnd: stripeObject.cancel_at_period_end || false,
+      canceledAt: stripeObject.canceled_at ? new Date(stripeObject.canceled_at * 1000) : null,
+      daysUntilDue: stripeObject.days_until_due || null,
+      defaultPaymentMethod: stripeObject.default_payment_method || null,
+      startDate: stripeObject.start_date ? new Date(stripeObject.start_date * 1000) : null,
+      trialEnd: stripeObject.trial_end ? new Date(stripeObject.trial_end * 1000) : null,
+      metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
+    };
+    
+    // Handle relations
+    if (stripeObject.customer) {
+      const customer = await db.findOne('StripeCustomer', { stripeCustomerId: stripeObject.customer });
+      if (customer) dataToUpsert.customer = customer._id;
+    }
+    
+    if (stripeObject.items?.data?.[0]?.price?.id) {
+      const priceId = stripeObject.items.data[0].price.id;
+      const plan = await db.findOne('StripePlan', { stripePriceId: priceId });
+      if (plan) dataToUpsert.plan = plan._id;
+    }
+    break;
+    
+  case 'product':
+    modelName = 'StripePlan';
+    idField = 'stripeProductId';
+    dataToUpsert = {
+      stripeProductId: stripeObject.id,
+      name: stripeObject.name || null,
+      description: stripeObject.description || null,
+      active: stripeObject.active !== false,
+      metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
+    };
+    break;
+    
+  case 'price':
+    modelName = 'StripePlan';
+    idField = 'stripePriceId';
+    dataToUpsert = {
+      stripePriceId: stripeObject.id,
+      price: stripeObject.unit_amount ? stripeObject.unit_amount / 100 : null,
+      interval: stripeObject.recurring?.interval || null,
+      intervalCount: stripeObject.recurring?.interval_count || 1
+    };
+    
+    if (stripeObject.metadata?.trial_period_days) {
+      dataToUpsert.trialPeriodDays = parseInt(stripeObject.metadata.trial_period_days) || null;
+    }
+    
+    if (stripeObject.currency) {
+      const currency = await db.findOne('currency', { code: stripeObject.currency.toUpperCase() });
+      if (currency) dataToUpsert.currency = currency._id;
+    }
+    break;
+    
+  default:
+    logger.warn('Unsupported Stripe object type:', objectType);
+    return { success: false, message: 'Unsupported Stripe object type: ' + objectType };
+}
+
+// Implémentation manuelle de upsert
+try {
+  const filter = {};
+  filter[idField] = stripeObject.id;
+  
+  // 1. Vérifier si l'entité existe déjà
+  const existing = await db.findOne(modelName, filter);
+  
+  if (existing) {
+    // 2. Mise à jour si l'entité existe
+    await db.update(modelName, filter, dataToUpsert);
+    logger.info(\`Updated \${modelName} with \${idField}: \${stripeObject.id}\`);
+  } else {
+    // 3. Création si l'entité n'existe pas
+    await db.create(modelName, { ...filter, ...dataToUpsert });
+    logger.info(\`Created new \${modelName} with \${idField}: \${stripeObject.id}\`);
+  }
+  
+  return { success: true };
+} catch (e) {
+  logger.error('Failed to sync Stripe entity:', e);
+  return { success: false, message: 'Database operation failed: ' + e.message };
+}
+`
                         }
                     ],
                     "workflowStep": [
@@ -4664,7 +4749,7 @@ return { success: true };
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "conditions": { "$eq": ["{triggerData.event.type}", "payment_intent.succeeded"] },
                             "onSuccessStep": { "$link": { "name": "Handle Payment Succeeded", "_model": "workflowStep" } },
-                            "onFailureStep": { "$link": { "name": "Log Unhandled Event", "_model": "workflowStep" } }
+                            "onFailureStep": { "$link": { "name": "Check for Customer Updated", "_model": "workflowStep" } }
                         },
 
                         // --- Action-performing Steps ---
@@ -4689,7 +4774,10 @@ return { success: true };
                         {
                             "name": "Handle Subscription Created",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Create Local Subscription", "_model": "workflowAction" } },
+                            "actions": [
+                                { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
+                                { "$link": { "name": "Send Subscription Welcome", "_model": "workflowAction" } }
+                            ],
                             "onSuccessStep": { "$link": { "name": "Handle Send Welcome Email", "_model": "workflowStep" } }
                         },
                         {
@@ -4701,7 +4789,7 @@ return { success: true };
                         {
                             "name": "Handle Subscription Update/Delete",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Update Subscription Status", "_model": "workflowAction" } },
+                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
                         {
@@ -4735,6 +4823,32 @@ return { success: true };
                             "name": "Create Subscription Checkout Session",
                             "workflow": { "$link": { "name": "Create Stripe Checkout Session", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Stripe: Create Checkout Session (Subscription)", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Check for Customer Updated",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$in": ["{triggerData.event.type}", ["customer.created", "customer.updated", "customer.deleted"]] },
+                            "onSuccessStep": { "$link": { "name": "Handle Customer Update", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Product Updated", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Check for Product Updated",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$in": ["{triggerData.event.type}", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated"]] },
+                            "onSuccessStep": { "$link": { "name": "Handle Product Update", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Log Unhandled Event", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Handle Customer Update",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
+                        {
+                            "name": "Handle Product Update",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
                             "isTerminal": true
                         }
                     ],
