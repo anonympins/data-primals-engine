@@ -4251,7 +4251,7 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
  * @param {string} [lang='en'] - Language code for localized data
  * @returns {Promise<{success: boolean, summary: object, errors: Array, modifiedCount: number}>}
  */
-export async function installPack(packIdentifier, user = null, lang = 'en') {
+export async function installPack(packIdentifier, user = null, lang = 'en', isTemporary= false) {
     let pack;
     const packsCollection = getCollection('packs');
 
@@ -4556,14 +4556,7 @@ export async function handleDemoInitialization(req, res) {
         logger.info(`[Demo Init] Installing dynamically generated pack with models: [${models.join(', ')}].`);
 
         // Create and install pack
-        const packsCollection = getCollection('packs');
-        const tempPack = { ...packToInstall, _user: 'system_temp' };
-        const tempInsert = await packsCollection.insertOne(tempPack);
-        const packId = tempInsert.insertedId;
-
-        const result = await installPack(packId, user, req.query.lang || 'en');
-
-        await packsCollection.deleteOne({ _id: packId });
+        const result = await installPack(packToInstall, user, req.query.lang || 'en');
 
         if (result.success || result.modifiedCount > 0) {
             logger.info(`[Demo Init] Pack installed successfully for user '${user.username}'.`);
