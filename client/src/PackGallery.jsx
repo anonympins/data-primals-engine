@@ -8,6 +8,7 @@ import { useModelContext } from './contexts/ModelContext.jsx';
 
 import './PackGallery.scss';
 import {elementsPerPage} from "../../src/constants.js";
+import Markdown from "react-markdown";
 
 // --- API Fetching Functions ---
 const fetchPacks = async (sortBy, lang) => {
@@ -117,7 +118,8 @@ const PackDetail = ({ packId, onBack }) => {
             </div>
             <div className="pack-content">
                 <h2><Trans i18nKey="packs.description">Description</Trans></h2>
-                <div className="description-content" dangerouslySetInnerHTML={{__html: pack.description || ''}}/>
+
+                <div className="description-content"><Markdown>{pack.description}</Markdown></div>
 
                 <h2><Trans i18nKey="packs.modelsIncluded">Modèles inclus</Trans></h2>
                 <p>{renderModelsList(pack.models)}</p>
