@@ -84,6 +84,8 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017
 | JWT_SECRET            | 	Secret key for signing JWT authentication tokens.	                     | a_long_random_secret_string              |
 | OPENAI_API_KEY        | 	Your optional OpenAI API key for AI features.	                         | sk-xxxxxxxxxxxxxxxxxxxx                  |
 | GOOGLE_API_KEY        | 	Your optional Google (Gemini) API key for AI features.	                | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
+| DEEPSEEK_API_KEY      | 	Your optional DeepSeek API key for AI features.	                       | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
+| ANTHROPIC_API_KEY     | 	Your optional Anthropic API key for AI features.	                      | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
 | AWS_ACCESS_KEY_ID     | 	AWS access key for S3 storage (files, backups). Keep empty to disable	 | AKIAIOSFODNN7EXAMPLE                     |
 | AWS_SECRET_ACCESS_KEY | 	AWS secret access key.	                                                | wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY |                                 |
 | AWS_REGION            | 	Region for your S3 bucket.                                             | 	eu-west-3                               |                                                                 |

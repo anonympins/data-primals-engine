@@ -1,4 +1,5 @@
 import {getModels} from "./modules/data/index.js";
+import {providers} from "./modules/assistant/constants.js";
 
 
 /*
@@ -1355,16 +1356,10 @@ return { processedChunk: context.result.chunk };
                         "dataFilter": { "$or": [{"$eq": [{ "$type": "$seoDescription"}, "missing"]}, {"$eq": ["$seoDescription", ""]}]},
                         "isActive": true
                     }],
-                    "env": [{
-                        name: "OPENAI_API_KEY",
+                    "env": Object.values(providers).map(m => ({
+                        name: m.key,
                         value: "demo"
-                    },{
-                        name: "GOOGLE_API_KEY",
-                        value: "demo"
-                    },{
-                        name: "DEEPSEEK_API_KEY",
-                        value: "demo"
-                    }]
+                    }))
                 }
             }
         },

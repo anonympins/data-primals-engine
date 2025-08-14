@@ -20,6 +20,9 @@ import {isConditionMet} from "../filter.js";
 import { services } from '../services/index.js';
 import {getEnv} from "./user.js";
 import {getHost} from "../constants.js";
+import {providers} from "./assistant/constants.js";
+import {ChatAnthropic} from "@langchain/anthropic";
+import {getAIProvider} from "./assistant/assistant.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -1580,12 +1583,7 @@ async function executeGenerateAIContentAction(action, context, user) {
     // 1. Retrieve the API key (User Environment > Machine Environment)
     let apiKey;
 
-    const providers = {
-        "OpenAI" : "OPENAI_API_KEY",
-        "Google": "GOOGLE_API_KEY",
-        "DeepSeek": "DEEPSEEK_API_KEY"
-    }
-    const envKeyName = providers[aiProvider];
+    const envKeyName = providers[aiProvider].key;
     if( !envKeyName ) {
         return {success: false, message: i18n.t('aiContent.env', `API key for provider ${aiProvider} (${envKeyName}) not found in user environment.`)};
     }
@@ -1609,22 +1607,8 @@ async function executeGenerateAIContentAction(action, context, user) {
     }
 
     // 2. Initialize the LLM client with LangChain
-    let llm;
-    try {
-        switch (aiProvider) {
-        case 'OpenAI':
-            llm = new ChatOpenAI({ apiKey, model: aiModel, temperature: 0.7 });
-            break;
-        case 'Google':
-            llm = new ChatGoogleGenerativeAI({ apiKey, model: aiModel, temperature: 0.7 });
-            break;
-        case 'DeepSeek':
-            llm = new ChatDeepSeek({ apiKey, model: aiModel, temperature: 0.7 });
-            break;
-        default:
-            throw new Error(`Unsupported AI provider: ${aiProvider}`);
-        }
-    } catch (initError) {
+    let llm = getAIProvider(aiProvider, aiModel, apiKey);
+    if( !llm ) {
         const message = `Failed to initialize AI client for ${aiProvider}: ${initError.message}`;
         logger.error(`[AI Action] ${message}`);
         return { success: false, message };

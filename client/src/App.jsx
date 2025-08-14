@@ -61,6 +61,7 @@ import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
 
 import { Tooltip } from 'react-tooltip';
+import {providers} from "../../src/modules/assistant/constants.js";
 
 let queryClient = new QueryClient();
 
@@ -113,40 +114,32 @@ function Layout ({header, routes, body, footer}) {
                 },
                 body: JSON.stringify({
                     model: 'env', // On cible le modèle 'env'
-                    filter: {
-                        // On cherche les enregistrements dont le nom est SOIT l'un, SOIT l'autre
-                        "$or": [
-                            { "name": "OPENAI_API_KEY" },
-                            { "name": "GOOGLE_API_KEY" }
-                        ]
-                    },
-                    limit: 2 // Pas besoin de plus de 2 résultats
+                    filter: { "name": { "$in": Object.values(providers).map(p => p.key) } },
+                    limit: Object.values(providers).length
                 })
             }).then(res => res.json());
         },
         {
             enabled: !!me && models.find(f => f.name === 'env' && me?.username === f.username), // Toujours activé uniquement si l'utilisateur est connecté
-            staleTime: 60000, // On peut réduire le staleTime, car l'utilisateur peut ajouter/supprimer une clé à tout moment
+            staleTime: 60000,
             onSuccess: (response) => {
-
-                // La réponse de l'API de recherche est un objet { success: true, data: [...] }
                 if (!response.data) {
                     setAssistantConfig(null);
                     return;
                 }
-
                 const availableKeys = response.data;
+                const newConfig = Object.keys(providers).reduce((config, providerKey) => {
+                    const envVarName = providers[providerKey].key;
+                    const foundKey = availableKeys.find(key => key.name === envVarName);
+                    if (foundKey) {
+                        config[providerKey] = foundKey.value;
+                    }
+                    return config;
+                }, {});
 
-                const newConfig = {
-                    openai: availableKeys.find(key => key.name === 'OPENAI_API_KEY')?.value || undefined,
-                    google: availableKeys.find(key => key.name === 'GOOGLE_API_KEY')?.value || undefined,
-                };
-
-                // On met à jour l'état si au moins une clé est disponible
-                if (newConfig.openai || newConfig.google) {
+                if (Object.values(newConfig).filter(Boolean).length > 0) {
                     setAssistantConfig(newConfig);
                 } else {
-                    // Important : on s'assure de remettre à null si aucune clé n'est trouvée
                     setAssistantConfig(null);
                 }
             },
