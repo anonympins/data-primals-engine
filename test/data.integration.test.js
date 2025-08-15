@@ -30,7 +30,7 @@ async function setupTestContext() {
     // Créer un utilisateur unique pour ce test
     const currentTestUser = {
         username: generateUniqueName('testuserDataIntegration'),
-        userPlan: 'free',
+        userPlan: 'premium',
         email: generateUniqueName('test') + '@example.com'
     };
 
@@ -112,9 +112,8 @@ async function setupTestContext() {
     }
     await testDatasColInstance.deleteMany({ _user: currentTestUser.username });
 
-    const purge= async ()=>{
+    const purge = async ()=>{
         await purgeData(currentTestUser);
-        await (await getCollectionForUser(currentTestUser)).drop();
     }
 
     // Retourner toutes les variables nécessaires pour un test
