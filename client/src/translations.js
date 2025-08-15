@@ -2,6 +2,16 @@
 export const websiteTranslations = {
     fr: {
         translation: {
+            "history.op.create": "Création",
+            "history.op.update": "Mise à jour",
+            "history.op.delete": "Suppression",
+            "history.datePrefix": "On",
+            "history.byUser": "by",
+            "history.version": "Version:",
+            "history.error": "Impossible de charger l'historique.",
+            "history.title": "Historique de l'enregistrement",
+            "history.loading": "Chargement de l'historique",
+            "history.noHistory": "Aucun historique trouvé pour cet enregistrement",
 
             "field_endpoint_isPublic": "Accès public",
             "field_endpoint_isPublic_hint": "Si coché, ce point d'accès sera accessible sans authentification. Le script s'exécutera avec les droits du propriétaire du point d'accès.",
@@ -543,6 +553,17 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "history.op.create": "Creation",
+            "history.op.update": "Update",
+            "history.op.delete": "Deletion",
+            "history.datePrefix": "On",
+            "history.byUser": "by",
+            "history.version": "Version:",
+            "history.error": "Unable to load history.",
+            "history.title": "Record History",
+            "history.loading": "Loading History",
+            "history.noHistory": "No history found for this record",
+
             "packs.manualInstall": "Import",
             "packs.manualInstall.title": "Manual Pack Installation",
             "packs.manualInstall.instructions": "Paste the configuration JSON of the pack you want to install here.",
@@ -1957,6 +1978,17 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
+            "history.op.create": "Creación",
+            "history.op.update": "Actualización",
+            "history.op.delete": "Eliminación",
+            "history.datePrefix": "Activado",
+            "history.byUser": "por",
+            "history.version": "Versión:",
+            "history.error": "No se puede cargar el historial",
+            "history.title": "Historial del registro",
+            "history.loading": "Cargando historial",
+            "history.noHistory": "No se encontró historial para este registro",
+
             "packs.manualInstall": "Importar",
             "packs.manualInstall.title": "Instalación manual del paquete",
             "packs.manualInstall.instructions": "Pegue aquí el JSON de configuración del paquete que desea instalar.",
@@ -3375,6 +3407,17 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
+            "history.op.create": "Criação",
+            "history.op.update": "Atualização",
+            "history.op.delete": "Exclusão",
+            "history.datePrefix": "Ativado",
+            "history.byUser": "por",
+            "history.version": "Versão:",
+            "history.error": "Não foi possível carregar o histórico.",
+            "history.title": "Histórico do Registro",
+            "history.loading": "Carregando Histórico",
+            "history.noHistory": "Nenhum histórico encontrado para este registro",
+
             "packs.manualInstall": "Importar",
             "packs.manualInstall.title": "Instalação manual do pacote",
             "packs.manualInstall.instructions": "Cole o JSON de configuração do pacote que você deseja instalar aqui.",
@@ -4788,6 +4831,17 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
+            "history.op.create": "Erstellung",
+            "history.op.update": "Aktualisieren",
+            "history.op.delete": "Löschen",
+            "history.datePrefix": "Am",
+            "history.byUser": "von",
+            "history.version": "Version:",
+            "history.error": "Verlauf konnte nicht geladen werden.",
+            "history.title": "Datensatzverlauf",
+            "history.loading": "Verlauf wird geladen",
+            "history.noHistory": "Kein Verlauf für diesen Datensatz gefunden",
+
             "packs.manualInstall": "Importieren",
             "packs.manualInstall.title": "Manuelle Paketinstallation",
             "packs.manualInstall.instructions": "Fügen Sie hier die JSON-Konfiguration des zu installierenden Pakets ein.",
@@ -6185,6 +6239,17 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
+            "history.op.create": "Creazione",
+            "history.op.update": "Aggiorna",
+            "history.op.delete": "Eliminazione",
+            "history.datePrefix": "Attivo",
+            "history.byUser": "di",
+            "history.version": "Versione:",
+            "history.error": "Impossibile caricare la cronologia.",
+            "history.title": "Cronologia record",
+            "history.loading": "Caricamento cronologia",
+            "history.noHistory": "Nessuna cronologia trovata per questo record",
+
             "packs.manualInstall": "Importa",
             "packs.manualInstall.title": "Installazione manuale del pacchetto",
             "packs.manualInstall.instructions": "Incolla qui il file JSON di configurazione del pacchetto che desideri installare.",
@@ -7595,6 +7660,17 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
+            "history.op.create": "Vytvoření",
+            "history.op.update": "Aktualizace",
+            "history.op.delete": "Smazání",
+            "history.datePrefix": "Zapnuto",
+            "history.byUser": "od",
+            "history.version": "Verze:",
+            "history.error": "Nelze načíst historii.",
+            "history.title": "Historie záznamu",
+            "history.loading": "Načítání historie",
+            "history.noHistory": "Pro tento záznam nebyla nalezena žádná historie",
+
             "packs.manualInstall": "Importovat",
             "packs.manualInstall.title": "Ruční instalace balíčku",
             "packs.manualInstall.instructions": "Sem vložte konfigurační JSON balíčku, který chcete nainstalovat.",
@@ -9000,6 +9076,17 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
+            "history.op.create": "Создание",
+            "history.op.update": "Обновление",
+            "history.op.delete": "Удаление",
+            "history.datePrefix": "Вкл",
+            "history.byUser": "Автор",
+            "history.version": "Версия:",
+            "history.error": "Не удалось загрузить историю",
+            "history.title": "История записи",
+            "history.loading": "Загрузка истории",
+            "history.noHistory": "История для этой записи не найдена",
+
             "packs.manualInstall": "Импорт",
             "packs.manualInstall.title": "Ручная установка пакета",
             "packs.manualInstall.instructions": "Вставьте сюда JSON-файл конфигурации пакета, который вы хотите установить.",
@@ -10415,6 +10502,17 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
+            "history.op.create": "إنشاء",
+            "history.op.update": "تحديث",
+            "history.op.delete": "حذف",
+            "history.datePrefix": "تشغيل",
+            "history.byUser": "بواسطة",
+            "history.version": "الإصدار:",
+            "history.error": "تعذر تحميل السجل",
+            "history.title": "سجل السجل",
+            "history.loading": "جارٍ تحميل السجل",
+            "history.noHistory": "لم يتم العثور على سجل لهذا السجل",
+
             "packs.manualInstall": "استيراد",
             "packs.manualInstall.title": "تثبيت الحزمة يدويًا",
             "packs.manualInstall.instructions": "الصق ملف JSON الخاص بتكوين الحزمة التي تريد تثبيتها هنا",
@@ -11846,6 +11944,17 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
+            "history.op.create": "Skapande",
+            "history.op.update": "Uppdatering",
+            "history.op.delete": "Bortning",
+            "history.datePrefix": "På",
+            "history.byUser": "av",
+            "history.version": "Version:",
+            "history.error": "Det gick inte att läsa in historiken.",
+            "history.title": "Posthistorik",
+            "history.loading": "Laddar in historik",
+            "history.noHistory": "Ingen historik hittades för den här posten",
+
             "packs.manualInstall": "Importera",
             "packs.manualInstall.title": "Manuell paketinstallation",
             "packs.manualInstall.instructions": "Klistra in konfigurations-JSON-filen för paketet du vill installera här.",
@@ -13251,6 +13360,18 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
+
+            "history.op.create": "Δημιουργία",
+            "history.op.update": "Ενημέρωση",
+            "history.op.delete": "Διαγραφή",
+            "history.datePrefix": "Ενεργοποίηση",
+            "history.byUser": "από",
+            "history.version": "Έκδοση:",
+            "history.error": "Δεν είναι δυνατή η φόρτωση του ιστορικού.",
+            "history.title": "Ιστορικό Εγγραφών",
+            "history.loading": "Φόρτωση Ιστορικού",
+            "history.noHistory": "Δεν βρέθηκε ιστορικό για αυτήν την εγγραφή",
+
             "packs.manualInstall": "Εισαγωγή",
             "packs.manualInstall.title": "Χειροκίνητη εγκατάσταση πακέτου",
             "packs.manualInstall.instructions": "Επικολλήστε εδώ το JSON διαμόρφωσης του πακέτου που θέλετε να εγκαταστήσετε.",
@@ -14664,7 +14785,17 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
-
+            "history.op.create": "ایجاد",
+            "history.op.update": "به‌روزرسانی",
+            "history.op.delete": "حذف",
+            "history.datePrefix": "روشن",
+            "history.byUser": "توسط",
+            "history.version": "نسخه:",
+            "history.error": "بارگیری تاریخچه امکان‌پذیر نیست.",
+            "history.title": "تاریخچه رکورد",
+            "history.loading": "بارگیری تاریخچه",
+            "history.noHistory": "هیچ تاریخچه‌ای برای این رکورد یافت نشد",
+            
             "packs.manualInstall": "وارد کردن",
             "packs.manualInstall.title": "نصب دستی بسته",
             "packs.manualInstall.instructions": "فایل JSON پیکربندی بسته‌ای که می‌خواهید نصب کنید را اینجا جای‌گذاری کنید.",

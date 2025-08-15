@@ -1,9 +1,12 @@
 import {isPlainObject} from "../../core.js";
-import {getCollection, getCollectionForUser,  ObjectId} from "../mongodb.js";
-import {getModel} from "./data.js";
+import {getCollection, getCollectionForUser, isObjectId, ObjectId} from "../mongodb.js";
+import {getModel, handleDemoInitialization} from "./data.js";
 import { Event} from "../../events.js"
 import {Logger} from "../../gameObject.js";
+import {hasPermission, middlewareAuthenticator, userInitiator} from "../user.js";
+import {isLocalUser} from "../../data.js";
 
+let logger;
 /**
  * Compare deux valeurs de manière récursive. Gère les ObjectId, les objets, les tableaux et les primitives.
  * @param {*} a - Première valeur.
@@ -62,12 +65,83 @@ function calculateDiff(beforeDoc, afterDoc, historizedFields) {
     return Object.keys(changes).length > 0 ? changes : null;
 }
 
+
+/**
+ * @route   GET /api/data/history/:modelName/:recordId
+ * @desc    Récupère l'historique d'un enregistrement spécifique pour le frontend.
+ * @access  Private (géré par middlewareAuthenticator)
+ */
+export async function handleGetHistoryRequest(req, res) {
+    const { modelName, recordId } = req.params;
+    const user = req.me; // Le middleware d'authentification attache l'utilisateur à req.me
+
+    try {
+        // 1. Vérification des permissions (similaire à searchData)
+        if (user && user.username !== 'demo' && isLocalUser(user) && (
+            !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_"+modelName], user) ||
+            await hasPermission(["API_SEARCH_DATA_NOT_"+modelName], user))) {
+            return res.status(403).json({ success: false, error: i18n.t('api.permission.searchData') });
+        }
+
+        // 2. Validation des entrées
+        if (!modelName || !recordId || !isObjectId(recordId)) {
+            return res.status(400).json({ success: false, error: "Invalid model name or record ID." });
+        }
+
+        // 3. Récupération des données depuis la collection 'history'
+        const historyCollection = getCollection('history');
+        const historyData = await historyCollection.find({
+            documentId: new ObjectId(recordId),
+            model: modelName
+        }).sort({ version: -1 }).toArray(); // Trier du plus récent au plus ancien
+
+        // 4. Transformation des données pour correspondre au format attendu par le composant HistoryDialog.jsx
+        const opMap = {
+            create: 'i',
+            update: 'u',
+            delete: 'd'
+        };
+
+        const transformedHistory = historyData.map(entry => {
+            const { documentId, version, operation, timestamp, user: historyUser, snapshot, changes, ...rest } = entry;
+
+            // Le contenu est soit un snapshot complet, soit un objet de changements
+            const dataPayload = snapshot || changes || {};
+
+            // On exclut les métadonnées du payload pour ne pas les dupliquer
+            const { _id: originalDocId, _model, _user, _hash, ...payloadFields } = dataPayload;
+
+            return {
+                ...rest, // Conserve l'_id du document d'historique lui-même
+                _rid: documentId,
+                _v: version,
+                _op: opMap[operation] || operation, // 'create' -> 'i', 'update' -> 'u', etc.
+                _updatedAt: timestamp,
+                _user: historyUser?.username,
+                ...payloadFields // Étale les champs du document (snapshot ou changes)
+            };
+        });
+
+        res.json({ success: true, data: transformedHistory });
+
+    } catch (error) {
+        logger.error(`[handleGetHistoryRequest] Error fetching history for model ${modelName}, record ${recordId}:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'An internal server error occurred while fetching history.'
+        });
+    }
+}
+
+
 /**
  * Initialise les écouteurs d'événements pour le module d'historique.
  * @param {object} engine - L'instance du moteur.
  */
 export function onInit(engine) {
-    const logger = engine.getComponent(Logger);
+    logger = engine.getComponent(Logger);
+
+    engine.get('/api/data/history/:modelName/:recordId', [middlewareAuthenticator, userInitiator], handleGetHistoryRequest);
 
     // --- Écouteur pour la CRÉATION de données (Version 1 - Snapshot) ---
     Event.Listen("OnDataAdded", async (engine, { modelName, insertedIds, user }) => {

@@ -37,7 +37,6 @@ export const Event = {
                             for (const callback of events[currentSystem][name][currentLayer]) {
                                 try {
                                     const res = await callback(...args);
-                                    console.log({res})
                                     if (typeof res === "object" && !Array.isArray(res)) {
                                         if (typeof ret !== "object") ret = {};
                                         ret = {...ret, ...res};
