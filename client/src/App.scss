@@ -1294,6 +1294,10 @@ select[multiple]{
 
 .model-creator {
   .field-checkbox {
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
     .inline {
       flex-direction: row-reverse;
     }

@@ -74,11 +74,10 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                             }}
                             help={t('modelcreator.name.hint')}
                             required
+                            after={!(!modelLocked && isLocalUser(me) && field.locked) && !field._isNewField && (
+                                <Button type={"button"} className={"btn-form btn-last"}
+                            onClick={() => handleRenameField(index, field.name)}><FaEdit/></Button>)}
                         />
-                        {!(!modelLocked && isLocalUser(me) && field.locked) && !field._isNewField && (
-                            <Button type={"button"} className={"btn-form btn-last"}
-                                    onClick={() => handleRenameField(index, field.name)}><FaEdit/></Button>)}
-
                     </div>
 
                 </div>
@@ -449,11 +448,11 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                             </div>
 
                             {!['file', 'relation', 'array', 'calculated'].includes(field.type) && (<div
-                                className="flex flex-no-wrap field-bg mg-item">
+                                className="flex flex-no-wrap mg-item">
 
                                 {['string_t', 'string', 'richtext', 'password', 'url', 'phone', 'email'].includes(field.type) && (<>
                                     {hint('modelcreator.default.hint')}
-                                    <div className="flex flex-1">
+                                    <div className="flex flex-1 field-bg">
                                         <TextField
                                             className="flex-1"
                                             value={field.default}

@@ -2,8 +2,9 @@
 export const websiteTranslations = {
     fr: {
         translation: {
-            "history.op.create": "Création",
-            "history.op.update": "Mise à jour",
+            "modelcreator.field.history": "Permet d'afficher et de superviser les modifications effectuées sur vos données. Consomme de l'espace.'",
+            "history": "Historique",
+            //
             "history.op.delete": "Suppression",
             "history.datePrefix": "On",
             "history.byUser": "by",
@@ -553,6 +554,8 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "modelcreator.field.history": "Allows you to view and monitor changes made to your data. Consumes space.",
+            "history": "History",
             "history.op.create": "Creation",
             "history.op.update": "Update",
             "history.op.delete": "Deletion",
@@ -1978,6 +1981,9 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
+            "modelcreator.field.history": "Permite ver y supervisar los cambios realizados en los datos. Consume espacio.",
+            "history": "Historial",
+
             "history.op.create": "Creación",
             "history.op.update": "Actualización",
             "history.op.delete": "Eliminación",
@@ -3407,6 +3413,8 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
+            "modelcreator.field.history": "Permite visualizar e monitorar as alterações feitas nos seus dados. Consome espaço.",
+            "history": "Histórico",
             "history.op.create": "Criação",
             "history.op.update": "Atualização",
             "history.op.delete": "Exclusão",
@@ -4831,6 +4839,8 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
+            "modelcreator.field.history": "Ermöglicht Ihnen, Änderungen an Ihren Daten anzuzeigen und zu überwachen. Verbraucht Speicherplatz.",
+            "history": "Verlauf",
             "history.op.create": "Erstellung",
             "history.op.update": "Aktualisieren",
             "history.op.delete": "Löschen",
@@ -6239,6 +6249,8 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
+            "modelcreator.field.history": "Consente di visualizzare e monitorare le modifiche apportate ai dati. Occupa spazio.",
+            "history": "Cronologia",
             "history.op.create": "Creazione",
             "history.op.update": "Aggiorna",
             "history.op.delete": "Eliminazione",
@@ -7660,6 +7672,8 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
+            "modelcreator.field.history": "Umožňuje zobrazit a sledovat změny provedené ve vašich datech. Spotřebovává místo.",
+            "history": "Historie",
             "history.op.create": "Vytvoření",
             "history.op.update": "Aktualizace",
             "history.op.delete": "Smazání",
@@ -9076,6 +9090,8 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
+            "modelcreator.field.history": "Позволяет просматривать и отслеживать изменения, внесённые в ваши данные. Занимает место.",
+            "history": "История",
             "history.op.create": "Создание",
             "history.op.update": "Обновление",
             "history.op.delete": "Удаление",
@@ -10502,6 +10518,8 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
+            "modelcreator.field.history": "يسمح لك بعرض ومراقبة التغييرات التي أجريتها على بياناتك. يستهلك مساحة.",
+            "history": "السجل",
             "history.op.create": "إنشاء",
             "history.op.update": "تحديث",
             "history.op.delete": "حذف",
@@ -11944,6 +11962,8 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
+            "modelcreator.field.history": "Låter dig visa och övervaka ändringar som gjorts i dina data. Tar plats.",
+            "history": "Historik",
             "history.op.create": "Skapande",
             "history.op.update": "Uppdatering",
             "history.op.delete": "Bortning",
@@ -13360,7 +13380,8 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
-
+            "modelcreator.field.history": "Σας επιτρέπει να βλέπετε και να παρακολουθείτε τις αλλαγές που έγιναν στα δεδομένα σας. Καταλαμβάνει χώρο.",
+            "history": "Ιστορικό",
             "history.op.create": "Δημιουργία",
             "history.op.update": "Ενημέρωση",
             "history.op.delete": "Διαγραφή",
@@ -14785,6 +14806,8 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
+            "modelcreator.field.history": "به شما امکان می‌دهد تغییرات ایجاد شده در داده‌های خود را مشاهده و نظارت کنید. فضا مصرف می‌کند.",
+            "history": "تاریخچه",
             "history.op.create": "ایجاد",
             "history.op.update": "به‌روزرسانی",
             "history.op.delete": "حذف",
