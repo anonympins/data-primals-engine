@@ -198,7 +198,7 @@ export const Engine = {
                     logger.warn(`Aucun point d'entrée trouvé pour le module '${moduleIdentifier}'.`);
                 }
             } catch (e) {
-                logger.error(`Échec du chargement du module '${moduleIdentifier}':`, e.stack);
+                logger.error(`Could not load module '${moduleIdentifier}':`, e.stack);
             }
         }
 

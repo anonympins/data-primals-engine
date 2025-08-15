@@ -33,6 +33,7 @@ import {
     storageSafetyMargin
 } from "../../constants.js";
 import {
+    createCollection,
     getCollection,
     getCollectionForUser,
     getUserCollectionName,
@@ -1179,10 +1180,10 @@ export async function onInit(defaultEngine) {
     let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection, historyCollection;
 
     if( install ) {
-        datasCollection = await MongoDatabase.createCollection("datas");
-        historyCollection = await MongoDatabase.createCollection("history");
-        filesCollection = await MongoDatabase.createCollection("files");
-        packsCollection = await MongoDatabase.createCollection("packs");
+        datasCollection = await createCollection("datas");
+        historyCollection = await createCollection("history");
+        filesCollection = await createCollection("files");
+        packsCollection = await createCollection("packs");
         //data
         const indexes = await datasCollection.indexes();
         if (!indexes.find(i => i.name === 'genericPartialIndex')) {

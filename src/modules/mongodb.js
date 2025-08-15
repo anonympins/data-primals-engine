@@ -21,6 +21,15 @@ export async function onInit(defaultEngine) {
 };
 
 
+export const createCollection = async (coll)=>{
+    const colls= await MongoDatabase.listCollections().toArray();
+    const found =colls.find(f => f.name === coll);
+    if( found){
+        return getCollection(coll);
+    }
+    return await MongoDatabase.createCollection(coll);
+}
+
 export const isObjectId = (id) => {
     return (typeof(id) === 'string' && id.match(/^[0-9a-fA-F]{24}$/));
 };
