@@ -7,6 +7,7 @@ import { modelsCollection as getAppModelsCollection, getCollectionForUser, getCo
 import * as workflowModule from '../src/modules/workflow.js';
 import {initEngine} from "../src/setenv.js";
 import {maxExecutionsByStep} from "../src/constants.js";
+import {purgeData} from "../src/modules/data/data.history.js";
 
 vi.mock('../src/modules/workflow.js', { spy: true })
 
@@ -54,6 +55,7 @@ afterEach(() => {
     vi.useRealTimers()
 })
 afterAll(async () => {
+    await purgeData(mockUser);
     const coll = await getCollectionForUser(mockUser);
     await coll.drop();
 })

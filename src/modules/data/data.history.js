@@ -146,5 +146,85 @@ export function onInit(engine) {
         }
     }, "event", "system");
 
+    // --- Écouteur pour la SUPPRESSION de données (Snapshot final) ---
+    Event.Listen("OnDataDeleted", async (engine, { modelName, user, before }) => {
+        // 'before' est un tableau des documents complets juste avant leur suppression.
+        try {
+            const model = await getModel(modelName, user);
+            if (!model?.history?.enabled) return;
+
+            const historyCollection = getCollection('history');
+
+            for (const deletedDoc of before) {
+                // Récupérer la dernière version pour incrémenter
+                const lastVersionDoc = await historyCollection.findOne({ documentId: deletedDoc._id }, { sort: { version: -1 } });
+                // Si aucune version n'existe, c'est peut-être un cas où l'historique a été activé après la création.
+                // On commence à 1, sinon on incrémente.
+                const newVersion = lastVersionDoc ? lastVersionDoc.version + 1 : 1;
+
+                await historyCollection.insertOne({
+                    documentId: deletedDoc._id,
+                    model: modelName,
+                    timestamp: new Date(),
+                    user: { _id: user._id, username: user.username },
+                    version: newVersion,
+                    operation: 'delete',
+                    // On stocke un snapshot final du document supprimé pour audit ou restauration.
+                    snapshot: deletedDoc
+                });
+                logger.debug(`History v${newVersion} (delete) created for ${modelName} document ${deletedDoc._id}`);
+            }
+        } catch (error) {
+            logger.error("History Module (OnDataDeleted) Error:", error);
+        }
+    }, "event", "system");
+
     logger.info("History module initialized and listening for data events.");
+}
+
+
+/**
+ * Purge (supprime définitivement) des documents et tout leur historique associé.
+ * C'est une opération destructive à utiliser avec précaution.
+ * @param {object} user - L'utilisateur effectuant l'opération (pour les permissions).
+ * @param {string} modelName - Le nom du modèle concerné.
+ * @param {object} filter - Le filtre MongoDB pour trouver les documents à purger.
+ * @returns {Promise<{success: boolean, purgedCount: number, historyPurgedCount: number, error?: string}>}
+ */
+export async function purgeData(user, modelName = null, filter=null) {
+    const logger = new Logger("purgeData");
+    try {
+        const dataCollection = await getCollectionForUser(user);
+        const historyCollection = getCollection('history');
+
+        let m = modelName || { _model: modelName };
+        const f= filter || { _user: user.username };
+        // 1. Trouver les documents à purger pour récupérer leurs IDs
+        const docsToPurge = await dataCollection.find({ ...m, ...f }).project({ _id: 1 }).toArray();
+        if (docsToPurge.length === 0) {
+            return { success: true, purgedCount: 0, historyPurgedCount: 0 };
+        }
+        const docIdsToPurge = docsToPurge.map(d => d._id);
+
+        // 2. Purger l'historique associé à ces documents
+        const historyResult = await historyCollection.deleteMany({ documentId: { $in: docIdsToPurge } });
+
+        // 3. Purger les documents eux-mêmes
+        const dataResult = await dataCollection.deleteMany({ _id: { $in: docIdsToPurge } });
+
+        logger.info(`Purged ${dataResult.deletedCount} documents and ${historyResult.deletedCount} history entries for model '${modelName}'.`);
+
+        // On pourrait aussi émettre un événement "OnDataPurged" ici si nécessaire
+        await Event.Trigger("OnDataPurged", { user, modelName, purgedIds: docIdsToPurge });
+
+        return {
+            success: true,
+            purgedCount: dataResult.deletedCount,
+            historyPurgedCount: historyResult.deletedCount
+        };
+
+    } catch (error) {
+        logger.error(`Error during data purge for model '${modelName}':`, error);
+        return { success: false, purgedCount: 0, historyPurgedCount: 0, error: error.message };
+    }
 }

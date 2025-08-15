@@ -21,6 +21,7 @@ import process from "node:process";
 import { dumpUserData, loadFromDump } from '../src/index.js';
 import fs from "node:fs";
 import {initEngine} from "../src/setenv.js";
+import {purgeData} from "../src/modules/data/data.history.js";
 
 vi.mock('../src/engine', async(importOriginal) => {
     const mod = await importOriginal() // type is inferred
@@ -78,6 +79,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
 
+    await purgeData(mockUser, testModelDefinition.name);
+
     delete process.env.DB_URL;
     delete process.env.DB_NAME;
 
@@ -95,10 +98,12 @@ afterAll(async () => {
 beforeAll(async () =>{
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
+
 })
 beforeEach(async () => {
     testModelsColInstance = getAppModelsCollection;
     testDatasColInstance = await getAppUserCollection(mockUser);
+
 });
 
 describe('Data Backup and Restore Integration', () => {

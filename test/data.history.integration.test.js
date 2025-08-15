@@ -6,6 +6,8 @@ import { sleep } from '../src/core.js';
 import { insertData, editData, deleteModels } from '../src/index.js';
 import { getCollection, getCollectionForUser } from '../src/modules/mongodb.js';
 import { generateUniqueName, initEngine } from "../src/setenv.js";
+import {purgeData} from "../src/modules/data/data.history.js";
+import {MongoDatabase} from "../src/engine.js";
 
 let engine;
 let testUser;
@@ -20,7 +22,6 @@ describe('Data History Module Integration Tests', () => {
         Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow", "user", "assistant"]);
         engine = await initEngine();
 
-        console.log("ok")
         // Setup a single user for all tests in this suite
         testUser = {
             username: generateUniqueName('testUserHistory'),
@@ -33,6 +34,11 @@ describe('Data History Module Integration Tests', () => {
         datasCollection = await getCollectionForUser(testUser);
         modelsCollection = getCollection('models');
     });
+
+    afterAll(async () =>{
+        await purgeData(testUser);
+        await datasCollection.drop();
+    })
 
     // Clean up collections before each test to ensure isolation
     beforeEach(async () => {
@@ -82,8 +88,6 @@ describe('Data History Module Integration Tests', () => {
         const insertResult = await insertData(modelName, initialData, {}, testUser);
         expect(insertResult.success).toBe(true);
         const docId = new ObjectId(insertResult.insertedIds[0]);
-
-        await sleep(2000);
 
         // 3. Verify the history record
         const historyRecord = await historyCollection.findOne({ documentId: new ObjectId(docId) });
@@ -138,7 +142,6 @@ describe('Data History Module Integration Tests', () => {
         const editResult = await editData(modelName, { _id: docId }, updateData, {}, testUser);
         expect(editResult.success).toBe(true);
 
-        await sleep(2000);
         // 4. Verify the new history record (v2)
         const historyRecord = await historyCollection.findOne({ documentId: docId, version: 2 });
 
