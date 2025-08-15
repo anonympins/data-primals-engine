@@ -5,6 +5,7 @@ import {insertData, editData, deleteData, patchData} from '../src/index.js';
 import { modelsCollection as getAppModelsCollection, getCollectionForUser } from '../src/modules/mongodb.js';
 import * as workflowModule from '../src/modules/workflow.js';
 import {initEngine} from "../src/setenv.js";
+import {purgeData} from "../src/modules/data/data.history.js";
 
 beforeAll(async () =>{
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
@@ -157,6 +158,7 @@ afterEach(() => {
     vi.useRealTimers()
 })
 afterAll(async () => {
+    await purgeData(mockUser);
     const coll = await getCollectionForUser(mockUser);
     await coll.drop();
 })

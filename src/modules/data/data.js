@@ -1,35 +1,25 @@
 import {Logger} from "../../gameObject.js";
 import {BSON, ObjectId} from "mongodb";
-import util, {promisify} from 'node:util';
+import {promisify} from 'node:util';
 import crypto from "node:crypto";
-import {exec, execFile} from 'node:child_process';
+import {execFile} from 'node:child_process';
 import sanitizeHtml from 'sanitize-html';
 import * as tar from "tar";
 import process from "node:process";
 import {randomColor} from "randomcolor";
 import cronstrue from 'cronstrue/i18n.js';
 import {mkdir} from 'node:fs/promises';
-import {
-    anonymizeText,
-    getDefaultForType,
-    getFieldValueHash,
-    getUserId,
-    isDemoUser,
-    isLocalUser
-} from "../../data.js";
+import {onInit as historyInit} from "./data.history.js";
+import {anonymizeText, getDefaultForType, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../../data.js";
 import {
     allowedFields,
     dbName,
     install,
     maxAlertsPerUser,
-    maxBytesPerSecondThrottleData,
     maxExportCount,
     maxFileSize,
     maxFilterDepth,
-    maxMagnetsDataPerModel,
-    maxMagnetsModels,
     maxModelNameLength,
-    maxModelsPerUser,
     maxPasswordLength,
     maxPostData,
     maxRelationsPerData,
@@ -43,6 +33,7 @@ import {
     storageSafetyMargin
 } from "../../constants.js";
 import {
+    createCollection,
     getCollection,
     getCollectionForUser,
     getUserCollectionName,
@@ -52,7 +43,7 @@ import {
 } from "../mongodb.js";
 import {dbUrl, MongoClient, MongoDatabase} from "../../engine.js";
 import path from "node:path";
-import {getFileExtension, getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sleep, uuidv4} from "../../core.js";
+import {getObjectHash, getRandom, isGUID, isPlainObject, randomDate} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
@@ -67,12 +58,9 @@ import {
 import NodeCache from "node-cache";
 import AWS from 'aws-sdk';
 import checkDiskSpace from "check-disk-space";
-import {addFile,  removeFile} from "../file.js";
+import {addFile, removeFile} from "../file.js";
 import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
-import {
-    calculateTotalUserStorageUsage,
-    hasPermission, middlewareAuthenticator
-} from "../user.js";
+import {calculateTotalUserStorageUsage, hasPermission, middlewareAuthenticator} from "../user.js";
 import {getAllPacks} from "../../packs.js";
 import {Config} from "../../config.js";
 import {profiles} from "../../../client/src/constants.js";
@@ -500,53 +488,8 @@ export const getAPILang = (langs) => {
 }
 
 
-export function validateModelStructure(modelStructure) {
-
-    const objectKeys = Object.keys(modelStructure);
-    if( objectKeys.find(o => !["name", "_user", "locked", "_id", "description", "maxRequestData", "fields"].includes(o)) ){
-        throw new Error(i18n.t('api.model.invalidStructure'));
-    }
-
-    // Vérification du type de name
-    if (typeof modelStructure.name !== 'string' || !modelStructure.name) {
-        throw new Error(i18n.t("api.validate.requiredFieldString", ["name"]));
-    }
-
-    // Vérification du type de description
-    if (typeof modelStructure.description !== 'string') {
-        throw new Error(i18n.t("api.validate.fieldString", ["description"]));
-    }
-
-    // Vérification de la présence et du type du tableau fields
-    if (!Array.isArray(modelStructure.fields)) {
-        throw new Error(i18n.t('api.validate.fieldArray', ["fields"]));
-    }
-
-    // Vérification de chaque champ dans le tableau fields
-    for (const field of modelStructure.fields) {
-        validateField(field);
-    }
-
-    if (modelStructure.constraints) {
-        if (!Array.isArray(modelStructure.constraints)) {
-            throw new Error('Model "constraints" property must be an array.');
-        }
-        const fieldNames = new Set(modelStructure.fields.map(f => f.name));
-        for (const constraint of modelStructure.constraints) {
-            if (constraint.type === 'unique') {
-                if (!constraint.name || !Array.isArray(constraint.keys) || constraint.keys.length === 0) {
-                    throw new Error('Unique constraint must have a "name" and a non-empty "keys" array.');
-                }
-                for (const key of constraint.keys) {
-                    if (!fieldNames.has(key)) {
-                        throw new Error(`Constraint key "${key}" in constraint "${constraint.name}" does not exist as a field in the model.`);
-                    }
-                }
-            }
-        }
-    }
-
-    return true; // La structure du modèle est valide
+export async function validateModelStructure(modelStructure) {
+    return await Event.Trigger("OnValidateModelStructure", "event", "system", modelStructure);
 }
 
 const validateField = (field) => {
@@ -905,7 +848,7 @@ async function runStatefulAlertJob(alertId) {
                 timestamp: new Date().toISOString(),
                 message: `Alerte '${alertDoc.name}': ${count} élément(s) correspondent à votre condition.`
             };
-            sendSseToUser(alertDoc._user, alertPayload);
+            await sendSseToUser(alertDoc._user, alertPayload);
 
             // Update state in DB to prevent re-notification
             await datasCollection.updateOne(
@@ -1030,7 +973,7 @@ export const editModel = async (user, id, data) => {
     const dataModel = data;
     try {
         const collection = await getCollectionForUser(user);
-        validateModelStructure(dataModel);
+        await validateModelStructure(dataModel);
 
         const el = await modelsCollection.findOne({ $and: [
             {_user: {$exists: true}},
@@ -1119,8 +1062,8 @@ export const editModel = async (user, id, data) => {
 
         const newModel = await modelsCollection.findOne({_id : oid});
         const res = ({ success: true, data: newModel });
-        const plugin = Event.Trigger("OnModelEdited", "event", "system", engine, newModel);
-        Event.Trigger("OnModelEdited", "event", "user", plugin?.data || newModel);
+        const plugin = await Event.Trigger("OnModelEdited", "event", "system", engine, newModel);
+        await Event.Trigger("OnModelEdited", "event", "user", plugin?.data || newModel);
         return plugin || res
     } catch (e) {
         logger.error(e);
@@ -1234,12 +1177,13 @@ export async function onInit(defaultEngine) {
 
     engine.use(middleware({ whitelist: mongoDBWhitelist }));
 
-    let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection;
+    let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection, historyCollection;
 
     if( install ) {
-        datasCollection = await MongoDatabase.createCollection("datas");
-        filesCollection = await MongoDatabase.createCollection("files");
-        packsCollection = await MongoDatabase.createCollection("packs");
+        datasCollection = await createCollection("datas");
+        historyCollection = await createCollection("history");
+        filesCollection = await createCollection("files");
+        packsCollection = await createCollection("packs");
         //data
         const indexes = await datasCollection.indexes();
         if (!indexes.find(i => i.name === 'genericPartialIndex')) {
@@ -1265,7 +1209,7 @@ export async function onInit(defaultEngine) {
             await datasCollection.createIndex({_model: 1, _user: 1}, { name: 'modelUserIndex'});
         }
 
-        const jobsCollection = await MongoDatabase.createCollection("job_locks");
+        const jobsCollection = await createCollection("job_locks");
         if (! await jobsCollection.indexExists("jobTTLIndex") ) {
             await jobsCollection.createIndex({ "lockedUntil": 1 }, { name: "jobTTLIndex", expireAfterSeconds: 0 });
         }
@@ -1309,6 +1253,7 @@ export async function onInit(defaultEngine) {
         datasCollection = getCollection("datas");
         filesCollection = getCollection("files");
         packsCollection = getCollection("packs");
+        historyCollection = getCollection("history");
     }
     await registerRoutes(engine);
     logger = engine.getComponent(Logger);
@@ -1325,6 +1270,61 @@ export async function onInit(defaultEngine) {
     });
     await scheduleAlerts();
 
+    // Triggers
+
+    Event.Listen("OnValidateModelStructure", async (modelStructure) =>{
+
+        const objectKeys = Object.keys(modelStructure);
+
+        if( objectKeys.find(o => !["name", "_user", "history", "locked", "_id", "description", "maxRequestData", "fields"].includes(o)) ){
+            throw new Error(i18n.t('api.model.invalidStructure'));
+        }
+
+        // Vérification du type de name
+        if (typeof modelStructure.name !== 'string' || !modelStructure.name) {
+            throw new Error(i18n.t("api.validate.requiredFieldString", ["name"]));
+        }
+
+        // Vérification du type de description
+        if (typeof modelStructure.description !== 'string') {
+            throw new Error(i18n.t("api.validate.fieldString", ["description"]));
+        }
+
+        // Vérification de la présence et du type du tableau fields
+        if (!Array.isArray(modelStructure.fields)) {
+            throw new Error(i18n.t('api.validate.fieldArray', ["fields"]));
+        }
+
+        // Vérification de chaque champ dans le tableau fields
+        for (const field of modelStructure.fields) {
+            validateField(field);
+        }
+
+        if (modelStructure.constraints) {
+            if (!Array.isArray(modelStructure.constraints)) {
+                throw new Error('Model "constraints" property must be an array.');
+            }
+            const fieldNames = new Set(modelStructure.fields.map(f => f.name));
+            for (const constraint of modelStructure.constraints) {
+                if (constraint.type === 'unique') {
+                    if (!constraint.name || !Array.isArray(constraint.keys) || constraint.keys.length === 0) {
+                        throw new Error('Unique constraint must have a "name" and a non-empty "keys" array.');
+                    }
+                    for (const key of constraint.keys) {
+                        if (!fieldNames.has(key)) {
+                            throw new Error(`Constraint key "${key}" in constraint "${constraint.name}" does not exist as a field in the model.`);
+                        }
+                    }
+                }
+            }
+        }
+
+        return true; // La structure du modèle est valide
+    }, "event", "system");
+
+
+    // Sub modules
+    historyInit(defaultEngine);
 }
 
 export const createModel = async (data) => {
@@ -1533,7 +1533,7 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
                                     };
 
                                     // Envoyer l'alerte à l'utilisateur spécifique via SSE
-                                    const sent = sendSseToUser(doc._user, alertPayload);
+                                    const sent = await sendSseToUser(doc._user, alertPayload);
 
                                     if (sent) {
                                         logger.info(`[Scheduled Job] Successfully sent SSE alert for job ${jobId} to user ${doc._user}.`);
@@ -1574,10 +1574,18 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
             // Attendre que toutes les opérations post-insertion (workflows, planification) soient tentées
             await Promise.allSettled(postInsertionPromises);
         }
-        const res = { success: true, insertedIds: insertedIds.map(id => id.toString()) }; // Convertir les IDs en string pour la réponse
-        const plugin = Event.Trigger("OnDataAdded", "event", "system", engine, insertedIds);
-        Event.Trigger("OnDataAdded", "event", "user", plugin?.insertedIds || insertedIds);
-        return plugin || res;
+
+        // System specific event
+        const eventPayload = { modelName, insertedIds, user };
+        await Event.Trigger("OnDataAdded", "event", "system", engine, eventPayload);
+
+        // User specific event
+        const userPayload = {...eventPayload};
+        delete userPayload['user'];
+        await Event.Trigger("OnDataAdded", "event", "user", userPayload);
+
+        // Return valid result
+        return { success: true, insertedIds: insertedIds.map(id => id.toString()) }; // Convertir les IDs en string pour la réponse
 
     } catch (error) { // Attrape les erreurs de permission ou de pushDataUnsecure
         logger.error(`[insertData] Main error during insertion process for model ${modelName}: ${error.message}`, error.stack);
@@ -1717,7 +1725,7 @@ async function initializeAndValidate(data, modelName, me) {
 
     const model = await getModel(modelName, me);
     const collection = await getCollectionForUser(me);
-    validateModelStructure(model);
+    await validateModelStructure(model);
 
     return { datas, model, collection };
 }
@@ -1780,7 +1788,7 @@ async function processDocuments(datas, model, collection, me) {
     const idMap = new Map();
     const allInsertedIds = [];
 
-    const realData = Event.Trigger("OnDataInsert", "event", "system", datas) || datas;
+    const realData = await Event.Trigger("OnDataInsert", "event", "system", datas) || datas;
     for (const doc of realData) {
         try {
             const newDocId = await insertAndResolveRelations(doc, model, collection, me, idMap);
@@ -1986,7 +1994,7 @@ async function applyFieldFilters(docToProcess, model) {
                 docToProcess[field.name],
                 field
             );
-            const realFilter = Event.Trigger('OnDataFilter', "event", "system",filter, field, docToProcess );
+            const realFilter = await Event.Trigger('OnDataFilter', "event", "system",filter, field, docToProcess );
             docToProcess[field.name] = realFilter || filter;
         }
     }
@@ -1996,7 +2004,7 @@ async function applyFieldFilters(docToProcess, model) {
 /**
  * Valide la structure et le contenu du document selon le modèle
  */
-function validateModelData(doc, model, isPatch = false) {
+async function validateModelData(doc, model, isPatch = false) {
     if (!isPatch) {
         model.fields.forEach(field => {
             const value = doc[field.name];
@@ -2018,7 +2026,7 @@ function validateModelData(doc, model, isPatch = false) {
 
         const validator = dataTypes[fieldDef.type]?.validate;
         const valid = validator && validator(value, fieldDef);
-        const realValidation = Event.Trigger('OnDataValidate', "event", "system", value, fieldDef,doc );
+        const realValidation = await Event.Trigger('OnDataValidate', "event", "system", value, fieldDef,doc );
         if (!(valid || realValidation)) {
             throw new Error(i18n.t('api.field.validationFailed', { field: fieldName, value }));
         }
@@ -2055,9 +2063,9 @@ async function insertAndResolveRelations(doc, model, collection, me, idMap) {
         docToProcess._id = new ObjectId(originalId);
     }
 
-    validateModelData(docToProcess, model);
+    await validateModelData(docToProcess, model);
     await processRelations(docToProcess, model, collection, me, idMap);
-    validateModelData(docToProcess, model);
+    await validateModelData(docToProcess, model);
     await applyFieldFilters(docToProcess, model);
     await checkUniqueFields(docToProcess, model, collection);
 
@@ -2299,9 +2307,9 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         // 4. Validation adaptée pour patch ou edit (inchangé)
         if (!isPatch) {
             const dataToValidate = { ...existingDocs[0], ...updateData };
-            validateModelData(dataToValidate, model, false);
+            await validateModelData(dataToValidate, model, false);
         } else {
-            validateModelData(updateData, model, true);
+            await validateModelData(updateData, model, true);
         }
 
         // 5. Vérification des champs uniques (inchangé)
@@ -2402,6 +2410,17 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         const bulkResult = await collection.bulkWrite(bulkOps);
         const modifiedCount = bulkResult.modifiedCount || 0;
 
+        // Déclencher l'événement OnDataEdited avec les états avant/après
+        if (modifiedCount > 0) {
+            const updatedDocs = await collection.find({ _id: { $in: ids } }).toArray();
+            await Event.Trigger("OnDataEdited", "event", "system", engine, {
+                modelName,
+                user,
+                before: existingDocs, // Documents avant la modification
+                after: updatedDocs     // Documents après la modification
+            });
+        }
+
         // 11. Tâches post-mise à jour (schedules, workflows) (inchangé)
         if (["workflowTrigger", "alert"].includes(modelName)) {
             await handleScheduledJobs(modelName, existingDocs, collection, finalDataForSet);
@@ -2462,7 +2481,7 @@ async function handleScheduledJobs(modelName, existingDocs, collection, updateDa
             schedule.scheduleJob(jobId, updatedDoc.cronExpression, async () => {
                 logger.info(`[Scheduled Job] Cron triggered for job ${jobId}`);
                 await runScheduledJobWithDbLock(jobId, async () => {
-                    sendSseToUser(updatedDoc._user, {
+                    await sendSseToUser(updatedDoc._user, {
                         type: 'cron_alert',
                         triggerId: updatedDoc._id.toString(),
                         triggerName: updatedDoc.name,
@@ -2685,8 +2704,8 @@ export const deleteData = async (modelName, filter, user ={}, triggerWorkflow, w
         }
 
         const res = { success: true, deletedCount }
-        const plugin = Event.Trigger("OnDataDeleted", "event", "system", engine, {model:modelName, filter});
-        Event.Trigger("OnDataDeleted", "event", "user", {model:modelName, filter});
+        const plugin = await Event.Trigger("OnDataDeleted", "event", "system", engine, {model:modelName, filter});
+        await Event.Trigger("OnDataDeleted", "event", "user", {model:modelName, filter});
         return plugin || res;
 
     } catch (error) {
@@ -3194,8 +3213,8 @@ export const searchData = async (query, user) => {
     data = await handleFields(modelElement, data, user);
 
     const res = {data, count: count[0]?.count || 0};
-    const plugin = Event.Trigger("OnDataSearched", "event", "system", engine, {data, count: count[0]?.count});
-    Event.Trigger("OnDataSearched", "event", "user", plugin || {data, count: count[0]?.count});
+    const plugin = await Event.Trigger("OnDataSearched", "event", "system", engine, {data, count: count[0]?.count});
+    await Event.Trigger("OnDataSearched", "event", "user", plugin || {data, count: count[0]?.count});
     return plugin || res;
 }
 
@@ -3272,7 +3291,7 @@ export const importData = async(options, files, user) => {
                                 });
                             }
 
-                            validateModelStructure(modelData);
+                            await validateModelStructure(modelData);
                             await modelsCollection.insertOne(modelData);
                             logger.info(`[Model Import] Successfully imported model '${modelName}' for user ${user.username}.`);
                         } catch (e) {
@@ -3354,7 +3373,7 @@ export const importData = async(options, files, user) => {
                                 if (insertedIdsArray && insertedIdsArray.length > 0) {
                                     importJobs[importJobId].processedRecords += insertedIdsArray.length;
                                     logger.debug(`[Import Job ${importJobId}] Processed chunk for '${modelName}': ${insertedIdsArray.length} records. Total processed: ${importJobs[importJobId].processedRecords}`);
-                                    sendSseToUser(user.username, {
+                                    await sendSseToUser(user.username, {
                                         type: 'import_progress',
                                         job: importJobs[importJobId]
                                     });
@@ -3458,7 +3477,7 @@ export const importData = async(options, files, user) => {
                                     const insertedIdsArray = await pushDataUnsecure(chunk, modelNameForImport, user, {});
                                     if (insertedIdsArray && insertedIdsArray.length > 0) {
                                         importJobs[importJobId].processedRecords += insertedIdsArray.length;
-                                        sendSseToUser(user.username, {
+                                        await sendSseToUser(user.username, {
                                             type: 'import_progress',
                                             job: importJobs[importJobId]
                                         });
@@ -3552,7 +3571,7 @@ export const importData = async(options, files, user) => {
                                     const insertedIdsArray = await pushDataUnsecure(chunk, modelNameForImport, user, {});
                                     if (insertedIdsArray && insertedIdsArray.length > 0) {
                                         importJobs[importJobId].processedRecords += insertedIdsArray.length;
-                                        sendSseToUser(user.username, {
+                                        await sendSseToUser(user.username, {
                                             type: 'import_progress',
                                             job: importJobs[importJobId]
                                         });
@@ -3597,7 +3616,7 @@ export const importData = async(options, files, user) => {
                 } else {
                     importJobs[importJobId].status = 'completed';
                 }
-                sendSseToUser(user.username, {
+                await sendSseToUser(user.username, {
                     type: 'import_progress',
                     job: importJobs[importJobId]
                 });
@@ -3733,8 +3752,8 @@ export const exportData= async (options, user) =>{
     }
 
     const res = { success: true, data: exportResults, models: modelsToExport };
-    const plugin = Event.Trigger("OnDataExported", "event", "system", engine, exportResults, modelsToExport);
-    Event.Trigger("OnDataExported", "event", "user", plugin?.exportResults || exportResults, plugin?.modelsToExport || modelsToExport);
+    const plugin = await Event.Trigger("OnDataExported", "event", "system", engine, exportResults, modelsToExport);
+    await Event.Trigger("OnDataExported", "event", "user", plugin?.exportResults || exportResults, plugin?.modelsToExport || modelsToExport);
     return plugin || res;
 }
 
@@ -4086,7 +4105,7 @@ export const loadFromDump = async (user, options = {}) => {
         modelsCache.flushAll();
 
         logger.info(`[${action}] Restore successful for user ${user.username}.`);
-        Event.Trigger("OnDataRestored", "event", "system");
+        await Event.Trigger("OnDataRestored", "event", "system");
 
     } finally {
         // --- GUARANTEED CLEANUP ---
@@ -4356,7 +4375,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
                     preparedModel.fields.forEach(f => f.locked = false);
                 }
 
-                validateModelStructure(preparedModel);
+                await validateModelStructure(preparedModel);
                 await modelsCollection.insertOne(preparedModel);
                 summary.models.installed.push(modelName);
 
@@ -4527,7 +4546,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
 
     // Trigger event only if pack came from database (original behavior)
     if (typeof packIdentifier === 'string') {
-        Event.Trigger("OnPackInstalled", "event", "system", pack);
+        await Event.Trigger("OnPackInstalled", "event", "system", pack);
     }
 
     const modifiedCount = summary.datas.inserted + summary.datas.updated;

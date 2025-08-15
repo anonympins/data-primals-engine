@@ -46,20 +46,20 @@ parentPort.on('message', async ({ action, payload }) => {
         let result;
         switch (action) {
         case 'encrypt':
-            console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
+            //console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
             await encryptFile(payload.filePath, payload.password);
             parentPort.postMessage({ success: true }); // Pas de données à retourner
             break;
 
         case 'decrypt':
-            console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
+            //console.log(`[Worker] Received action: ${action} for file: ${payload.filePath}`);
             await decryptFile(payload.filePath, payload.password);
             parentPort.postMessage({ success: true }); // Pas de données à retourner
             break;
                 
 
         case 'hash':
-            console.log(`[Worker] Received action: hash`);
+            //console.log(`[Worker] Received action: hash`);
             if (!payload.data) throw new Error('Data to hash is missing in payload.');
             // Le worker gère à la fois la génération du "salt" et le hachage
             const salt = await bcrypt.genSalt(10);

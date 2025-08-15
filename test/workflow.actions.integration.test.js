@@ -11,6 +11,7 @@ import { initEngine } from "../src/setenv.js";
 import * as emailModule from '../src/email.js';
 import { ChatOpenAI } from "@langchain/openai";
 import {ObjectId} from "mongodb";
+import {purgeData} from "../src/modules/data/data.history.js";
 
 let testModelsColInstance;
 let testDatasColInstance;
@@ -142,6 +143,7 @@ afterEach(() => {
 });
 
 afterAll(async () => {
+    await purgeData(mockUser);
     const coll = await getCollectionForUser(mockUser);
     await coll.drop();
 });

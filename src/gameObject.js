@@ -61,35 +61,6 @@ export class MovableBehaviour extends Behaviour {
         this.gameObject.x += this.speed;
     }
 }
-
-// UsableBehavior.js
-export class UsableBehaviour extends Behaviour {
-    constructor(gameObject) {
-        super(gameObject);
-    }
-
-    use() {
-        Event.Trigger("GameObject.UsableBehavior.use",  "system", "calls", this);
-    }
-}
-
-const mainDriver = GameObject.Create("MainDrivers");
-
-// Exemple d'attachement de comportements
-mainDriver.addComponent(MovableBehaviour, 10);
-mainDriver.addComponent(UsableBehaviour);
-
-// Accéder et utiliser les composants
-const movable = mainDriver.getComponent(MovableBehaviour);
-if (movable) {
-    movable.update();
-}
-const usable = mainDriver.getComponent(UsableBehaviour);
-if (usable) {
-    usable.use();
-}
-
-
 export class Logger extends Behaviour {
     constructor(gameObject) {
         super(gameObject);

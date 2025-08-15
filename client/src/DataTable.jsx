@@ -283,7 +283,7 @@ export function DataTable({
                         console.log('Données non trouvées');
                     }
 
-                    Event.Trigger('API_DELETE_DATA', "custom", "data",{ model: item._model, id: item._id });
+                    await Event.Trigger('API_DELETE_DATA', "custom", "data",{ model: item._model, id: item._id });
                     queryClient.invalidateQueries(['api/data', item._model, 'page', page, elementsPerPage, pagedFilters[item._model], pagedSort[item._model]]);
 
                 } else {

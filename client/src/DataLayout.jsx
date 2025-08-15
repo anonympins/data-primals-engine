@@ -327,11 +327,11 @@ function DataLayout() {
             };
             addNotification(notificationData);
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
 
             console.log('Données enregistrées:', data, selectedModel);
 
-            Event.Trigger(recordToEdit ? 'API_ADD_DATA' : 'API_ADD_DATA', "custom", "data", {
+            await Event.Trigger(recordToEdit ? 'API_ADD_DATA' : 'API_ADD_DATA', "custom", "data", {
                 model: selectedModel.name,
             });
 

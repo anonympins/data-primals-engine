@@ -195,7 +195,7 @@ export const useTutorials = () => {
 
     // Écoute les événements de modification de données pour vérifier la progression en arrière-plan.
     useEffect(() => {
-        const handleDataChange = (payload) => {
+        const handleDataChange = async (payload) => {
             console.log(`[Tutoriels] Événement de données reçu.`, payload);
             if (me?.activeTutorial) {
                 triggerTutorialCheck();

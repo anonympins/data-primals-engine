@@ -9,6 +9,7 @@ import {
 import {generateUniqueName, initEngine} from "../src/setenv.js";
 import {editModel} from "../src/index.js";
 import {getCollectionForUser} from "../src/modules/mongodb.js";
+import {purgeData} from "../src/modules/data/data.history.js";
 
 let testModelsColInstance;
 let testModelId;
@@ -101,6 +102,10 @@ async function setupTestContext() {
     ]);
 
     testModelId = result.insertedIds[0];
+
+    await purgeData(currentTestUser, comprehensiveTestModelDefinition.name);
+    await purgeData(currentTestUser, relatedModelDefinition.name);
+
     await testDatasColInstance.deleteMany({ _user: currentTestUser.username });
     await testDatasColInstance.deleteMany({ _model: { $in: [comprehensiveTestModelDefinition.name, 'renamedTestModel'] } });
     // Retourner toutes les variables nécessaires pour un test

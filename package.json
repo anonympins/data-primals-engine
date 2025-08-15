@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "clean": "rm -rf node_modules package-lock.json",
-    "test": "cross-env MONGO_DB_URL=\"mongodb://localhost:27017\" PORT=7635 vitest --no-file-parallelism",
+    "test": "cross-env MONGO_DB_URL=\"mongodb://localhost:27017\" PORT=7635 vitest --no-file-parallelism --no-watch",
     "audit": "npm audit --audit-level=high",
     "migrate:create": "node src/migrate.js create",
     "migrate:up": "node src/migrate.js up",
