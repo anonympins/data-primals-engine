@@ -4259,7 +4259,8 @@ This ensures that your application only processes legitimate requests from Strip
                 "all": {
                     "env": [
                         { "name": "STRIPE_SECRET_KEY", "value": "sk_test_YOUR_SECRET_KEY" },
-                        { "name": "STRIPE_WEBHOOK_SECRET", "value": "whsec_YOUR_WEBHOOK_SECRET" }
+                        { "name": "STRIPE_WEBHOOK_SECRET", "value": "whsec_YOUR_WEBHOOK_SECRET" },
+                        { "name": "APP_BASE_URL", "value": "https://yourdomain.tld" }
                     ],
                     "endpoint": [
                         {
