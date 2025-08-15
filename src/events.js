@@ -35,7 +35,7 @@ export const Event = {
                                         if (typeof ret !== "object") ret = {};
                                         ret = {...ret, ...res};
                                     } else if (Array.isArray(res)) {
-                                        if (!Array.isArray(ret)) ret = [];
+                                        if (!ret || !Array.isArray(ret)) ret = [];
                                         ret = ret.concat(res);
                                     } else if (typeof res === "string") {
                                         if (typeof ret !== "string") ret = "";

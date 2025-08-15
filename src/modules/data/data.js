@@ -1271,7 +1271,7 @@ export async function onInit(defaultEngine) {
 
     // Triggers
 
-    Event.Listen("OnValidateModelStructure", (modelStructure) =>{
+    Event.Listen("OnValidateModelStructure", async (modelStructure) =>{
 
         const objectKeys = Object.keys(modelStructure);
 
