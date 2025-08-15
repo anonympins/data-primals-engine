@@ -1053,9 +1053,6 @@ export const defaultModels = {
     'request': {
         name: 'request',
         description: "Journal des requêtes reçues par l'API.",
-        history: {
-            enabled: true
-        },
         locked: true, // Géré par le système, non modifiable directement par l'utilisateur via l'UI standard
         fields: [
             {
