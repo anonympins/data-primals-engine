@@ -50,7 +50,7 @@ export const Event = {
                                         ret = res || ret;
                                     }
                                 } catch (error) {
-                                    console.error(`Error in callback for event ${name} in system ${currentSystem} layer ${currentLayer}:`, error);
+                                    throw new Error(`Error in callback for event ${name} in system ${currentSystem} layer ${currentLayer}:`, error);
                                 }
                             }
                         }

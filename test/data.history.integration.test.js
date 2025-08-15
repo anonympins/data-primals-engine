@@ -108,6 +108,7 @@ describe('Data History Module Integration Tests', () => {
         const modelName = generateUniqueName('productHistorySelective');
         const productModelDef = {
             name: modelName,
+            description:"",
             _user: testUser.username,
             history: {
                 enabled: true,
@@ -158,6 +159,7 @@ describe('Data History Module Integration Tests', () => {
         const modelName = generateUniqueName('productHistoryNoOp');
         const productModelDef = {
             name: modelName,
+            description:"",
             _user: testUser.username,
             history: { enabled: true, fields: { price: true } },
             fields: [
