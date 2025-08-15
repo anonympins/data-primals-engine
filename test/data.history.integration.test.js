@@ -2,6 +2,7 @@
 import { ObjectId } from 'mongodb';
 import { expect, describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Config } from '../src/config.js';
+import { sleep } from '../src/core.js';
 import { insertData, editData, deleteModels } from '../src/index.js';
 import { getCollection, getCollectionForUser } from '../src/modules/mongodb.js';
 import { generateUniqueName, initEngine } from "../src/setenv.js";
@@ -82,8 +83,8 @@ describe('Data History Module Integration Tests', () => {
         expect(insertResult.success).toBe(true);
         const docId = new ObjectId(insertResult.insertedIds[0]);
 
-        console.log(await historyCollection.find().toArray());
-        console.log(docId.toString());
+        await sleep(2000);
+
         // 3. Verify the history record
         const historyRecord = await historyCollection.findOne({ documentId: new ObjectId(docId) });
 
@@ -137,6 +138,7 @@ describe('Data History Module Integration Tests', () => {
         const editResult = await editData(modelName, { _id: docId }, updateData, {}, testUser);
         expect(editResult.success).toBe(true);
 
+        await sleep(2000);
         // 4. Verify the new history record (v2)
         const historyRecord = await historyCollection.findOne({ documentId: docId, version: 2 });
 
@@ -178,6 +180,8 @@ describe('Data History Module Integration Tests', () => {
         // 3. Edit ONLY a non-historized field
         const updateData = { description: 'This change should not be recorded.' };
         await editData(modelName, { _id: docId }, updateData, {}, testUser);
+
+        await sleep(2000);
 
         // 4. Verify that NO new history record was created (only the 'create' record exists)
         const historyCount = await historyCollection.countDocuments({ documentId: docId });

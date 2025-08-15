@@ -13,13 +13,19 @@ const eventLayerSystems = {
 
 export const Event = {
     Trigger: async (name, system = "priority", layer = "medium", ...args) => {  // Ajout des arguments system et layer
+        if (!name || typeof name !== 'string') {
+            throw new Error('Event name must be a non-empty string');
+        }
+
         if (!events[system] || !events[system][name] || (layer && !events[system][name][layer])) {
             //console.warn(`No trigger found for ${name} in system ${system} layer ${layer}`);
             return null;
         }
 
         const systemsToProcess = system ? [system] : Object.keys(events); // Si system est spécifié, on cible ce système uniquement, sinon tous les systèmes
-
+        console.log(`[Event] Triggering ${system}.${layer}.${name}`, {
+            callbacks: events[system]?.[name]?.[layer]?.length || 0
+        });
         let ret = null;
         for (const currentSystem of systemsToProcess) {
             if (events[currentSystem] && events[currentSystem][name]) {
@@ -31,6 +37,7 @@ export const Event = {
                             for (const callback of events[currentSystem][name][currentLayer]) {
                                 try {
                                     const res = await callback(...args);
+                                    console.log({res})
                                     if (typeof res === "object" && !Array.isArray(res)) {
                                         if (typeof ret !== "object") ret = {};
                                         ret = {...ret, ...res};
@@ -50,7 +57,11 @@ export const Event = {
                                         ret = res || ret;
                                     }
                                 } catch (error) {
-                                    throw new Error(`Error in callback for event ${name} in system ${currentSystem} layer ${currentLayer}:`, error);
+                                    const errorMsg = `Error in callback for event ${name} in system ${currentSystem} layer ${currentLayer}: ${error.message}`;
+                                    const newError = new Error(errorMsg);
+                                    newError.originalError = error; // Conserve l'erreur originale
+                                    newError.eventDetails = { name, system: currentSystem, layer: currentLayer };
+                                    throw newError;
                                 }
                             }
                         }
