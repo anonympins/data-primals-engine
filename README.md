@@ -211,6 +211,24 @@ This use case demonstrates how starter packs and workflows can automate complex,
 
 ---
 
+## 📁 Project Structure
+```
+data-primals-engine/
+├── src/
+│   ├── middlewares/
+│   ├── migrations/
+│   ├── modules/
+│   ├── workers/
+│   ├── engine.js // The Express engine that serves the API
+│   ├── constants.js // The inner-application constants definitions
+│   ├── packs.js // The packs that will be loaded and available with installPack() method
+│   ├── defaultModels.js // The default models available at startup.
+│   ├── ...
+└── server.js
+```
+
+---
+
 ## 🔌 API Examples (using `curl`)
 
 ### 📁 Model Management
@@ -537,22 +555,6 @@ const result = await installPack("61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
 
 ---
 
-## 📁 Project Structure
-```
-data-primals-engine/
-├── src/
-│   ├── middlewares/
-│   ├── migrations/
-│   ├── modules/
-│   ├── workers/
-│   ├── engine.js // The Express engine that serves the API
-│   ├── constants.js // The inner-application constants definitions
-│   ├── packs.js // The packs that will be loaded and available with installPack() method
-│   ├── defaultModels.js // The default models available at startup.
-│   ├── ...
-└── server.js
-```
-
 ## Workflows: Automate Your Business Logic
 
 > Workflows are the automation engine of your application. 
@@ -718,7 +720,7 @@ Event.Listen("OnDataAdded", (engine, data) => {
 
 If you want to provide your own hooks, you can call :
 ```javascript
-const result = Event.Trigger("OnMyCustomEvent", "event", "user", ...args);
+const result = await Event.Trigger("OnMyCustomEvent", "event", "user", ...args);
 ```
 Results are merged together if multiple events are triggered.
 - strings are concatenated

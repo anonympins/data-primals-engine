@@ -22,7 +22,7 @@ describe('Event System', () => {
         const eventName = 'testEvent';
 
         Event.Listen(eventName, mockCallback);
-        Event.Trigger(eventName);
+        await Event.Trigger(eventName);
 
         expect(mockCallback).toHaveBeenCalledTimes(1);
     });
@@ -33,7 +33,7 @@ describe('Event System', () => {
         const arg2 = 123;
 
         Event.Listen(eventName, mockCallback, "priority", "medium");
-        Event.Trigger(eventName, "priority", "medium", arg1, arg2);
+        await Event.Trigger(eventName, "priority", "medium", arg1, arg2);
 
         expect(mockCallback).toHaveBeenCalledTimes(1);
         expect(mockCallback).toHaveBeenCalledWith(arg1, arg2);
@@ -47,7 +47,7 @@ describe('Event System', () => {
         Event.Listen(eventName, mockCallback1);
         Event.Listen(eventName, mockCallback2);
         Event.RemoveCallback(eventName, mockCallback1);
-        Event.Trigger(eventName);
+        await Event.Trigger(eventName);
 
         expect(mockCallback1).not.toHaveBeenCalled();
         expect(mockCallback2).toHaveBeenCalledTimes(1);
@@ -57,7 +57,7 @@ describe('Event System', () => {
         const mockCallback = vitest.fn();
         const eventName = 'nonExistentEvent';
 
-        Event.Trigger(eventName);
+        await Event.Trigger(eventName);
 
         expect(mockCallback).not.toHaveBeenCalled();
     });
@@ -70,13 +70,13 @@ describe('Event System', () => {
         Event.Listen(eventName, mockCallbackPriority, 'priority', 'high');
         Event.Listen(eventName, mockCallbackLog, 'log', 'info');
 
-        Event.Trigger(eventName, 'priority', 'high');
+        await Event.Trigger(eventName, 'priority', 'high');
         expect(mockCallbackPriority).toHaveBeenCalledTimes(1);
         expect(mockCallbackLog).not.toHaveBeenCalled();
 
         vitest.clearAllMocks(); // Reset mock counts
 
-        Event.Trigger(eventName, 'log', 'info');
+        await Event.Trigger(eventName, 'log', 'info');
         expect(mockCallbackPriority).not.toHaveBeenCalled();
         expect(mockCallbackLog).toHaveBeenCalledTimes(1);
     });
@@ -100,7 +100,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toEqual({ a: 1, b: 3, c: 4 });
         });
@@ -113,7 +113,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toEqual([1, 2, 3, 4]);
         });
@@ -126,7 +126,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toBe('Hello World');
         });
@@ -139,7 +139,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toBe(30);
         });
@@ -152,20 +152,20 @@ describe('Event System', () => {
             const cb_true2 = vitest.fn().mockReturnValue(true);
             Event.Listen(eventName, cb_true1);
             Event.Listen(eventName, cb_true2);
-            expect(Event.Trigger(eventName)).toBe(true);
+            expect(await Event.Trigger(eventName)).toBe(true);
             Event.RemoveAllCallbacks(eventName); // Clean up for next case
 
             // Case 2: true && false -> false
             const cb_false1 = vitest.fn().mockReturnValue(false);
             Event.Listen(eventName, cb_true1);
             Event.Listen(eventName, cb_false1);
-            expect(Event.Trigger(eventName)).toBe(false);
+            expect(await Event.Trigger(eventName)).toBe(false);
             Event.RemoveAllCallbacks(eventName);
 
             // Case 3: false && true -> false
             Event.Listen(eventName, cb_false1);
             Event.Listen(eventName, cb_true1);
-            expect(Event.Trigger(eventName)).toBe(false);
+            expect(await Event.Trigger(eventName)).toBe(false);
         });
 
         it('should handle mixed-type return values', () => {
@@ -176,7 +176,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             // The logic initializes `ret` with the first value (100).
             // When the second callback returns an object, it re-initializes `ret` to {}
@@ -194,7 +194,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback2);
             Event.Listen(eventName, callback3);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toEqual({ data: 'important' });
         });

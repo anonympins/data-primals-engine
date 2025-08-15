@@ -54,7 +54,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
 
     Event.Listen("OnEmailTemplate", (data, lang) => data.content, "event", "system");
 
-    if (tpl === null) tpl = Event.Trigger("OnEmailTemplate", "event", "system", data, lang);
+    if (tpl === null) tpl = await Event.Trigger("OnEmailTemplate", "event", "system", data, lang);
     let html = tpl;
     try {
         html = juice(tpl);

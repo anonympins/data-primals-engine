@@ -246,12 +246,12 @@ export const Engine = {
                 process.exit(1);
             });
 
-            Event.Trigger("OnServerStart", "event", "system", engine);
+            await Event.Trigger("OnServerStart", "event", "system", engine);
         }
 
         engine.stop = async () => {
             await server.close();
-            Event.Trigger("OnServerStop", "event", "system", engine);
+            await Event.Trigger("OnServerStop", "event", "system", engine);
         };
 
         async function setupInitialModels() {
@@ -262,7 +262,7 @@ export const Engine = {
 
             for(let i = 0; i < ms.length; ++i){
                 const model = ms[i];
-                validateModelStructure(model);
+                await validateModelStructure(model);
                 // Création des modèles
                 if( !dbModels.find(m =>m.name === model.name) )
                 {
@@ -274,11 +274,11 @@ export const Engine = {
                     logger.info('Model loaded (' + model.name + ')');
             }
             logger.info("All models loaded.");
-            Event.Trigger("OnModelsLoaded", "event", "system", engine, dbModels);
+            await Event.Trigger("OnModelsLoaded", "event", "system", engine, dbModels);
         }
         engine.resetModels = async () => {
             await deleteModels();
-            Event.Trigger("OnModelsDeleted", "event", "system", engine);
+            await Event.Trigger("OnModelsDeleted", "event", "system", engine);
         };
         return engine;
     }

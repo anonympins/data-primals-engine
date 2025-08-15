@@ -12,7 +12,7 @@ const eventLayerSystems = {
 
 
 export const Event = {
-    Trigger: (name, system = "priority", layer = "medium", ...args) => {  // Ajout des arguments system et layer
+    Trigger: async (name, system = "priority", layer = "medium", ...args) => {  // Ajout des arguments system et layer
         if (!events[system] || !events[system][name] || (layer && !events[system][name][layer])) {
             //console.warn(`No trigger found for ${name} in system ${system} layer ${layer}`);
             return null;
@@ -30,7 +30,7 @@ export const Event = {
                         if (events[currentSystem][name][currentLayer]) {
                             for (const callback of events[currentSystem][name][currentLayer]) {
                                 try {
-                                    const res = callback(...args);
+                                    const res = await callback(...args);
                                     if (typeof res === "object" && !Array.isArray(res)) {
                                         if (typeof ret !== "object") ret = {};
                                         ret = {...ret, ...res};

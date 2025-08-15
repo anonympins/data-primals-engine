@@ -144,10 +144,10 @@ const middlewareLogger = async (req, res, next) => {
  * @param {object} data - L'objet de données à envoyer.
  * @returns {boolean} - True si l'événement a été envoyé, false sinon.
  */
-export function sendSseToUser(username, data) {
+export async function sendSseToUser(username, data) {
     const res = sseConnections.get(username);
     if (res) {
-        const ssePlugin = Event.Trigger("sendSseToUser", "system", "calls", data) || data;
+        const ssePlugin = await Event.Trigger("sendSseToUser", "system", "calls", data) || data;
         res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
         return true;
     }
@@ -791,7 +791,7 @@ export async function registerRoutes(engine){
         }
         try {
             const modelData = req.fields;
-            validateModelStructure(modelData);
+            await validateModelStructure(modelData);
 
 
             const existingModel = await modelsCollection.findOne({name: modelData.name, $and: [{_user: {$exists: true}}, {$or: [{_user: req.me._user}, {_user: req.me.username}]}] });
@@ -872,7 +872,7 @@ export async function registerRoutes(engine){
                 await cancelAlerts(req.me);
 
                 await getPromise();
-                Event.Trigger('jobAddUserData', req.me.username);
+                await Event.Trigger('jobAddUserData', req.me.username);
             }else{
                 await getPromise();
             }
