@@ -23,6 +23,7 @@
 - **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
 - **Advanced Querying & Aggregation**: Go beyond simple filters with deep relation expansion, complex lookups, and dynamic calculated fields.
 - **Integrated Backup & Restore**: Secure, encrypted user data backups with rotation policies, supporting both local and AWS S3 storage.
+- **Automatic Data Auditing**: Automatically tracks all changes (create, update, delete) for every record, providing a complete version history for auditing and traceability.
 - **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
 - **Authentication & Authorization**: Robust role-based access control (RBAC) and pluggable user providers.
 - **Built-in File Management**: Handle file uploads seamlessly with integrated support for AWS S3 storage.
@@ -56,7 +57,7 @@
 ### check
 ```bash
 # Verify required versions
-node -v # Must show ≥ v18
+node -v # Must show ≥ v20
 mongod --version # Must be installed
 ```
 
@@ -84,8 +85,8 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017
 | JWT_SECRET            | 	Secret key for signing JWT authentication tokens.	                     | a_long_random_secret_string              |
 | OPENAI_API_KEY        | 	Your optional OpenAI API key for AI features.	                         | sk-xxxxxxxxxxxxxxxxxxxx                  |
 | GOOGLE_API_KEY        | 	Your optional Google (Gemini) API key for AI features.	                | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
-| DEEPSEEK_API_KEY      | 	Your optional DeepSeek API key for AI features.	                       | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
-| ANTHROPIC_API_KEY     | 	Your optional Anthropic API key for AI features.	                      | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
+| DEEPSEEK_API_KEY      | 	Your optional DeepSeek API key for AI features.	                       | sk-xxxxxxxxxxxxxxxxxxxx                  |
+| ANTHROPIC_API_KEY     | 	Your optional Anthropic API key for AI features.	                      | sk-ant-xxxxxxxxxxxxxxxxxxx               |
 | AWS_ACCESS_KEY_ID     | 	AWS access key for S3 storage (files, backups). Keep empty to disable	 | AKIAIOSFODNN7EXAMPLE                     |
 | AWS_SECRET_ACCESS_KEY | 	AWS secret access key.	                                                | wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY |                                 |
 | AWS_REGION            | 	Region for your S3 bucket.                                             | 	eu-west-3                               |                                                                 |
@@ -135,7 +136,7 @@ Define schemas using JSON:
 }
 ```
 ### Smart Relations
-- Handles up to 2,000 direct relations
+- Handles up to 2,000 direct relations by default (can be customized)
 - For larger datasets, use intermediate collections
 - Automatic indexing on key fields
 - Custom indexing on fields
@@ -208,6 +209,24 @@ The "Marketing & Campaigning" starter pack provides a powerful solution for send
     - Once all emails are sent, the campaign is automatically marked as "completed".
 
 This use case demonstrates how starter packs and workflows can automate complex, performance-critical business logic right out of the box.
+
+---
+
+## 📁 Project Structure
+```
+data-primals-engine/
+├── src/
+│   ├── middlewares/
+│   ├── migrations/
+│   ├── modules/
+│   ├── workers/
+│   ├── engine.js // The Express engine that serves the API
+│   ├── constants.js // The inner-application constants definitions
+│   ├── packs.js // The packs that will be loaded and available with installPack() method
+│   ├── defaultModels.js // The default models available at startup.
+│   ├── ...
+└── server.js
+```
 
 ---
 
@@ -536,22 +555,32 @@ const result = await installPack("61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
 > You can also open the pack gallery to see the JSON structure of each pack, before installing them.
 
 ---
+### Data Auditing & History 
+data-primals-engine includes a built-in, automatic auditing system that creates a complete history for every record in your database. 
 
-## 📁 Project Structure
+>This feature is essential for traceability, debugging, and maintaining a clear audit trail of all data manipulations. 
+
+#### How It Works 
+The history feature is non-intrusive and fully automatic. 
+
+Whenever you use the standard data management functions (insertData, patchData, deleteData, etc.), the engine performs two actions: 
+1.  It executes the requested operation (create, update, or delete) on the target document. 
+2.  It saves a complete "snapshot" of the document's state into a dedicated history collection. 
+
+>Each history entry contains the original data along with crucial metadata: 
+-   `_op`: The type of operation (i for insert, u for update, d for delete). 
+-   `_v`: The version number of the record. 
+-   `_user`: The username of the user who performed the action. 
+-   `_updatedAt`: The timestamp of the operation. 
+-   `_rid`: The ID of the original record, linking all history entries together. 
+
+### Accessing the History 
+You can retrieve the full history for any record via a simple API endpoint: 
+```x-sh
+curl -X GET http://localhost:7633/api/data/history/:modelName/:recordId
 ```
-data-primals-engine/
-├── src/
-│   ├── middlewares/
-│   ├── migrations/
-│   ├── modules/
-│   ├── workers/
-│   ├── engine.js // The Express engine that serves the API
-│   ├── constants.js // The inner-application constants definitions
-│   ├── packs.js // The packs that will be loaded and available with installPack() method
-│   ├── defaultModels.js // The default models available at startup.
-│   ├── ...
-└── server.js
-```
+
+---
 
 ## Workflows: Automate Your Business Logic
 
@@ -599,7 +628,8 @@ To create a custom endpoint, you need to define a document with the following st
   "path": "postCount/:name",
   "method": "GET",
   "code": "const posts = await db.find('content', { author: { $find: { $eq: ['$lastName', request.params.name]}}}); return { postCount: posts.length };",
-  "isActive": true
+  "isActive": true,
+  "isPublic": true
 }
 ```
 | Field    | Type    | Description                                                          | 
@@ -609,10 +639,12 @@ To create a custom endpoint, you need to define a document with the following st
 | method   | enum    | The HTTP method: GET, POST, PUT, PATCH, or DELETE.                   | 
 | code     | code    | The JavaScript code to execute when the endpoint is called.          |
 | isActive | boolean | A flag to enable or disable the endpoint without deleting it.        |
+| isPublic | boolean | A flag to enable public access (private by default).                 |
 ---
 
 ### The Execution Context
 Your JavaScript code runs in an async context and has access to several global objects that are securely injected into the sandbox:
+Your current user is used to make the calls.
 
 #### The context Object
 > This object contains all the information about the incoming HTTP request.
@@ -706,15 +738,16 @@ Event.Listen("OnDataAdded", (engine, data) => {
 | OnDataDeleted    | Triggered just after data is actually deleted.                          | System & User | deleteData()         | System: engine, {model, filter} (Pipeline*)<br>User: {model, filter}                                                                     | 
 | OnDataSearched   | Triggered after a data search.                                          | System & User | searchData()         | System: engine, {data, count} (Pipeline*)<br>User: {data, count} (or the version modified by the system)                                 | 
 | OnDataExported   | Triggered after a data export.                                          | System & User | exportData()         | System: engine, exportResults, modelsToExport (Pipeline*)<br>User: exportResults, modelsToExport (or the version modified by the system) |
-| OnDataInsert     | Triggered just before data insertion. It will use the override data     | System        | internal             | (data)                                                                                                                                   |
-| OnDataValidate   | Triggered after a data internal validation check.                       | System        | internal             | (value, field, data)                                                                                                                     |
-| OnDataFilter     | Triggered after a data internal data filtering operation.               | System        | internal             | (filteredValue, field, data)                                                                                                             |
+| OnDataInsert     | Triggered just before data insertion. It will use the overrided data.   | System        | internal             | (data)                                                                                                                                   |
+| OnDataValidate   | Triggered to override validation check.                                 | System        | internal             | (value, field, data)                                                                                                                     |
+| OnDataFilter     | Triggered to override data filtering operation.                         | System        | internal             | (filteredValue, field, data)                                                                                                             |
+| OnEmailTemplate  | Triggered to override custom email templates                            | System        | internal             | (filteredValue, field, data)                                                                                                             |
 
 ### Triggering events
 
 If you want to provide your own hooks, you can call :
 ```javascript
-const result = Event.Trigger("OnMyCustomEvent", "event", "user", ...args);
+const result = await Event.Trigger("OnMyCustomEvent", "event", "user", ...args);
 ```
 Results are merged together if multiple events are triggered.
 - strings are concatenated
@@ -722,6 +755,7 @@ Results are merged together if multiple events are triggered.
 - booleans are ANDed
 - arrays are concatenated
 - objects are merged using spread operator
+
 
 ---
 

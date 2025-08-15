@@ -93,6 +93,7 @@ const TextField = forwardRef(function TextField(
     searchable,
       labelProps,
       showErrors=false,
+      after,
     ...rest
   },
   ref,
@@ -186,7 +187,7 @@ const TextField = forwardRef(function TextField(
                 ></textarea>
             )}
 
-            <div className={"flex flex-row flex-1 flex-start"}>
+            <div className={"flex flex-1 flex-no-gap flex-start"}>
                 {!mult && (
                     <input
                         ref={inputRef}
@@ -207,7 +208,7 @@ const TextField = forwardRef(function TextField(
                         {...rest}
                     />
                 )}
-
+                {after}
             </div>
         </div>
         {errors.length > 0 && (

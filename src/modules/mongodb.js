@@ -8,6 +8,7 @@ export let modelsCollection, datasCollection, filesCollection, packsCollection;
 export {ObjectId};
 
 let engine, logger;
+let colls= [];
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
@@ -17,9 +18,24 @@ export async function onInit(defaultEngine) {
     filesCollection = getCollection("files");
     packsCollection = getCollection("packs");
 
-    logger.info("MongoDB collections loaded.");
-};
+    colls = await MongoDatabase.listCollections().toArray();
 
+    logger.info("MongoDB collections loaded.");
+}
+
+export const getCollections= async (forceRefresh)=>{
+    if( !forceRefresh )
+        return colls;
+    colls = await MongoDatabase.listCollections().toArray();
+}
+
+export const createCollection = async (coll)=>{
+    const found =colls.find(f => f.name === coll);
+    if( found){
+        return getCollection(coll);
+    }
+    return await MongoDatabase.createCollection(coll);
+}
 
 export const isObjectId = (id) => {
     return (typeof(id) === 'string' && id.match(/^[0-9a-fA-F]{24}$/));

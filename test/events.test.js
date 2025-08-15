@@ -17,29 +17,29 @@ describe('Event System', () => {
         }
     });
 
-    it('should allow listening for and triggering an event', () => {
+    it('should allow listening for and triggering an event', async() => {
         const mockCallback = vitest.fn();
         const eventName = 'testEvent';
 
         Event.Listen(eventName, mockCallback);
-        Event.Trigger(eventName);
+        await Event.Trigger(eventName);
 
         expect(mockCallback).toHaveBeenCalledTimes(1);
     });
-    it('should pass arguments to the event callback', () => {
+    it('should pass arguments to the event callback', async() => {
         const mockCallback = vitest.fn();
         const eventName = 'testEventWithArgs';
         const arg1 = 'hello';
         const arg2 = 123;
 
         Event.Listen(eventName, mockCallback, "priority", "medium");
-        Event.Trigger(eventName, "priority", "medium", arg1, arg2);
+        await Event.Trigger(eventName, "priority", "medium", arg1, arg2);
 
         expect(mockCallback).toHaveBeenCalledTimes(1);
         expect(mockCallback).toHaveBeenCalledWith(arg1, arg2);
     });
 
-    it('should allow removing a specific callback', () => {
+    it('should allow removing a specific callback', async() => {
         const mockCallback1 = vitest.fn();
         const mockCallback2 = vitest.fn();
         const eventName = 'testEventRemoveCallback';
@@ -47,22 +47,22 @@ describe('Event System', () => {
         Event.Listen(eventName, mockCallback1);
         Event.Listen(eventName, mockCallback2);
         Event.RemoveCallback(eventName, mockCallback1);
-        Event.Trigger(eventName);
+        await Event.Trigger(eventName);
 
         expect(mockCallback1).not.toHaveBeenCalled();
         expect(mockCallback2).toHaveBeenCalledTimes(1);
     });
 
-    it('should not trigger a callback if the event is not listened to', () => {
+    it('should not trigger a callback if the event is not listened to', async() => {
         const mockCallback = vitest.fn();
         const eventName = 'nonExistentEvent';
 
-        Event.Trigger(eventName);
+        await Event.Trigger(eventName);
 
         expect(mockCallback).not.toHaveBeenCalled();
     });
 
-    it('should handle different systems and layers', () => {
+    it('should handle different systems and layers', async() => {
         const mockCallbackPriority = vitest.fn();
         const mockCallbackLog = vitest.fn();
         const eventName = 'testEventMultiSystem';
@@ -70,13 +70,13 @@ describe('Event System', () => {
         Event.Listen(eventName, mockCallbackPriority, 'priority', 'high');
         Event.Listen(eventName, mockCallbackLog, 'log', 'info');
 
-        Event.Trigger(eventName, 'priority', 'high');
+        await Event.Trigger(eventName, 'priority', 'high');
         expect(mockCallbackPriority).toHaveBeenCalledTimes(1);
         expect(mockCallbackLog).not.toHaveBeenCalled();
 
         vitest.clearAllMocks(); // Reset mock counts
 
-        Event.Trigger(eventName, 'log', 'info');
+        await Event.Trigger(eventName, 'log', 'info');
         expect(mockCallbackPriority).not.toHaveBeenCalled();
         expect(mockCallbackLog).toHaveBeenCalledTimes(1);
     });
@@ -92,7 +92,7 @@ describe('Event System', () => {
     });
 
     describe('Event.Trigger result merging', () => {
-        it('should merge objects from multiple callbacks using spread operator', () => {
+        it('should merge objects from multiple callbacks using spread operator', async() => {
             const eventName = 'mergeObjectEvent';
             const callback1 = vitest.fn().mockReturnValue({ a: 1, b: 2 });
             const callback2 = vitest.fn().mockReturnValue({ b: 3, c: 4 }); // b will be overwritten
@@ -100,12 +100,12 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toEqual({ a: 1, b: 3, c: 4 });
         });
 
-        it('should concatenate arrays from multiple callbacks', () => {
+        it('should concatenate arrays from multiple callbacks', async() => {
             const eventName = 'mergeArrayEvent';
             const callback1 = vitest.fn().mockReturnValue([1, 2]);
             const callback2 = vitest.fn().mockReturnValue([3, 4]);
@@ -113,12 +113,12 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toEqual([1, 2, 3, 4]);
         });
 
-        it('should concatenate strings from multiple callbacks', () => {
+        it('should concatenate strings from multiple callbacks', async() => {
             const eventName = 'mergeStringEvent';
             const callback1 = vitest.fn().mockReturnValue('Hello ');
             const callback2 = vitest.fn().mockReturnValue('World');
@@ -126,12 +126,12 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toBe('Hello World');
         });
 
-        it('should add numbers from multiple callbacks', () => {
+        it('should add numbers from multiple callbacks', async() => {
             const eventName = 'mergeNumberEvent';
             const callback1 = vitest.fn().mockReturnValue(10);
             const callback2 = vitest.fn().mockReturnValue(20);
@@ -139,12 +139,12 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toBe(30);
         });
 
-        it('should perform a logical AND on booleans from multiple callbacks', () => {
+        it('should perform a logical AND on booleans from multiple callbacks', async() => {
             const eventName = 'mergeBooleanEvent';
 
             // Case 1: true && true -> true
@@ -152,23 +152,23 @@ describe('Event System', () => {
             const cb_true2 = vitest.fn().mockReturnValue(true);
             Event.Listen(eventName, cb_true1);
             Event.Listen(eventName, cb_true2);
-            expect(Event.Trigger(eventName)).toBe(true);
+            expect(await Event.Trigger(eventName)).toBe(true);
             Event.RemoveAllCallbacks(eventName); // Clean up for next case
 
             // Case 2: true && false -> false
             const cb_false1 = vitest.fn().mockReturnValue(false);
             Event.Listen(eventName, cb_true1);
             Event.Listen(eventName, cb_false1);
-            expect(Event.Trigger(eventName)).toBe(false);
+            expect(await Event.Trigger(eventName)).toBe(false);
             Event.RemoveAllCallbacks(eventName);
 
             // Case 3: false && true -> false
             Event.Listen(eventName, cb_false1);
             Event.Listen(eventName, cb_true1);
-            expect(Event.Trigger(eventName)).toBe(false);
+            expect(await Event.Trigger(eventName)).toBe(false);
         });
 
-        it('should handle mixed-type return values', () => {
+        it('should handle mixed-type return values', async() => {
             const eventName = 'mergeMixedEvent';
             const callback1 = vitest.fn().mockReturnValue(100); // number
             const callback2 = vitest.fn().mockReturnValue({ a: 1 }); // object
@@ -176,7 +176,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback1);
             Event.Listen(eventName, callback2);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             // The logic initializes `ret` with the first value (100).
             // When the second callback returns an object, it re-initializes `ret` to {}
@@ -184,7 +184,7 @@ describe('Event System', () => {
             expect(result).toEqual({ a: 1 });
         });
 
-        it('should ignore null and undefined return values while merging', () => {
+        it('should ignore null and undefined return values while merging', async() => {
             const eventName = 'ignoreNullsEvent';
             const callback1 = vitest.fn().mockReturnValue(null);
             const callback2 = vitest.fn().mockReturnValue({ data: 'important' });
@@ -194,7 +194,7 @@ describe('Event System', () => {
             Event.Listen(eventName, callback2);
             Event.Listen(eventName, callback3);
 
-            const result = Event.Trigger(eventName);
+            const result = await Event.Trigger(eventName);
 
             expect(result).toEqual({ data: 'important' });
         });

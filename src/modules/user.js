@@ -1,6 +1,12 @@
 import i18n from "../i18n.js";
 import {MongoDatabase} from "../engine.js";
-import {getCollection, getCollectionForUser, getUserCollectionName} from "./mongodb.js";
+import {
+    createCollection,
+    getCollection,
+    getCollectionForUser,
+    getCollections,
+    getUserCollectionName
+} from "./mongodb.js";
 import {isLocalUser} from "../data.js";
 import {ObjectId} from "mongodb";
 import {getAPILang, searchData} from "./data/index.js";
@@ -21,11 +27,11 @@ export const userInitiator = async (req, res, next) => {
     i18n.changeLanguage(lang);
 
     if (await engine.userProvider.hasFeature(req.me, 'indexes')) {
-        const collections = await MongoDatabase.listCollections().toArray();
+        const collections = await getCollections();
         const collectionNames = collections.map(c => c.name);
         const coll = await getUserCollectionName(req.me);
         if (collectionNames.includes(coll)) {
-            const collection = await MongoDatabase.createCollection(coll);
+            const collection = await createCollection(coll);
             const indexes = await collection.indexes();
             if (!indexes.find(i => i.name === 'genericPartialIndex')) {
                 await collection.createIndex({"$**": 1}, {

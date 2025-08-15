@@ -14,7 +14,7 @@ import {
     FaDatabase, FaEraser,
     FaFileExport,
     FaFileImport,
-    FaFilter,
+    FaFilter, FaHistory,
     FaInfo,
     FaPlus,
     FaTrash, FaWrench
@@ -59,6 +59,7 @@ import ConditionBuilder from "./ConditionBuilder.jsx";
 import {pagedFilterToMongoConds} from "./filter.js";
 import {isConditionMet} from "../../src/filter";
 import {DataImporter} from "./DataImporter.jsx";
+import {HistoryDialog} from "./HistoryDialog.jsx";
 
 const Header = ({
                     reversed = false,
@@ -238,6 +239,7 @@ export function DataTable({
     const queryClient = useQueryClient();
     const {me} = useAuthContext()
 
+
     const isDataLoaded = true;
     const [importVisible, setImportVisible] = useState(false);
     const [filterActive, setFilterActive] = useState(false)
@@ -247,6 +249,8 @@ export function DataTable({
     const [showPackGallery, setShowPackGallery] = useState(false);
     const [showExportDialog, setExportDialogVisible] = useState(false);
 
+
+    const [selectedRow, setSelectedRow] = useState(null);
 
     const [showAddPack, setAddPackVisible] = useState(false);
     const handleAddPack = () => {
@@ -283,7 +287,7 @@ export function DataTable({
                         console.log('Données non trouvées');
                     }
 
-                    Event.Trigger('API_DELETE_DATA', "custom", "data",{ model: item._model, id: item._id });
+                    await Event.Trigger('API_DELETE_DATA', "custom", "data",{ model: item._model, id: item._id });
                     queryClient.invalidateQueries(['api/data', item._model, 'page', page, elementsPerPage, pagedFilters[item._model], pagedSort[item._model]]);
 
                 } else {
@@ -697,6 +701,14 @@ export function DataTable({
                                         >
                                             <FaCopy/>
                                         </button>
+                                        {selectedModel?.history?.enabled && (<button
+                                            onClick={() => setSelectedRow(item._id)}
+                                            data-tooltip-id="tooltipActions"
+                                            data-tooltip-content={t('btns.showHistory', 'Voir l\'historique')}
+                                        >
+                                            <FaHistory />
+                                        </button>)}
+
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.delete', 'Supprimer')}
                                                 onClick={() => handleDelete(item)}><FaTrash/></button>
@@ -704,6 +716,7 @@ export function DataTable({
                                 </tr>
                             </DialogProvider></>
                         ))}
+
                         </tbody>
 
                         <tfoot>
@@ -720,6 +733,10 @@ export function DataTable({
                     {importVisible && (<DataImporter onClose={() => {
                         setImportVisible(false);
                     }}/>)}
+
+                    {selectedRow && (
+                        <HistoryDialog onClose={() => setSelectedRow(null)} modelName={selectedModel?.name} recordId={selectedRow} />
+                    )}
                     <RestoreConfirmationModal
                         isOpen={isBackupModalOpen}
                         onClose={() => setIsBackupModalOpen(false)}

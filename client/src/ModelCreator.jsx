@@ -41,6 +41,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
     const [modelName, setModelName] = useState(initialModel?.name || ''); // Utilisation de initialModel
     const [modelMaxRequestData, setModelMaxRequestData] = useState(initialModel?.maxRequestData || ''); // Utilisation de initialModel
     const [modelDescription, setModelDescription] = useState(initialModel?.name ? t(`model_description_${initialModel?.name}`, initialModel?.description) : '');
+    const [modelHistory, setModelHistory] = useState(!!initialModel?.history || undefined);
     const [fields, setFields] = useState([]);
     const [changed, setChanged] = useState(false);
 
@@ -53,6 +54,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             setModelMaxRequestData(initialModel.maxRequestData || defaultMaxRequestData);
             setModelDescription(initialModel.name ? t(`model_description_${initialModel.name}`, initialModel.description) : '');
             setFields([...(initialModel.fields || []).map(m => ({...m}))]);
+            setModelHistory(initialModel.history);
         } else {
             // Mode création : on réinitialise tout pour une nouvelle génération
             setModelName('');
@@ -60,6 +62,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             setFields([]);
             setUseAI(true); // On active l'IA par défaut
             setModelVisible(false);
+            setModelHistory(false);
         }
     }, [initialModel]);
 
@@ -130,6 +133,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                     setModelDescription('');
                     setModelMaxRequestData(defaultMaxRequestData);
                     setFields([{ name: '', type: 'string' }]);
+                    setModelHistory(undefined);
                 }
                 setDatasToLoad(datas=>[...datas, modelName]);
 
@@ -208,6 +212,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             name: modelName,
             description: modelDescription,
             maxRequestData: modelMaxRequestData,
+            history: modelHistory,
             fields: (fields || []).map((field) => {
                 delete field['_isNewField'];
                 let otherFields = [];
@@ -312,8 +317,8 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
     }
 
     const handleRenameField = (fi, oldVal) => {
-        const prompted = prompt(t('core.renameFields', 'Renommer le champ'), oldVal);
-        if (prompted !== oldVal) {
+        const prompted = window.prompt(t('core.renameFields', 'Renommer le champ'), oldVal);
+        if (prompted && prompted !== oldVal) {
             mutationRename.mutateAsync({oldName: oldVal, newName: prompted}).then(e =>{
                 const newFields = [...fields];
                 const field = newFields[fi];
@@ -542,21 +547,22 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                                     </div>
 
                                     <div className="field">
-                                        <div className="flex field-bg">
-                                            <label htmlFor="modelDescription"><Trans i18nKey={"modelcreator.description"}>Description:</Trans></label>
+                                        <div className="checkbox-label flex flex-1">
+                                            <CheckboxField
+                                                label={<Trans i18nKey={"history.title"}>Historique</Trans>}
+                                                disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                                checked={field.required}
+                                                onChange={(e) => {
+                                                    const newFields = [...fields];
+                                                    newFields[index].history = e ? { enabled: true } : undefined;
+                                                    setFields(newFields);
+                                                }}
+                                                help={field.required && t('modelcreator.history.hint')}
+                                            />
                                         </div>
-                                        <TextField
-                                            multiline
-                                            help={t('modelcreator.field.description')}
-                                            id="modelDescription"
-                                            disabled={modelLocked}
-                                            value={modelDescription}
-                                            onChange={(e) => {
-                                                setModelDescription(e.target.value);
-                                                setChanged(true)
-                                            }}
-                                        />
                                     </div>
+
+
                                     <h3><Trans i18nKey={"modelcreator.fields"}>Champs du modèle :</Trans></h3>
                                     {fields.map((field, index) => <ModelCreatorField
                                         key={initialModel?.name + '_field_' + index}
@@ -601,6 +607,21 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                                 setChanged(true)
                             }}
                         />
+
+                        <div className="flex flex-no-wrap">
+                            <div className="checkbox-label flex flex-1">
+                                <CheckboxField
+                                    label={<Trans i18nKey={"history"}>Historique</Trans>}
+                                    help={t('modelcreator.field.history', '')}
+                                    disabled={modelLocked}
+                                    checked={!!modelHistory}
+                                    onChange={(e) => {
+                                        setModelHistory(e? { enabled: true }: false);
+                                    }}
+                                />
+                            </div>
+                        </div>
+
                         <h3><Trans i18nKey={"modelcreator.fields"}>Champs du modèle :</Trans></h3>
                         {fields.map((field, index) => <ModelCreatorField
                             key={initialModel?.name + '_field_' + index}

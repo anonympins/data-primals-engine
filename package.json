@@ -1,6 +1,6 @@
 {
   "name": "data-primals-engine",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "data-primals-engine is a package responsible from handling large amount of data using MongoDB in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation. It also has integrated AI assistant.",
   "main": "src/engine.js",
   "type": "module",
@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "clean": "rm -rf node_modules package-lock.json",
-    "test": "cross-env MONGO_DB_URL=\"mongodb://localhost:27017\" PORT=7635 vitest --no-file-parallelism",
+    "test": "cross-env MONGO_DB_URL=\"mongodb://localhost:27017\" PORT=7635 vitest --no-file-parallelism --no-watch",
     "audit": "npm audit --audit-level=high",
     "migrate:create": "node src/migrate.js create",
     "migrate:up": "node src/migrate.js up",
