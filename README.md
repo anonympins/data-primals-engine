@@ -23,6 +23,7 @@
 - **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
 - **Advanced Querying & Aggregation**: Go beyond simple filters with deep relation expansion, complex lookups, and dynamic calculated fields.
 - **Integrated Backup & Restore**: Secure, encrypted user data backups with rotation policies, supporting both local and AWS S3 storage.
+- **Automatic Data Auditing**: Automatically tracks all changes (create, update, delete) for every record, providing a complete version history for auditing and traceability.
 - **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
 - **Authentication & Authorization**: Robust role-based access control (RBAC) and pluggable user providers.
 - **Built-in File Management**: Handle file uploads seamlessly with integrated support for AWS S3 storage.
@@ -554,6 +555,32 @@ const result = await installPack("61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
 > You can also open the pack gallery to see the JSON structure of each pack, before installing them.
 
 ---
+### Data Auditing & History 
+data-primals-engine includes a built-in, automatic auditing system that creates a complete history for every record in your database. 
+
+>This feature is essential for traceability, debugging, and maintaining a clear audit trail of all data manipulations. 
+
+#### How It Works 
+The history feature is non-intrusive and fully automatic. 
+
+Whenever you use the standard data management functions (insertData, patchData, deleteData, etc.), the engine performs two actions: 
+1.  It executes the requested operation (create, update, or delete) on the target document. 
+2.  It saves a complete "snapshot" of the document's state into a dedicated history collection. 
+
+>Each history entry contains the original data along with crucial metadata: 
+-   `_op`: The type of operation (i for insert, u for update, d for delete). 
+-   `_v`: The version number of the record. 
+-   `_user`: The username of the user who performed the action. 
+-   `_updatedAt`: The timestamp of the operation. 
+-   `_rid`: The ID of the original record, linking all history entries together. 
+
+### Accessing the History 
+You can retrieve the full history for any record via a simple API endpoint: 
+```x-sh
+curl -X GET http://localhost:7633/api/data/history/:modelName/:recordId
+```
+
+---
 
 ## Workflows: Automate Your Business Logic
 
@@ -728,6 +755,7 @@ Results are merged together if multiple events are triggered.
 - booleans are ANDed
 - arrays are concatenated
 - objects are merged using spread operator
+
 
 ---
 
