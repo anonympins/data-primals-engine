@@ -1209,7 +1209,7 @@ export async function onInit(defaultEngine) {
             await datasCollection.createIndex({_model: 1, _user: 1}, { name: 'modelUserIndex'});
         }
 
-        const jobsCollection = await MongoDatabase.createCollection("job_locks");
+        const jobsCollection = await createCollection("job_locks");
         if (! await jobsCollection.indexExists("jobTTLIndex") ) {
             await jobsCollection.createIndex({ "lockedUntil": 1 }, { name: "jobTTLIndex", expireAfterSeconds: 0 });
         }
