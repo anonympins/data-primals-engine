@@ -56,7 +56,7 @@
 ### check
 ```bash
 # Verify required versions
-node -v # Must show ≥ v18
+node -v # Must show ≥ v20
 mongod --version # Must be installed
 ```
 
@@ -84,8 +84,8 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017
 | JWT_SECRET            | 	Secret key for signing JWT authentication tokens.	                     | a_long_random_secret_string              |
 | OPENAI_API_KEY        | 	Your optional OpenAI API key for AI features.	                         | sk-xxxxxxxxxxxxxxxxxxxx                  |
 | GOOGLE_API_KEY        | 	Your optional Google (Gemini) API key for AI features.	                | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
-| DEEPSEEK_API_KEY      | 	Your optional DeepSeek API key for AI features.	                       | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
-| ANTHROPIC_API_KEY     | 	Your optional Anthropic API key for AI features.	                      | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
+| DEEPSEEK_API_KEY      | 	Your optional DeepSeek API key for AI features.	                       | sk-xxxxxxxxxxxxxxxxxxxx                  |
+| ANTHROPIC_API_KEY     | 	Your optional Anthropic API key for AI features.	                      | sk-ant-xxxxxxxxxxxxxxxxxxx               |
 | AWS_ACCESS_KEY_ID     | 	AWS access key for S3 storage (files, backups). Keep empty to disable	 | AKIAIOSFODNN7EXAMPLE                     |
 | AWS_SECRET_ACCESS_KEY | 	AWS secret access key.	                                                | wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY |                                 |
 | AWS_REGION            | 	Region for your S3 bucket.                                             | 	eu-west-3                               |                                                                 |
@@ -135,7 +135,7 @@ Define schemas using JSON:
 }
 ```
 ### Smart Relations
-- Handles up to 2,000 direct relations
+- Handles up to 2,000 direct relations by default (can be customized)
 - For larger datasets, use intermediate collections
 - Automatic indexing on key fields
 - Custom indexing on fields
@@ -599,7 +599,8 @@ To create a custom endpoint, you need to define a document with the following st
   "path": "postCount/:name",
   "method": "GET",
   "code": "const posts = await db.find('content', { author: { $find: { $eq: ['$lastName', request.params.name]}}}); return { postCount: posts.length };",
-  "isActive": true
+  "isActive": true,
+  "isPublic": true
 }
 ```
 | Field    | Type    | Description                                                          | 
@@ -609,10 +610,12 @@ To create a custom endpoint, you need to define a document with the following st
 | method   | enum    | The HTTP method: GET, POST, PUT, PATCH, or DELETE.                   | 
 | code     | code    | The JavaScript code to execute when the endpoint is called.          |
 | isActive | boolean | A flag to enable or disable the endpoint without deleting it.        |
+| isPublic | boolean | A flag to enable public access (private by default).                 |
 ---
 
 ### The Execution Context
 Your JavaScript code runs in an async context and has access to several global objects that are securely injected into the sandbox:
+Your current user is used to make the calls.
 
 #### The context Object
 > This object contains all the information about the incoming HTTP request.
@@ -706,9 +709,10 @@ Event.Listen("OnDataAdded", (engine, data) => {
 | OnDataDeleted    | Triggered just after data is actually deleted.                          | System & User | deleteData()         | System: engine, {model, filter} (Pipeline*)<br>User: {model, filter}                                                                     | 
 | OnDataSearched   | Triggered after a data search.                                          | System & User | searchData()         | System: engine, {data, count} (Pipeline*)<br>User: {data, count} (or the version modified by the system)                                 | 
 | OnDataExported   | Triggered after a data export.                                          | System & User | exportData()         | System: engine, exportResults, modelsToExport (Pipeline*)<br>User: exportResults, modelsToExport (or the version modified by the system) |
-| OnDataInsert     | Triggered just before data insertion. It will use the override data     | System        | internal             | (data)                                                                                                                                   |
-| OnDataValidate   | Triggered after a data internal validation check.                       | System        | internal             | (value, field, data)                                                                                                                     |
-| OnDataFilter     | Triggered after a data internal data filtering operation.               | System        | internal             | (filteredValue, field, data)                                                                                                             |
+| OnDataInsert     | Triggered just before data insertion. It will use the overrided data.   | System        | internal             | (data)                                                                                                                                   |
+| OnDataValidate   | Triggered to override validation check.                                 | System        | internal             | (value, field, data)                                                                                                                     |
+| OnDataFilter     | Triggered to override data filtering operation.                         | System        | internal             | (filteredValue, field, data)                                                                                                             |
+| OnEmailTemplate  | Triggered to override custom email templates                            | System        | internal             | (filteredValue, field, data)                                                                                                             |
 
 ### Triggering events
 

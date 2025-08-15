@@ -2,11 +2,38 @@ import Stripe from 'stripe';
 import {editData, insertData, searchData} from '../modules/data/index.js';
 import {getEnv} from "../modules/user.js";
 
+const stripeInstances = {};
+
+/**
+ * Retrieves a cached or creates a new Stripe client instance for a given user.
+ * This function centralizes API key retrieval and client initialization.
+ * @param {object} user - The user object.
+ * @returns {Promise<{client: Stripe, webhookSecret: string}|null>} The Stripe client and webhook secret, or null if not configured.
+ */
+async function getStripeClient(user) {
+    const userId = user._id.toString();
+    if (!stripeInstances[userId]) {
+        const env = await getEnv(user);
+        if (env.STRIPE_SECRET_KEY) {
+            stripeInstances[userId] = {
+                client: new Stripe(env.STRIPE_SECRET_KEY),
+                webhookSecret: env.STRIPE_WEBHOOK_SECRET
+            };
+        }
+    }
+    return stripeInstances[userId] || null;
+}
 
 /**
  * Crée ou récupère un client Stripe pour un utilisateur de notre système.
  */
 async function getOrCreateCustomer(user, db) {
+    const stripeInfo = await getStripeClient(user);
+    if (!stripeInfo?.client) {
+        throw new Error("Stripe is not configured for this user.");
+    }
+    const { client: stripe } = stripeInfo;
+
     // Vérifier que l'utilisateur et son email de contact sont valides
     if (!user || !user.contact || !user.contact.email) {
         // Dans un vrai scénario, il faudrait peut-être chercher l'email directement sur le modèle user
@@ -33,30 +60,50 @@ async function getOrCreateCustomer(user, db) {
     });
 
     // Enregistrer le client dans notre BDD
-    const { insertedIds } = await insertData('StripeCustomer', {
+    const newCustomerData = {
         user: user._id,
         stripeCustomerId: stripeCustomer.id,
-        email: user.email
-    }, {}, user);
+        email: user.contact.email // Utiliser l'email de contact pour la cohérence
+    };
+    const { insertedIds } = await insertData('StripeCustomer', newCustomerData, {}, user);
 
-    const newCustomer = await searchData({ model: 'StripeCustomer', filter: { _id: insertedIds[0] } });
-    return newCustomer.data[0];
+    // Pas besoin de refaire une recherche, on a déjà toutes les infos.
+    return { _id: insertedIds[0], ...newCustomerData };
 }
 /**
  * Crée une session de checkout Stripe.
  */
-export async function createCheckoutSession(priceId, user, db) {
+export async function createCheckoutSession(priceId, user, db, mode = 'subscription') {
+    const stripeInfo = await getStripeClient(user);
+    if (!stripeInfo?.client) {
+        throw new Error("Stripe is not configured for this user.");
+    }
+    const { client: stripe } = stripeInfo;
+
+    const env = await getEnv(user);
+    const appBaseUrl = env.APP_BASE_URL || 'https://your-domain.com'; // Fallback
+
     const customer = await getOrCreateCustomer(user, db);
     const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        mode: 'subscription' // ou 'payment' pour un paiement unique
+        mode: mode, // 'subscription' or 'payment'
+        customer: customer.stripeCustomerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${appBaseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appBaseUrl}/cancel`
     });
+    return session;
 }
 
 /**
  * Vérifie le statut d'une session de checkout.
  */
-export async function verifyCheckoutSession(sessionId) {
+export async function verifyCheckoutSession(sessionId, user) {
+    const stripeInfo = await getStripeClient(user);
+    if (!stripeInfo?.client) {
+        throw new Error("Stripe is not configured for this user.");
+    }
+    const { client: stripe } = stripeInfo;
     try {
         const session = await stripe.checkout.sessions.retrieve(sessionId);
         return {
@@ -81,12 +128,13 @@ export async function verifyCheckoutSession(sessionId) {
  * @throws {Error} Si la signature est invalide ou si les en-têtes/body sont manquants.
  */
 export async function verifyWebhookSignature(headers, rawBody, user) {
-    // Initialisation de Stripe avec la clé secrète (à charger depuis une config sécurisée)
-    const env = await getEnv(user);
-    const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null;
-    const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
+    const stripeInfo = await getStripeClient(user);
 
-    if( !stripe ){
+    if (!stripeInfo) {
+        throw new Error("Stripe is not configured for this user.");
+    }
+    const { client: stripe, webhookSecret } = stripeInfo;
+    if (!stripe) {
         throw new Error("Stripe unknown API key.");
     }
     if (!webhookSecret) {
@@ -110,6 +158,12 @@ export async function verifyWebhookSignature(headers, rawBody, user) {
  * Crée un remboursement pour une commande spécifique.
  */
 export async function createRefund(returnId, db, user) {
+    const stripeInfo = await getStripeClient(user);
+    if (!stripeInfo?.client) {
+        throw new Error("Stripe is not configured for this user.");
+    }
+    const { client: stripe } = stripeInfo;
+
     const returnRequest = await db.findOne('return', { _id: returnId });
     if (!returnRequest) {
         throw new Error("Return request not found.");
