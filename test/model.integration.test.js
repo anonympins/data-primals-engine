@@ -188,7 +188,7 @@ describe('CRUD on model definitions and integrity tests', () => {
                 anotherOne: { nested: true }
             };
             // 2. Appeler la fonction d'édition
-            const result = await editM  odel(currentTestUser, testModelId, updatedModelData);
+            const result = await editModel(currentTestUser, testModelId, updatedModelData);
             expect(result.success).toBe(false);
         });
         it('should return an error if trying to edit a non-existent model', async () => {
