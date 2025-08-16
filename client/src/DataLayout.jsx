@@ -31,15 +31,8 @@ import ViewSwitcher from "./ViewSwitcher.jsx";
 import KanbanConfigModal from "./KanbanConfigModal.jsx";
 import CalendarConfigModal from "./CalendarConfigModal.jsx";
 import KanbanView from "./KanbanView.jsx";
+import CalendarView from "./CalendarView.jsx";
 
-
-const CalendarView = ({ settings, model }) => (
-    <div className="p-4 border rounded-md mt-4 bg-gray-50">
-        <h3 className="font-bold">Vue Calendrier</h3>
-        <p>Affichage des données pour le modèle <strong>{model?.name}</strong> en utilisant le champ de date : <strong>{settings.dateField}</strong>.</p>
-        {/* L'implémentation réelle du calendrier irait ici */}
-    </div>
-);
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
     <div className="p-4 border border-dashed rounded-md mt-4 text-center bg-gray-50">
@@ -52,9 +45,6 @@ const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
 );
 
 function DataLayout() {
-    const [currentView, setCurrentView] = useState('table');
-
-    // Nouvelle version (persistante)
     const [viewSettings, setViewSettings] = useLocalStorage('viewSettings', {});
 
     const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
@@ -63,6 +53,9 @@ function DataLayout() {
     const { triggerTutorialCheck } = useTutorials();
     const { t, i18n } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
+
+    // Stocke la vue sélectionnée pour chaque modèle. Ex: { "contacts": "calendar", "tasks": "kanban" }
+    const [viewsByModel, setViewsByModel] = useLocalStorage('dataLayout_viewsByModel', {});
 
     const [filterValues, setFilterValues] = useState({});
     const { dataByModel,paginatedDataByModel,
@@ -94,6 +87,20 @@ function DataLayout() {
     const [showDataEditor, setDataEditorVisible] = useState(false);
     const [showAPIInfo, setAPIInfoVisible] = useState(false);
 
+    // La vue courante est dérivée du modèle sélectionné et des préférences stockées.
+    const currentView = useMemo(() => {
+        if (!selectedModel) return 'table';
+        return viewsByModel[selectedModel.name] || 'table';
+    }, [selectedModel, viewsByModel]);
+
+    // Met à jour la vue pour le modèle actuellement sélectionné.
+    const setCurrentView = (viewName) => {
+        if (!selectedModel) return;
+        setViewsByModel(prev => ({
+            ...prev,
+            [selectedModel.name]: viewName,
+        }));
+    };
 
     // --- MODIFICATION : Logique de changement de vue mise à jour ---
     const handleSwitchView = (viewName) => {
@@ -110,7 +117,7 @@ function DataLayout() {
         const modelSettings = viewSettings[selectedModel.name] || {};
 
         if (viewName === 'calendar') {
-            if (modelSettings.calendar?.dateField) {
+            if (modelSettings.calendar?.titleField && modelSettings.calendar?.startField && modelSettings.calendar?.endField) {
                 setCurrentView('calendar');
             } else {
                 setCalendarModalOpen(true);
@@ -127,15 +134,26 @@ function DataLayout() {
     // --- MODIFICATION : Sauvegarde dans localStorage ---
     const handleSaveCalendarConfig = (config) => {
         if (!selectedModel) return;
-        setViewSettings(prev => ({
-            ...prev,
-            [selectedModel.name]: {
-                ...(prev[selectedModel.name] || {}),
-                calendar: config,
-            },
-        }));
-        setCalendarModalOpen(false);
-        setCurrentView('calendar');
+        const isConfigValid = config && config.titleField && config.startField && config.endField;
+
+        if (isConfigValid) {
+            setViewSettings(prev => ({
+                ...prev,
+                [selectedModel.name]: {
+                    ...(prev[selectedModel.name] || {}),
+                    calendar: config,
+                },
+            }));
+            setCalendarModalOpen(false);
+            setCurrentView('calendar');
+        } else {
+            // Si la configuration n'est pas valide, afficher une notification et garder la modale ouverte
+            addNotification({
+                title: t('datalayout.invalidConfigTitle', 'Configuration invalide'),
+                message: t('datalayout.invalidConfigMessage', 'Veuillez vous assurer que les champs pour le titre, la date de début et la date de fin sont tous sélectionnés.'),
+                status: 'error'
+            });
+        }
     };
 
     const handleSaveKanbanConfig = (config) => {
@@ -162,7 +180,7 @@ function DataLayout() {
         if (!selectedModel) return { calendar: false, kanban: false };
         const modelSettings = viewSettings[selectedModel.name] || {};
         return {
-            calendar: !!modelSettings.calendar?.dateField,
+            calendar: !!modelSettings.calendar?.titleField && !!modelSettings.calendar?.startField && !!modelSettings.calendar?.endField,
             kanban: !!modelSettings.kanban?.groupByField,
         };
     }, [viewSettings, selectedModel]);
@@ -174,7 +192,7 @@ function DataLayout() {
         switch (currentView) {
             case 'calendar':
                 return configuredViews.calendar
-                    ? <CalendarView settings={currentModelViewSettings.calendar} model={selectedModel} />
+                    ? <CalendarView settings={currentModelViewSettings.calendar} onEditData={(model, data) => handleAddData(model,data)} model={selectedModel} />
                     : <NotConfiguredPlaceholder type="calendar" onConfigure={() => setCalendarModalOpen(true)} />;
             case 'kanban':
                 return configuredViews.kanban
@@ -217,13 +235,20 @@ function DataLayout() {
 
     const handleModelSelect = (model) => {
         setRelationFilters({});
-        setCurrentView('table');
         setCheckedItems([])
         setFilterValues({});
         if (!model) {
+            setSelectedModel(null);
             return;
         }
 
+        // Maintient la vue actuelle si elle est configurée pour le nouveau modèle, sinon revient à la vue "table"
+        const modelSettings = viewSettings[model.name] || {};
+        if (currentView === 'calendar' && (!modelSettings.calendar?.titleField || !modelSettings.calendar?.startField || !modelSettings.calendar?.endField)) {
+            setCurrentView('table');
+        } else if (currentView === 'kanban' && !modelSettings.kanban?.groupByField) {
+            setCurrentView('table');
+        }
         const dt = [];
         const t = [...model.fields].reduce((acc, field, index) => {
             if (field.type === "relation") {
@@ -464,7 +489,9 @@ function DataLayout() {
 
     const handleAddData = (model, data)=>{
 
-        handleModelSelect(model);
+        if (!selectedModel || model.name !== selectedModel.name) {
+            handleModelSelect(model);
+        }
 
         if( data ){
             setFormData(data);

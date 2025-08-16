@@ -8,9 +8,9 @@ import { Tooltip } from 'react-tooltip';
 
 import "./ViewSwitcher.scss"
 const viewOptions = [
-    { id: 'table', icon: <FaTable />, labelKey: 'views.table' },
-    { id: 'kanban', icon: <FaColumns />, labelKey: 'views.kanban' },
-    //{ id: 'calendar', icon: <FaRegCalendarAlt />, labelKey: 'views.calendar' },
+    { id: 'table', icon: <FaTable />, labelKey: 'views.table', defaultLabel: 'Tableau' },
+    { id: 'kanban', icon: <FaColumns />, labelKey: 'views.kanban', defaultLabel: 'Kanban' },
+    { id: 'calendar', icon: <FaRegCalendarAlt />, labelKey: 'views.calendar', defaultLabel: 'Calendrier' },
 ];
 
 const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureView }) => {
@@ -27,10 +27,10 @@ const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureV
                         <Button
                             onClick={() => onViewChange(view.id)}
                             className={`btn-view ${isActive ? 'active' : ''}`}
-                            title={t(view.labelKey, view.id)}
+                            title={t(view.labelKey, view.defaultLabel)}
                         >
                             {view.icon}
-                            <span className="hidden md:inline-block ml-2">{t(view.labelKey, view.id)}</span>
+                            <span className="hidden md:inline-block ml-2">{t(view.labelKey, view.defaultLabel)}</span>
                         </Button>
                         {/* AJOUT : Bouton de configuration pour la vue active */}
                         {isActive && view.id !== 'table' && (
@@ -38,7 +38,7 @@ const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureV
                                 onClick={onConfigureView}
                                 className="btn-view-settings"
                                 data-tooltip-id="view-settings-tooltip"
-                                data-tooltip-content={t('views.configure', { view: t(view.labelKey) })}
+                                data-tooltip-content={t('views.configure', 'Configurer la vue {{view}}', { view: t(view.labelKey, view.defaultLabel) })}
                             >
                                 <FaCog />
                             </Button>
