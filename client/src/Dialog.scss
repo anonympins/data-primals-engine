@@ -44,7 +44,7 @@
 #content .dialog.dialog-relation {
   max-width: 480px;
 }
-.dialog-header {
+#content .dialog-header {
   display: flex;
   gap: 8px;
   justify-content: flex-start;
@@ -53,8 +53,9 @@
   h2 {
     display: flex;
     flex: 1;
-    padding: 0px;
-    margin: 0 0 0 16px;
+    padding: 0;
+    align-items: center;
+    margin: 8px;
     font-size: 100%;
     line-height: 208%;
   }

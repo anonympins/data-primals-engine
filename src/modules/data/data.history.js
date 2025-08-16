@@ -133,6 +133,46 @@ export async function handleGetHistoryRequest(req, res) {
     }
 }
 
+/**
+ * @route   GET /api/data/history/:modelName/:recordId/:version
+ * @desc    Récupère un document à une version spécifique de son historique.
+ * @access  Private (géré par middlewareAuthenticator)
+ */
+export async function handleGetRevisionRequest(req, res) {
+    const { modelName, recordId, version } = req.params;
+    const user = req.me;
+
+    try {
+        // 1. Permissions check (same as getting history)
+        if (user && user.username !== 'demo' && isLocalUser(user) && (
+            !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_"+modelName], user) ||
+            await hasPermission(["API_SEARCH_DATA_NOT_"+modelName], user))) {
+            return res.status(403).json({ success: false, error: i18n.t('api.permission.searchData') });
+        }
+
+        // 2. Input validation
+        if (!modelName || !recordId || !isObjectId(recordId) || !version || isNaN(parseInt(version, 10))) {
+            return res.status(400).json({ success: false, error: "Invalid model name, record ID, or version." });
+        }
+
+        // 3. Reconstruct the document
+        const documentState = await getDocumentAtVersion(recordId, modelName, parseInt(version, 10));
+
+        if (!documentState) {
+            return res.status(404).json({ success: false, error: "Could not reconstruct document at the specified version." });
+        }
+
+        res.json({ success: true, data: documentState });
+
+    } catch (error) {
+        logger.error(`[handleGetRevisionRequest] Error fetching revision for model ${modelName}, record ${recordId}, version ${version}:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'An internal server error occurred while fetching the revision.'
+        });
+    }
+}
+
 
 /**
  * Initialise les écouteurs d'événements pour le module d'historique.
@@ -142,6 +182,7 @@ export function onInit(engine) {
     logger = engine.getComponent(Logger);
 
     engine.get('/api/data/history/:modelName/:recordId', [middlewareAuthenticator, userInitiator], handleGetHistoryRequest);
+    engine.get('/api/data/history/:modelName/:recordId/:version', [middlewareAuthenticator, userInitiator], handleGetRevisionRequest);
 
     // --- Écouteur pour la CRÉATION de données (Version 1 - Snapshot) ---
     Event.Listen("OnDataAdded", async (engine, { modelName, insertedIds, user }) => {
@@ -256,6 +297,60 @@ export function onInit(engine) {
     logger.info("History module initialized and listening for data events.");
 }
 
+/**
+ * Reconstructs a document to a specific version from its history by finding the last
+ * available snapshot and applying subsequent changes.
+ * @param {ObjectId|string} documentId - The ID of the document.
+ * @param {string} modelName - The model name.
+ * @param {number} targetVersion - The version to reconstruct to.
+ * @returns {Promise<object|null>} - The reconstructed document object, or null if not found.
+ */
+export async function getDocumentAtVersion(documentId, modelName, targetVersion) {
+    const historyCollection = getCollection('history');
+    const docId = typeof documentId === 'string' ? new ObjectId(documentId) : documentId;
+    const version = parseInt(targetVersion, 10);
+
+    // 1. Find the most recent snapshot at or before the target version.
+    const lastSnapshotEntry = await historyCollection.findOne({
+        documentId: docId,
+        model: modelName,
+        version: { $lte: version },
+        snapshot: { $exists: true }
+    }, { sort: { version: -1 } });
+
+    if (!lastSnapshotEntry) {
+        logger.warn(`No snapshot found for ${modelName}:${documentId} up to version ${version}. Cannot reconstruct.`);
+        return null;
+    }
+
+    // 2. Start with this snapshot.
+    let reconstructedDoc = lastSnapshotEntry.snapshot;
+
+    if (lastSnapshotEntry.version === version) {
+        return reconstructedDoc;
+    }
+
+    // 3. Find all 'update' operations between our snapshot's version and the target version.
+    const updatesToApply = await historyCollection.find({
+        documentId: docId,
+        model: modelName,
+        version: { $gt: lastSnapshotEntry.version, $lte: version },
+        operation: 'update'
+    }).sort({ version: 1 }).toArray();
+
+    // 4. Apply the changes sequentially.
+    for (const update of updatesToApply) {
+        if (update.changes) {
+            for (const fieldName in update.changes) {
+                if (Object.prototype.hasOwnProperty.call(update.changes, fieldName)) {
+                    reconstructedDoc[fieldName] = update.changes[fieldName].to;
+                }
+            }
+        }
+    }
+
+    return reconstructedDoc;
+}
 
 /**
  * Purge (supprime définitivement) des documents et tout leur historique associé.
