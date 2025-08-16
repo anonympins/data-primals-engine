@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import {useCallback, useEffect, useState} from "react";
 import { Dialog } from "./Dialog.jsx";
 import Button from "./Button.jsx";
 import { FaHistory } from "react-icons/fa";
@@ -120,36 +120,29 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
     const [selectedVersion, setSelectedVersion] = useState(null);
     const { t, i18n } = useTranslation();
 
-    useEffect(() => {
+    const fetchHistory = useCallback(async () => {
         if (!modelName || !recordId) return;
-
-        const fetchHistory = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                // Assuming the API endpoint for history is structured like this
-                const query = await fetch(`/api/data/history/${modelName}/${recordId}`, {
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                });
-                const response = await query.json();
-                if (response.success) {
-                    // L'API devrait retourner l'historique trié du plus récent au plus ancien
-                    setHistory(response.data);
-                } else {
-                    setError(response.error || i18n.t("history.error", "Could not load history."));
-                }
-            } catch (err) {
-                setError(i18n.t("history.error", "Could not load history."));
-                console.error(err);
-            } finally {
-                setLoading(false);
+        setLoading(true);
+        setError(null);
+        try {
+            const query = await fetch(`/api/data/history/${modelName}/${recordId}`);
+            const response = await query.json();
+            if (response.success) {
+                setHistory(response.data);
+            } else {
+                setError(response.error || i18n.t("history.error", "Could not load history."));
             }
-        };
+        } catch (err) {
+            setError(i18n.t("history.error", "Could not load history."));
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }, [modelName, recordId, i18n]);
 
+    useEffect(() => {
         fetchHistory();
-    }, [modelName, recordId]);
+    }, [fetchHistory]);
 
     const handlePreview = async (version) => {
         if (selectedVersion === version) return; // Already selected
@@ -167,6 +160,36 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
             }
         } catch (err) {
             setPreviewData({ error: i18n.t("history.previewError", "Could not load revision preview.") });
+            console.error(err);
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
+    const handleRevert = async (version) => {
+        if (!window.confirm(t('history.confirmRevert', `Are you sure you want to revert to version ${version}? This will create a new version with the content of this revision.`))) {
+            return;
+        }
+
+        setPreviewLoading(true); // Reuse preview loading state to indicate activity
+        try {
+            const res = await fetch(`/api/data/history/${modelName}/${recordId}/revert/${version}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const response = await res.json();
+
+            if (response.success) {
+                alert(t('history.revertSuccess', 'Document successfully reverted. The history will now be updated.'));
+                // Refresh history list and clear preview
+                await fetchHistory();
+                setPreviewData(null);
+                setSelectedVersion(null);
+            } else {
+                alert(t('history.revertError', `Error reverting: ${response.error || 'Unknown error'}`));
+            }
+        } catch (err) {
+            alert(t('history.revertError', 'An error occurred while reverting.'));
             console.error(err);
         } finally {
             setPreviewLoading(false);
@@ -202,7 +225,20 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
                     )}
                 </div>
                 <div className="history-preview-container">
-                    <h4><Trans i18nKey={"history.previewTitle"}>Revision Preview</Trans></h4>
+                    <div className="preview-header">
+                        <h4><Trans i18nKey={"history.previewTitle"}>Revision Preview</Trans></h4>
+                        {previewData && !previewData.error && (
+                            <Button
+                                className="btn-revert"
+                                onClick={() => handleRevert(selectedVersion)}
+                                disabled={previewLoading}
+                                title={t('history.revertTooltip', 'Revert the document to this state. This creates a new version.')}
+                            >
+                                <Trans i18nKey={"history.revertAction"}>Revert to this version</Trans>
+                            </Button>
+                        )}
+                    </div>
+
                     <div className="history-preview-area">
                         {previewLoading && <div><Trans i18nKey={"history.loadingPreview"}>Loading preview...</Trans></div>}
                         {!previewLoading && previewData && <CodeField value={JSON.stringify(previewData,null, 2)} language={"json"} disabled={true} />}
