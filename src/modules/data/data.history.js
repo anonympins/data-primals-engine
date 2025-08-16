@@ -64,6 +64,96 @@ function calculateDiff(beforeDoc, afterDoc, historizedFields) {
     // Retourne null si aucun changement n'a été détecté, ce qui est plus facile à vérifier qu'un objet vide.
     return Object.keys(changes).length > 0 ? changes : null;
 }
+/**
+ * @route   POST /api/data/history/:modelName/:recordId/revert/:version
+ * @desc    Restaure un document à l'état d'une version spécifique.
+ * @access  Private
+ */
+export async function handleRevertToRevisionRequest(req, res) {
+    const { modelName, recordId, version } = req.params;
+    const user = req.me;
+
+    try {
+        // 1. Permissions check (user must be able to edit the data)
+        if (user && user.username !== 'demo' && isLocalUser(user) && (
+            !await hasPermission(["API_ADMIN", "API_EDIT_DATA", "API_EDIT_DATA_"+modelName], user) ||
+            await hasPermission(["API_EDIT_DATA_NOT_"+modelName], user))) {
+            return res.status(403).json({ success: false, error: i18n.t('api.permission.editData') });
+        }
+
+        // 2. Input validation
+        const versionInt = parseInt(version, 10);
+        if (!modelName || !recordId || !isObjectId(recordId) || !version || isNaN(versionInt)) {
+            return res.status(400).json({ success: false, error: "Invalid model name, record ID, or version." });
+        }
+
+        // 3. Get the current state of the document (for history diff)
+        const dataCollection = await getCollectionForUser(user);
+        const docId = new ObjectId(recordId);
+        const beforeDoc = await dataCollection.findOne({ _id: docId });
+
+        if (!beforeDoc) {
+            return res.status(404).json({ success: false, error: "Current document not found." });
+        }
+
+        // 4. Reconstruct the document to the target version
+        const documentStateAtVersion = await getDocumentAtVersion(recordId, modelName, versionInt);
+
+        if (!documentStateAtVersion) {
+            return res.status(404).json({ success: false, error: "Could not reconstruct document at the specified version." });
+        }
+
+        // 5. Calculate changes between current version and target version
+        const model = await getModel(modelName, user);
+        const historizedFields = model?.history?.fields
+            ? Object.keys(model.history.fields).filter(f => model.history.fields[f] === true)
+            : model.fields.map(f => f.name);
+
+        const changes = calculateDiff(beforeDoc, documentStateAtVersion, historizedFields);
+
+        // 6. Replace the document with the reverted state
+        const { _id, ...payloadForReplacement } = documentStateAtVersion;
+        const replaceResult = await dataCollection.replaceOne({ _id: docId }, payloadForReplacement);
+
+        // On ne crée une entrée d'historique que si des champs historisés ont changé.
+        // Le document a pu être modifié à cause de champs non-historisés, mais cela
+        // ne devrait pas créer une nouvelle version dans l'historique.
+        if (changes) {
+            // 7. Create a new history entry manually
+            const historyCollection = getCollection('history');
+
+            // Get last version number
+            const lastVersionDoc = await historyCollection.findOne(
+                { documentId: docId },
+                { projection: { version: 1 }, sort: { version: -1 } }
+            );
+            const newVersion = lastVersionDoc ? lastVersionDoc.version + 1 : 1;
+
+            await historyCollection.insertOne({
+                documentId: docId,
+                model: modelName,
+                timestamp: new Date(),
+                user: { _id: user._id, username: user.username },
+                version: newVersion,
+                operation: 'update', // Une restauration est enregistrée comme une 'update'
+                changes: changes
+            });
+
+            logger.info(`User ${user.username} reverted document ${modelName}:${recordId} to version ${version}. New history entry created (v${newVersion}).`);
+        } else if (replaceResult.modifiedCount > 0) {
+            logger.info(`Document ${modelName}:${recordId} was modified during revert, but no historized fields changed. No new history entry created.`);
+        }
+
+        res.json({ success: true, message: "Document successfully reverted." });
+
+    } catch (error) {
+        logger.error(`[handleRevertToRevisionRequest] Error reverting document ${modelName}:${recordId} to version ${version}:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'An internal server error occurred during the revert operation.'
+        });
+    }
+}
 
 
 /**
@@ -133,6 +223,46 @@ export async function handleGetHistoryRequest(req, res) {
     }
 }
 
+/**
+ * @route   GET /api/data/history/:modelName/:recordId/:version
+ * @desc    Récupère un document à une version spécifique de son historique.
+ * @access  Private (géré par middlewareAuthenticator)
+ */
+export async function handleGetRevisionRequest(req, res) {
+    const { modelName, recordId, version } = req.params;
+    const user = req.me;
+
+    try {
+        // 1. Permissions check (same as getting history)
+        if (user && user.username !== 'demo' && isLocalUser(user) && (
+            !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_"+modelName], user) ||
+            await hasPermission(["API_SEARCH_DATA_NOT_"+modelName], user))) {
+            return res.status(403).json({ success: false, error: i18n.t('api.permission.searchData') });
+        }
+
+        // 2. Input validation
+        if (!modelName || !recordId || !isObjectId(recordId) || !version || isNaN(parseInt(version, 10))) {
+            return res.status(400).json({ success: false, error: "Invalid model name, record ID, or version." });
+        }
+
+        // 3. Reconstruct the document
+        const documentState = await getDocumentAtVersion(recordId, modelName, parseInt(version, 10));
+
+        if (!documentState) {
+            return res.status(404).json({ success: false, error: "Could not reconstruct document at the specified version." });
+        }
+
+        res.json({ success: true, data: documentState });
+
+    } catch (error) {
+        logger.error(`[handleGetRevisionRequest] Error fetching revision for model ${modelName}, record ${recordId}, version ${version}:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'An internal server error occurred while fetching the revision.'
+        });
+    }
+}
+
 
 /**
  * Initialise les écouteurs d'événements pour le module d'historique.
@@ -142,6 +272,8 @@ export function onInit(engine) {
     logger = engine.getComponent(Logger);
 
     engine.get('/api/data/history/:modelName/:recordId', [middlewareAuthenticator, userInitiator], handleGetHistoryRequest);
+    engine.get('/api/data/history/:modelName/:recordId/:version', [middlewareAuthenticator, userInitiator], handleGetRevisionRequest);
+    engine.post('/api/data/history/:modelName/:recordId/revert/:version', [middlewareAuthenticator, userInitiator], handleRevertToRevisionRequest);
 
     // --- Écouteur pour la CRÉATION de données (Version 1 - Snapshot) ---
     Event.Listen("OnDataAdded", async (engine, { modelName, insertedIds, user }) => {
@@ -256,6 +388,60 @@ export function onInit(engine) {
     logger.info("History module initialized and listening for data events.");
 }
 
+/**
+ * Reconstructs a document to a specific version from its history by finding the last
+ * available snapshot and applying subsequent changes.
+ * @param {ObjectId|string} documentId - The ID of the document.
+ * @param {string} modelName - The model name.
+ * @param {number} targetVersion - The version to reconstruct to.
+ * @returns {Promise<object|null>} - The reconstructed document object, or null if not found.
+ */
+export async function getDocumentAtVersion(documentId, modelName, targetVersion) {
+    const historyCollection = getCollection('history');
+    const docId = typeof documentId === 'string' ? new ObjectId(documentId) : documentId;
+    const version = parseInt(targetVersion, 10);
+
+    // 1. Find the most recent snapshot at or before the target version.
+    const lastSnapshotEntry = await historyCollection.findOne({
+        documentId: docId,
+        model: modelName,
+        version: { $lte: version },
+        snapshot: { $exists: true }
+    }, { sort: { version: -1 } });
+
+    if (!lastSnapshotEntry) {
+        logger.warn(`No snapshot found for ${modelName}:${documentId} up to version ${version}. Cannot reconstruct.`);
+        return null;
+    }
+
+    // 2. Start with this snapshot.
+    let reconstructedDoc = lastSnapshotEntry.snapshot;
+
+    if (lastSnapshotEntry.version === version) {
+        return reconstructedDoc;
+    }
+
+    // 3. Find all 'update' operations between our snapshot's version and the target version.
+    const updatesToApply = await historyCollection.find({
+        documentId: docId,
+        model: modelName,
+        version: { $gt: lastSnapshotEntry.version, $lte: version },
+        operation: 'update'
+    }).sort({ version: 1 }).toArray();
+
+    // 4. Apply the changes sequentially.
+    for (const update of updatesToApply) {
+        if (update.changes) {
+            for (const fieldName in update.changes) {
+                if (Object.prototype.hasOwnProperty.call(update.changes, fieldName)) {
+                    reconstructedDoc[fieldName] = update.changes[fieldName].to;
+                }
+            }
+        }
+    }
+
+    return reconstructedDoc;
+}
 
 /**
  * Purge (supprime définitivement) des documents et tout leur historique associé.

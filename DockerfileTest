@@ -1,15 +1,25 @@
-# Base image
-FROM node:18.18.2
+FROM node:20-alpine AS builder
+WORKDIR /usr/src/app
 
-# Set working directory
-WORKDIR /
-
-# Copy package files and install dependencies
-COPY package.json ./
+COPY package*.json ./
 RUN npm install
 
-# Copy application code
 COPY . .
 
-# Expose the application port
+FROM node:20-alpine
+WORKDIR /usr/src/app
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app ./
+
+RUN chown -R appuser:appgroup .
+
+USER appuser
+
+# Exposition du port de l'application
 EXPOSE 7635
+
+# Commande pour lancer l'application en mode production
+CMD [ "npm", "run", "test" ]

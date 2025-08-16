@@ -1,0 +1,9 @@
+.calendar-view-container {
+  padding: 1rem;
+  height: 100%;
+  box-sizing: border-box;
+
+  .rbc-calendar {
+    height: 100% !important; // Pour s'assurer que le calendrier prend toute la hauteur disponible
+  }
+}
