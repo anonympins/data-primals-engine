@@ -40,7 +40,7 @@
 - **Modularity**: Enable/disable features as needed
 - **Batteries Included**: Everything you need to get started quickly
 - **Proven Performance**: Handles 50k+ documents efficiently
-- **AI Ready**: Built-in LangChain integration for OpenAI/Gemini
+- **AI Ready**: Built-in LangChain integration for main providers (OpenAI,Gemini,Anthropic,DeepSeek)
 
 ---
 

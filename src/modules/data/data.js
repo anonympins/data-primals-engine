@@ -2333,9 +2333,21 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         for (const field of relationFields) {
             if (updateData[field.name] !== undefined) {
                 const relationValue = updateData[field.name];
-                if (relationValue !== null && typeof relationValue === 'object') {
-                    const insertedIds = await pushDataUnsecure(relationValue, field.relation, user, { preserveIds: true });
-                    updateData[field.name] = field.multiple ? insertedIds || [] : insertedIds?.[0] || null;
+                // Only process relations if the value is an object or an array containing at least one object.
+                // An array of strings (ObjectIDs) should be passed through as-is for the update.
+                let shouldProcessRelation = false;
+                if (Array.isArray(relationValue)) {
+                    // If any item in the array is a plain object, we need to process the whole array
+                    // to handle potential nested creations or lookups.
+                    if (relationValue.some(item => isPlainObject(item))) {
+                        shouldProcessRelation = true;
+                    }
+                } else if (isPlainObject(relationValue)) {
+                    shouldProcessRelation = true;
+                }
+                if (shouldProcessRelation) {
+                    const insertedIds = await pushDataUnsecure(relationValue, field.relation, user);
+                    updateData[field.name] = field.multiple ? insertedIds || [] : (insertedIds?.[0] || null);
                 }
             }
         }
