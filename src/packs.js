@@ -4137,6 +4137,8 @@ This ensures that your application only processes legitimate requests from Strip
                 "workflowAction",
                 "workflowTrigger",
                 "env",
+                "user",
+                "contact",
                 "currency",
                 {
                     "name": "StripeCustomer",
@@ -4795,7 +4797,7 @@ const findOrCreateUserByEmail = async (email, name) => {
         logger.warn('Cannot find or create user without an email address.');
         return null;
     }
-    let user = await db.findOne('user', { email: email });
+    let user = await db.findOne('user', { "contact": { "$find": { "$eq": ["$$this.email", email] } } });
     if (user) {
         return user;
     }
@@ -4805,20 +4807,13 @@ const findOrCreateUserByEmail = async (email, name) => {
     const lastName = lastNameParts.join(' ');
 
     try {
-        const newUserResult = await db.create('user', {
-            username: email,
-            email: email,
-            name: name
-        });
-        const newUserId = newUserResult.insertedIds[0];
-        user = { _id: newUserId, email: email, name: name }; // Return a user-like object
-
-        // Also create a contact record if the CRM pack is in use
-        await db.create('contact', {
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            user: newUserId
+        await db.create('user', {
+            username: name,
+            contact:{
+                firstName: firstName,
+                lastName: lastName,
+                email: email,
+            }
         });
         logger.info('Successfully created new user and contact for email {email}');
         return user;
