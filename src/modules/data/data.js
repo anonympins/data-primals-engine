@@ -1075,7 +1075,8 @@ export const editModel = async (user, id, data) => {
 export async function middlewareEndpointAuthenticator(req, res, next) {
     const { path } = req.params;
     const method = req.method.toUpperCase();
-    const datasCollection = getCollection('datas');
+    const user = await engine.userProvider.findUserByUsername(req.query._user || req.params.user || req.me.username);
+    const datasCollection = await getCollectionForUser(user);
 
     try {
         const endpointDef = await datasCollection.findOne({
@@ -1137,7 +1138,9 @@ export async function handleCustomEndpointRequest(req, res) {
         // 2. Préparer le contexte pour le script
         const contextData = {
             request: {
-                body: req.fields,
+                // MODIFICATION: Utiliser req.body si disponible (pour les requêtes JSON comme les webhooks Stripe),
+                // sinon, utiliser req.fields (pour les données de formulaire).
+                body: (req.body && Object.keys(req.body).length > 0) ? req.body : (req.fields || {}),
                 query: req.query,
                 params: req.params,
                 headers: req.headers

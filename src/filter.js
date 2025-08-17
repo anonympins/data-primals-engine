@@ -139,8 +139,8 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
     function evaluateComparison(operator, targetValue, processedConditionValue, condition) {
         try {
             switch (typeof operator === 'object' ? Object.keys(operator)[0] : null) {
-            case '$eq': return targetValue == processedConditionValue;
-            case '$ne': return targetValue != processedConditionValue;
+            case '$eq': return targetValue === processedConditionValue;
+            case '$ne': return targetValue !== processedConditionValue;
             case '$gt': return targetValue > processedConditionValue;
             case '$lt': return targetValue < processedConditionValue;
             case '$gte': return targetValue >= processedConditionValue;
@@ -175,63 +175,70 @@ export const isConditionMet = (model, cond, formData, allModels, user) => {
 
     if (!condition) return true;
 
-    // Cas 0: Condition est une valeur primitive (string, number, boolean)
-    // On la considère comme toujours vraie (comportement de searchData)
     if (typeof condition !== 'object' || condition === null) {
         return true;
     }
 
-    // Cas 1: Condition simple {field: value} → transformée en {field: {$eq: value}}
-    if (typeof condition === 'object' && !Array.isArray(condition)) {
+    // Cas spécial: Évaluation sans modèle (ex: pour les webhooks où la condition est déjà résolue)
+    // Dans ce mode, la condition doit être un objet avec un seul opérateur.
+    if (!model) {
         const keys = Object.keys(condition);
-
-        // Cas spécial pour les conditions de type {field: value} (pas d'opérateur $)
-        if (keys.length === 1 && !keys[0].startsWith('$') &&
-            typeof condition[keys[0]] !== 'object') {
-            const fieldName = keys[0];
-            const value = condition[fieldName];
-
-            // Si la valeur est null/undefined, on vérifie simplement l'existence
-            if (value === null || value === undefined) {
-                return formData[fieldName] === value;
-            }
-
-            // Sinon on fait une comparaison d'égalité simple
-            return formData[fieldName] == value;
+        if (keys.length !== 1 || !keys[0].startsWith('$')) {
+            console.warn('[isConditionMet] Condition invalide pour une évaluation sans modèle. Attendu : { "$opérateur": [...] }. Reçu :', condition);
+            return false; // Plus sûr que true pour éviter les faux positifs
         }
 
-        // Cas spécial pour les tableaux - vérifie si la valeur est incluse
-        if (keys.length === 1 && !keys[0].startsWith('$') &&
-            Array.isArray(condition[keys[0]])) {
-            const fieldName = keys[0];
-            const values = condition[fieldName];
-            const fieldValue = formData[fieldName];
+        const operator = keys[0];
+        const operands = condition[operator];
 
-            // Si le champ est aussi un tableau, vérifie l'intersection
-            if (Array.isArray(fieldValue)) {
-                return fieldValue.some(v => values.includes(v));
-            }
+        switch (operator) {
+        // Opérateurs logiques (récursifs)
+        case '$and':
+            return Array.isArray(operands) && operands.every(sub => isConditionMet(null, sub, formData, allModels, user));
+        case '$or':
+            return Array.isArray(operands) && operands.some(sub => isConditionMet(null, sub, formData, allModels, user));
+        case '$not':
+            return !isConditionMet(null, operands, formData, allModels, user);
+        case '$nor':
+            return Array.isArray(operands) && !operands.some(sub => isConditionMet(null, sub, formData, allModels, user));
 
-            // Sinon vérifie si la valeur est dans le tableau
-            return values.includes(fieldValue);
+        // Opérateurs de comparaison (terminaux)
+        case '$eq':
+            return Array.isArray(operands) && operands[0] === operands[1];
+        case '$ne':
+            return Array.isArray(operands) && operands[0] !== operands[1];
+        case '$in':
+            return Array.isArray(operands) && Array.isArray(operands[1]) && operands[1].includes(operands[0]);
+        case '$nin':
+            return Array.isArray(operands) && Array.isArray(operands[1]) && !operands[1].includes(operands[0]);
+        case '$gt':
+            return Array.isArray(operands) && operands[0] > operands[1];
+        case '$gte':
+            return Array.isArray(operands) && operands[0] >= operands[1];
+        case '$lt':
+            return Array.isArray(operands) && operands[0] < operands[1];
+        case '$lte':
+            return Array.isArray(operands) && operands[0] <= operands[1];
+
+        default:
+            console.warn(`[isConditionMet] Opérateur non supporté '${operator}' pour une évaluation sans modèle.`);
+            return false;
         }
     }
 
-    // Cas 2: Opérateurs logiques ($and, $or, $not, $nor)
+    // --- Logique existante pour l'évaluation AVEC modèle ---
+
     if (condition.$and && Array.isArray(condition.$and)) {
         if (condition.$and.length === 0) return true;
         return condition.$and.every(sub => isConditionMet(model, sub, formData, allModels, user));
     }
-
     if (condition.$or && Array.isArray(condition.$or)) {
         if (condition.$or.length === 0) return false;
         return condition.$or.some(sub => isConditionMet(model, sub, formData, allModels, user));
     }
-
     if (condition.$not) {
         return !isConditionMet(model, condition.$not, formData, allModels, user);
     }
-
     if (condition.$nor && Array.isArray(condition.$nor)) {
         if (condition.$nor.length === 0) return true;
         return !condition.$nor.some(sub => isConditionMet(model, sub, formData, allModels, user));
@@ -246,6 +253,5 @@ export const isConditionMet = (model, cond, formData, allModels, user) => {
         }
     }
 
-    // Cas 4: Tous les autres cas (conditions normales avec opérateurs)
     return evaluateSingleCondition(model, condition, formData, allModels, user);
 };
