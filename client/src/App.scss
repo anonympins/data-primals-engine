@@ -1121,6 +1121,8 @@ h2.shadow {
   text-align: left;
   font-size: 75%;
   direction: ltr;
+  max-height: 480px;
+  overflow-y: scroll;
 }
 
 .react-tooltip{

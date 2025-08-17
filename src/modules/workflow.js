@@ -360,13 +360,22 @@ export async function executeSafeJavascript(actionDef, context, user) {
             copy: true // Copie automatique du résultat
         });
 
-        return {
-            success: true,
-            data: result,
-            logs: collectedLogs,
-            updatedContext: { result }
-        };
+        // Vérifier si le script lui-même a signalé un échec.
+        if (result && typeof result === 'object' && result.success === false) {
+            const scriptMessage = result.message || 'Le script a signalé un échec sans message.';
+            collectedLogs.push({
+                level: 'warn',
+                message: `Script reported failure: ${scriptMessage}`,
+                timestamp: new Date().toISOString()
+            });
+            return {
+                success: false,
+                message: scriptMessage,
+                logs: collectedLogs
+            };
+        }
 
+        return { success: true, data: result, logs: collectedLogs, updatedContext: { result } };
     } catch (error) {
         const errorMessage = `Script execution failed: ${error.message}`;
         const finalErrorMessage = logger.trace('critical', `[VM Script] ${errorMessage}\n${error.stack}`);
@@ -1451,12 +1460,11 @@ export async function processWorkflowRun(workflowRunId, user) {
                         conditionsMet = searchResult && searchResult.count > 0;
                         logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: DB condition evaluated. Found ${searchResult ? searchResult.count : 0} match(es). Result: ${conditionsMet}`);
                     } else {
+                        console.log({substitutedConditions, c:contextData['triggerData']['event']['type']});
                         // Si aucun modèle n'est spécifié (ex: webhook), la condition est évaluée sur l'objet de contexte lui-même.
-                        // Nous supposons que isConditionMet peut gérer une définition de modèle nulle pour les vérifications basées sur le contexte.
-                        const modelDef = null; // Pas de modèle à fournir
-                        const documentToTest = contextData; // Le contexte entier est la source de données pour les placeholders
-                        conditionsMet = isConditionMet(modelDef, currentStepDef.conditions, documentToTest, [], user);
-                        logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Context condition evaluated. Result: ${conditionsMet}`);
+                        conditionsMet = isConditionMet(null, substitutedConditions, contextData, [], user);
+
+                        logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Context condition evaluated. Operator: ${JSON.stringify(substitutedConditions)}, Result: ${conditionsMet}`);
                     }
                 }
 

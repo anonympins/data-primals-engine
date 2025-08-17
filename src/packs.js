@@ -4108,6 +4108,7 @@ Replace <your-domain.com> with your actual public domain.
 3. **Select Events:** 
 Click on **+ Select events** and choose the following events to listen to: 
 * invoice.paid
+* invoice.finalized
 * invoice.payment_failed
 * customer.subscription.created 
 * customer.subscription.updated 
@@ -4331,7 +4332,7 @@ return { status: 200, body: { message: "Workflow started", runId: result.runId }
                         {
                             "name": "Process Stripe Webhook Events",
                             "description": "Processes incoming Stripe webhook events and triggers appropriate actions.",
-                            "startStep": { "$link": { "name": "Check for Invoice Paid", "_model": "workflowStep" } }
+                            "startStep": { "$link": { "name": "Check for Invoice Finalized", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Subscription Lifecycle Management",
@@ -4654,41 +4655,99 @@ const findInvoiceByStripeId = async (stripeId) => {
     return invoice || null;
 };
 
-const findUserFromCustomer = (customer) => {
-    return customer ? customer.user : null;
-};
+const findOrCreateUserByEmail = async (email, name) => {
+    if (!email) {
+        logger.warn('Cannot find or create user without an email address.');
+        return null;
+    }
+    let user = await db.findOne('user', { email: email });
+    if (user) {
+        return user;
+    }
 
-const findOrCreateCustomer = async (stripeCustomerId, email, name) => {
-    let customer = await findCustomerByStripeId(stripeCustomerId);
-    if (!customer) {
-        logger.info(\`Customer not found locally, creating a new one for Stripe ID: \${stripeCustomerId}\`);
-        const newCustomerData = {
-            stripeCustomerId: stripeCustomerId,
+    logger.info('User with email {email} not found. Creating a new user.');
+    const [firstName, ...lastNameParts] = (name || '').split(' ');
+    const lastName = lastNameParts.join(' ');
+
+    try {
+        const newUserResult = await db.create('user', {
+            username: email,
             email: email,
             name: name
-        };
-        // Try to link to an existing user by email
-        const user = await db.findOne('user', { email: email });
-        if (user) {
-            newCustomerData.user = user._id;
-        }
-        const result = await db.create('StripeCustomer', newCustomerData);
-        customer = { _id: result.insertedIds[0], ...newCustomerData };
+        });
+        const newUserId = newUserResult.insertedIds[0];
+        user = { _id: newUserId, email: email, name: name }; // Return a user-like object
+
+        // Also create a contact record if the CRM pack is in use
+        await db.create('contact', {
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            user: newUserId
+        });
+        logger.info('Successfully created new user and contact for email {email}');
+        return user;
+    } catch (e) {
+        logger.error('Failed to create new user for email {email}: {e.message}');
+        return null;
     }
-    return customer;
+};
+
+const findOrCreateStripeCustomer = async (stripeCustomerId, email, name) => {
+    if (!stripeCustomerId) return null;
+
+    let localCustomer = await db.findOne('StripeCustomer', { stripeCustomerId: stripeCustomerId });
+    if (localCustomer) {
+        return localCustomer;
+    }
+
+    // Customer doesn't exist locally, so we need to create it.
+    // First, ensure a local user exists.
+    const user = await findOrCreateUserByEmail(email, name);
+    if (!user) {
+        logger.error(\`Cannot create StripeCustomer for \${stripeCustomerId} because its corresponding user could not be created.\`);
+        return null;
+    }
+
+    // Now, create the StripeCustomer record, linking it to the user.
+    const newCustomerData = {
+        stripeCustomerId: stripeCustomerId,
+        email: email,
+        name: name,
+        user: user._id // The required field
+    };
+
+    try {
+        const result = await db.create('StripeCustomer', newCustomerData);
+        logger.info(\`Created new StripeCustomer for Stripe ID \${stripeCustomerId}\`);
+        return { _id: result.insertedIds[0], ...newCustomerData };
+    } catch (e) {
+        logger.error(\`Failed to create StripeCustomer for Stripe ID \${stripeCustomerId}: \${e.message}\`);
+        return null;
+    }
 };
 
 
 let modelName;
 let filter;
 let dataToUpsert;
+let postSyncAction = null;
 
 switch (objectType) {
   case 'customer':
     modelName = 'StripeCustomer';
-    idField = 'stripeCustomerId';
+    filter = { stripeCustomerId: stripeObject.id };
+
+    const userForCustomer = await findOrCreateUserByEmail(stripeObject.email, stripeObject.name);
+    if (!userForCustomer) {
+        const msg = \`Could not establish a user for Stripe customer \${stripeObject.id}. Cannot sync.\`;
+        logger.error(msg);
+        return { success: false, message: msg };
+    }
+
     dataToUpsert = {
       stripeCustomerId: stripeObject.id,
+      user: userForCustomer._id,
       email: stripeObject.email || null,
       name: stripeObject.name || null,
       phone: stripeObject.phone || null,
@@ -4703,31 +4762,45 @@ switch (objectType) {
   case 'subscription':
     modelName = 'StripeSubscription';
     filter = { stripeSubscriptionId: stripeObject.id };
+
+    const customerForSubscription = await findCustomerByStripeId(stripeObject.customer);
+    if (!customerForSubscription || !customerForSubscription.user) {
+        const msg = \`Local StripeCustomer (or its user link) not found for ID \${stripeObject.customer}. Syncing subscription \${stripeObject.id} aborted. Ensure customer webhooks are enabled and processed first.\`;
+        logger.error(msg);
+        return { success: false, message: msg };
+    }
+
+    const priceId = getNested(stripeObject, 'items.data.0.price.id');
+    if (!priceId) {
+        logger.info("Price ID not found");
+        return { success: false, message:'Price ID missing for subscription {stripeObject.id}' };
+    }
+    const priceDoc = await db.findOne('StripePrice', { stripePriceId: priceId });
+    if (!priceDoc || !priceDoc.plan) {
+        logger.info("Price/plan not found");
+        return { success: false, message: 'Price/Plan for subscription {stripeObject.id} not found.' };
+    }
+
+    const latestInvoiceDoc = await findInvoiceByStripeId(stripeObject.latest_invoice);
+
+    logger.info("Inserted.");
     dataToUpsert = {
-      stripeSubscriptionId: stripeObject.id,
-      status: stripeObject.status,
-      currentPeriodStart: stripeObject.current_period_start ? new Date(stripeObject.current_period_start * 1000) : null,
-      currentPeriodEnd: stripeObject.current_period_end ? new Date(stripeObject.current_period_end * 1000) : null,
-      cancelAtPeriodEnd: stripeObject.cancel_at_period_end || false,
-      canceledAt: stripeObject.canceled_at ? new Date(stripeObject.canceled_at * 1000) : null,
-      daysUntilDue: stripeObject.days_until_due || null,
-      defaultPaymentMethod: stripeObject.default_payment_method || null,
-      startDate: stripeObject.start_date ? new Date(stripeObject.start_date * 1000) : null,
-      trialEnd: stripeObject.trial_end ? new Date(stripeObject.trial_end * 1000) : null,
-      metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
+        stripeSubscriptionId: stripeObject.id,
+        user: customerForSubscription.user,
+        customer: customerForSubscription._id,
+        plan: priceDoc.plan,
+        latestInvoice: latestInvoiceDoc ? latestInvoiceDoc._id : null,
+        status: stripeObject.status,
+        currentPeriodStart: stripeObject.current_period_start ? new Date(stripeObject.current_period_start * 1000) : null,
+        currentPeriodEnd: stripeObject.current_period_end ? new Date(stripeObject.current_period_end * 1000) : null,
+        cancelAtPeriodEnd: stripeObject.cancel_at_period_end || false,
+        canceledAt: stripeObject.canceled_at ? new Date(stripeObject.canceled_at * 1000) : null,
+        daysUntilDue: stripeObject.days_until_due || null,
+        defaultPaymentMethod: stripeObject.default_payment_method || null,
+        startDate: stripeObject.start_date ? new Date(stripeObject.start_date * 1000) : null,
+        trialEnd: stripeObject.trial_end ? new Date(stripeObject.trial_end * 1000) : null,
+        metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
     };
-    
-    // Handle relations
-    if (stripeObject.customer) {
-      const customer = await db.findOne('StripeCustomer', { stripeCustomerId: stripeObject.customer });
-      if (customer) dataToUpsert.customer = customer._id;
-    }
-    
-    if (stripeObject.items?.data?.[0]?.price?.id) {
-      const priceId = stripeObject.items.data[0].price.id;
-      const plan = await db.findOne('StripePlan', { stripePriceId: priceId });
-      if (plan) dataToUpsert.plan = plan._id;
-    }
     break;
     
   case 'product':
@@ -4746,9 +4819,15 @@ switch (objectType) {
       active: stripeObject.active !== false,
       metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
     };
-    // Price details like amount and currency are not on the product object.
-    // They will be synced when the corresponding 'price.created' or 'price.updated'
-    // event for the default_price is received.
+    // If the default price is being removed (set to null), we must also clear
+    // the denormalized pricing fields on the plan to maintain data consistency.
+    if (!defaultPriceId) {
+        dataToUpsert.price = null;
+        dataToUpsert.currency = null;
+        dataToUpsert.interval = null;
+        dataToUpsert.intervalCount = 1; // Reset to default
+    }
+    // Otherwise, price details are synced via the 'price' event handler.
     break;
     
   case 'price':
@@ -4774,8 +4853,8 @@ switch (objectType) {
     };
 
     // If this price is the default for the plan, update the plan's price details too.
-    postAction = async (priceDocId) => {
-        if (parentPlan.stripePriceId === stripeObject.id) {
+    postSyncAction = async (priceDocId) => {
+        if (parentPlan.stripeDefaultPriceId === stripeObject.id) {
             await db.update('StripePlan',
                 { _id: parentPlan._id },
                 {
@@ -4795,7 +4874,16 @@ switch (objectType) {
     modelName = 'StripeInvoice';
     filter = { stripeInvoiceId: stripeObject.id };
     
-    const customerForInvoice = await findCustomerByStripeId(stripeObject.customer);
+    const customerForInvoice = await findOrCreateStripeCustomer(
+        stripeObject.customer,
+        stripeObject.customer_email,
+        stripeObject.customer_name
+    );
+    if (!customerForInvoice) {
+        const msg = \`Failed to find or create StripeCustomer for invoice \${stripeObject.id}.\`;
+        logger.error(msg);
+        return { success: false, message: msg };
+    }
     const subscriptionForInvoice = await findSubscriptionByStripeId(stripeObject.subscription);
 
     dataToUpsert = {
@@ -4823,8 +4911,17 @@ switch (objectType) {
     modelName = 'StripePayment';
     filter = { stripePaymentIntentId: stripeObject.id };
 
-    const customerForPayment = await findCustomerByStripeId(stripeObject.customer);
-    const userForPayment = findUserFromCustomer(customerForPayment);
+    const customerForPayment = await findOrCreateStripeCustomer(
+        stripeObject.customer,
+        stripeObject.receipt_email,
+        getNested(stripeObject, 'charges.data.0.billing_details.name')
+    );
+    if (!customerForPayment) {
+        const msg = \`Failed to find or create StripeCustomer for payment intent \${stripeObject.id}.\`;
+        logger.error(msg);
+        return { success: false, message: msg };
+    }
+    const userForPayment = customerForPayment.user;
     const invoiceForPayment = await findInvoiceByStripeId(stripeObject.invoice);
     const subscriptionForPayment = invoiceForPayment ? await findSubscriptionByStripeId(invoiceForPayment.subscription) : null;
 
@@ -4847,6 +4944,27 @@ switch (objectType) {
     };
     break;
     
+   case 'refund':
+     modelName = 'StripeRefund';
+     filter = { stripeRefundId: stripeObject.id };
+     
+     const paymentForRefund = await db.findOne('StripePayment', { stripePaymentIntentId: stripeObject.payment_intent });
+     if (!paymentForRefund) {
+         return { success: false, message: 'Original payment not found for refund.' };
+     }
+ 
+     dataToUpsert = {
+         stripeRefundId: stripeObject.id,
+         payment: paymentForRefund._id,
+         amount: stripeObject.amount / 100,
+         currency: await findCurrencyByCode(stripeObject.currency),
+         reason: stripeObject.reason,
+         status: stripeObject.status,
+         receiptNumber: stripeObject.receipt_number,
+         created: new Date(stripeObject.created * 1000)
+     };
+     break;
+
   default:
     logger.warn('Unsupported Stripe object type:', objectType);
     return { success: false, message: 'Unsupported Stripe object type: ' + objectType };
@@ -4864,19 +4982,18 @@ try {
   let docId;
   if (existing) {
     // 2. Mise à jour si l'entité existe
-    docId = existing._id;
     await db.update(modelName, filter, dataToUpsert);
+    docId = existing._id;
     logger.info(\`Updated \${modelName} with filter: \${JSON.stringify(filter)}\`);
   } else {
-    // 3. Création pour les autres types (product, customer, etc.)
-    await db.create(modelName, { ...dataToUpsert });
-     const createResult = await db.create(modelName, { ...dataToUpsert });
-     docId = createResult.insertedIds[0];
+    // 3. Création si l'entité n'existe pas
+    const createResult = await db.create(modelName, { ...dataToUpsert });
+    docId = createResult.insertedIds[0];
     logger.info(\`Created new \${modelName} with filter: \${JSON.stringify(filter)}\`);
   }
   
-   if (postAction) {
-       await postAction(docId);
+   if (postSyncAction) {
+       await postSyncAction(docId);
    }
   return { success: true };
 } catch (e) {
@@ -4895,42 +5012,55 @@ try {
                         },
                         // --- Main Webhook Router Steps ---
                         {
+                            "name": "Check for Invoice Finalized",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$eq": ["$triggerData.event.type", "invoice.finalized"] },
+                            "onSuccessStep": { "$link": { "name": "Handle Finalized Invoice", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Invoice Paid", "_model": "workflowStep" } }
+                        },
+                        {
                             "name": "Check for Invoice Paid",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$eq": ["{triggerData.event.type}", "invoice.paid"] },
+                            "conditions": { "$eq": ["$triggerData.event.type", "invoice.paid"] },
                             "onSuccessStep": { "$link": { "name": "Handle Paid Invoice", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Invoice Payment Failed", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Check for Invoice Payment Failed",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$eq": ["{triggerData.event.type}", "invoice.payment_failed"] },
+                            "conditions": { "$eq": ["$triggerData.event.type", "invoice.payment_failed"] },
                             "onSuccessStep": { "$link": { "name": "Handle Failed Invoice", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Subscription Created", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Check for Subscription Created",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$eq": ["{triggerData.event.type}", "customer.subscription.created"] },
+                            "conditions": { "$eq": ["$triggerData.event.type", "customer.subscription.created"] },
                             "onSuccessStep": { "$link": { "name": "Handle Subscription Created", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Subscription Updated", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Check for Subscription Updated",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$in": ["{triggerData.event.type}", ["customer.subscription.updated", "customer.subscription.deleted"]] },
+                            "conditions": { "$in": ["$triggerData.event.type", ["customer.subscription.updated", "customer.subscription.deleted"]] },
                             "onSuccessStep": { "$link": { "name": "Handle Subscription Update/Delete", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Payment Succeeded", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Check for Payment Succeeded",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$eq": ["{triggerData.event.type}", "payment_intent.succeeded"] },
+                            "conditions": { "$eq": ["$triggerData.event.type", "payment_intent.succeeded"] },
                             "onSuccessStep": { "$link": { "name": "Handle Payment Succeeded", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Customer Updated", "_model": "workflowStep" } }
                         },
 
                         // --- Action-performing Steps ---
+                        {
+                            "name": "Handle Finalized Invoice",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
+                            "isTerminal": true
+                        },
                         {
                             "name": "Handle Paid Invoice",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
@@ -5006,14 +5136,14 @@ try {
                         {
                             "name": "Check for Customer Updated",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$in": ["{triggerData.event.type}", ["customer.created", "customer.updated", "customer.deleted"]] },
+                            "conditions": { "$in": ["$triggerData.event.type", ["customer.created", "customer.updated", "customer.deleted"]] },
                             "onSuccessStep": { "$link": { "name": "Handle Customer Update", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Product Updated", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Check for Product Updated",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$in": ["{triggerData.event.type}", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated"]] },
+                            "conditions": { "$in": ["$triggerData.event.type", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated"]] },
                             "onSuccessStep": { "$link": { "name": "Handle Product Update", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Log Unhandled Event", "_model": "workflowStep" } }
                         },
