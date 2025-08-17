@@ -4106,14 +4106,18 @@ Replace <your-domain.com> with your actual public domain.
 * Paste your URL in the **Endpoint URL** field.
 
 3. **Select Events:** 
-Click on **+ Select events** and choose the following events to listen to: 
+Click on **+ Select events** and choose the following events to listen to (if you want them to be synchronized): 
 * invoice.paid
 * invoice.finalized
+* invoice.created
+* invoice.updated
 * invoice.payment_failed
 * customer.subscription.created 
 * customer.subscription.updated 
 * customer.subscription.deleted 
 * payment_intent.succeeded
+* refund.created
+* refund.updated
 
 4. **Secure Your Webhook:** 
 * After creating the endpoint, Stripe will show a **Signing secret**. Click to reveal it. 
@@ -4235,8 +4239,8 @@ This ensures that your application only processes legitimate requests from Strip
                         { "name": "periodStart", "type": "datetime" },
                         { "name": "periodEnd", "type": "datetime" },
                         { "name": "dueDate", "type": "datetime" },
-                        { "name": "pdfUrl", "type": "string" },
-                        { "name": "hostedInvoiceUrl", "type": "string" },
+                        { "name": "pdfUrl", "type": "url" },
+                        { "name": "hostedInvoiceUrl", "type": "url" },
                         { "name": "lines", "type": "code", "language": "json" },
                         { "name": "created", "type": "datetime", "default": "now" },
                         { "name": "metadata", "type": "code", "language": "json" }
@@ -5026,6 +5030,20 @@ try {
                             "onFailureStep": { "$link": { "name": "Check for Invoice Payment Failed", "_model": "workflowStep" } }
                         },
                         {
+                            "name": "Check for Invoice Events",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": {
+                                "$in": ["$triggerData.event.type", [
+                                    "invoice.created",
+                                    "invoice.updated",
+                                    "invoice.finalized",
+                                    "invoice.paid"
+                                ]]
+                            },
+                            "onSuccessStep": { "$link": { "name": "Handle Invoice Sync", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Invoice Payment Failed", "_model": "workflowStep" } }
+                        },
+                        {
                             "name": "Check for Invoice Payment Failed",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "conditions": { "$eq": ["$triggerData.event.type", "invoice.payment_failed"] },
@@ -5056,13 +5074,7 @@ try {
 
                         // --- Action-performing Steps ---
                         {
-                            "name": "Handle Finalized Invoice",
-                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
-                            "isTerminal": true
-                        },
-                        {
-                            "name": "Handle Paid Invoice",
+                            "name": "Handle Invoice Sync",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
                             "isTerminal": true
@@ -5070,12 +5082,6 @@ try {
                         {
                             "name": "Handle Failed Invoice",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": { "$link": { "name": "Send Payment Failure Email", "_model": "workflowAction" } },
-                            "isTerminal": true
-                        },
-                        {
-                            "name": "Handle Invoice Created",
-                            "workflow": { "$link": { "name": "Invoice Processing", "_model": "workflow" } },
                             "actions": { "$link": { "name": "Send Payment Failure Email", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
@@ -5145,7 +5151,20 @@ try {
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
                             "conditions": { "$in": ["$triggerData.event.type", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated"]] },
                             "onSuccessStep": { "$link": { "name": "Handle Product Update", "_model": "workflowStep" } },
+                            "onFailureStep": { "$link": { "name": "Check for Refund Events", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Check for Refund Events",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "conditions": { "$in": ["$triggerData.event.type", ["refund.created", "refund.updated"]] },
+                            "onSuccessStep": { "$link": { "name": "Handle Refund Sync", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Log Unhandled Event", "_model": "workflowStep" } }
+                        },
+                        {
+                            "name": "Handle Refund Sync",
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
+                            "actions": { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
+                            "isTerminal": true
                         },
                         {
                             "name": "Handle Customer Update",
