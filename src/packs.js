@@ -4089,6 +4089,7 @@ Ajoutez ces événements supplémentaires pour une synchronisation complète :
   - product.deleted
   - price.created
   - price.updated
+  - price.deleted
   - plan.updated
   
   ### Webhook Configuration
@@ -4616,6 +4617,41 @@ const event = context.triggerData.event;
 const stripeObject = event.data.object;
 const objectType = stripeObject.object;
 
+// --- Handle Deletion Events First ---
+// If the incoming Stripe object has a 'deleted' flag, we should remove the corresponding local record.
+if (stripeObject.deleted === true) {
+    let modelToDelete;
+    let filterToDelete;
+    const objectId = stripeObject.id;
+
+    switch (objectType) {
+        case 'customer':
+            modelToDelete = 'StripeCustomer';
+            filterToDelete = { stripeCustomerId: objectId };
+            break;
+        case 'product':
+            modelToDelete = 'StripePlan';
+            filterToDelete = { stripeProductId: objectId };
+            break;
+        case 'price':
+        case 'plan': // Legacy support
+            modelToDelete = 'StripePrice';
+            filterToDelete = { stripePriceId: objectId };
+            break;
+        default:
+            logger.warn(\`Received a deletion event for an unhandled object type: \${objectType}\`);
+            return { success: true, message: \`Deletion event for \${objectType} is not handled.\` };
+    }
+
+    if (modelToDelete) {
+        logger.info(\`Deletion event for \${objectType} \${objectId}. Deleting from \${modelToDelete}.\`);
+        const deleteResult = await db.delete(modelToDelete, filterToDelete);
+        if (deleteResult.success) {
+            return { success: true, message: \`Deleted \${objectType} \${objectId}\` };
+        }
+        return { success: false, message: \`Failed to delete \${objectType} \${objectId}: \${deleteResult.message}\` };
+    }
+}
 // Helper function to safely get nested properties
 const getNested = (obj, path) => {
   return path.split('.').reduce((o, p) => (o && o[p] !== undefined ? o[p] : null), obj);
@@ -5229,7 +5265,7 @@ try {
                         {
                             "name": "Check for Product Updated",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$in": ["{triggerData.event.type}", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated", "plan.updated"]] },
+                            "conditions": { "$in": ["$triggerData.event.type", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated", "price.deleted", "plan.updated"]] },
                             "onSuccessStep": { "$link": { "name": "Handle Product Update", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Refund Events", "_model": "workflowStep" } }
                         },
