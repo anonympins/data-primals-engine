@@ -59,7 +59,28 @@ export const getAllPacks = async () => {
     return [
         {
             "name": "Marketing & Campaigning",
-            "description": "Launch powerful, personalized, and scalable email campaigns. This pack uses dynamic audiences and a robust workflow to send emails in chunks, ensuring high performance. Depends on the 'Customer Relationship Management (CRM)' pack.",
+            "description": `### What is it?
+This pack provides a complete system for creating, managing, and sending large-scale email marketing campaigns. It is designed for performance and scalability by processing recipients in manageable chunks.
+
+### What does it include?
+*   **Models:**
+    *   \`campaign\`: To define the content of your email (subject, body) and track its status (draft, in progress, finished).
+    *   \`audience\`: To create dynamic lists of recipients based on specific criteria (e.g., "all contacts tagged 'newsletter'").
+*   **Workflow:** A "Campaign Emailing Workflow" that automatically manages the sending process from start to finish.
+*   **Trigger:** A trigger that starts the workflow when a campaign's status is set to "scheduled".
+
+### How does it work?
+The core of this pack is a smart workflow that avoids overloading your server. Instead of trying to send thousands of emails at once, it works in a loop:
+1.  It fetches a small batch (a "chunk") of contacts from your target audience that have not yet been processed.
+2.  It sends the personalized email to everyone in that chunk.
+3.  It records the IDs of the processed contacts to ensure they don't receive the email again.
+4.  It checks if there are more contacts left. If so, it loops back to step 1. If not, it marks the campaign as "finished".
+
+### How to use it (Step-by-Step)
+1.  **Prerequisite:** Make sure the "Customer Relationship Management (CRM)" pack is installed, as this pack depends on it.
+2.  **Define Your Audience:** Go to the \`audience\` model and create a new entry. Give it a name (e.g., "Newsletter Subscribers") and define a filter to select the desired contacts.
+3.  **Create Your Campaign:** Go to the \`campaign\` model. Create a new campaign, write your subject and email content (you can use placeholders like \`{recipient.firstName}\`), and link it to the audience you just created.
+4.  **Launch:** When you are ready to send, simply change the campaign's status from "draft" to "scheduled". The workflow will automatically trigger and start the sending process.`,
             "tags": ["marketing", "email", "campaign", "workflow"],
             "models": ["env", "contact", "workflow", "workflowStep", "workflowAction", "workflowRun", "workflowTrigger",
                 {
@@ -296,7 +317,30 @@ return { processedChunk: context.result.chunk };
         },*/
         {
             "name": "E-commerce Starter Kit",
-            "description": "Launch your online store in just a few clicks. This pack includes templates for products, orders, and customers, as well as sample data, KPIs, alerts and an order fulfillment workflow (with sending email).",
+            "description": `### What is it?
+This pack provides all the essential building blocks to launch an online store. It includes the necessary data models, automated processes, and monitoring tools to manage products, orders, and shipments.
+
+### What does it include?
+*   **Core Models:** \`product\`, \`productVariant\`, \`order\`, \`shipment\`, \`review\`, \`cart\`, \`brand\`, and more.
+*   **Workflows:**
+    *   **Order Fulfillment:** A pre-configured workflow to automate the steps after an order is placed (e.g., update status to 'processing', create a shipment record).
+    *   **Shipment Notification:** An automated workflow that sends an email to the customer as soon as their order is marked as shipped.
+*   **Dashboard & KPIs:** A "Business Overview" dashboard with key metrics like Total Revenue, Total Orders, and Average Order Value.
+*   **Alerts:** Pre-configured alerts to notify you of important events, such as "Low Stock Warning" or "New Negative Review".
+
+### How does it work?
+This pack sets up an automated ecosystem for your store:
+1.  When a new order is created, you can trigger the **Order Fulfillment** workflow to streamline processing.
+2.  When you update a shipment with a tracking number and trigger the **Shipment Notification** workflow, the customer automatically receives an email.
+3.  The alerts run on a schedule to constantly monitor your store's health, creating notifications for you in the app.
+4.  The dashboard provides a real-time view of your store's performance.
+
+### How to use it (Step-by-Step)
+1.  **Installation:** Install the pack to create all the e-commerce models and workflows.
+2.  **Add Products:** Populate the \`product\` and \`productVariant\` models with your items.
+3.  **Process Orders:** When a new order comes in, trigger the "Order Fulfillment" workflow.
+4.  **Notify Customers:** When a shipment is ready, trigger the "Shipment Notification" workflow to inform the customer.
+5.  **Monitor:** Keep an eye on the "Business Overview" dashboard and the in-app alerts to stay on top of your business.`,
             "tags": ["e-commerce", "business", "store"],
             "models": ["env", "taxonomy", "product", "productVariant", "brand", "currency", "order", "shipment", "review", "cart", "cartItem", "discount", "workflow", "workflowStep", "workflowAction","workflowRun", "workflowTrigger", "translation", "lang", "kpi", "dashboard", "alert", "return"],
             "data": {
@@ -598,7 +642,26 @@ return { processedChunk: context.result.chunk };
         },
         {
             "name": "Website Starter Pack",
-            "description": "All you need to create a new website with models, default categories, user permissions, KPIs, and a content review workflow. Multiple languages available.",
+            "description": `### What is it?
+This is the foundational pack for building any kind of website or application. It provides the core data structures for content management, user administration, and internationalization.
+
+### What does it include?
+*   **Core Models:**
+    *   Content: \`content\`, \`webpage\`, \`taxonomy\` (for categories and tags).
+    *   Users: \`user\`, \`role\`, \`permission\`.
+    *   Internationalization: \`lang\` and \`translation\`.
+*   **Pre-configured Roles & Permissions:** Includes standard user roles like "Administrator", "Editor", and "Visitor" with a complete set of associated permissions, saving you significant setup time.
+*   **Sample Data:** Creates a default set of categories (\`News\`, \`Blog\`, \`Products\`, etc.) to get you started immediately.
+
+### How does it work?
+This pack doesn't provide a full-fledged website out of the box. Instead, it lays the essential groundwork upon which other packs and your custom features will be built. It establishes the relationships between users, their roles, and what they are allowed to do, and it sets up the system for managing content and translations.
+
+### How to use it (Step-by-Step)
+1.  **Installation:** This should typically be one of the first packs you install.
+2.  **Review Models:** Familiarize yourself with the created models like \`content\`, \`user\`, and \`role\`.
+3.  **Assign Roles:** Start assigning the pre-configured roles to your users to manage access control.
+4.  **Create Content:** You can immediately start adding content and organizing it with the default categories and tags.
+5.  **Build On Top:** Use this foundation to build more complex features or install other packs like "E-commerce" or "CRM".`,
             "tags": ["website", "i18n", "workflow"],
             "models": ["content", "webpage", "translation", "message", "channel", "taxonomy", "lang", "user", "role", "permission", "kpi", "workflow", "workflowStep", "workflowAction", "workflowTrigger"],
             "data": {
@@ -655,7 +718,28 @@ return { processedChunk: context.result.chunk };
         },
         {
             "name": "Customer Relationship Management (CRM)",
-            "description": "Manage your contacts, track your business opportunities and centralize your interactions so you never miss a sale again.",
+            "description": `### What is it?
+A complete system for managing your company's relationships and interactions with current and potential customers. It helps you track sales opportunities, centralize communications, and automate follow-ups.
+
+### What does it include?
+*   **Core Models:**
+    *   \`contact\`: A unified address book for individuals and companies.
+    *   \`deal\`: To track sales opportunities through a customizable pipeline (e.g., New, Qualified, Won, Lost).
+    *   \`interaction\`: To log every touchpoint with a contact (calls, emails, meetings).
+    *   \`task\`: To manage to-do items related to your deals or contacts.
+*   **Dashboard & KPIs:** A "Sales Dashboard" providing an at-a-glance view of your sales pipeline, conversion rates, and average deal size.
+*   **Workflow:** A "Post-Meeting Follow-Up" workflow that automatically creates a follow-up task for you two days after you log a meeting.
+
+### How does it work?
+The CRM pack connects your contacts, deals, and interactions in one place. By logging every call or meeting, you build a complete history for each customer. The workflow helps enforce good sales practices by ensuring no follow-up is forgotten. The dashboard visualizes your sales funnel, helping you identify bottlenecks and forecast revenue.
+
+### How to use it (Step-by-Step)
+1.  **Installation:** Install the pack to create the CRM models, dashboard, and workflow.
+2.  **Import Contacts:** Add your existing contacts and companies to the \`contact\` model.
+3.  **Create Deals:** For each sales opportunity, create a new entry in the \`deal\` model and link it to the relevant contact.
+4.  **Log Everything:** Every time you communicate with a contact, create an \`interaction\` record. If it's a "Meeting", a follow-up task will be created for you automatically.
+5.  **Manage Your Pipeline:** Update the status of your deals as they progress through the sales cycle.
+6.  **Monitor Performance:** Regularly check the "Sales Dashboard" to track your progress.`,
             "tags": ["crm", "sales", "contacts"],
             "models": [
                 "contact",
@@ -1301,7 +1385,27 @@ return { processedChunk: context.result.chunk };
         },
         {
             "name": "AI Content Generation - Starter Pack",
-            "description": "AI Content Generation Starter Pack : Generate SEO description for products using the OpenAI API or Google API",
+            "description": `### What is it?
+This pack leverages the power of Generative AI to automate content creation. It comes pre-configured with a workflow to automatically write SEO-optimized descriptions for your products.
+
+### What does it include?
+*   **Workflow:** "Generate product description".
+*   **AI Actions:** A powerful \`GenerateAIContent\` action that can connect to different AI providers (like OpenAI or Google).
+*   **Trigger:** An automatic trigger that runs the workflow whenever a new product is added without a description.
+
+### How does it work?
+The magic happens automatically in the background:
+1.  When you create a new product and leave the "SEO Description" field empty, a trigger fires.
+2.  The workflow is launched, taking the product's name as input.
+3.  It sends a request to an AI model (e.g., OpenAI's GPT-4o-mini) with a carefully crafted prompt: "Write a short, SEO-optimized product description for...".
+4.  The AI generates the text.
+5.  The workflow takes the AI's response and automatically saves it back into the product's "SEO Description" field.
+
+### How to use it (Step-by-Step)
+1.  **Installation:** Install the pack.
+2.  **Configure API Key:** Go to the \`env\` model and enter your API key for the AI provider you want to use (e.g., \`OPENAI_API_KEY\`).
+3.  **Create a Product:** Go to your \`product\` model and create a new item. Give it a name, but **leave the 'seoDescription' field blank**.
+4.  **Witness the Automation:** Within moments, the workflow will run, and the \`seoDescription\` field will be automatically populated with a unique, AI-generated description.`,
             "models": ["workflow", "workflowAction", "workflowStep", "workflowTrigger", "env"],
             "data": {
                 "all": {
@@ -1366,7 +1470,24 @@ return { processedChunk: context.result.chunk };
 
         {
             "name": "Multilingual starter pack",
-            "description": "All you need to start with a translated website, or to start multilingual systems.",
+            "description": `### What is it?
+This is a foundational data pack that provides a comprehensive database of world languages and the structure to manage translations. It is a prerequisite for building any multilingual application.
+
+### What does it include?
+*   **Models:**
+    *   \`lang\`: Pre-populated with over 80 languages, including their name (e.g., "Français") and ISO code (e.g., "fr").
+    *   \`translation\`: A model designed to store translations, linking a text "key" to its value in a specific language.
+*   **Sample Data:** Includes translations for the names of all the provided languages, so your language selectors will be multilingual out of the box.
+
+### How does it work?
+This pack provides the raw data and structure for internationalization (i18n). It doesn't translate your content automatically. Instead, it gives you the tools to do so. The system can use the \`translation\` model to look up the correct text for a given key and the user's current language.
+
+### How to use it (Step-by-Step)
+1.  **Installation:** Install this pack if your application needs to support more than one language.
+2.  **Usage:** This pack is mostly used as a dependency for other packs or custom development. When you need to display a translatable text, you would:
+    a. Define a unique key (e.g., "WELCOME_MESSAGE").
+    b. Add entries in the \`translation\` model for this key for each language you support (e.g., key: "WELCOME_MESSAGE", lang: "en", value: "Welcome!").
+    c. Your application's front-end can then fetch the correct translation based on the user's selected language.`,
             "tags": ["i18n"],
             "models": ["translation", "lang"],
             "data": {
@@ -2384,7 +2505,20 @@ return { processedChunk: context.result.chunk };
         },
         {
             "name": "Currencies Database",
-            "description": "Database of currencies",
+            "description": `### What is it?
+A foundational data pack that provides a comprehensive database of world currencies. It is an essential component for any application that deals with financial transactions, such as e-commerce or billing systems.
+
+### What does it include?
+*   **Model:**
+    *   \`currency\`: Pre-populated with over 150 world currencies, including their full name (e.g., "US Dollar"), official ISO code (e.g., "USD"), and common symbol (e.g., "$").
+*   **Translations:** Includes translations for currency names in multiple languages, allowing you to display them correctly to an international audience.
+
+### How does it work?
+This pack provides the raw data for handling money. It allows you to associate a specific currency with any financial data in your system, ensuring accuracy and clarity. For example, a price field in a \`product\` model can be linked to a currency record, so you know that a value of "10" means "10 Euros" and not "10 Dollars".
+
+### How to use it (Step-by-Step)
+1.  **Installation:** Install this pack if your application will handle any form of monetary value. It is a dependency for the "E-commerce" and "Stripe Integration" packs.
+2.  **Usage:** In your other models (like \`product\` or \`order\`), create a \`relation\` field that points to the \`currency\` model. This allows you to link each financial transaction or price to a specific currency, avoiding ambiguity.`,
             "tags": ["e-commerce", "currencies", "i18n"],
             "models": ["currency", "translation", "lang"],
             "data": {
@@ -4050,83 +4184,35 @@ return { processedChunk: context.result.chunk };
         },
         {
             "name": "Stripe Integration Pro",
-            "description": `
-This package is a comprehensive solution for integrating Stripe into your application. It not only manages payments, but also automates the entire billing and customer management ecosystem. In summary, this package allows you to:
+            "description": `### What is it?
+This is a comprehensive solution for integrating Stripe into your application. It automates the entire billing ecosystem, from customer creation and payments to subscription management and financial reporting.
 
-### 1. Automatically synchronize your Stripe data:
-Thanks to webhooks, all important information (customers, subscriptions, products, prices, invoices) is created and updated in real time in your local database. This gives you a reliable source of truth without manual effort.
+### What does it include?
+*   **Complete Data Models:** Creates all the necessary local models to mirror your Stripe data (\`StripeCustomer\`, \`StripeSubscription\`, \`StripeProduct\`, \`StripePrice\`, \`StripeInvoice\`, \`StripePayment\`, \`StripeRefund\`).
+*   **Robust Synchronization Script:** A powerful script that intelligently handles incoming Stripe events (webhooks) to create, update, or delete local records, ensuring your database is always a perfect mirror of your Stripe account. It can even fetch missing data from the Stripe API if events arrive out of order.
+*   **Automated Workflows:**
+    *   **Webhook Processing:** A central workflow that receives all Stripe events and routes them to the correct logic.
+    *   **Lifecycle Management:** Sends welcome emails for new subscriptions and payment failure notifications.
+    *   **Checkout & Portal:** Workflows to generate secure links for Stripe Checkout and the customer billing portal.
+*   **Financial Dashboard:** A pre-configured dashboard with essential KPIs like Total Revenue, Successful Payments, Average Payment Value, and Refund Rate.
 
-### 2. Manage the complete subscription lifecycle:
-• Creation: When a customer subscribes, the package creates the subscription locally and can send a welcome email.
-• Updates: Status changes (e.g., from trial to active) or cancellations are automatically reflected. • Payment failures: If a subscription payment fails, an email is automatically sent to the customer asking them to update their payment information.
+### How does it work?
+The pack is built around Stripe Webhooks. When an event occurs in your Stripe account (e.g., a payment succeeds), Stripe sends a secure notification to a special endpoint in your application. The "Process Stripe Webhook Events" workflow catches this notification, verifies it's genuinely from Stripe, and then uses the "Sync Stripe Entity to Local DB" script to update your local database accordingly. This ensures your local data is always up-to-date without any manual intervention.
 
-### 3. Automate payment and invoice processing:
-• Records every successful payment in your database. • Sends receipts by email after a payment. • Manages invoices (creation, payment, failure) and can send them to customers.
-
-### 4. Facilitate the payment process for your users:
-• Includes a workflow to create Stripe Checkout sessions, whether for a one-time payment or to start a new subscription.
-
-### 5. Provide an overview of your finances:
-• Offers a pre-configured dashboard with essential key performance indicators (KPIs):
-• Total revenue • Number of successful payments • Average payment value
-• Refund rate
-• Displays a graph of payment trends over time.
-
-In short, this pack transforms your application into a robust and automated billing platform, while improving your customers' experience through clear and timely communications.
-
-        ### Webhook Configuration
-
-Ajoutez ces événements supplémentaires pour une synchronisation complète :
-
-* Customer Events:
-  - customer.created
-  - customer.updated
-  - customer.deleted
-
-* Product Events:
-  - product.created
-  - product.updated
-  - product.deleted
-  - price.created
-  - price.updated
-  - price.deleted
-  - plan.updated
-  
-  ### Webhook Configuration
-
-To make the integration fully work, you need to configure a webhook in your Stripe Dashboard. This allows Stripe to send real-time notifications (like \`payment.succeeded\` or \`customer.subscription.created\`) to your application.
-
-1. **Get Your Webhook URL:** 
-Your application's webhook URL is: 
-https://<your-domain.com>/api/actions/stripe-webhook
-Replace <your-domain.com> with your actual public domain.
-
-2. **Add Endpoint in Stripe:** 
-* Go to your Stripe Dashboard. 
-* Navigate to **Developers > Webhooks**. 
-* Click **+ Add an endpoint**. 
-* Paste your URL in the **Endpoint URL** field.
-
-3. **Select Events:** 
-Click on **+ Select events** and choose the following events to listen to (if you want them to be synchronized): 
-* invoice.paid
-* invoice.finalized
-* invoice.created
-* invoice.updated
-* invoice.payment_failed
-* customer.subscription.created 
-* customer.subscription.updated 
-* customer.subscription.deleted 
-* payment_intent.succeeded
-* refund.created
-* refund.updated
-
-4. **Secure Your Webhook:** 
-* After creating the endpoint, Stripe will show a **Signing secret**. Click to reveal it. 
-* Copy this secret (it starts with \`whsec_...\`). 
-* In your application's **\`env\` model**, find the variable named \`STRIPE_WEBHOOK_SECRET\` and paste the key there.
-
-This ensures that your application only processes legitimate requests from Stripe.`,
+### How to use it (Step-by-Step Guide)
+1.  **Installation:** Install the pack. This will create all the necessary models, workflows, and the dashboard.
+2.  **Configuration:**
+    *   Navigate to the \`env\` model in your application's data editor.
+    *   Fill in your **\`STRIPE_SECRET_KEY\`**. You can find this in your Stripe Dashboard under Developers > API keys. Use a test key for development.
+    *   Set your **\`APP_BASE_URL\`** to your application's public domain (e.g., \`https://www.myapp.com\`).
+3.  **Webhook Setup (Crucial for Automation):**
+    *   In your **Stripe Dashboard**, go to **Developers > Webhooks**.
+    *   Click **+ Add endpoint**.
+    *   In the **Endpoint URL** field, enter: **\`{APP_BASE_URL}/api/actions/stripe-webhook\`** (e.g., \`https://www.myapp.com/api/actions/stripe-webhook\`).
+    *   For **Events to send**, click **+ Select events** and add all the events listed in this pack's documentation to ensure full synchronization.
+    *   Create the endpoint. On the next page, you will see a **Signing secret**. Click to reveal it.
+    *   Copy this secret (it starts with \`whsec_...\`) and paste it into the **\`STRIPE_WEBHOOK_SECRET\`** variable in your application's \`env\` model. This is a critical security step.
+4.  **Ready to Go:** Your application is now fully integrated. Any activity in your Stripe account will be automatically reflected in your local database, and your financial dashboard will start showing data.`,
             "tags": ["payment", "stripe", "e-commerce", "subscription", "billing"],
             "models": [
                 "endpoint",
