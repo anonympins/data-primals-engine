@@ -161,7 +161,8 @@ export async function registerRoutes(engine){
 
     logger = engine.getComponent(Logger);
 
-    engine.all('/api/actions/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
+    engine.all('/api/actions/:user/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
+    engine.all('/api/actions/:path', [middlewareAuthenticator, middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
 
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
