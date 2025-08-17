@@ -4185,10 +4185,11 @@ This ensures that your application only processes legitimate requests from Strip
                         { "name": "name", "type": "string", "required": true, "asMain": true },
                         { "name": "description", "type": "richtext" },
                         { "name": "stripeProductId", "type": "string", "required": true, "unique": true },
-                        { "name": "stripePriceId", "type": "string", "required": true, "unique": true },
-                        { "name": "price", "type": "number", "required": true },
-                        { "name": "currency", "type": "relation", "relation": "currency", "required": true },
-                        { "name": "interval", "type": "enum", "items": ["day", "week", "month", "year"], "required": true },
+                        { "name": "stripeDefaultPriceId", "type": "string", "required": false, "hint": "ID of the default price from Stripe, used for synchronization." },
+                        { "name": "defaultPrice", "type": "relation", "relation": "StripePrice", "required": false, "hint": "Relation to the default price document." },
+                        { "name": "price", "type": "number", "required": false, "hint": "Denormalized from default price for performance." },
+                        { "name": "currency", "type": "relation", "relation": "currency", "required": false, "hint": "Denormalized from default price for performance." },
+                        { "name": "interval", "type": "enum", "items": ["day", "week", "month", "year"], "required": false, "hint": "Denormalized from default price for performance." },
                         { "name": "intervalCount", "type": "number", "default": 1 },
                         { "name": "trialPeriodDays", "type": "number" },
                         { "name": "active", "type": "boolean", "default": true },
@@ -4252,6 +4253,21 @@ This ensures that your application only processes legitimate requests from Strip
                         { "name": "status", "type": "enum", "items": ["pending", "succeeded", "failed", "canceled"], "required": true },
                         { "name": "receiptNumber", "type": "string" },
                         { "name": "created", "type": "datetime", "default": "now" }
+                    ]
+                },
+                {
+                    "name": "StripePrice",
+                    "description": "Represents a specific pricing configuration for a Stripe Product (Plan).",
+                    "fields": [
+                        { "name": "stripePriceId", "type": "string", "required": true, "unique": true, "asMain": true },
+                        { "name": "plan", "type": "relation", "relation": "StripePlan", "required": true },
+                        { "name": "price", "type": "number", "required": true },
+                        { "name": "currency", "type": "relation", "relation": "currency", "required": true },
+                        { "name": "type", "type": "enum", "items": ["one_time", "recurring"], "required": true },
+                        { "name": "interval", "type": "enum", "items": ["day", "week", "month", "year"], "required": false, "hint": "For recurring prices" },
+                        { "name": "intervalCount", "type": "number", "default": 1, "hint": "For recurring prices" },
+                        { "name": "active", "type": "boolean", "default": true },
+                        { "name": "metadata", "type": "code", "language": "json" }
                     ]
                 }
             ],
@@ -4595,7 +4611,7 @@ return { success: true };
                             "description": "Synchronise une entité Stripe avec la base locale sans utiliser upsert",
                             "type": "ExecuteScript",
                             "script": `
-const event = context.triggerData;
+const event = context.triggerData.event;
 const stripeObject = event.data.object;
 const objectType = stripeObject.object;
 
@@ -4664,8 +4680,8 @@ const findOrCreateCustomer = async (stripeCustomerId, email, name) => {
 
 
 let modelName;
-let idField;
-let dataToUpsert = {};
+let filter;
+let dataToUpsert;
 
 switch (objectType) {
   case 'customer':
@@ -4686,7 +4702,7 @@ switch (objectType) {
     
   case 'subscription':
     modelName = 'StripeSubscription';
-    idField = 'stripeSubscriptionId';
+    filter = { stripeSubscriptionId: stripeObject.id };
     dataToUpsert = {
       stripeSubscriptionId: stripeObject.id,
       status: stripeObject.status,
@@ -4716,39 +4732,68 @@ switch (objectType) {
     
   case 'product':
     modelName = 'StripePlan';
-    idField = 'stripeProductId';
+    filter = { stripeProductId: stripeObject.id };
+ 
+     const defaultPriceId = stripeObject.default_price || null;
+     const defaultPriceDoc = defaultPriceId ? await db.findOne('StripePrice', { stripePriceId: defaultPriceId }) : null;
+
     dataToUpsert = {
       stripeProductId: stripeObject.id,
+      stripeDefaultPriceId: defaultPriceId,
+      defaultPrice: defaultPriceDoc ? defaultPriceDoc._id : null,
       name: stripeObject.name || null,
       description: stripeObject.description || null,
       active: stripeObject.active !== false,
       metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
     };
+    // Price details like amount and currency are not on the product object.
+    // They will be synced when the corresponding 'price.created' or 'price.updated'
+    // event for the default_price is received.
     break;
     
   case 'price':
-    modelName = 'StripePlan';
-    idField = 'stripePriceId';
+    modelName = 'StripePrice';
+    filter = { stripePriceId: stripeObject.id };
+
+    const parentPlan = await db.findOne('StripePlan', { stripeProductId: stripeObject.product });
+    if (!parentPlan) {
+        logger.error('Cannot sync price {stripeObject.id}: Corresponding product {stripeObject.product} not found in local DB.');
+        return { success: false, message: 'Product for price {stripeObject.id} not found.'};
+    }
+
     dataToUpsert = {
-      stripePriceId: stripeObject.id,
-      price: stripeObject.unit_amount ? stripeObject.unit_amount / 100 : null,
-      interval: stripeObject.recurring?.interval || null,
-      intervalCount: stripeObject.recurring?.interval_count || 1
+        stripePriceId: stripeObject.id,
+        plan: parentPlan._id,
+        price: stripeObject.unit_amount != null ? stripeObject.unit_amount / 100 : null,
+        currency: await findCurrencyByCode(stripeObject.currency),
+        type: stripeObject.type,
+        interval: stripeObject.recurring?.interval || null,
+        intervalCount: stripeObject.recurring?.interval_count || 1,
+        active: stripeObject.active,
+        metadata: safeStringify(stripeObject.metadata)
     };
-    
-    if (stripeObject.metadata?.trial_period_days) {
-      dataToUpsert.trialPeriodDays = parseInt(stripeObject.metadata.trial_period_days) || null;
-    }
-    
-    if (stripeObject.currency) {
-      const currency = await db.findOne('currency', { code: stripeObject.currency.toUpperCase() });
-      if (currency) dataToUpsert.currency = currency._id;
-    }
+
+    // If this price is the default for the plan, update the plan's price details too.
+    postAction = async (priceDocId) => {
+        if (parentPlan.stripePriceId === stripeObject.id) {
+            await db.update('StripePlan',
+                { _id: parentPlan._id },
+                {
+                    defaultPrice: priceDocId,
+                    price: dataToUpsert.price,
+                    currency: dataToUpsert.currency,
+                    interval: dataToUpsert.interval,
+                    intervalCount: dataToUpsert.intervalCount,
+                }
+            );
+            logger.info('Updated default price details on StripePlan: {parentPlan.name}');
+        }
+    };
     break;
 
   case 'invoice':
     modelName = 'StripeInvoice';
-    idField = 'stripeInvoiceId';
+    filter = { stripeInvoiceId: stripeObject.id };
     
     const customerForInvoice = await findCustomerByStripeId(stripeObject.customer);
     const subscriptionForInvoice = await findSubscriptionByStripeId(stripeObject.subscription);
@@ -4776,7 +4821,7 @@ switch (objectType) {
 
   case 'payment_intent':
     modelName = 'StripePayment';
-    idField = 'stripePaymentIntentId';
+    filter = { stripePaymentIntentId: stripeObject.id };
 
     const customerForPayment = await findCustomerByStripeId(stripeObject.customer);
     const userForPayment = findUserFromCustomer(customerForPayment);
@@ -4809,22 +4854,30 @@ switch (objectType) {
 
 // Implémentation manuelle de upsert
 try {
-  const filter = {};
-  filter[idField] = stripeObject.id;
+  if (!modelName || !filter || Object.keys(filter).length === 0) {
+      logger.warn('Sync logic did not produce a modelName or filter for object type:', objectType);
+      return { success: true, message: 'No action taken for this event type.' };
+  }
   
   // 1. Vérifier si l'entité existe déjà
   const existing = await db.findOne(modelName, filter);
-  
+  let docId;
   if (existing) {
     // 2. Mise à jour si l'entité existe
+    docId = existing._id;
     await db.update(modelName, filter, dataToUpsert);
-    logger.info(\`Updated \${modelName} with \${idField}: \${stripeObject.id}\`);
+    logger.info(\`Updated \${modelName} with filter: \${JSON.stringify(filter)}\`);
   } else {
-    // 3. Création si l'entité n'existe pas
-    await db.create(modelName, { ...filter, ...dataToUpsert });
-    logger.info(\`Created new \${modelName} with \${idField}: \${stripeObject.id}\`);
+    // 3. Création pour les autres types (product, customer, etc.)
+    await db.create(modelName, { ...dataToUpsert });
+     const createResult = await db.create(modelName, { ...dataToUpsert });
+     docId = createResult.insertedIds[0];
+    logger.info(\`Created new \${modelName} with filter: \${JSON.stringify(filter)}\`);
   }
   
+   if (postAction) {
+       await postAction(docId);
+   }
   return { success: true };
 } catch (e) {
   logger.error('Failed to sync Stripe entity:', e);

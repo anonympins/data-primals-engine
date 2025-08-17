@@ -32,7 +32,6 @@ export async function onInit(defaultEngine) {
 }
 
 
-
 /**
  * Déclenche un workflow par son nom et lui passe des données de contexte.
  * C'est la fonction clé à exposer aux endpoints pour lancer des processus métier.
@@ -314,6 +313,7 @@ export async function executeSafeJavascript(actionDef, context, user) {
 
         // Contexte sécurisé
         const safeContext = JSON.parse(JSON.stringify(context));
+
         await jail.set('context', new ivm.ExternalCopy(safeContext).copyInto());
 
         // Exécution
@@ -1445,9 +1445,19 @@ export async function processWorkflowRun(workflowRunId, user) {
                 // --- 7. Évaluation des conditions de l'étape ---
                 if (currentStepDef.conditions && Object.keys(currentStepDef.conditions).length > 0) {
                     const substitutedConditions = await substituteVariables(currentStepDef.conditions, contextData, user);
-                    const searchResult = await searchData({ model: contextData.triggerDataModel, filter: substitutedConditions, limit: 1}, user);
-                    conditionsMet = searchResult && searchResult.count > 0;
-                    logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Conditions evaluated. Found ${searchResult ? searchResult.count : 0} match(es). Result: ${conditionsMet}`);
+                    // Si un modèle est spécifié dans le contexte, la condition est une requête sur la base de données.
+                    if (contextData.triggerDataModel) {
+                        const searchResult = await searchData({ model: contextData.triggerDataModel, filter: substitutedConditions, limit: 1 }, user);
+                        conditionsMet = searchResult && searchResult.count > 0;
+                        logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: DB condition evaluated. Found ${searchResult ? searchResult.count : 0} match(es). Result: ${conditionsMet}`);
+                    } else {
+                        // Si aucun modèle n'est spécifié (ex: webhook), la condition est évaluée sur l'objet de contexte lui-même.
+                        // Nous supposons que isConditionMet peut gérer une définition de modèle nulle pour les vérifications basées sur le contexte.
+                        const modelDef = null; // Pas de modèle à fournir
+                        const documentToTest = contextData; // Le contexte entier est la source de données pour les placeholders
+                        conditionsMet = isConditionMet(modelDef, currentStepDef.conditions, documentToTest, [], user);
+                        logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Context condition evaluated. Result: ${conditionsMet}`);
+                    }
                 }
 
                 // --- 8. Exécution des actions si les conditions sont remplies ---
