@@ -283,8 +283,14 @@ export async function executeSafeJavascript(actionDef, context, user) {
         await jail.set('_db_find', new ivm.Reference(find));
         await jail.set('_db_findOne', new ivm.Reference(findOne));
 
-        await jail.set('_db_update', new ivm.Reference(async (modelName, filter, updateObject) => patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false)));
-        await jail.set('_db_delete', new ivm.Reference(async (modelName, filter) => deleteData(modelName, JSON.parse(filter), user, false)));
+        await jail.set('_db_update', new ivm.Reference(async (modelName, filter, updateObject) => {
+            const result = await patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false);
+            return new ivm.ExternalCopy(result).copyInto();
+        }));
+        await jail.set('_db_delete', new ivm.Reference(async (modelName, filter) => {
+            const result = await deleteData(modelName, JSON.parse(filter), user, false);
+            return new ivm.ExternalCopy(result).copyInto();
+        }));
 
         const createLoggerMethod = (level) => {
             return (...args) => {
@@ -309,6 +315,25 @@ export async function executeSafeJavascript(actionDef, context, user) {
         await jail.set('_env_get_all', new ivm.Reference(async () => {
             const result = await getEnv(user);
             return new ivm.ExternalCopy(result).copyInto();
+        }));
+        await jail.set('_http_request', new ivm.Reference(async (method, url, optionsStr) => {
+            try {
+                const options = optionsStr ? JSON.parse(optionsStr) : {};
+                const fetchOptions = {
+                    method: method.toUpperCase(),
+                    headers: options.headers || {},
+                    body: options.body ? (typeof options.body === 'object' ? JSON.stringify(options.body) : options.body) : undefined
+                };
+
+                const response = await fetch(url, fetchOptions);
+                const responseBody = await response.json().catch(() => response.text());
+
+                const result = { success: response.ok, status: response.status, body: responseBody };
+                return new ivm.ExternalCopy(result).copyInto();
+            } catch (error) {
+                logger.error(`[VM http_request] Error: ${error.message}`);
+                return new ivm.ExternalCopy({ success: false, message: error.message }).copyInto();
+            }
         }));
 
         // Contexte sécurisé
@@ -347,6 +372,10 @@ export async function executeSafeJavascript(actionDef, context, user) {
                 getAll: _env_get_all
             };
             
+            const http = {
+                request: (...args) => _http_request.applySyncPromise(null, normalizeArgs(args))
+            };
+
             (async function() {
                 ${code}
             })();

@@ -4089,6 +4089,7 @@ Ajoutez ces événements supplémentaires pour une synchronisation complète :
   - product.deleted
   - price.created
   - price.updated
+  - plan.updated
   
   ### Webhook Configuration
 
@@ -4336,7 +4337,7 @@ return { status: 200, body: { message: "Workflow started", runId: result.runId }
                         {
                             "name": "Process Stripe Webhook Events",
                             "description": "Processes incoming Stripe webhook events and triggers appropriate actions.",
-                            "startStep": { "$link": { "name": "Check for Invoice Finalized", "_model": "workflowStep" } }
+                            "startStep": { "$link": { "name": "Check for Invoice Events", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Subscription Lifecycle Management",
@@ -4347,11 +4348,6 @@ return { status: 200, body: { message: "Workflow started", runId: result.runId }
                             "name": "Payment Reconciliation",
                             "description": "Ensures payments are properly recorded and reconciled with orders.",
                             "startStep": { "$link": { "name": "Handle Payment Succeeded", "_model": "workflowStep" } }
-                        },
-                        {
-                            "name": "Invoice Processing",
-                            "description": "Handles invoice generation, payment, and reminders.",
-                            "startStep": { "$link": { "name": "Handle Invoice Created", "_model": "workflowStep" } }
                         },
                         {
                             "name": "Create Stripe Checkout Session",
@@ -4659,6 +4655,105 @@ const findInvoiceByStripeId = async (stripeId) => {
     return invoice || null;
 };
 
+const findOrCreatePlan = async (productId) => {
+    if (!productId) return null;
+    let planDoc = await db.findOne('StripePlan', { stripeProductId: productId });
+    if (planDoc) {
+        return planDoc;
+    }
+    logger.info(\`Plan (Product) \${productId} not found locally. Fetching from Stripe...\`);
+    const envData = await env.getAll();
+    const stripeApiKey = envData.STRIPE_SECRET_KEY;
+    if (!stripeApiKey) {
+        logger.error('STRIPE_SECRET_KEY is not configured. Cannot fetch missing plan.');
+        return null;
+    }
+    const productResponse = await http.request('GET', \`https://api.stripe.com/v1/products/\${productId}\`, {
+        headers: { 'Authorization': \`Bearer \${stripeApiKey}\` }
+    });
+    if (!productResponse.success) {
+        logger.error(\`Failed to fetch product \${productId} from Stripe. Status: \${productResponse.status}, Body: \${JSON.stringify(productResponse.body)}\`);
+        return null;
+    }
+    const stripeProduct = productResponse.body;
+    logger.info(\`Creating StripePlan for product \${stripeProduct.id}...\`);
+    const newPlanData = {
+        stripeProductId: stripeProduct.id,
+        name: stripeProduct.name,
+        description: stripeProduct.description,
+        active: stripeProduct.active,
+        metadata: safeStringify(stripeProduct.metadata),
+        stripeDefaultPriceId: stripeProduct.default_price || null
+    };
+    const planCreateResult = await db.create('StripePlan', newPlanData);
+    planDoc = { _id: planCreateResult.insertedIds[0], ...newPlanData };
+    return planDoc;
+};
+
+const findOrCreatePriceAndPlan = async (priceId) => {
+    if (!priceId) return null;
+
+    // 1. Try to find the price locally
+    let priceDoc = await db.findOne('StripePrice', { stripePriceId: priceId });
+    // Ensure the plan relation is loaded for the check
+    if (priceDoc) {
+        const fullPriceDoc = await db.findOne('StripePrice', { _id: priceDoc._id });
+        if (fullPriceDoc && fullPriceDoc.plan) {
+            return fullPriceDoc;
+        }
+    }
+
+    logger.info(\`Price \${priceId} not found locally or is incomplete. Fetching from Stripe...\`);
+
+    // 2. Fetch price and its expanded product from Stripe API
+    const envData = await env.getAll();
+    const stripeApiKey = envData.STRIPE_SECRET_KEY;
+    if (!stripeApiKey) {
+        logger.error('STRIPE_SECRET_KEY is not configured. Cannot fetch missing price.');
+        return null;
+    }
+
+    const priceResponse = await http.request('GET', \`https://api.stripe.com/v1/prices/\${priceId}?expand[]=product\`, {
+        headers: { 'Authorization': \`Bearer \${stripeApiKey}\` }
+    });
+
+    if (!priceResponse.success) {
+        logger.error(\`Failed to fetch price \${priceId} from Stripe. Status: \${priceResponse.status}, Body: \${JSON.stringify(priceResponse.body)}\`);
+        return null;
+    }
+    const stripePrice = priceResponse.body;
+    const stripeProduct = stripePrice.product;
+
+    if (!stripeProduct || typeof stripeProduct !== 'object') {
+        logger.error(\`Product data was not expanded in the price fetch for \${priceId}. Cannot proceed.\`);
+        return null;
+    }
+
+    // 3. Find or create the parent product (StripePlan)
+    let planDoc = await db.findOne('StripePlan', { stripeProductId: stripeProduct.id });
+    if (!planDoc) {
+        logger.info(\`Product \${stripeProduct.id} for price \${priceId} not found locally. Creating it...\`);
+        const newPlanData = {
+            stripeProductId: stripeProduct.id,
+            name: stripeProduct.name,
+            description: stripeProduct.description,
+            active: stripeProduct.active,
+            metadata: safeStringify(stripeProduct.metadata),
+            stripeDefaultPriceId: stripeProduct.default_price || null
+        };
+        const planCreateResult = await db.create('StripePlan', newPlanData);
+        planDoc = { _id: planCreateResult.insertedIds[0], ...newPlanData };
+    }
+
+    // 4. Create the StripePrice locally (we know it doesn't exist or is incomplete)
+    const newPriceData = {
+        stripePriceId: stripePrice.id, plan: planDoc._id, price: stripePrice.unit_amount != null ? stripePrice.unit_amount / 100 : null, currency: await findCurrencyByCode(stripePrice.currency), type: stripePrice.type, interval: stripePrice.recurring?.interval || null, intervalCount: stripePrice.recurring?.interval_count || 1, active: stripePrice.active, metadata: safeStringify(stripePrice.metadata)
+    };
+    const priceCreateResult = await db.create('StripePrice', newPriceData);
+    logger.info(\`Created new StripePrice: \${stripePrice.id}\`);
+    return { _id: priceCreateResult.insertedIds[0], ...newPriceData };
+};
+
 const findOrCreateUserByEmail = async (email, name) => {
     if (!email) {
         logger.warn('Cannot find or create user without an email address.');
@@ -4759,7 +4854,7 @@ switch (objectType) {
       taxExempt: stripeObject.tax_exempt || 'none',
       defaultPaymentMethod: getNested(stripeObject, 'invoice_settings.default_payment_method'),
       invoiceSettings: stripeObject.invoice_settings ? safeStringify(stripeObject.invoice_settings) : null,
-      metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
+      metadata: stripeObject.metadata ? JSON.stringify(stripeObject.metadata) : null
     };
     break;
     
@@ -4776,18 +4871,16 @@ switch (objectType) {
 
     const priceId = getNested(stripeObject, 'items.data.0.price.id');
     if (!priceId) {
-        logger.info("Price ID not found");
-        return { success: false, message:'Price ID missing for subscription {stripeObject.id}' };
+        return { success: false, message: \`Price ID missing for subscription \${stripeObject.id}\` };
     }
-    const priceDoc = await db.findOne('StripePrice', { stripePriceId: priceId });
-    if (!priceDoc || !priceDoc.plan) {
-        logger.info("Price/plan not found");
-        return { success: false, message: 'Price/Plan for subscription {stripeObject.id} not found.' };
+    const priceDoc = await findOrCreatePriceAndPlan(priceId);
+    if (!priceDoc) {
+        const msg = \`Could not find or create the necessary Price/Plan for subscription \${stripeObject.id}.\`;
+        logger.error(msg);
+        return { success: false, message: msg };
     }
 
     const latestInvoiceDoc = await findInvoiceByStripeId(stripeObject.latest_invoice);
-
-    logger.info("Inserted.");
     dataToUpsert = {
         stripeSubscriptionId: stripeObject.id,
         user: customerForSubscription.user,
@@ -4803,7 +4896,7 @@ switch (objectType) {
         defaultPaymentMethod: stripeObject.default_payment_method || null,
         startDate: stripeObject.start_date ? new Date(stripeObject.start_date * 1000) : null,
         trialEnd: stripeObject.trial_end ? new Date(stripeObject.trial_end * 1000) : null,
-        metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
+        metadata: stripeObject.metadata ? JSON.stringify(stripeObject.metadata) : null
     };
     break;
     
@@ -4821,7 +4914,7 @@ switch (objectType) {
       name: stripeObject.name || null,
       description: stripeObject.description || null,
       active: stripeObject.active !== false,
-      metadata: stripeObject.metadata ? safeStringify(stripeObject.metadata) : null
+      metadata: stripeObject.metadata ? JSON.stringify(stripeObject.metadata) : null
     };
     // If the default price is being removed (set to null), we must also clear
     // the denormalized pricing fields on the plan to maintain data consistency.
@@ -4835,25 +4928,27 @@ switch (objectType) {
     break;
     
   case 'price':
+  case 'plan': // Handle legacy plan objects as well
     modelName = 'StripePrice';
     filter = { stripePriceId: stripeObject.id };
 
-    const parentPlan = await db.findOne('StripePlan', { stripeProductId: stripeObject.product });
+    const parentPlan = await findOrCreatePlan(stripeObject.product);
     if (!parentPlan) {
-        logger.error('Cannot sync price {stripeObject.id}: Corresponding product {stripeObject.product} not found in local DB.');
-        return { success: false, message: 'Product for price {stripeObject.id} not found.'};
+        const msg = \`Could not find or create parent plan for price \${stripeObject.id}.\`;
+        logger.error(msg);
+        return { success: false, message: msg };
     }
 
     dataToUpsert = {
         stripePriceId: stripeObject.id,
         plan: parentPlan._id,
-        price: stripeObject.unit_amount != null ? stripeObject.unit_amount / 100 : null,
+        price: (stripeObject.unit_amount ?? stripeObject.amount) / 100,
         currency: await findCurrencyByCode(stripeObject.currency),
-        type: stripeObject.type,
-        interval: stripeObject.recurring?.interval || null,
-        intervalCount: stripeObject.recurring?.interval_count || 1,
+        type: stripeObject.type || 'recurring',
+        interval: stripeObject.recurring?.interval || stripeObject.interval,
+        intervalCount: stripeObject.recurring?.interval_count || stripeObject.interval_count || 1,
         active: stripeObject.active,
-        metadata: safeStringify(stripeObject.metadata)
+        metadata: stripeObject.metadata ? JSON.stringify(stripeObject.metadata) : null
     };
 
     // If this price is the default for the plan, update the plan's price details too.
@@ -4907,7 +5002,7 @@ switch (objectType) {
         hostedInvoiceUrl: stripeObject.hosted_invoice_url,
         lines: safeStringify(stripeObject.lines?.data),
         created: new Date(stripeObject.created * 1000),
-        metadata: safeStringify(stripeObject.metadata)
+        metadata: stripeObject.metadata ? JSON.stringify(stripeObject.metadata) : null
     };
     break;
 
@@ -5014,21 +5109,6 @@ try {
                             "actions": { "$link": { "name": "Log Unhandled Stripe Event", "_model": "workflowAction" } },
                             "isTerminal": true
                         },
-                        // --- Main Webhook Router Steps ---
-                        {
-                            "name": "Check for Invoice Finalized",
-                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$eq": ["$triggerData.event.type", "invoice.finalized"] },
-                            "onSuccessStep": { "$link": { "name": "Handle Finalized Invoice", "_model": "workflowStep" } },
-                            "onFailureStep": { "$link": { "name": "Check for Invoice Paid", "_model": "workflowStep" } }
-                        },
-                        {
-                            "name": "Check for Invoice Paid",
-                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$eq": ["$triggerData.event.type", "invoice.paid"] },
-                            "onSuccessStep": { "$link": { "name": "Handle Paid Invoice", "_model": "workflowStep" } },
-                            "onFailureStep": { "$link": { "name": "Check for Invoice Payment Failed", "_model": "workflowStep" } }
-                        },
                         {
                             "name": "Check for Invoice Events",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
@@ -5088,10 +5168,10 @@ try {
                         {
                             "name": "Handle Subscription Created",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "actions": [
-                                { "$link": { "name": "Sync Stripe Entity to Local DB", "_model": "workflowAction" } },
-                                { "$link": { "name": "Send Subscription Welcome", "_model": "workflowAction" } }
-                            ],
+                            "actions": { "$link": { "$or": [
+                                { "$eq": ["$name","Sync Stripe Entity to Local DB" ]},
+                                { "$eq": ["$name","Send Subscription Welcome"] }
+                            ], "_model": "workflowAction"}},
                             "onSuccessStep": { "$link": { "name": "Handle Send Welcome Email", "_model": "workflowStep" } }
                         },
                         {
@@ -5149,7 +5229,7 @@ try {
                         {
                             "name": "Check for Product Updated",
                             "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } },
-                            "conditions": { "$in": ["$triggerData.event.type", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated"]] },
+                            "conditions": { "$in": ["{triggerData.event.type}", ["product.created", "product.updated", "product.deleted", "price.created", "price.updated", "plan.updated"]] },
                             "onSuccessStep": { "$link": { "name": "Handle Product Update", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Check for Refund Events", "_model": "workflowStep" } }
                         },
