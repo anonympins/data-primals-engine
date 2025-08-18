@@ -23,6 +23,7 @@ import {getHost} from "../constants.js";
 import {providers} from "./assistant/constants.js";
 import {ChatAnthropic} from "@langchain/anthropic";
 import {getAIProvider} from "./assistant/assistant.js";
+import {escapeRegex} from "../core.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -1176,7 +1177,7 @@ export async function substituteVariables(template, contextData, user) {
         } else if (path === 'randomUUID') {
             return crypto.randomUUID();
         } else if( path === "baseUrl" ){
-            return process.env.NODE_ENV === 'production' ? 'https://'+getHost()+'/' : 'http://localhost:/'+port;
+            return escapeRegex(process.env.NODE_ENV === 'production' ? 'https://'+getHost()+'/' : 'http://localhost:/'+port);
         }
 
         // Détecter si le chemin est complexe (contient plus d'un point)
