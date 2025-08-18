@@ -9,6 +9,15 @@ export function escapeRegex(string) {
     return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
+export function isValidRegex(s) {
+    try {
+        const m = s.match(/^([/~@;%#'])(.*?)\1([gimsuy]*)$/);
+        return m ? !!new RegExp(m[2],m[3])
+            : false;
+    } catch (e) {
+        return false
+    }
+}
 export function escapeHtml(string){
     return string.replace(/(javascript|data|vbscript):/gi, '').replace(/[^\w-_. ]/gi, function (c) {
         return `&#${c.charCodeAt(0)};`;
