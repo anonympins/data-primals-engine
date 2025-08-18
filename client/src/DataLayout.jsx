@@ -32,6 +32,7 @@ import KanbanConfigModal from "./KanbanConfigModal.jsx";
 import CalendarConfigModal from "./CalendarConfigModal.jsx";
 import KanbanView from "./KanbanView.jsx";
 import CalendarView from "./CalendarView.jsx";
+import {useParams, useSearchParams} from "react-router-dom";
 
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
@@ -45,6 +46,7 @@ const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
 );
 
 function DataLayout() {
+    const [ searchParams, setSearchParams ] = useSearchParams();
     const [viewSettings, setViewSettings] = useLocalStorage('viewSettings', {});
 
     const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
@@ -68,7 +70,8 @@ function DataLayout() {
         pagedFilters, pagedSort,
         elementsPerPage,
         setRelations,
-        generatedModels
+        generatedModels,
+        models
     } = useModelContext(); // Utilisez le contexte
     const queryClient = useQueryClient();
 
@@ -87,6 +90,23 @@ function DataLayout() {
     const [showDataEditor, setDataEditorVisible] = useState(false);
     const [showAPIInfo, setAPIInfoVisible] = useState(false);
 
+    const mod = searchParams.get('model');
+    useEffect(() =>{
+        if (selectedModel?.name)
+            history.pushState({}, null, '?model='+selectedModel?.name);
+    }, [selectedModel?.name])
+    useEffect(() =>{
+        setSelectedModel(models.find(f => f.name === mod));
+        setEditionMode(false);
+    }, [mod, models])
+
+
+    useEffect(() => {
+        setSelectedModel(null)
+        setDataEditorVisible(false);
+        setAPIInfoVisible(false);
+        setEditionMode(true);
+    }, []);
     // La vue courante est dérivée du modèle sélectionné et des préférences stockées.
     const currentView = useMemo(() => {
         if (!selectedModel) return 'table';
@@ -426,13 +446,6 @@ function DataLayout() {
         queryClient.invalidateQueries(['api/data', model.name, r]);
     }
 
-    useEffect(() => {
-            setSelectedModel(null)
-            setDataEditorVisible(false);
-            setAPIInfoVisible(false);
-            setEditionMode(true);
-    }, []);
-
     const deleteMutation = useMutation((selectedModels) => {
         return fetch('/api/data/'+checkedItems.map(m => m._id).join(',')+'?lang='+lang+'&_user='+encodeURIComponent(getUserId(me)), {
             method: 'DELETE', headers: {
@@ -530,7 +543,7 @@ function DataLayout() {
 
 
     const [currentProfile, setCurrentProfile] = useLocalStorage('profile', null);
-    const {isTourOpen, setIsTourOpen, currentTourSteps, allTourSteps, setTourStepIndex, setCurrentTourSteps, currentTour,setCurrentTour} = useUI();
+    const {isTourOpen, setIsTourOpen, currentTourSteps, allTourSteps, setTourStepIndex, setCurrentTourSteps, currentTour,setCurrentTour, addLaunchedTour} = useUI();
 
     const startTour = () => {
         setIsTourOpen(true);
@@ -538,12 +551,28 @@ function DataLayout() {
 
     const closeTour = (completedTourName) => {
         // On génère le nom du tour de démo pour le comparer
+        // This function is called when ANY tour is closed.
+        // It needs to persist the fact that the tour has been seen.
+
+        // 1. Add the tour's unique name to the list of launched tours.
+        // This list is managed by the UI context and stored in localStorage.
+        if (addLaunchedTour) { // Check if the function exists to be safe
+            addLaunchedTour(completedTourName);
+        }
+
+        // 2. Close the tour's UI.
+        setIsTourOpen(false);
+
+        // 3. Specific logic for the very first "demo" tour:
+        // We also set the user's profile to mark that they are no longer a brand new user.
+        // This prevents the demo tour from trying to launch on every page load.
         const demoTourName = `tour_${getObjectHash({steps: allTourSteps.demo || []})}`;
 
         // Si le tour qui vient de se terminer est le tour de démo
         if (completedTourName === demoTourName) {
 
             setIsTourOpen(false);
+            setCurrentProfile({ lastSeen: new Date().toISOString() });
         }
     };
 
