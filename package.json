@@ -92,6 +92,7 @@
     "react-markdown": "^10.1.0",
     "read-excel-file": "^5.8.8",
     "request-ip": "^3.3.0",
+    "safe-regex": "^2.1.1",
     "sanitize-html": "^2.17.0",
     "sirv": "^3.0.1",
     "stripe": "^18.4.0",

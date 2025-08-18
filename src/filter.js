@@ -1,3 +1,4 @@
+import safeRegex from 'safe-regex';
 /**
  * Evaluates a single condition against form data.
  * @param {object} currentModelDef - The definition of the current model.
@@ -149,8 +150,11 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
                 if (typeof targetValue !== 'string') return false;
                 if (typeof processedConditionValue !== 'string') return false;
                 try {
-                    const regex = new RegExp(processedConditionValue, 'i');
-                    return regex.test(targetValue);
+                    if( safeRegex(processedConditionValue)) {
+                        const regex = new RegExp(processedConditionValue, 'i');
+                        return regex.test(targetValue);
+                    }
+                    return false;
                 } catch (e) {
                     logClientEvalWarning(`Invalid regex pattern: ${processedConditionValue}`, condition);
                     return false;
