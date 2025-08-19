@@ -1279,7 +1279,7 @@ export async function onInit(defaultEngine) {
 
         const objectKeys = Object.keys(modelStructure);
 
-        if( objectKeys.find(o => !["name", "_user", "history", "locked", "_id", "description", "maxRequestData", "fields"].includes(o)) ){
+        if( objectKeys.find(o => !["name", "_user", "icon", "history", "locked", "_id", "description", "maxRequestData", "fields"].includes(o)) ){
             throw new Error(i18n.t('api.model.invalidStructure'));
         }
 

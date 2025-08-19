@@ -19,13 +19,14 @@ import {
     FaArrowDown,
     FaArrowUp, FaAt,
     FaCalendar, FaCalendarWeek, FaCode, FaFile,
-    FaHashtag,
+    FaHashtag, FaIcons,
     FaImage,
     FaLink, FaListOl, FaListUl,
     FaLock, FaMinus,
     FaPallet, FaPhone, FaSitemap,
     FaToggleOn
 } from "react-icons/fa";
+ import * as Fa6Icons from 'react-icons/fa6'; // Importer Fa6
 import {FaCalendarDays, FaCodeCompare, FaPencil, FaT, FaTableColumns} from "react-icons/fa6";
 import { CodeBlock, tomorrowNightBright } from 'react-code-blocks';
 import SyntaxHighlighter from 'react-syntax-highlighter';
@@ -93,6 +94,7 @@ const TextField = forwardRef(function TextField(
     searchable,
       labelProps,
       showErrors=false,
+      before,
       after,
     ...rest
   },
@@ -187,6 +189,7 @@ const TextField = forwardRef(function TextField(
                 ></textarea>
             )}
 
+            {before}
             <div className={"flex flex-1 flex-no-gap flex-start"}>
                 {!mult && (
                     <input
@@ -1491,7 +1494,77 @@ export const ModelField = ({field, disableable=false, showModel=true, value, fie
             )}
         </div>
     );
-};export const ColorField = ({name, label, value, disabled, onChange, className, ...rest}) => {
+};
+
+// Fonction pour obtenir le composant icône par son nom
+const getIconComponent = (iconName) => {
+    if (!iconName) return null;
+    const IconComponent = FaIcons[iconName] || Fa6Icons[iconName];
+    return IconComponent ? <IconComponent /> : null; // Retourne l'élément React ou null
+};
+export const IconField = ({name, label, value, disabled, onChange, className, ...rest}) => {
+    const { t } = useTranslation();
+    const [iconSuggestions, setIconSuggestions] = useState([]);
+    // Tri alphabétique pour une recherche plus prévisible
+    const [allFaIcons] = useState(() => [...Object.keys(FaIcons), ...Object.keys(Fa6Icons)].sort());
+
+    const handleIconChange = (e) => {
+        const value = e.target.value;
+        onChange(value);
+        if (value) {
+            const filtered = allFaIcons.filter(
+                icon => icon.toLowerCase().includes(value.toLowerCase())
+            );
+            setIconSuggestions(filtered.slice(0, 20));
+        } else {
+            setIconSuggestions([]);
+        }
+    };
+
+    const handleIconFocus = () => {
+        if (value) {
+            const filtered = allFaIcons.filter(
+                icon => icon.toLowerCase().includes(value.toLowerCase())
+            );
+            setIconSuggestions(filtered.slice(0, 20));
+        } else {
+            setIconSuggestions(allFaIcons.slice(0, 10));
+        }
+    };
+
+    const onSuggestionClick = (suggestion) => {
+        onChange(suggestion);
+        setIconSuggestions([]);
+    };
+
+    return <div className="textfield-wrapper with-suggestions">
+        <div className={"flex flex-1 flex-no-wrap"}>
+            <TextField
+                help={t('modelcreator.field.icon')}
+                id="modelIcon"
+                disabled={disabled}
+                value={value}
+                label={label}
+                before={<div>{getIconComponent(value)}</div>}
+                onChange={handleIconChange}
+                onFocus={handleIconFocus}
+                onBlur={() => setTimeout(() => setIconSuggestions([]), 200)}
+                autoComplete="off"
+            />
+        </div>
+        {iconSuggestions.length > 0 && (
+            <ul className="suggestions-list">
+                {iconSuggestions.map(icon => (
+                    <li key={icon} onMouseDown={() => onSuggestionClick(icon)}>
+                        <span className="suggestion-icon">{getIconComponent(icon)}</span>
+                        <span>{icon}</span>
+                    </li>
+                ))}
+            </ul>
+        )}
+    </div>
+};
+export const ColorField = ({name, label, value, disabled, onChange, className, ...rest}) => {
     // 1. État interne pour une réactivité immédiate de l'interface.
     const [internalValue, setInternalValue] = useState(value);
 

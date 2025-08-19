@@ -9,6 +9,17 @@ import useLocalStorage from "./hooks/useLocalStorage.js";
 import {Tooltip} from "react-tooltip";
 import {useUI} from "./contexts/UIContext.jsx";
 import {profiles} from "./constants.js";
+import * as FaIcons from "react-icons/fa";
+import * as Fa6Icons from "react-icons/fa6";
+
+
+// Fonction pour obtenir le composant icône par son nom
+const getIconComponent = (iconName) => {
+    if (!iconName) return null;
+    const IconComponent = FaIcons[iconName] || Fa6Icons[iconName];
+    return IconComponent ? <IconComponent /> : null; // Retourne l'élément React ou null
+};
+
 
 export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditModel, onAPIInfo, onNewData }) {
     const {allTourSteps, setIsTourOpen,setCurrentTourSteps, setTourStepIndex, currentTour, setCurrentTour} = useUI();
@@ -34,6 +45,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
         return models.filter(model => {
             return (model.name && t('model_' + model.name, model.name).toLowerCase().includes(lowerSearchTerm)) ||
                 (model.fields.some(f =>
+                        (model.icon && model.icon.toLowerCase().includes(lowerSearchTerm)) ||
                         f.name?.toLowerCase().includes(lowerSearchTerm) ||
                         f.hint?.toLowerCase().includes(lowerSearchTerm)) ||
                 (model.description && model.description.toLowerCase().includes(lowerSearchTerm)))
@@ -169,12 +181,18 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                             {filteredModels.sort((a, b) => t('model_' + a.name, a.name).localeCompare(t('model_' + b.name, b.name))).map((model) => {
                                 if (model._user !== me.username)
                                     return <></>
+
+
+                                const IconComponent = getIconComponent(model.icon);
+
                                 return (
                                     <li data-testid={'model_'+model.name} className={`${model.name === selectedModel?.name ? 'active' : ''}`}
                                         key={'modelist' + model.name} onClick={() => generatedModels.some(g => g.name === model.name) ? onEditModel(model) : onModelSelect(model)}>
                                         <div className="flex flex-center flex-fw">
                                             <div
-                                                className="flex-1 break-word">{t(`model_${model.name}`, model.name)} {generatedModels.some(f => f.name === model.name) ? '(tmp)' : (mods.some(f => f.mod === model.name) ? `(${mods.find(f => f.mod === model.name).count})` : '')}</div>
+                                                className="flex flex-1 break-word">
+                                                <div className={"icon"}>{IconComponent ? IconComponent : <></>}</div>
+                                                <div>{t(`model_${model.name}`, model.name)} {generatedModels.some(f => f.name === model.name) ? '(tmp)' : (mods.some(f => f.mod === model.name) ? `(${mods.find(f => f.mod === model.name).count})` : '')}</div></div>
                                             <div className="btns">
                                                 {!generatedModels.some(g => g.name === model.name) && (<button data-tooltip-id="tooltipML" data-tooltip-content={t('btns.addData')} onClick={(e) => {
                                                     e.stopPropagation();

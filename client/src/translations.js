@@ -2,6 +2,8 @@
 export const websiteTranslations = {
     fr: {
         translation: {
+            "modelcreator.icon": "Icône",
+            "modelcreator.field.icon": "Icône (FontAwesome) associée au modèle",
             "modelcreator.field.history": "Permet d'afficher et de superviser les modifications effectuées sur vos données. Consomme de l'espace.'",
             "history": "Historique",
             "history.op.create": "Création",

@@ -5,7 +5,7 @@ import {useModelContext} from "./contexts/ModelContext.jsx";
 import {FaArrowDown, FaArrowUp, FaEdit, FaInfo, FaMinus, FaPlus, FaSave, FaTrash} from "react-icons/fa";
 
 import "./ModelCreator.scss"
-import {CheckboxField, CodeField, ColorField, NumberField, SelectField, TextField} from "./Field.jsx";
+import {CheckboxField, CodeField, ColorField, IconField, NumberField, SelectField, TextField} from "./Field.jsx";
 import Button from "./Button.jsx";
 import {Trans, useTranslation} from "react-i18next";
 import {
@@ -42,6 +42,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
     const [modelMaxRequestData, setModelMaxRequestData] = useState(initialModel?.maxRequestData || ''); // Utilisation de initialModel
     const [modelDescription, setModelDescription] = useState(initialModel?.name ? t(`model_description_${initialModel?.name}`, initialModel?.description) : '');
     const [modelHistory, setModelHistory] = useState(!!initialModel?.history || undefined);
+    const [modelIcon, setModelIcon] = useState(!!initialModel?.icon || undefined);
     const [fields, setFields] = useState([]);
     const [changed, setChanged] = useState(false);
 
@@ -55,6 +56,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             setModelDescription(initialModel.name ? t(`model_description_${initialModel.name}`, initialModel.description) : '');
             setFields([...(initialModel.fields || []).map(m => ({...m}))]);
             setModelHistory(initialModel.history);
+            setModelIcon(initialModel.icon);
         } else {
             // Mode création : on réinitialise tout pour une nouvelle génération
             setModelName('');
@@ -63,6 +65,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             setUseAI(true); // On active l'IA par défaut
             setModelVisible(false);
             setModelHistory(false);
+            setModelIcon(null);
         }
     }, [initialModel]);
 
@@ -74,6 +77,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 setModelDescription(selectedModel.description || '');
                 setFields(selectedModel.fields || []);
                 setModelMaxRequestData(selectedModel.maxRequestData || defaultMaxRequestData);
+                setModelIcon(selectedModel.icon || null);
             }
         }
     }, [generatedModels, selectedGeneratedModelIndex]);
@@ -134,6 +138,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                     setModelMaxRequestData(defaultMaxRequestData);
                     setFields([{ name: '', type: 'string' }]);
                     setModelHistory(undefined);
+                    setModelIcon(null);
                 }
                 setDatasToLoad(datas=>[...datas, modelName]);
 
@@ -177,6 +182,8 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 setModelName('');
                 setModelDescription('');
                 setSelectedModel(null)
+                setModelHistory(undefined)
+                setModelIcon(null);
                 setFields([{ name: '', type: 'string', _isNewField: true }]);
                 setDatasToLoad(datas => datas.filter(f => f !== modelName));
                 setGeneratedModels(mods => {
@@ -213,6 +220,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             description: modelDescription,
             maxRequestData: modelMaxRequestData,
             history: modelHistory,
+            icon: modelIcon,
             fields: (fields || []).map((field) => {
                 delete field['_isNewField'];
                 let otherFields = [];
@@ -604,6 +612,20 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                             value={modelDescription}
                             onChange={(e) => {
                                 setModelDescription(e.target.value);
+                                setChanged(true)
+                            }}
+                        />
+
+                        <div className="flex field-bg">
+                            <label htmlFor="modelIcon"><Trans i18nKey={"modelcreator.icon"}>Icône:</Trans></label>
+                        </div>
+                        <IconField
+                            help={t('modelcreator.field.icon')}
+                            id="modelIcon"
+                            disabled={modelLocked}
+                            value={modelIcon}
+                            onChange={(e) => {
+                                setModelIcon(e);
                                 setChanged(true)
                             }}
                         />
