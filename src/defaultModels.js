@@ -2,6 +2,7 @@
 export const defaultModels = {
     permission: {
         "name": "permission",
+        "icon": "FaKey",
         "description": "",
         "fields": [
             {
@@ -17,6 +18,7 @@ export const defaultModels = {
     },
     role: {
         name: 'role',
+        "icon": "FaUserTag",
         "description": "",
         fields: [
             { name: 'name', type: 'string_t', required: true, unique: true, color: '#363636' },
@@ -26,6 +28,7 @@ export const defaultModels = {
     user: {
         name: 'user',
         "description": "",
+        "icon": "FaUser",
         locked: true,
         fields: [
             { name: 'username', type: 'string', required: true, unique: true, color: '#3C7D08' },
@@ -47,6 +50,7 @@ export const defaultModels = {
         ]
     },
     userPermission: {
+        "icon": "FaUserCheck",
         "name": "userPermission",
         "description": "Gère les exceptions aux permissions des rôles pour un utilisateur (ajouts ou retraits, permanents ou temporaires).",
         "fields": [
@@ -81,6 +85,7 @@ export const defaultModels = {
     },
     token: {
         name: 'token',
+        "icon": "FaKey",
         "description": "",
         fields: [
             { name: 'name', type: 'string' },
@@ -90,6 +95,7 @@ export const defaultModels = {
     },
     translation: {
         name: 'translation',
+        "icon": "FaLanguage",
         locked: true,
         "description": "",
         fields: [
@@ -100,6 +106,7 @@ export const defaultModels = {
     },
     lang: {
         name: 'lang',
+        "icon": "FaGlobe",
         locked: true,
         "description": "",
         fields: [
@@ -109,6 +116,7 @@ export const defaultModels = {
     },
     currency: {
         name: 'currency',
+        "icon": "FaMoneyBill",
         "description": "",
         locked: true,
         fields: [
@@ -121,6 +129,7 @@ export const defaultModels = {
     },
     channel: {
         name: 'channel',
+        "icon": "FaComments",
         "description": "",
         fields: [
             { name: 'name', type: 'string_t', required: true, unique: true }, // Nom du canal (ex: "email", "SMS")
@@ -130,6 +139,7 @@ export const defaultModels = {
     },
     message: {
         name: 'message',
+        "icon": "FaEnvelope",
         "description": "",
         locked: true,
         fields: [
@@ -148,6 +158,7 @@ export const defaultModels = {
     },
     alert: {
         name: "alert",
+        "icon": "FaBell",
         description: "Définit les règles pour les alertes et les insights automatiques.",
         fields: [
             { name: "name", type: "string", required: true, asMain: true },
@@ -186,6 +197,7 @@ export const defaultModels = {
     },
     env: {
         name: "env",
+        "icon": "FaCog",
         description: "Définit les variables d'environnement qui seront accessibles dans vos scripts et webhooks.",
         fields: [
             { name: "name", type: "string", required: true, unique: true, asMain: true },
@@ -194,6 +206,7 @@ export const defaultModels = {
     },
     webpage: {
         name: 'webpage',
+        "icon": "FaFileAlt",
         locked: true,
         "description": "",
         fields: [
@@ -210,6 +223,7 @@ export const defaultModels = {
     },
     content: {
         name: 'content',
+        "icon": "FaFileAlt",
         "description": "",
         fields: [
             { name: 'lang', type: 'relation', relation: 'lang' },
@@ -240,6 +254,7 @@ export const defaultModels = {
     },
     resource: {
         name: 'resource',
+        "icon": "FaBoxOpen",
         "description": "",
         fields: [
             { name: "source", type: "url"},
@@ -248,6 +263,7 @@ export const defaultModels = {
     },
     taxonomy: {
         name: 'taxonomy',
+        "icon": "FaTags",
         "description": "",
         fields: [
             { name: 'name', type: 'string_t', required: true, color: '#71A314' },
@@ -261,6 +277,7 @@ export const defaultModels = {
     contact: {
         locked: true,
         name: 'contact',
+        "icon": "FaAddressBook",
         "description": "",
         fields: [
             { name: 'legalName', type: 'string', asMain: true, color: '#D9D9D9' },
@@ -274,6 +291,7 @@ export const defaultModels = {
 
     location: {
         "name": "location",
+        "icon": "FaMapMarkerAlt",
         locked: true,
         "description": "",
         "fields": [
@@ -332,6 +350,7 @@ export const defaultModels = {
 
     brand: {
         name: 'brand',
+        "icon": "FaTrademark",
         "description": "",
         fields: [
             { name: 'name', type: 'string', required: true },
@@ -342,6 +361,7 @@ export const defaultModels = {
 
     product: {
         name: 'product',
+        "icon": "FaShoppingBag",
         "description": "",
         fields: [
             { name: 'name', type: 'string_t', required: true },
@@ -359,6 +379,7 @@ export const defaultModels = {
     },
     productVariant: {
         name: 'productVariant',
+        "icon": "FaBox",
         "description": "",
         fields: [
             { name: 'product', type: 'relation', relation: 'product', required: true },
@@ -374,6 +395,7 @@ export const defaultModels = {
     },
     cart: {
         name: 'cart',
+        "icon": "FaShoppingCart",
         "description": "",
         fields: [
             { name: 'user', type: 'relation', relation: 'user', required: true },
@@ -385,6 +407,7 @@ export const defaultModels = {
     },
     cartItem: {
         name: 'cartItem',
+        "icon": "FaShoppingBasket",
         "description": "",
         fields: [
             { name: 'product', type: 'relation', relation: 'product', required: true },
@@ -394,6 +417,7 @@ export const defaultModels = {
     },
     discount: {
         name: "discount",
+        "icon": "FaTicketAlt",
         locked: true,
         "description": "",
         fields: [
@@ -411,6 +435,7 @@ export const defaultModels = {
     },
     order: {
         name: "order",
+        "icon": "FaClipboardList",
         locked: true,
         "description": "",
         fields: [
@@ -432,6 +457,7 @@ export const defaultModels = {
     },
     invoice: {
         name: 'invoice',
+        "icon": "FaFileInvoice",
         "description": "",
         fields: [
             { name: 'order', type: 'relation', relation: 'order', required: true },
@@ -443,6 +469,7 @@ export const defaultModels = {
     },
     userSubscription: {
         name: 'userSubscription',
+        "icon": "FaCalendarCheck",
         "description": "",
         locked: true,
         fields: [
@@ -463,6 +490,7 @@ export const defaultModels = {
     },
     stock: {
         name: 'stock',
+        "icon": "FaWarehouse",
         "description": "",
         fields: [
             { name: 'product', type: 'relation', relation: 'product', required: true },
@@ -474,6 +502,7 @@ export const defaultModels = {
     },
     stockAlert: {
         name: 'stockAlert',
+        "icon": "FaExclamationTriangle",
         "description": "",
         fields: [
             { name: 'user', type: 'relation', relation: 'user', required: true },
@@ -484,6 +513,7 @@ export const defaultModels = {
     },
     shipment: {
         name: 'shipment',
+        "icon": "FaTruck",
         "description": "",
         fields: [
             { name: 'order', type: 'relation', relation: 'order', required: true },
@@ -497,6 +527,7 @@ export const defaultModels = {
     warehouse: {
         name: 'warehouse',
         "description": "",
+        "icon": "FaWarehouse",
         fields: [
             { name: 'name', type: 'string_t', required: true },
             { name: 'location', type: 'relation', relation: 'location' },
@@ -506,6 +537,7 @@ export const defaultModels = {
     'return': {
         name: "return",
         "description": "",
+        "icon": "FaUndo",
         fields: [
             { "name": "order", "type": "relation", "relation": "order", "required": true },
             { "name": "user", "type": "relation", relation: "user" },
@@ -519,6 +551,7 @@ export const defaultModels = {
     },
     returnItem: {
         name: 'returnItem',
+        "icon": "FaBoxOpen",
         "description": "",
         fields: [
             { name: 'return', type: 'relation', relation: 'return', required: true },
@@ -530,6 +563,7 @@ export const defaultModels = {
     },
     ticket: {
         name: 'ticket',
+        "icon": "FaTicketAlt",
         "description": "",
         locked: true,
         fields: [
@@ -547,6 +581,7 @@ export const defaultModels = {
     },
     review: {
         name: "review",
+        "icon": "FaStar",
         "description": "",
         fields: [
             { "name": "user", "type": "relation", relation: "user" },
@@ -559,6 +594,7 @@ export const defaultModels = {
     },
     device: {
         name: "device",
+        "icon": "FaMobile",
         "description": "",
         fields: [
             { "name": "location", "type": "relation", relation: 'location' },
@@ -568,6 +604,7 @@ export const defaultModels = {
     // Modèle pour l'exercice comptable et l'entreprise
     accountingExercise: {
         name: 'accountingExercise',
+        "icon": "FaBook",
         description: "Représente un exercice comptable pour une entreprise donnée.",
         fields: [
             { name: 'name', type: 'string_t', 'required': true, unique: true, hint: "Intitulé de l'exercice comptable" },
@@ -581,6 +618,7 @@ export const defaultModels = {
     // Modèle pour définir la structure des lignes comptables (le "plan")
     accountingLineItem: {
         name: 'accountingLineItem',
+        "icon": "FaListAlt",
         description: "Définit une ligne/catégorie dans un document comptable.",
         locked: true, // Probablement géré par l'application, pas par l'utilisateur final
         fields: [
@@ -610,6 +648,7 @@ export const defaultModels = {
     },
     accountingEntry: {
         "name": "accountingEntry",
+        "icon": "FaPenAlt",
         "description": "",
         "fields": [
             {
@@ -679,6 +718,7 @@ export const defaultModels = {
     },
     employee: {
         "name": "employee",
+        "icon": "FaUserTie",
         "description": "",
         "fields": [
             {
@@ -819,6 +859,7 @@ export const defaultModels = {
     },
     workflow: {
         name: 'workflow',
+        "icon": "FaProjectDiagram",
         description: "Defines an automated process.",
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Unique name for the workflow (e.g., 'Order Validation', 'Low Stock Notification')." },
@@ -828,6 +869,7 @@ export const defaultModels = {
     },
     workflowTrigger: {
         name: 'workflowTrigger',
+        "icon": "FaPlay",
         description: "Represents an event that can initiate a workflow.",
         fields: [
             { name: 'workflow', type: 'relation', relation: 'workflow', required: true, hint: "The workflow this step belongs to." },
@@ -879,6 +921,7 @@ export const defaultModels = {
     },
     workflowStep: {
         name: 'workflowStep',
+        "icon": "FaStepForward",
         description: "A single step within a workflow process.",
         fields: [
             { name: 'workflow', type: 'relation', relation: 'workflow', required: true, hint: "The workflow this step belongs to." },
@@ -892,6 +935,7 @@ export const defaultModels = {
     },
     workflowAction: {
         name: 'workflowAction',
+        "icon": "FaCogs",
         description: "Defines a specific operation to be performed by a workflow step.",
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Name of the action (e.g., 'Update Order Status', 'Send Email', 'Call Payment API')." },
@@ -991,6 +1035,7 @@ export const defaultModels = {
 
     workflowRun: {
         name: 'workflowRun',
+        "icon": "FaRunning",
         description: "Tracks a specific execution instance of a workflow.",
         fields: [
             { name: 'workflow', type: 'relation', relation: 'workflow', required: true, hint: "The workflow definition that was executed." },
@@ -1013,6 +1058,7 @@ export const defaultModels = {
     },
     dashboard:{
         name: 'dashboard', // Nom technique du modèle
+        "icon": "FaTachometerAlt",
         description: "Configuration d'un tableau de bord personnalisé par l'utilisateur.", // Description du modèle
         locked: false, // Indique si le modèle peut être modifié par l'utilisateur (false = modifiable)
         fields: [
@@ -1052,6 +1098,7 @@ export const defaultModels = {
     },
     'request': {
         name: 'request',
+        "icon": "FaExchangeAlt",
         description: "Journal des requêtes reçues par l'API.",
         locked: true, // Géré par le système, non modifiable directement par l'utilisateur via l'UI standard
         fields: [
@@ -1137,6 +1184,7 @@ export const defaultModels = {
 
     kpi : {
         name: 'kpi',
+        "icon": "FaChartLine",
         description: "Configuration d'un Indicateur Clé de Performance (KPI)",
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Nom affiché du KPI (ex: Chiffre d'affaires total)" },
@@ -1200,6 +1248,7 @@ export const defaultModels = {
     },
     imageGallery: {
         name: 'imageGallery',
+        "icon": "FaImages",
         description: "Représente une galerie d'images avec un titre et une description.",
         locked: false, // Les utilisateurs peuvent créer/gérer leurs galeries
         fields: [
@@ -1241,6 +1290,7 @@ export const defaultModels = {
     },
     budget: {
         name: 'budget',
+        "icon": "FaMoneyCheck",
         description: "Un budget permet de lister vos transactions personnelles.",
         fields: [
             {
@@ -1312,6 +1362,7 @@ export const defaultModels = {
     },
     event: {
         "name": "event",
+        "icon": "FaCalendar",
         "description": "A model for managing events, conferences, meetups, and gatherings.",
         "fields": [
             {
@@ -1424,6 +1475,7 @@ export const defaultModels = {
     },
     endpoint: {
         name: "endpoint",
+        "icon": "FaCode",
         description: "Defines custom API endpoints that execute a server-side script.",
         fields: [
             {
