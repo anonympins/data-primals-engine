@@ -23,6 +23,7 @@ import {getHost} from "../constants.js";
 import {providers} from "./assistant/constants.js";
 import {ChatAnthropic} from "@langchain/anthropic";
 import {getAIProvider} from "./assistant/assistant.js";
+import {escapeRegex} from "../core.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
