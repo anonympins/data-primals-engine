@@ -570,6 +570,8 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "modelcreator.icon": "Icon",
+            "modelcreator.field.icon": "Icon (FontAwesome) associated with the model",
             "modelcreator.field.history": "Allows you to view and monitor changes made to your data. Consumes space.",
             "history": "History",
             "history.op.create": "Creation",
@@ -2010,6 +2012,8 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
+            "modelcreator.icon": "Icono",
+            "modelcreator.field.icon": "Icono (FontAwesome) asociado al modelo",
             "modelcreator.field.history": "Permite ver y supervisar los cambios realizados en los datos. Consume espacio.",
             "history": "Historial",
             "history.op.create": "Creación",
@@ -3452,6 +3456,8 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
+            "modelcreator.icon": "Ícone",
+            "modelcreator.field.icon": "Ícone (FontAwesome) associado ao modelo",
             "modelcreator.field.history": "Permite visualizar e monitorar as alterações feitas nos seus dados. Consome espaço.",
             "history": "Histórico",
             "history.op.create": "Criação",
@@ -4889,6 +4895,8 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
+            "modelcreator.icon": "Symbol",
+            "modelcreator.field.icon": "Mit dem Modell verknüpftes Symbol (FontAwesome)",
             "modelcreator.field.history": "Ermöglicht Ihnen, Änderungen an Ihren Daten anzuzeigen und zu überwachen. Verbraucht Speicherplatz.",
             "history": "Verlauf",
 
@@ -6312,6 +6320,8 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
+            "modelcreator.icon": "Icona",
+            "modelcreator.field.icon": "Icona (FontAwesome) associata al modello",
             "modelcreator.field.history": "Consente di visualizzare e monitorare le modifiche apportate ai dati. Occupa spazio.",
             "history": "Cronologia",
 
@@ -7747,6 +7757,8 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
+            "modelcreator.icon": "Ikona",
+            "modelcreator.field.icon": "Ikona (FontAwesome) přidružená k modelu",
             "modelcreator.field.history": "Umožňuje zobrazit a sledovat změny provedené ve vašich datech. Spotřebovává místo.",
             "history": "Historie",
             "history.op.create": "Vytvoření",
@@ -9176,6 +9188,8 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
+            "modelcreator.icon": "Значок",
+            "modelcreator.field.icon": "Значок (FontAwesome), связанный с моделью",
             "modelcreator.field.history": "Позволяет просматривать и отслеживать изменения, внесённые в ваши данные. Занимает место.",
             "history": "История",
 
@@ -10617,6 +10631,8 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
+            "modelcreator.icon": "أيقونة",
+            "modelcreator.field.icon": "الأيقونة (FontAwesome) المرتبطة بالنموذج",
             "modelcreator.field.history": "يسمح لك بعرض ومراقبة التغييرات التي أجريتها على بياناتك. يستهلك مساحة.",
             "history": "السجل",
             "history.op.create": "إنشاء",
@@ -12073,6 +12089,8 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
+            "modelcreator.icon": "Ikon",
+            "modelcreator.field.icon": "Ikon (FontAwesome) associerad med modellen",
             "modelcreator.field.history": "Låter dig visa och övervaka ändringar som gjorts i dina data. Tar plats.",
             "history": "Historik",
             "history.op.create": "Skapande",
@@ -13502,6 +13520,8 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
+            "modelcreator.icon": "Εικονίδιο",
+            "modelcreator.field.icon": "Εικονίδιο (FontAwesome) που σχετίζεται με το μοντέλο",
             "modelcreator.field.history": "Σας επιτρέπει να βλέπετε και να παρακολουθείτε τις αλλαγές που έγιναν στα δεδομένα σας. Καταλαμβάνει χώρο.",
             "history": "Ιστορικό",
             "history.op.create": "Δημιουργία",
@@ -14940,6 +14960,8 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
+            "modelcreator.icon": "آیکون",
+            "modelcreator.field.icon": "آیکون (FontAwesome) مرتبط با مدل",
             "modelcreator.field.history": "به شما امکان می‌دهد تغییرات ایجاد شده در داده‌های خود را مشاهده و نظارت کنید. فضا مصرف می‌کند.",
             "history": "تاریخچه",
             "history.op.create": "ایجاد",
