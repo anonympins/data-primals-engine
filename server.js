@@ -11,6 +11,7 @@ import {port} from "./src/constants.js";
 
 Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "swagger"])
 Config.Set("middlewares", []);
+Config.Set("useDemoAccounts", true);
 
 const bench = GameObject.Create("Benchmark");
 const timer = bench.addComponent(BenchmarkTool);

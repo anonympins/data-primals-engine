@@ -873,7 +873,7 @@ export async function registerRoutes(engine){
                 await cancelAlerts(req.me);
 
                 await getPromise();
-                await Event.Trigger('jobAddUserData', req.me.username);
+                await Event.Trigger('OnDemoUserAdded', req.me.username);
             }else{
                 await getPromise();
             }
