@@ -4621,14 +4621,14 @@ export async function handleDemoInitialization(req, res) {
         const result = await installPack(packToInstall, user, req.query.lang || 'en');
 
         if (result.success || result.modifiedCount > 0) {
+
+            await Event.Trigger('OnDemoUserAdded', "event", "system", req.me.username);
             logger.info(`[Demo Init] Pack installed successfully for user '${user.username}'.`);
             res.status(200).json({ success: true, message: "Demo environment initialized successfully.", summary: result.summary });
         } else {
             logger.error(`[Demo Init] Pack installation failed for user '${user.username}'.`);
             res.status(500).json({ success: false, error: 'Demo pack installation failed.', errors: result.errors });
         }
-
-        await Event.Trigger('OnDemoUserAdded', "event", "system", req.me.username);
 
     } catch (error) {
         logger.error(`[Demo Init] Critical error during initialization for user '${user.username}':`, error);
