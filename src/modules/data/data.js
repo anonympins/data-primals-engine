@@ -4627,6 +4627,8 @@ export async function handleDemoInitialization(req, res) {
             logger.error(`[Demo Init] Pack installation failed for user '${user.username}'.`);
             res.status(500).json({ success: false, error: 'Demo pack installation failed.', errors: result.errors });
         }
+        
+        await Event.Trigger('OnDemoUserAdded', req.me.username);
 
     } catch (error) {
         logger.error(`[Demo Init] Critical error during initialization for user '${user.username}':`, error);
