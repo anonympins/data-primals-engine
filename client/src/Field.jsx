@@ -399,7 +399,7 @@ const NumberField = forwardRef(
                 {label && (
                     <label
                         contentEditable={editable}
-                        className={cn({ help: !!help })}
+                        className={cn({ help: !!help, 'flex-1': true })}
                         title={help}
                         htmlFor={id}
                     >
@@ -431,7 +431,9 @@ const NumberField = forwardRef(
             max={max}
             step={step}
             {...rest}
-          /><span className="unit">{unit}</span></div>
+          />
+            {unit && <span className="unit">{unit}</span>}
+        </div>
         </div>
         {errors.length > 0 && (
           <ul className="error">
@@ -1608,6 +1610,88 @@ export const ColorField = ({name, label, value, disabled, onChange, className, .
         </div>
     );
 };
+
+const secondsToDuration = (totalSeconds) => {
+    if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds) || totalSeconds === '') {
+        return { days: '', hours: '', minutes: '', seconds: '' };
+    }
+    const total = parseInt(totalSeconds, 10);
+    const d = Math.floor(total / 86400);
+    let remainder = total % 86400;
+    const h = Math.floor(remainder / 3600);
+    remainder %= 3600;
+    const m = Math.floor(remainder / 60);
+    const s = remainder % 60;
+    return { days: d, hours: h, minutes: m, seconds: s };
+};
+
+const durationToSeconds = ({ days, hours, minutes, seconds }) => {
+    return (parseInt(days, 10) || 0) * 86400 +
+           (parseInt(hours, 10) || 0) * 3600 +
+           (parseInt(minutes, 10) || 0) * 60 +
+           (parseInt(seconds, 10) || 0);
+};
+
+export const DurationField = forwardRef(({ value, onChange, name, label, help, required, editable, readOnly }, ref) => {
+    const [duration, setDuration] = useState(secondsToDuration(value));
+    const [errors, setErrors] = useState([]);
+
+    useEffect(() => {
+        setDuration(secondsToDuration(value));
+    }, [value]);
+
+    const validate = () => {
+        const errs = [];
+        const totalSeconds = durationToSeconds(duration);
+        if (required && totalSeconds <= 0) {
+            errs.push("Field required");
+        }
+        setErrors(errs);
+        return !errs.length;
+    };
+
+    useImperativeHandle(ref, () => ({
+        validate,
+        getValue: () => durationToSeconds(duration),
+    }));
+
+    const handlePartChange = (part) => (e) => {
+        const newDuration = { ...duration, [part]: e.target.value };
+        setDuration(newDuration);
+        if (onChange) {
+            const totalSeconds = durationToSeconds(newDuration);
+            onChange({ name, value: totalSeconds });
+        }
+    };
+
+    return (
+        <>
+            <div className={cn({ field: true, "field-duration": true, 'flex-1': true, flex: true, "field-bg": true })}>
+                {label && (
+                    <label contentEditable={editable} className={cn({ help: !!help, 'flex-1': true })}>
+                        {label}
+                        {required && <span className="mandatory" contentEditable={false}>*</span>}
+                    </label>
+                )}
+                {help && <div className="flex help">{help}</div>}
+                <div className="duration-inputs flex flex-no-wrap flex-mini-gap">
+                    <NumberField name={`${name}-days`} unit="days" value={duration.days} onChange={handlePartChange('days')} readOnly={readOnly} min={0} />
+                    <NumberField name={`${name}-hours`} unit="hours" value={duration.hours} onChange={handlePartChange('hours')} readOnly={readOnly} min={0} max={23} />
+                    <NumberField name={`${name}-minutes`} unit="minutes" value={duration.minutes} onChange={handlePartChange('minutes')} readOnly={readOnly} min={0} max={59} />
+                    <NumberField name={`${name}-seconds`} unit="seconds" value={duration.seconds} onChange={handlePartChange('seconds')} readOnly={readOnly} min={0} max={59} />
+                </div>
+            </div>
+            {errors.length > 0 && (
+                <ul className="error">
+                    {errors.map((e, key) => (
+                        <li key={key} aria-live="assertive" role="alert">{e}</li>
+                    ))}
+                </ul>
+            )}
+        </>
+    );
+});
+DurationField.displayName = "DurationField";
 
 export const CodeField = ({name, label, language, value, disabled, onChange}) => {
     const u = name || uniqid();

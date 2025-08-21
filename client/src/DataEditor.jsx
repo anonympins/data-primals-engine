@@ -8,7 +8,7 @@ import RelationField from "./RelationField.jsx";
 import {
     CheckboxField,
     CodeField,
-    ColorField, EmailField,
+    ColorField, DurationField, EmailField,
     EnumField,
     FileField, ModelField, NumberField,
     PhoneField,
@@ -212,6 +212,13 @@ export const DataEditor = forwardRef(function MyDataEditor({
                     }}/></>;
                 }
             case "number":
+                if (field.delay) {
+                    return <DurationField
+                        {...inputProps}
+                        // DurationField's onChange provides an object: { name, value }
+                        onChange={({ value }) => handleChange({name: field.name, value})}
+                    />;
+                }
                 inputProps["step"] = field.step || 0.1;
                 if( field.min )
                     inputProps["min"] = field.min;

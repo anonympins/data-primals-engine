@@ -83,11 +83,11 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                 </div>
 
                 <div className="flex">
-                    {hint('modelcreator.type.hint')}
+
                     <div className="flex flex-1 flex-stretch field-bg flex-no-gap">
 
                         <SelectField
-                            label={t('modelcreator.type', 'Type de champ')}
+                            label={<div className={"flex"}>{hint('modelcreator.type.hint')}{t('modelcreator.type', 'Type de champ')}</div>}
                             className={"flex-1"}
                             value={field.type}
                             onChange={(e) => {
@@ -187,7 +187,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                     </div>
                 </div>
 
-                <div key={index + field.name}>
                     {field.type === 'calculated' && (
                         <>
                             <CalculationBuilder
@@ -322,43 +321,56 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                     )}
                     {(field.itemsType || field.type) === 'number' && (
                         <>
-                            <div className={"flex flex-no-wrap"}>
+                            <div className={"flex flex-no-wrap field-bg"}>
                                 {hint('modelcreator.precision.hint')}
-                                <label className="flex">
-                                                <span><Trans
-                                                    i18nKey={"modelcreator.precision"}>Précision :</Trans></span>
-                                    <div className="flex-1"><NumberField
-                                        disabled={modelLocked || (isLocalUser(me) && field.locked)}
-                                        value={field.step || 1}
-                                        step={0.1}
-                                        placeholder={t('modelcreator.field.step.ph', "Précision (1, 0.1...)")}
-                                        onChange={(e) => {
-                                            const newFields = [...fields];
-                                            newFields[index].step = e.target.value;//.replace('.', ','));
-                                            setFields(newFields);
-                                        }}
-                                    />
-                                    </div>
-                                </label>
+                                <div className="flex-1"><NumberField
+                                    label={<Trans
+                                        i18nKey={"modelcreator.precision"}>Précision :</Trans>}
+                                    disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                    value={field.step || 1}
+                                    step={0.1}
+                                    className={"flex-1"}
+                                    placeholder={t('modelcreator.field.step.ph', "Précision (1, 0.1...)")}
+                                    onChange={(e) => {
+                                        const newFields = [...fields];
+                                        newFields[index].step = e.target.value;//.replace('.', ','));
+                                        setFields(newFields);
+                                    }}
+                                />
+                                </div>
+                            </div>
+                            <div className="flex flex-no-wrap field-bg">
+                                {hint('modelcreator.unit.hint')}
+                                <div className="flex-1"><TextField
+                                    label={<Trans
+                                        i18nKey={"modelcreator.unit"}>Unité :</Trans>}
+                                    type="string"
+                                    className={"flex-1"}
+                                    disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                    value={field.unit}
+                                    placeholder={t('modelcreator.field.unit.ph', "€, cm, kg...")}
+                                    onChange={(e) => {
+                                        const newFields = [...fields];
+                                        newFields[index].unit = e.target.value;
+                                        setFields(newFields);
+                                    }}
+                                /></div>
                             </div>
                             <div className="flex flex-no-wrap">
-                                {hint('modelcreator.unit.hint')}
-                                <label className="flex">
-                                                        <span><Trans
-                                                            i18nKey={"modelcreator.unit"}>Unité :</Trans></span>
-                                    <div className="flex-1"><input
-                                        type="string"
+                                {hint('modelcreator.delay.hint')}
+                                <div className="checkbox-label flex flex-1">
+                                    <CheckboxField
+                                        label={<Trans i18nKey={"modelcreator.delay"}>Délai ?</Trans>}
                                         disabled={modelLocked || (isLocalUser(me) && field.locked)}
-                                        value={field.unit}
+                                        checked={field.delay}
                                         placeholder={t('modelcreator.field.unit.ph', "€, cm, kg...")}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            newFields[index].unit = e.target.value;
+                                            newFields[index].delay = e;
                                             setFields(newFields);
                                         }}
-                                    /></div>
-
-                                </label>
+                                    />
+                                </div>
                             </div>
                         </>
                     )}
@@ -797,7 +809,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                     </div>
                 </div>
 
-            </div>
         </div>
     );
 }
