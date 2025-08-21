@@ -17,7 +17,7 @@ import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useQueryClient} from "react-query";
 import {
     FaArrowDown,
-    FaArrowUp, FaAt,
+    FaArrowUp, FaAt, FaEye, FaEyeSlash,
     FaCalendar, FaCalendarWeek, FaCode, FaFile,
     FaHashtag, FaIcons,
     FaImage,
@@ -101,8 +101,12 @@ const TextField = forwardRef(function TextField(
   ref,
 ) {
   const [id, setId] = useState("textfield-" + uniqid());
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [errors, setErrors] = useState([]);
   const inputRef = useRef();
+
+  const { type, ...otherRest } = rest;
+  const isPasswordField = type === 'password';
 
   const mult = typeof multiline !== 'undefined' ? multiline : maxlength > 255;
   const validate = () => {
@@ -137,6 +141,10 @@ const TextField = forwardRef(function TextField(
     if (onChange) {
       onChange(e);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+      setIsPasswordVisible(prevState => !prevState);
   };
   useEffect(() => {
     if (value !== null) validate();
@@ -190,14 +198,14 @@ const TextField = forwardRef(function TextField(
             )}
 
             {before}
-            <div className={"flex flex-1 flex-no-gap flex-start"}>
+            <div className={"flex flex-1 flex-no-gap flex-start"} style={{ position: 'relative' }}>
                 {!mult && (
                     <input
                         ref={inputRef}
                         aria-required={required}
                         aria-readonly={readOnly}
                         readOnly={readOnly}
-                        type={searchable ? "search" : "text"}
+                        type={isPasswordField ? (isPasswordVisible ? 'text' : 'password') : (searchable ? "search" : (type || "text"))}
                         placeholder={placeholder}
                         title={placeholder}
                         alt={placeholder}
@@ -208,8 +216,14 @@ const TextField = forwardRef(function TextField(
                         minLength={minlength}
                         maxLength={maxlength}
                         required={required}
-                        {...rest}
+                        style={isPasswordField ? { paddingRight: '40px' } : {}}
+                        {...otherRest}
                     />
+                )}
+                {isPasswordField && !mult && (
+                    <button type="button" onClick={togglePasswordVisibility} className="password-toggle-icon" style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center'}}>
+                        {isPasswordVisible ? <FaEyeSlash /> : <FaEye />}
+                    </button>
                 )}
                 {after}
             </div>
