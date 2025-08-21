@@ -475,7 +475,7 @@ export async function purgeData(user, modelName = null, filter=null) {
         logger.info(`Purged ${dataResult.deletedCount} documents and ${historyResult.deletedCount} history entries for model '${modelName}'.`);
 
         // On pourrait aussi émettre un événement "OnDataPurged" ici si nécessaire
-        await Event.Trigger("OnDataPurged", { user, modelName, purgedIds: docIdsToPurge });
+        await Event.Trigger("OnDataPurged", "event","system",{ user, modelName, purgedIds: docIdsToPurge });
 
         return {
             success: true,
