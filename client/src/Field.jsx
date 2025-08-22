@@ -414,6 +414,7 @@ const NumberField = forwardRef(
                     </label>
                 )}
                 {help && <div className="flex help">{help}</div>}
+                <div className={"flex flex-1 flex-no-wrap flex-mini-gap"}>
           <input
             ref={inputRef}
             aria-required={required}
@@ -433,6 +434,7 @@ const NumberField = forwardRef(
             {...rest}
           />
             {unit && <span className="unit">{unit}</span>}
+                </div>
         </div>
         </div>
         {errors.length > 0 && (
@@ -1634,6 +1636,7 @@ const durationToSeconds = ({ days, hours, minutes, seconds }) => {
 };
 
 export const DurationField = forwardRef(({ value, onChange, name, label, help, required, editable, readOnly }, ref) => {
+    const { t } = useTranslation();
     const [duration, setDuration] = useState(secondsToDuration(value));
     const [errors, setErrors] = useState([]);
 
@@ -1645,7 +1648,7 @@ export const DurationField = forwardRef(({ value, onChange, name, label, help, r
         const errs = [];
         const totalSeconds = durationToSeconds(duration);
         if (required && totalSeconds <= 0) {
-            errs.push("Field required");
+            errs.push(t('form.validation.required', "Field required"));
         }
         setErrors(errs);
         return !errs.length;
@@ -1676,10 +1679,10 @@ export const DurationField = forwardRef(({ value, onChange, name, label, help, r
                 )}
                 {help && <div className="flex help">{help}</div>}
                 <div className="duration-inputs flex flex-no-wrap flex-mini-gap">
-                    <NumberField name={`${name}-days`} unit="days" value={duration.days} onChange={handlePartChange('days')} readOnly={readOnly} min={0} />
-                    <NumberField name={`${name}-hours`} unit="hours" value={duration.hours} onChange={handlePartChange('hours')} readOnly={readOnly} min={0} max={23} />
-                    <NumberField name={`${name}-minutes`} unit="minutes" value={duration.minutes} onChange={handlePartChange('minutes')} readOnly={readOnly} min={0} max={59} />
-                    <NumberField name={`${name}-seconds`} unit="seconds" value={duration.seconds} onChange={handlePartChange('seconds')} readOnly={readOnly} min={0} max={59} />
+                    <NumberField name={`${name}-days`} unit={t('duration.unit.days', 'days')} value={duration.days} onChange={handlePartChange('days')} readOnly={readOnly} min={0} />
+                    <NumberField name={`${name}-hours`} unit={t('duration.unit.hours', 'hours')} value={duration.hours} onChange={handlePartChange('hours')} readOnly={readOnly} min={0} max={23} />
+                    <NumberField name={`${name}-minutes`} unit={t('duration.unit.minutes', 'minutes')} value={duration.minutes} onChange={handlePartChange('minutes')} readOnly={readOnly} min={0} max={59} />
+                    <NumberField name={`${name}-seconds`} unit={t('duration.unit.seconds', 'seconds')} value={duration.seconds} onChange={handlePartChange('seconds')} readOnly={readOnly} min={0} max={59} />
                 </div>
             </div>
             {errors.length > 0 && (

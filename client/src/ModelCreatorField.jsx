@@ -363,7 +363,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         label={<Trans i18nKey={"modelcreator.delay"}>Délai ?</Trans>}
                                         disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                         checked={field.delay}
-                                        placeholder={t('modelcreator.field.unit.ph', "€, cm, kg...")}
                                         onChange={(e) => {
                                             const newFields = [...fields];
                                             newFields[index].delay = e;
