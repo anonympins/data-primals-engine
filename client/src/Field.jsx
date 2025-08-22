@@ -399,7 +399,7 @@ const NumberField = forwardRef(
                 {label && (
                     <label
                         contentEditable={editable}
-                        className={cn({ help: !!help, 'flex-1': true })}
+                        className={cn({ help: !!help, flex: true, 'flex-1': true })}
                         title={help}
                         htmlFor={id}
                     >
@@ -514,10 +514,11 @@ const CheckboxField = forwardRef(
                         )}
                     </label>
                 )}
+                {help && <div className="flex help">{help}</div>}
                 <Switch
+                    id={id}
                     onChange={handleChange}
                     checked={value} />
-                {help && <div className="flex help">{help}</div>}
             </div>
             {errors.length > 0 && (
                 <ul className="error">
