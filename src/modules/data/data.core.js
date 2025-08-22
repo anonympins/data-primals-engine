@@ -1,7 +1,11 @@
 import NodeCache from "node-cache";
 import path from "node:path";
 import {Worker} from 'worker_threads';
+import {fileURLToPath} from "node:url";
 export const modelsCache = new NodeCache( { stdTTL: 100, checkperiod: 120 } );
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const mongoDBWhitelist = [
     "$$NOW", "$in", "$eq", "$gt", "$gte", "$in", "$lt", "$lte", "$ne", "$nin", "$type", "$size",
@@ -60,7 +64,7 @@ export function runImportExportWorker(action, payload) {
  */
 export function runCryptoWorkerTask(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(process.cwd(), './src/workers/crypto-worker.js');
+        const workerPath = path.resolve(__dirname, './src/workers/crypto-worker.js');
         const worker = new Worker(workerPath);
 
         worker.postMessage({ action, payload });
