@@ -64,7 +64,7 @@ export function runImportExportWorker(action, payload) {
  */
 export function runCryptoWorkerTask(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(__dirname, './src/workers/crypto-worker.js');
+        const workerPath = path.resolve(__dirname, '../../workers/crypto-worker.js');
         const worker = new Worker(workerPath);
 
         worker.postMessage({ action, payload });
