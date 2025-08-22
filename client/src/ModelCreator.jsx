@@ -235,7 +235,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                         break;
                     }
                     case 'number':
-                        otherFields = ['min', 'max', 'step', 'unit'];
+                        otherFields = ['min', 'max', 'step', 'unit','delay'];
                         break;
                     case 'string':
                     case 'string_t':
