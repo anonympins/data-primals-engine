@@ -52,7 +52,7 @@ import i18n from "../../i18n.js";
 import {
     executeSafeJavascript,
     runScheduledJobWithDbLock,
-    scheduleWorkflowTriggers,
+    scheduleWorkflowTriggers, substituteVariables,
     triggerWorkflows
 } from "../workflow.js";
 import NodeCache from "node-cache";
@@ -60,13 +60,14 @@ import AWS from 'aws-sdk';
 import checkDiskSpace from "check-disk-space";
 import {addFile, removeFile} from "../file.js";
 import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../bucket.js";
-import {calculateTotalUserStorageUsage, hasPermission, middlewareAuthenticator} from "../user.js";
+import {calculateTotalUserStorageUsage, getSmtpConfig, hasPermission, middlewareAuthenticator} from "../user.js";
 import {getAllPacks} from "../../packs.js";
 import {Config} from "../../config.js";
 import {profiles} from "../../../client/src/constants.js";
 import {registerRoutes, sendSseToUser} from "./data.routes.js";
 import {importJobs, modelsCache, mongoDBWhitelist, runCryptoWorkerTask, runImportExportWorker} from "./data.core.js";
 import readXlsxFile from "read-excel-file/node";
+import {sendEmail} from "../../email.js";
 
 let engine;
 let logger;
@@ -789,7 +790,7 @@ function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
     });
 }
 
-export  const cancelAlerts = async (user) => {
+export const cancelAlerts = async (user) => {
 
     const datasCollection = getCollection('datas'); // Alerts are in the global collection
 
@@ -849,15 +850,56 @@ async function runStatefulAlertJob(alertId) {
         if (count > 0) {
             logger.info(`[Scheduled Job] Condition met for alert ${alertDoc.name} (ID: ${alertId}). Sending notification and updating state.`);
 
+            let emailSent = false;
+            try {
+                const user = await engine.userProvider.findUserByUsername(alertDoc._user);
+                if (user && user.email) {
+                    const smtpConfig = await getSmtpConfig(user);
+                    if (alertDoc.sendEmail && smtpConfig) {
+                        const userLang = user.lang || 'en';
+                        let emailContent, msg;
+                        if (alertDoc.message){
+                            if (alertDoc.message[userLang])
+                                msg= alertDoc.message[userLang];
+                            else
+                                msg = alertDoc.message[Object.keys(alertDoc.message)[0]];
+                            emailContent = await substituteVariables(msg, { count, alert: alertDoc });
+                        } else {
+                            // Sinon, utiliser le message par défaut
+                            emailContent = i18n.t('alert.email.content', `L'alerte '${alertDoc.name}' s'est déclenchée. ${count} élément(s) correspondent à votre condition.`, { name: alertDoc.name, count: count });
+                        }
+
+                        await sendEmail(
+                            user.email,
+                            {
+                                title: i18n.t('alert.email.title', `Alerte: ${alertDoc.name}`),
+                                content: emailContent
+                            },
+                            smtpConfig,
+                            userLang
+                        );
+                        emailSent = true;
+                        logger.info(`[Scheduled Job] Email notification sent for alert ${alertId} to ${user.email}.`);
+                    } else if (alertDoc.sendEmail) {
+                        logger.warn(`[Scheduled Job] Could not send email for alert ${alertId}. SMTP config is missing or incomplete for user ${user.username}.`);
+                    }
+                } else {
+                    logger.warn(`[Scheduled Job] Could not send email for alert ${alertId}. User ${alertDoc._user} not found or has no email address.`);
+                }
+            } catch (emailError) {
+                logger.error(`[Scheduled Job] Failed to send email for alert ${alertId}:`, emailError);
+            }
+
             // Send notification
             const alertPayload = {
                 type: 'cron_alert',
                 triggerId: alertDoc._id.toString(),
                 triggerName: alertDoc.name,
                 timestamp: new Date().toISOString(),
-                message: `Alerte '${alertDoc.name}': ${count} élément(s) correspondent à votre condition.`
+                message: `Alerte '${alertDoc.name}': ${count} élément(s) correspondent à votre condition.`,
+                emailSent
             };
-            await sendSseToUser(alertDoc._user, alertPayload);
+            sendSseToUser(alertDoc._user, alertPayload);
 
             // Update state in DB to prevent re-notification
             await datasCollection.updateOne(
