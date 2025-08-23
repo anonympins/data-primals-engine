@@ -166,6 +166,29 @@ const Header = ({
     ;
 }
 
+const formatDuration = (totalSeconds, t) => {
+    if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds) || totalSeconds === '') {
+        return '';
+    }
+    const total = parseInt(totalSeconds, 10);
+    if (total === 0) return '0s';
+
+    const d = Math.floor(total / 86400);
+    const h = Math.floor((total % 86400) / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = Math.floor(total % 60);
+
+    const parts = [];
+    if (d > 0) parts.push(t('duration.day', { count: d }));
+    if (h > 0) parts.push(t('duration.hour', { count: h }));
+    if (m > 0) parts.push(t('duration.minute', { count: m }));
+    if (s > 0) parts.push(t('duration.second', { count: s }));
+
+    if (parts.length === 0) return '0s';
+
+    return parts.slice(0, 2).join(', ');
+};
+
 
 const RichText = ({ value, initialLang }) => {
     const availableLangs = useMemo(() => (value ? Object.keys(value).filter(k => value[k]) : []), [value]);
@@ -658,6 +681,31 @@ export function DataTable({
                                             </td>;
                                         }
                                         if (field.type === 'number') {
+                                            if (field.delay) {
+                                                return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(formatDuration(item[field.name], t))}</td>;
+                                            }
+                                            if (field.gauge) {
+                                                const value = item[field.name];
+                                                if (value == null) {
+                                                    return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color}}></td>;
+                                                }
+                                                const min = field.min || 0;
+                                                const max = field.max || 100;
+                                                const percentage = max > min ? Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100)) : 0;
+
+                                                const displayValue = field.percent ? `${Math.round(percentage)}%` : value;
+                                                const title = field.percent ? `${value} (${Math.round(percentage)}%)` : `${value} / ${max}`;
+
+                                                return (
+                                                    <td key={field.name} className={isLightColor(field.color) ? "lighted" : "unlighted"} style={{backgroundColor: field.color}}>
+                                                        {hiddenable(
+                                                            <div className="gauge-container" data-tooltip-id={"tooltipFile"} data-tooltip-content={title}>
+                                                                <div className="gauge-bar" style={{ width: `${percentage}%` }}></div>
+                                                                <span className="gauge-label">{displayValue}</span>
+                                                            </div>
+                                                        )}
+                                                    </td>);
+                                            }
                                             let val = item[field.name];
                                             if (val && field.unit) {
                                                 let formatter = new Intl.NumberFormat(lang);
@@ -757,4 +805,3 @@ export function DataTable({
         </div>
     );
 }
-

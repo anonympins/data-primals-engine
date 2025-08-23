@@ -88,3 +88,100 @@
   border: 1px solid #eee;
   margin-bottom: 10px;
 }
+
+.gauge-container {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  .gauge-bar {
+    height: 100%;
+    background-color: #4caf50;
+    transition: width 0.3s ease-in-out;
+  }
+
+  .gauge-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: #000;
+    text-shadow: 0 0 2px rgb(255 255 255 / 70%);
+  }
+}
+
+// For cells with a dark background color
+.unlighted {
+  .gauge-container {
+    background-color: rgba(255, 255, 255, 0.2);
+    .gauge-bar {
+      background-color: #a5d6a7; // A lighter green
+    }
+    .gauge-label {
+      color: #fff;
+      text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+    }
+  }
+}
+
+.range-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+
+  input[type="range"] {
+    -webkit-appearance: none; /* Supprime l'apparence par défaut */
+    appearance: none;
+    width: 100%; /* Pleine largeur */
+    height: 8px; /* Hauteur spécifiée */
+    background: #ddd; /* Fond gris */
+    outline: none; /* Pas de contour */
+    opacity: 0.7; /* Transparence pour l'effet de survol */
+    -webkit-transition: .2s; /* Transition de 0.2s au survol */
+    transition: opacity .2s;
+    border-radius: 5px;
+
+    &:hover {
+      opacity: 1; /* Totalement opaque au survol */
+    }
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none; /* Supprime l'apparence par défaut */
+      appearance: none;
+      width: 20px; /* Largeur de la poignée */
+      height: 20px; /* Hauteur de la poignée */
+      background: #4CAF50; /* Fond vert */
+      cursor: pointer; /* Curseur en forme de main */
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 2px rgba(0,0,0,0.5);
+    }
+
+    &::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: #4CAF50;
+      cursor: pointer;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 2px rgba(0,0,0,0.5);
+    }
+  }
+
+  .range-value {
+    text-align: center;
+    min-width: fit-content;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px dotted gray;
+    font-size: 1rem;
+  }
+}

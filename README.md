@@ -18,10 +18,11 @@
 
 ## 🚀 Key Features
 
-- **Dynamic Data Modeling**: Define and update schemas using JSON, no migrations required.
+- **Visual Data Modeling**: Define and update schemas using a powerful UI Model Creator, or directly with JSON. No migrations required.
 - **Custom API Endpoints**: Create server-side logic and new API endpoints directly from the UI in a secure, sandboxed environment.
 - **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
-- **Advanced Querying & Aggregation**: Go beyond simple filters with deep relation expansion, complex lookups, and dynamic calculated fields.
+- **Advanced Querying & Aggregation**: Go beyond simple filters with a visual Condition Builder, deep relation expansion, complex lookups, and dynamic calculated fields.
+- **Rich UI Data Views**: Ready-to-use React components to display your data, including a powerful and configurable Data Table, a Kanban board, and a Calendar view.
 - **Integrated Backup & Restore**: Secure, encrypted user data backups with rotation policies, supporting both local and AWS S3 storage.
 - **Automatic Data Auditing**: Automatically tracks all changes (create, update, delete) for every record, providing a complete version history for auditing and traceability.
 - **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
@@ -31,6 +32,14 @@
 - **🌐 Internationalization (i18n)**: Fully supports multilingual interfaces and user-specific translated data.
 - **📦 Starter Packs**: Quickly bootstrap applications with pre-built data packs for CRM, e-commerce, and more.
 - **📄Auto-Generated API Documentation**: Interactive API documentation available via the interface or at `/api-docs`.
+
+## ⚛️ Frontend Integration (React)
+
+This engine is designed to work seamlessly with its dedicated client library, **`data-primals-engine/client`**. This library provides a complete set of React hooks and UI components to build a rich, data-centric user interface on top of the backend.
+
+While this README focuses on the backend engine and its API, you can find detailed instructions on how to integrate the client part in your React application here:
+
+➡️ **[View the Frontend Integration Guide](https://github.com/anonympins/data-primals-engine/tree/develop/client)**
 
 
 ## 🌟 Why Choose data-primals-engine?
@@ -115,6 +124,12 @@ By default, the app runs on port **7633** : http://localhost:7633
 ---
 
 ## 🧠 Concepts
+
+### Authentication & Authorization
+
+The engine includes a pluggable system for user management. For development and testing, it uses a `DefaultUserProvider` which creates a volatile **`demo`** user. This is perfect for getting started quickly without setting up a user database.
+
+For production environments, you should extend the base `UserProvider` class to connect to your actual user database (e.g., another MongoDB collection, a SQL database, or an external authentication service). This allows you to implement your own logic for finding users and validating passwords.
 
 ### Models
 Define schemas using JSON:

@@ -138,6 +138,24 @@ export function DashboardView({ dashboard }) {
         processedDashboardId.current = dashboard._id;
     }, [dashboard, t]);
 
+    // Gère le rafraîchissement automatique des données du dashboard.
+    useEffect(() => {
+        // S'assure qu'on a un intervalle de rafraîchissement valide (nombre de secondes > 0)
+        if (dashboard?.refreshInterval && dashboard.refreshInterval > 0) {
+            const intervalInMs = dashboard.refreshInterval * 1000;
+
+            const intervalId = setInterval(() => {
+                console.log(`Refreshing dashboard data for ${dashboard.name.value}...`);
+                // Invalide les requêtes liées aux données des KPIs, graphiques, et contenus Flex.
+                // Cela suppose que les composants enfants (KPIWidget, etc.) utilisent des clés de requête
+                // qui peuvent être invalidées par un préfixe commun, par exemple 'kpiData'.
+                queryClient.invalidateQueries('kpiData');
+            }, intervalInMs);
+
+            return () => clearInterval(intervalId); // Nettoie l'intervalle lors du démontage ou changement de dashboard
+        }
+    }, [dashboard?._id, dashboard?.refreshInterval, queryClient]);
+
     const { data: availableKpis, isLoading: isLoadingKpiDefs, error: errorKpiDefs } = useQuery(
         ['kpiDefinitions', me?.username, lang],
         async () => {
@@ -154,7 +172,11 @@ export function DashboardView({ dashboard }) {
             const data = await response.json();
             return data.data;
         },
-        { enabled: !!me?.username, refetchOnWindowFocus: false, staleTime: 5 * 60 * 1000, refetchInterval: dashboard?.refetchInterval || 60 * 1000 }
+        {
+            enabled: !!me?.username,
+            refetchOnWindowFocus: false,
+            staleTime: 5 * 60 * 1000 // Les définitions de KPI ne changent pas souvent
+        }
     );
 
     const allKpiIdsInLayout = useMemo(() => layoutState.flatMap(section => section.kpis), [layoutState]);

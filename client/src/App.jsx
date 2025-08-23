@@ -4,7 +4,6 @@ import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/styles.css";
 import "./App.scss";
 import {QueryClient, QueryClientProvider, useMutation, useQuery} from "react-query";
-
 import {
     BrowserRouter,
     Outlet,
@@ -85,7 +84,7 @@ function TopBar({header}) {
     return <>{header}</>;
 }
 
-function Layout ({header, routes, body, footer}) {
+function Layout ({header, routes, body, footer,refreshUI}) {
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const { i18n, t } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
@@ -188,8 +187,6 @@ function Layout ({header, routes, body, footer}) {
         }
     }
 
-
-    const [refreshReducer, refreshUI]= useReducer((n) => n+1, 0,() => 0);
 
     const nav = useNavigate();
 
@@ -392,12 +389,12 @@ function Layout ({header, routes, body, footer}) {
 
                 <Route path="/user/:user/dashboards/:hash?" element={<>
                     {menu}
-                    {me && <DashboardsPage />}
+                    {<DashboardsPage />}
                 </>} />
 
                 <Route path={"/user/:user/*"} element={<>
                     {menu}
-                    <UserPage notifs={[]} onAuthenticated={onAuthenticated} triggerSignin={triggerSignin}/>
+                    <UserPage notifs={[]} refreshUI={refreshUI} onAuthenticated={onAuthenticated} triggerSignin={triggerSignin}/>
                     {!me && (<></>)}
                 </>}/>
                 <Route path={"/:lang/*"} element={<>
@@ -415,7 +412,7 @@ function Layout ({header, routes, body, footer}) {
     </div>;
 }
 
-function UserPage({notifs,triggerSignin, onAuthenticated}) {
+function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated}) {
     const {me} = useAuthContext()
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const params = useParams();
@@ -515,7 +512,7 @@ function UserPage({notifs,triggerSignin, onAuthenticated}) {
     }, [isDemo, shouldStartTour]);
 
     return <>{/^demo[0-9]{1,2}$/.test(me?.username) && notifs}
-        {params.user === id && <DataLayout/>}
+        {params.user === id && <DataLayout refreshUI={refreshUI}/>}
         {params.user !== id &&
             <p>Veuillez vous authentifier avec cet utilisateur &quot;{params.user}&quot; pour accéder à vos
                 données</p>}</>;
@@ -531,6 +528,8 @@ const BaseLayout=()=>{
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     const { me, setMe } = useAuthContext();
     const [translations, setTranslations] = useState([]);
+
+    const [refreshReducer, refreshUI]= useReducer((n) => n+1, 0,() => 0);
 
     useEffect(() => {
         if (Array.isArray(translations)) {
@@ -565,7 +564,7 @@ const BaseLayout=()=>{
         changeLanguage(lang);
     }, [lang]);
 
-    return <Layout header={<header className={"flex"}>
+    return <Layout refreshUI={refreshUI} header={<header className={"flex"}>
         <Tooltip id={"header"}/>
         <h1 className="flex-1">{seoTitle}</h1>
         <div className="center">
@@ -590,7 +589,7 @@ function App() {
                             <BrowserRouter>
                                 <UIProvider>
                                     <NotificationProvider>
-                                        <BaseLayout></BaseLayout>x
+                                        <BaseLayout></BaseLayout>
                                     </NotificationProvider>
                                 </UIProvider>
                             </BrowserRouter>

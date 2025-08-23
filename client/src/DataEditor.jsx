@@ -8,10 +8,10 @@ import RelationField from "./RelationField.jsx";
 import {
     CheckboxField,
     CodeField,
-    ColorField, EmailField,
+    ColorField, DurationField, EmailField,
     EnumField,
     FileField, ModelField, NumberField,
-    PhoneField,
+    PhoneField, RangeField,
     SelectField,
     TextField
 } from "./Field.jsx";
@@ -212,6 +212,24 @@ export const DataEditor = forwardRef(function MyDataEditor({
                     }}/></>;
                 }
             case "number":
+                if (field.type === 'number' && field.gauge) {
+                    return <RangeField
+                        name={field.name}
+                        value={value}
+                        onChange={(value) => handleChange({name: field.name, value})}
+                        min={field.min}
+                        max={field.max}
+                        percent={field.percent}
+                        step={field.step || 1}
+                    />;
+                }
+                if (field.delay) {
+                    return <DurationField
+                        {...inputProps}
+                        // DurationField's onChange provides an object: { name, value }
+                        onChange={({ value }) => handleChange({name: field.name, value})}
+                    />;
+                }
                 inputProps["step"] = field.step || 0.1;
                 if( field.min )
                     inputProps["min"] = field.min;

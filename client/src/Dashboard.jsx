@@ -1,31 +1,35 @@
 import React, {useState, useMemo, useEffect} from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import {FaPlus, FaSpinner} from "react-icons/fa"; // Ajout FaTrash
+import {FaPlus, FaSpinner, FaCog} from "react-icons/fa"; // Ajout FaTrash
 
 import "./Dashboard.scss"
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import { useAuthContext } from "./contexts/AuthContext.jsx";
-import { SelectField } from "./Field.jsx";
+import { SelectField, DurationField, TextField } from "./Field.jsx";
 import {DashboardView} from "./DashboardView.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
-import {useParams, useSearchParams} from "react-router-dom";
+import {useNavigate, useParams, useSearchParams} from "react-router-dom";
 import {getObjectHash} from "../../src/core.js";
 import {getUserHash, getUserId} from "../../src/data.js";
+import Button from "./Button.jsx";
+import {FaNoteSticky} from "react-icons/fa6";
 
 // --- DashboardsPage (Reste inchangé) ---
 export function DashboardsPage() {
-    const { setSelectedModel }  = useModelContext()
+    const { setSelectedModel, selectedModel }  = useModelContext()
     const { t } = useTranslation();
     const { me } = useAuthContext();
     const [selectedDashboardId, setSelectedDashboardId] = useState(null);
 
-    const [ searchParams, setSearchParams ] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { hash } = useParams(); // 2. Récupérer le hash de l'URL
 
 // ... après les autres hooks useState, useQuery, etc.
     const queryClient = useQueryClient();
     const [newDashboardName, setNewDashboardName] = useState('');
-    const [isCreating, setIsCreating] = useState(false); // <-- AJOUTEZ CETTE LIGNE
+    const [isCreating, setIsCreating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [dashboardToEdit, setDashboardToEdit] = useState(null);
 
     const createDashboardMutation = useMutation(
         async (dashboardName) => {
@@ -58,12 +62,56 @@ export function DashboardsPage() {
         }
     );
 
+    const updateDashboardMutation = useMutation(
+        async (dashboardData) => {
+            const { _id, _hash, _user, _createdAt, _updatedAt, ...data } = dashboardData;
+            const response = await fetch(`/api/data`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'dashboard',
+                    _id: _id,
+                    data: data
+                })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || t('dashboards.errorUpdate', 'Impossible de mettre à jour le tableau de bord'));
+            }
+            return response.json();
+        },
+        {
+            onSuccess: () => {
+                queryClient.invalidateQueries(['userDashboards', me?.username]);
+                setIsEditing(false);
+            },
+            onError: (error) => {
+                console.error("Erreur lors de la mise à jour du dashboard:", error);
+            }
+        }
+    );
+
     const handleCreateDashboard = (e) => {
         e.preventDefault();
         if (newDashboardName.trim()) {
             createDashboardMutation.mutate(newDashboardName.trim());
         }
     };
+
+    const handleUpdateDashboard = (e) => {
+        e.preventDefault();
+        if (dashboardToEdit.name.trim()) {
+            updateDashboardMutation.mutate(dashboardToEdit);
+        }
+    };
+
+    const handleEditFieldChange = (e) => {
+        // e can be a standard event or an object { name, value } from custom fields
+        const name = e.target ? e.target.name : e.name;
+        const value = e.target ? e.target.value : e.value;
+        setDashboardToEdit(prev => ({ ...prev, [name]: value }));
+    };
+
     const { data: dashboardsData, isLoading: isLoadingDashboards, error: errorDashboards } = useQuery(
         ['userDashboards', me?.username],
         async () => {
@@ -85,6 +133,26 @@ export function DashboardsPage() {
         }
     );
     const [isLoading, setIsLoading] = useState(true);
+
+    const refreshPresets = useMemo(() => [
+        { label: t('dashboards.refreshPresets.none', 'Désactivé'), value: null },
+        { label: t('dashboards.refreshPresets.10s', '10 secondes'), value: 10 },
+        { label: t('dashboards.refreshPresets.30s', '30 secondes'), value: 30 },
+        { label: t('dashboards.refreshPresets.1m', '1 minute'), value: 60 },
+        { label: t('dashboards.refreshPresets.5m', '5 minutes'), value: 300 },
+        { label: t('dashboards.refreshPresets.15m', '15 minutes'), value: 900 },
+    ], [t]);
+    useEffect(() => {
+        // When a new dashboard is selected, close the editing form
+        setIsEditing(false);
+    }, [selectedDashboardId]);
+
+    useEffect(() => {
+        // When the edit form is opened, initialize it with the selected dashboard's data
+        if (isEditing && selectedDashboard) {
+            setDashboardToEdit({ ...selectedDashboard });
+        }
+    }, [isEditing]);
 
     // 3. Ce useEffect trouve le bon dashboard quand le hash ou la liste change
     useEffect(() => {
@@ -113,6 +181,8 @@ export function DashboardsPage() {
             value: db._id
         }));
     }, [dashboardsData, t]);
+
+    const nav = useNavigate();
 
     useEffect(() => {
         setSelectedModel(null)
@@ -151,7 +221,7 @@ export function DashboardsPage() {
             </button>
             {/* Bouton pour annuler quand on a cliqué sur le "+" */}
             {isCreating && (
-                <button type="button" className="btn" onClick={() => setIsCreating(false)}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsCreating(false)}>
                     <Trans i18nKey="btns.cancel">Annuler</Trans>
                 </button>
             )}
@@ -160,6 +230,11 @@ export function DashboardsPage() {
 
     return (
         <div className="dashboards-page">
+            <div className={"flex right actions"}>
+                <Button onClick={() => {
+                    nav("/user/"+getUserHash(me)+"/?model="+(selectedModel?.name||'dashboard'));
+                }}><FaNoteSticky /> <Trans i18nKey={"models"}>Modèles</Trans></Button>
+            </div>
             <h1>{t('dashboards.title', 'Mes Tableaux de Bord')}</h1>
 
             {isLoadingDashboards && (
@@ -186,11 +261,61 @@ export function DashboardsPage() {
                                     }}
                                     items={dashboardOptions}
                                 />
-                                <button onClick={() => setIsCreating(true)} className="btn" title={t('dashboards.add', 'Ajouter un tableau de bord')}>
+                                <button onClick={() => { setIsCreating(true); setIsEditing(false); }} className="btn" title={t('dashboards.add', 'Ajouter un tableau de bord')}>
                                     <FaPlus />
                                 </button>
+                                {selectedDashboard && (
+                                    <button onClick={() => { setIsEditing(true); setIsCreating(false); }} className="btn" title={t('dashboards.configure', 'Configurer le tableau de bord')}>
+                                        <FaCog />
+                                    </button>
+                                )}
                             </div>
                             {isCreating && creationForm}
+                            {isEditing && dashboardToEdit && (
+                                <form onSubmit={handleUpdateDashboard} className="edit-dashboard-form flex flex-col flex-start mg-v-1 pd-1" style={{ border: '1px solid #ccc', borderRadius: '4px' }}>
+                                    <h3 className="mg-b-1">{t('dashboards.configure', 'Configurer le tableau de bord')}</h3>
+                                    <TextField
+                                        name="name"
+                                        label={t('dashboards.dashboardName', 'Nom du tableau de bord')}
+                                        value={dashboardToEdit.name}
+                                        onChange={handleEditFieldChange}
+                                        required
+                                        autoFocus
+                                    />
+
+                                    <div className="flex" style={{ gap: '1rem', alignItems: 'flex-end', width: '100%' }}>
+                                        <div style={{ flexGrow: 1 }}>
+                                            <DurationField
+                                                name="refreshInterval"
+                                                label={t('dashboards.refreshInterval', 'Intervalle de rafraîchissement')}
+                                                value={dashboardToEdit.refreshInterval}
+                                                onChange={handleEditFieldChange}
+                                                help={t('dashboards.refreshIntervalHelp', 'Laisser vide pour désactiver le rafraîchissement automatique. La valeur est en secondes.')}
+                                            />
+                                        </div>
+                                        <SelectField
+                                            name="refreshIntervalPreset"
+                                            label={t('dashboards.refreshPresets.label', 'Préréglages')}
+                                            value={dashboardToEdit.refreshInterval}
+                                            onChange={(option) => {
+                                                console.log({option});
+                                                if (option?.value)
+                                                    handleEditFieldChange({ name: 'refreshInterval', value: option?.value })
+                                            }}
+                                            items={refreshPresets}
+                                            style={{ minWidth: '150px' }}
+                                        />
+                                    </div>
+                                    <div className="flex mg-t-1" style={{ gap: '8px' }}>
+                                        <button type="submit" className="btn" disabled={updateDashboardMutation.isLoading}>
+                                            {updateDashboardMutation.isLoading ? <><FaSpinner className="spin" /> <Trans i18nKey="btns.saving">Enregistrement...</Trans></> : <Trans i18nKey="btns.save">Enregistrer</Trans>}
+                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
+                                            <Trans i18nKey="btns.cancel">Annuler</Trans>
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
                         </div>
                     ) : (
                         <>
@@ -201,6 +326,22 @@ export function DashboardsPage() {
 
                     {/* Affiche la vue du dashboard sélectionné */}
                     {/* Passe l'objet dashboard complet */}
+                    {/*
+                        TODO in DashboardView.jsx:
+                        Utiliser la nouvelle propriété `dashboard.refreshInterval` (en secondes).
+                        Si `refreshInterval` est défini et supérieur à 0, les données du dashboard (KPIs, graphiques)
+                        doivent être rafraîchies automatiquement à cet intervalle.
+                        Exemple avec react-query: `useQuery(queryKey, queryFn, { refetchInterval: dashboard.refreshInterval * 1000 })`
+                        ou avec useEffect/setInterval:
+                        useEffect(() => {
+                            if (dashboard?.refreshInterval > 0) {
+                                const intervalId = setInterval(() => {
+                                    // logique de rafraîchissement, ex: queryClient.invalidateQueries(...)
+                                }, dashboard.refreshInterval * 1000);
+                                return () => clearInterval(intervalId);
+                            }
+                        }, [dashboard?.refreshInterval, queryClient]);
+                    */}
                     <DashboardView dashboard={selectedDashboard} />
                 </>
             )}

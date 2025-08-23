@@ -180,18 +180,25 @@ export const defaultModels = {
                 cronMask: [false, true, true, true, true, true],
                 hint: "À quelle fréquence vérifier si la condition est remplie."
             },
-            {
-                name: "notificationChannel",
-                type: "enum",
-                items: ["in_app", "email"],
-                default: "in_app"
-            },
             { name: "isActive", type: "boolean", default: true },
+            {
+                name: "sendEmail",
+                type: "boolean",
+                default: false,
+                hint: "Cochez pour envoyer également une notification par e-mail."
+            },
             {
                 name: "lastNotifiedAt",
                 type: "datetime",
                 required: false, // Important: ce champ est géré par le système
                 hint: "Timestamp de la dernière notification envoyée pour cette alerte."
+            },
+            {
+                name: "message",
+                type: "richtext_t",
+                required: false,
+                hint: "Message personnalisé pour l'e-mail. Si vide, un message par défaut sera utilisé. Vous pouvez utiliser les variables {count}, {alert.name}....",
+                condition: { $eq: ["$sendEmail", true] }
             }
         ]
     },
@@ -1082,11 +1089,12 @@ export const defaultModels = {
                 hint: "Structure JSON décrivant l'organisation des KPIs. Exemple : { \"type\": \"columns\", \"columns\": [ [\"kpi_id_1\"], [\"kpi_id_2\", \"kpi_id_3\"] ] }."
             },
             {
-                name: 'settings', // Paramètres spécifiques à ce tableau de bord
-                type: 'code', // Utilisation du type 'code' pour stocker des paramètres JSON
-                language: 'json',
-                default: { "defaultTimeRange": "last_7_days", "refreshInterval": null }, // Paramètres par défaut (plage de temps, pas de rafraîchissement auto)
-                hint: "Paramètres JSON pour le tableau de bord, comme la plage de temps par défaut ('defaultTimeRange') ou l'intervalle de rafraîchissement en secondes ('refreshInterval')."
+                name: 'refreshInterval',
+                type: 'number',
+                delay: true, // Sera interprété par le front-end comme un champ de durée
+                unit: 's',
+                min: 0,
+                hint: "Intervalle de rafraîchissement automatique en secondes. Laisser vide ou à 0 pour désactiver."
             },
             {
                 name: 'isDefault', // Indicateur pour le tableau de bord par défaut

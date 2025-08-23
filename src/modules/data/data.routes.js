@@ -858,25 +858,7 @@ export async function registerRoutes(engine){
                     return Promise.reject();
                 })));
             }
-            const install = !!req.fields.install;
-            if( install && (isDemoUser(req.me) && Config.Get("useDemoAccounts")) ){
-
-                await datasCollection.deleteMany({ _user: req.me.username});
-                await modelsCollection.deleteMany({ _user: req.me.username});
-                const files = await filesCollection.find({ mainUser: req.me.username}).toArray();
-                try {
-                    files.forEach(file =>removeFile(file.guid, req.me));
-                } catch (e) {
-
-                }
-
-                await cancelAlerts(req.me);
-
-                await getPromise();
-                await Event.Trigger('OnDemoUserAdded', req.me.username);
-            }else{
-                await getPromise();
-            }
+            await getPromise();
 
             if( ids.length > 0 )
                 res.status(201).json({ success: true, imported: ids }); // 201 Created
@@ -1018,7 +1000,8 @@ export async function registerRoutes(engine){
 
             // 1. Récupérer la définition du KPI
             try {
-                kpiDef = await datasCollection.findOne({ _id: new ObjectId(id), _model: 'kpi', _user: req.me._user || req.me.username });
+                const coll = await getCollectionForUser(req.me);
+                kpiDef = await coll.findOne({ _id: new ObjectId(id), _model: 'kpi', _user: req.me._user || req.me.username });
                 if (!kpiDef) {
                     return res.status(404).json({ success: false, error: 'KPI definition not found' });
                 }

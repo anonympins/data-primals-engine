@@ -13,6 +13,7 @@ import {getAPILang, searchData} from "./data/index.js";
 import {Logger} from "../gameObject.js";
 import rateLimit from "express-rate-limit";
 import ivm from "isolated-vm";
+import {emailDefaultConfig} from "../constants.js";
 
 export const userInitiator = async (req, res, next) => {
 
@@ -272,4 +273,22 @@ export async function getEnv(user){
         return acc;
     }, {});
     return envObject;
+}
+
+export async function getSmtpConfig(user) {
+
+    // 1. Récupérer la configuration SMTP depuis le modèle 'env' de l'utilisateur
+    const envVars = await searchData({
+        model: 'env',
+        filter: { $in: ['$name', ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']] }
+    }, user);
+
+    const smtpConfig = envVars.data.reduce((acc, variable) => {
+        acc[variable.name.replace('SMTP_', '').toLowerCase()] = variable.value;
+        return acc;
+    }, {});
+    if( !smtpConfig.port )
+        smtpConfig.port = emailDefaultConfig.port;
+
+    return smtpConfig;
 }

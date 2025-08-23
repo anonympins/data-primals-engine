@@ -17,7 +17,7 @@ import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useQueryClient} from "react-query";
 import {
     FaArrowDown,
-    FaArrowUp, FaAt,
+    FaArrowUp, FaAt, FaEye, FaEyeSlash,
     FaCalendar, FaCalendarWeek, FaCode, FaFile,
     FaHashtag, FaIcons,
     FaImage,
@@ -101,8 +101,12 @@ const TextField = forwardRef(function TextField(
   ref,
 ) {
   const [id, setId] = useState("textfield-" + uniqid());
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [errors, setErrors] = useState([]);
   const inputRef = useRef();
+
+  const { type, ...otherRest } = rest;
+  const isPasswordField = type === 'password';
 
   const mult = typeof multiline !== 'undefined' ? multiline : maxlength > 255;
   const validate = () => {
@@ -137,6 +141,10 @@ const TextField = forwardRef(function TextField(
     if (onChange) {
       onChange(e);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+      setIsPasswordVisible(prevState => !prevState);
   };
   useEffect(() => {
     if (value !== null) validate();
@@ -190,14 +198,14 @@ const TextField = forwardRef(function TextField(
             )}
 
             {before}
-            <div className={"flex flex-1 flex-no-gap flex-start"}>
+            <div className={"flex flex-1 flex-no-gap flex-start"} style={{ position: 'relative' }}>
                 {!mult && (
                     <input
                         ref={inputRef}
                         aria-required={required}
                         aria-readonly={readOnly}
                         readOnly={readOnly}
-                        type={searchable ? "search" : "text"}
+                        type={isPasswordField ? (isPasswordVisible ? 'text' : 'password') : (searchable ? "search" : (type || "text"))}
                         placeholder={placeholder}
                         title={placeholder}
                         alt={placeholder}
@@ -208,8 +216,14 @@ const TextField = forwardRef(function TextField(
                         minLength={minlength}
                         maxLength={maxlength}
                         required={required}
-                        {...rest}
+                        style={isPasswordField ? { paddingRight: '40px' } : {}}
+                        {...otherRest}
                     />
+                )}
+                {isPasswordField && !mult && (
+                    <button type="button" onClick={togglePasswordVisibility} className="password-toggle-icon" style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center'}}>
+                        {isPasswordVisible ? <FaEyeSlash /> : <FaEye />}
+                    </button>
                 )}
                 {after}
             </div>
@@ -399,7 +413,7 @@ const NumberField = forwardRef(
                 {label && (
                     <label
                         contentEditable={editable}
-                        className={cn({ help: !!help })}
+                        className={cn({ help: !!help, flex: true, 'flex-1': true })}
                         title={help}
                         htmlFor={id}
                     >
@@ -414,6 +428,7 @@ const NumberField = forwardRef(
                     </label>
                 )}
                 {help && <div className="flex help">{help}</div>}
+                <div className={"flex flex-1 flex-no-wrap flex-mini-gap"}>
           <input
             ref={inputRef}
             aria-required={required}
@@ -431,7 +446,10 @@ const NumberField = forwardRef(
             max={max}
             step={step}
             {...rest}
-          /><span className="unit">{unit}</span></div>
+          />
+            {unit && <span className="unit">{unit}</span>}
+                </div>
+        </div>
         </div>
         {errors.length > 0 && (
           <ul className="error">
@@ -512,10 +530,11 @@ const CheckboxField = forwardRef(
                         )}
                     </label>
                 )}
+                {help && <div className="flex help">{help}</div>}
                 <Switch
+                    id={id}
                     onChange={handleChange}
                     checked={value} />
-                {help && <div className="flex help">{help}</div>}
             </div>
             {errors.length > 0 && (
                 <ul className="error">
@@ -691,7 +710,7 @@ const SelectField = forwardRef(
                 setValues(value);
                 onChange(value);
             }else {
-                const index = items.findIndex((i) => i.value === e.target.value);
+                const index = items.findIndex((i) => i.value+'' === e.target.value);
                 onChange(items[index], index);
             }
       }
@@ -1609,6 +1628,89 @@ export const ColorField = ({name, label, value, disabled, onChange, className, .
     );
 };
 
+const secondsToDuration = (totalSeconds) => {
+    if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds) || totalSeconds === '') {
+        return { days: '', hours: '', minutes: '', seconds: '' };
+    }
+    const total = parseInt(totalSeconds, 10);
+    const d = Math.floor(total / 86400);
+    let remainder = total % 86400;
+    const h = Math.floor(remainder / 3600);
+    remainder %= 3600;
+    const m = Math.floor(remainder / 60);
+    const s = remainder % 60;
+    return { days: d, hours: h, minutes: m, seconds: s };
+};
+
+const durationToSeconds = ({ days, hours, minutes, seconds }) => {
+    return (parseInt(days, 10) || 0) * 86400 +
+           (parseInt(hours, 10) || 0) * 3600 +
+           (parseInt(minutes, 10) || 0) * 60 +
+           (parseInt(seconds, 10) || 0);
+};
+
+export const DurationField = forwardRef(({ value, onChange, name, label, help, required, editable, readOnly }, ref) => {
+    const { t } = useTranslation();
+    const [duration, setDuration] = useState(secondsToDuration(value));
+    const [errors, setErrors] = useState([]);
+
+    useEffect(() => {
+        setDuration(secondsToDuration(value));
+    }, [value]);
+
+    const validate = () => {
+        const errs = [];
+        const totalSeconds = durationToSeconds(duration);
+        if (required && totalSeconds <= 0) {
+            errs.push(t('form.validation.required', "Field required"));
+        }
+        setErrors(errs);
+        return !errs.length;
+    };
+
+    useImperativeHandle(ref, () => ({
+        validate,
+        getValue: () => durationToSeconds(duration),
+    }));
+
+    const handlePartChange = (part) => (e) => {
+        const newDuration = { ...duration, [part]: e.target.value };
+        setDuration(newDuration);
+        if (onChange) {
+            const totalSeconds = durationToSeconds(newDuration);
+            onChange({ name, value: totalSeconds });
+        }
+    };
+
+    return (
+        <>
+            <div className={cn({ field: true, "field-duration": true, 'flex-1': true, flex: true, "field-bg": true })}>
+                {label && (
+                    <label contentEditable={editable} className={cn({ help: !!help, 'flex-1': true })}>
+                        {label}
+                        {required && <span className="mandatory" contentEditable={false}>*</span>}
+                    </label>
+                )}
+                {help && <div className="flex help">{help}</div>}
+                <div className="duration-inputs flex flex-no-wrap flex-mini-gap">
+                    <NumberField name={`${name}-days`} unit={t('duration.unit.days', 'days')} value={duration.days} onChange={handlePartChange('days')} readOnly={readOnly} min={0} />
+                    <NumberField name={`${name}-hours`} unit={t('duration.unit.hours', 'hours')} value={duration.hours} onChange={handlePartChange('hours')} readOnly={readOnly} min={0} max={23} />
+                    <NumberField name={`${name}-minutes`} unit={t('duration.unit.minutes', 'minutes')} value={duration.minutes} onChange={handlePartChange('minutes')} readOnly={readOnly} min={0} max={59} />
+                    <NumberField name={`${name}-seconds`} unit={t('duration.unit.seconds', 'seconds')} value={duration.seconds} onChange={handlePartChange('seconds')} readOnly={readOnly} min={0} max={59} />
+                </div>
+            </div>
+            {errors.length > 0 && (
+                <ul className="error">
+                    {errors.map((e, key) => (
+                        <li key={key} aria-live="assertive" role="alert">{e}</li>
+                    ))}
+                </ul>
+            )}
+        </>
+    );
+});
+DurationField.displayName = "DurationField";
+
 export const CodeField = ({name, label, language, value, disabled, onChange}) => {
     const u = name || uniqid();
     const [currentEditor, setEditor] = useState(null);
@@ -1654,3 +1756,28 @@ export const EnumField = ({inputProps, value, handleChange, field}) => {
         })}</select>
     );
 }
+
+export const RangeField = ({ name, value, onChange, min = 0, max = 100, step = 1, percent = false }) => {
+    const handleChange = (e) => {
+        // The onChange from the form probably expects the field name and value
+        onChange(parseFloat(e.target.value));
+    };
+
+    const percentage = max > min ? Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100)) : 0;
+    const displayValue = percent ? `${Math.round(percentage)}%` : value;
+
+    return (
+        <div className="range-field">
+            <input
+                type="range"
+                name={name}
+                value={value || 0}
+                onChange={handleChange}
+                min={min}
+                max={max}
+                step={step}
+            />
+            <span className="range-value">{displayValue}</span>
+        </div>
+    );
+};

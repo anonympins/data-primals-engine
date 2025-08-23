@@ -47,7 +47,7 @@ const createTransporter = (smtpConfig) => {
 export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl = null) => {
     const contactEmail = smtpConfig ? (smtpConfig.from || emailDefaultConfig.from) :"Our company <noreply@ourdomain.tld>";
     const emails = Array.isArray(email) ? email : [email];
-    if (emails.length === 0) return;
+    if (emails.length === 0) return false;
 
     // Choisir le transporteur à utiliser
     const transporter = smtpConfig ? createTransporter(smtpConfig||emailDefaultConfig) : defaultTransporter;
@@ -76,6 +76,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
     try {
         await Promise.all(sendPromises);
         console.log(`Email(s) sent successfully to : ${emails.join(', ')}`);
+        return true;
     } catch (error) {
         console.error("Error when sending to one ore more emails :", error);
         // Vous pouvez relancer l'erreur si vous voulez que l'appelant la gère

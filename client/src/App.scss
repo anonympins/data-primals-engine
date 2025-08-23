@@ -245,6 +245,7 @@ form, .form {
     border-radius: 5px;
     box-sizing: border-box;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    font-family: "Nunito Sans", sans-serif;
     &:focus, &:-webkit-autofill {
       border-color: $secondary-color;
       background-color: #eaeaea !important;
@@ -266,6 +267,11 @@ form, .form {
   }
   input[type=number]{
     max-width: 150px;
+  }
+
+  input[type*=date] {
+    padding: 4px 8px;
+    font-size: 80%;
   }
 
   .btn {
@@ -1296,7 +1302,7 @@ select[multiple]{
 
 .model-creator {
   .field-checkbox {
-    padding: 8px;
+    padding: 2px;
     display: flex;
     gap: 8px;
     align-items: flex-start;

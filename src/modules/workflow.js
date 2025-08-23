@@ -18,7 +18,7 @@ import {sendEmail} from "../email.js";
 import * as workflowModule from './workflow.js';
 import {isConditionMet} from "../filter.js";
 import { services } from '../services/index.js';
-import {getEnv} from "./user.js";
+import {getEnv, getSmtpConfig} from "./user.js";
 import {getHost} from "../constants.js";
 import {providers} from "./assistant/constants.js";
 import {ChatAnthropic} from "@langchain/anthropic";
@@ -1712,17 +1712,7 @@ async function handleSendEmailAction(action, contextData, user) {
     logger.info(`[handleSendEmailAction] Executing for user ${user.username}.`);
 
     // 1. Récupérer la configuration SMTP depuis le modèle 'env' de l'utilisateur
-    const envVars = await searchData({
-        model: 'env',
-        filter: { $in: ['$name', ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']] }
-    }, user);
-
-    const smtpConfig = envVars.data.reduce((acc, variable) => {
-        acc[variable.name.replace('SMTP_', '').toLowerCase()] = variable.value;
-        return acc;
-    }, {});
-    if( !smtpConfig.port )
-        smtpConfig.port = emailDefaultConfig.port;
+    const smtpConfig = await getSmtpConfig(user);
 
     // 2. Valider la configuration de l'action
     const { emailRecipients, emailSubject, emailContent } = action;

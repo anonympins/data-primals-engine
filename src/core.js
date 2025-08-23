@@ -9,6 +9,15 @@ export function escapeRegex(string) {
     return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
+export const sequential = async (tasks) => {
+    const res = [];
+    for (const task of tasks) {
+        const r = await task();
+        res.push(r);
+    }
+    return res;
+};
+
 export function isValidRegex(s) {
     try {
         const m = s.match(/^([/~@;%#'])(.*?)\1([gimsuy]*)$/);
