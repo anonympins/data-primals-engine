@@ -39,7 +39,7 @@ This engine is designed to work seamlessly with its dedicated client library, **
 
 While this README focuses on the backend engine and its API, you can find detailed instructions on how to integrate the client part in your React application here:
 
-➡️ **View the Frontend Integration Guide**
+➡️ **[View the Frontend Integration Guide](https://github.com/anonympins/data-primals-engine/tree/develop/client)**
 
 
 ## 🌟 Why Choose data-primals-engine?
