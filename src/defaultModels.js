@@ -180,18 +180,25 @@ export const defaultModels = {
                 cronMask: [false, true, true, true, true, true],
                 hint: "À quelle fréquence vérifier si la condition est remplie."
             },
-            {
-                name: "notificationChannel",
-                type: "enum",
-                items: ["in_app", "email"],
-                default: "in_app"
-            },
             { name: "isActive", type: "boolean", default: true },
+            {
+                name: "sendEmail",
+                type: "boolean",
+                default: false,
+                hint: "Cochez pour envoyer également une notification par e-mail."
+            },
             {
                 name: "lastNotifiedAt",
                 type: "datetime",
                 required: false, // Important: ce champ est géré par le système
                 hint: "Timestamp de la dernière notification envoyée pour cette alerte."
+            },
+            {
+                name: "message",
+                type: "richtext_t",
+                required: false,
+                hint: "Message personnalisé pour l'e-mail. Si vide, un message par défaut sera utilisé. Vous pouvez utiliser les variables {count}, {alert.name}....",
+                condition: { $eq: ["$sendEmail", true] }
             }
         ]
     },
