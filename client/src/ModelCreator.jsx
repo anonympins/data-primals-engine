@@ -235,7 +235,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                         break;
                     }
                     case 'number':
-                        otherFields = ['min', 'max', 'step', 'unit','delay'];
+                        otherFields = ['min', 'max', 'step', 'unit','delay', 'gauge', 'percent'];
                         break;
                     case 'string':
                     case 'string_t':
@@ -660,7 +660,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 {/* Boutons d'action, visibles si un modèle est affiché ou en mode manuel */}
                 {(showModel || !useAI || initialModel) && (
                     <div className="actions flex">
-                        {!useAI && (
+                        {initialModel && (
                             <Button type="button" onClick={handleAddField}>
                                 <FaPlus /> <Trans i18nKey={"btns.addField"}>Ajouter un champ</Trans>
                             </Button>

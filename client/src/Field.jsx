@@ -1756,3 +1756,28 @@ export const EnumField = ({inputProps, value, handleChange, field}) => {
         })}</select>
     );
 }
+
+export const RangeField = ({ name, value, onChange, min = 0, max = 100, step = 1, percent = false }) => {
+    const handleChange = (e) => {
+        // The onChange from the form probably expects the field name and value
+        onChange(parseFloat(e.target.value));
+    };
+
+    const percentage = max > min ? Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100)) : 0;
+    const displayValue = percent ? `${Math.round(percentage)}%` : value;
+
+    return (
+        <div className="range-field">
+            <input
+                type="range"
+                name={name}
+                value={value || 0}
+                onChange={handleChange}
+                min={min}
+                max={max}
+                step={step}
+            />
+            <span className="range-value">{displayValue}</span>
+        </div>
+    );
+};

@@ -2,6 +2,9 @@
 export const websiteTranslations = {
     fr: {
         translation: {
+            "modelcreator.gauge.hint": "Affiche le champ numérique sous forme de jauge visuelle. Nécessite de définir une valeur minimale et maximale.",
+            "modelcreator.percent.hint": "En mode jauge, affiche la valeur sous forme de pourcentage (calculé à partir du min/max) au lieu de la valeur brute.",
+
             "duration.unit.days": "jours",
             "duration.unit.hours": "heures",
             "duration.unit.minutes": "minutes",
@@ -587,6 +590,8 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "modelcreator.gauge.hint": "Displays the numeric field as a visual gauge. Requires a minimum and maximum value to be set.",
+            "modelcreator.percent.hint": "In gauge mode, displays the value as a percentage (calculated from the min/max) instead of the raw value.",
             "duration.unit.days": "days",
             "duration.unit.hours": "hours",
             "duration.unit.minutes": "minutes",
@@ -2046,7 +2051,8 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
-
+            "modelcreator.gauge.hint": "Muestra el campo numérico como un indicador visual. Requiere que se establezcan un valor mínimo y máximo.",
+            "modelcreator.percent.hint": "En modo indicador, muestra el valor como un porcentaje (calculado a partir del mínimo/máximo) en lugar del valor bruto.",
             "duration.unit.days": "días",
             "duration.unit.hours": "horas",
             "duration.unit.minutes": "minutos",
@@ -3509,7 +3515,8 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
-
+            "modelcreator.gauge.hint": "Exibe o campo numérico como um indicador visual. Requer a definição de um valor mínimo e máximo.",
+            "modelcreator.percent.hint": "No modo de indicador, exibe o valor como uma porcentagem (calculada a partir do mínimo/máximo) em vez do valor bruto.",
             "duration.unit.days": "dias",
             "duration.unit.hours": "horas",
             "duration.unit.minutes": "minutos",
@@ -4967,6 +4974,8 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
+            "modelcreator.gauge.hint": "Zeigt das numerische Feld als visuelle Anzeige an. Erfordert die Festlegung eines Mindest- und Höchstwerts.",
+            "modelcreator.percent.hint": "Im Anzeigemodus wird der Wert als Prozentsatz (berechnet aus Min./Max.) anstelle des Rohwerts angezeigt.",
             "duration.unit.days": "Tage",
             "duration.unit.hours": "Stunden",
             "duration.unit.minutes": "Minuten",
@@ -6409,7 +6418,8 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
-
+            "modelcreator.gauge.hint": "Visualizza il campo numerico come indicatore visivo. Richiede l'impostazione di un valore minimo e massimo.",
+            "modelcreator.percent.hint": "In modalità indicatore, visualizza il valore come percentuale (calcolata dal minimo/massimo) anziché come valore grezzo.",
             "duration.unit.days": "giorni",
             "duration.unit.hours": "ore",
             "duration.unit.minutes": "minuti",
@@ -7865,7 +7875,8 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
-
+            "modelcreator.gauge.hint": "Zobrazuje číselné pole jako vizuální měřidlo. Vyžaduje nastavení minimální a maximální hodnoty.",
+            "modelcreator.percent.hint": "V režimu měřidla zobrazuje hodnotu v procentech (vypočtených z min./max.) namísto nezpracované hodnoty.",
             "duration.unit.days": "dny",
             "duration.unit.hours": "hodiny",
             "duration.unit.minutes": "minuty",
@@ -9315,7 +9326,8 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
-
+            "modelcreator.gauge.hint": "Отображает числовое поле в виде визуальной шкалы. Требуется задать минимальное и максимальное значения.",
+            "modelcreator.percent.hint": "В режиме шкалы отображает значение в процентах (рассчитанных на основе минимального и максимального значений), а не в исходном виде.",
             "duration.unit.days": "дней",
             "duration.unit.hours": "часов",
             "duration.unit.minutes": "минут",
@@ -10777,6 +10789,8 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
+            "modelcreator.gauge.hint": "يعرض الحقل الرقمي كمقياس مرئي. يتطلب تحديد الحد الأدنى والحد الأقصى للقيمة.",
+            "modelcreator.percent.hint": "في وضع المقياس، يعرض القيمة كنسبة مئوية (محسوبة من الحد الأدنى/الأقصى) بدلاً من القيمة الخام.",
             "duration.unit.days": "أيام",
             "duration.unit.hours": "ساعات",
             "duration.unit.minutes": "دقائق",
@@ -12253,6 +12267,8 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
+            "modelcreator.gauge.hint": "Visar det numeriska fältet som en visuell mätare. Kräver att ett minimum- och maxvärde ställs in.",
+            "modelcreator.percent.hint": "I mätläge visas värdet som en procentandel (beräknat från min/max) istället för det råa värdet.",
             "duration.unit.days": "dagar",
             "duration.unit.hours": "timmar",
             "duration.unit.minutes": "minuter",
@@ -13702,7 +13718,8 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
-
+            "modelcreator.gauge.hint": "Εμφανίζει το αριθμητικό πεδίο ως οπτικό μετρητή. Απαιτείται να οριστεί μια ελάχιστη και μια μέγιστη τιμή.",
+            "modelcreator.percent.hint": "Στη λειτουργία μετρητή, εμφανίζει την τιμή ως ποσοστό (υπολογιζόμενο από την ελάχιστη/μέγιστη τιμή) αντί για την ακατέργαστη τιμή.",
             "duration.unit.days": "ημέρες",
             "duration.unit.hours": "ώρες",
             "duration.unit.minutes": "λεπτά",
@@ -15161,7 +15178,8 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
-
+            "modelcreator.gauge.hint": "فیلد عددی را به عنوان یک معیار بصری نمایش می‌دهد. نیاز به تنظیم حداقل و حداکثر مقدار دارد.",
+            "modelcreator.percent.hint": "در حالت معیار، مقدار را به صورت درصد (محاسبه شده از حداقل/حداکثر) به جای مقدار خام نمایش می‌دهد.",
             "duration.unit.days": "روز",
             "duration.unit.hours": "ساعت",
             "duration.unit.minutes": "دقیقه",

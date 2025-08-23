@@ -371,6 +371,8 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </div>
                             </div>
+
+
                         </>
                     )}
                     {(field.itemsType || field.type) === "relation" && (
@@ -682,6 +684,45 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         }}
                                     />
                             </div>
+
+
+                            {field.type=== 'number'&&(
+                                <div className="flex flex-no-wrap">
+                                    {hint('modelcreator.gauge.hint')}
+                                    <div className="checkbox-label flex flex-1">
+                                        <CheckboxField
+                                            label={<Trans i18nKey={"modelcreator.gauge"}>Jauge ?</Trans>}
+                                            disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                            checked={field.gauge}
+                                            onChange={(e) => {
+                                                const newFields = [...fields];
+                                                newFields[index].gauge = e;
+                                                if (!e) {
+                                                    delete newFields[index].percent;
+                                                }
+                                                setFields(newFields);
+                                            }}
+                                        />
+                                    </div>
+                                    {field.gauge && (
+                                        <div className="flex flex-no-wrap">
+                                            {hint('modelcreator.percent.hint')}
+                                            <div className="checkbox-label flex flex-1">
+                                                <CheckboxField
+                                                    label={<Trans i18nKey={"modelcreator.percent"}>Mode pourcentage ?</Trans>}
+                                                    disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                                    checked={field.percent}
+                                                    onChange={(e) => {
+                                                        const newFields = [...fields];
+                                                        newFields[index].percent = e;
+                                                        setFields(newFields);
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>)}
+                                </div>
+                            )}
+
                             {field.condition !== undefined && (
                                 <div className={"condition-details flex flex-start"}>
 
