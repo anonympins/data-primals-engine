@@ -1082,11 +1082,12 @@ export const defaultModels = {
                 hint: "Structure JSON décrivant l'organisation des KPIs. Exemple : { \"type\": \"columns\", \"columns\": [ [\"kpi_id_1\"], [\"kpi_id_2\", \"kpi_id_3\"] ] }."
             },
             {
-                name: 'settings', // Paramètres spécifiques à ce tableau de bord
-                type: 'code', // Utilisation du type 'code' pour stocker des paramètres JSON
-                language: 'json',
-                default: { "defaultTimeRange": "last_7_days", "refreshInterval": null }, // Paramètres par défaut (plage de temps, pas de rafraîchissement auto)
-                hint: "Paramètres JSON pour le tableau de bord, comme la plage de temps par défaut ('defaultTimeRange') ou l'intervalle de rafraîchissement en secondes ('refreshInterval')."
+                name: 'refreshInterval',
+                type: 'number',
+                delay: true, // Sera interprété par le front-end comme un champ de durée
+                unit: 's',
+                min: 0,
+                hint: "Intervalle de rafraîchissement automatique en secondes. Laisser vide ou à 0 pour désactiver."
             },
             {
                 name: 'isDefault', // Indicateur pour le tableau de bord par défaut

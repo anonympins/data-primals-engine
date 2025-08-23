@@ -9,9 +9,10 @@ import {Pagination} from "./Pagination.jsx";
 import {Event} from "../../src/events.js";
 
 import {
+    FaEye,
     FaFilter, FaInfo,
 } from "react-icons/fa";
-import {getDefaultForType, getUserId} from "../../src/data.js";
+import {getDefaultForType, getUserHash, getUserId} from "../../src/data.js";
 import {Trans, useTranslation} from "react-i18next";
 
 import {getObjectHash} from "../../src/core.js";
@@ -32,7 +33,8 @@ import KanbanConfigModal from "./KanbanConfigModal.jsx";
 import CalendarConfigModal from "./CalendarConfigModal.jsx";
 import KanbanView from "./KanbanView.jsx";
 import CalendarView from "./CalendarView.jsx";
-import {useParams, useSearchParams} from "react-router-dom";
+import {useLocation, useParams, useSearchParams} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
@@ -45,7 +47,7 @@ const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
     </div>
 );
 
-function DataLayout() {
+function DataLayout({refreshUI}) {
     const [ searchParams, setSearchParams ] = useSearchParams();
     const [viewSettings, setViewSettings] = useLocalStorage('viewSettings', {});
 
@@ -89,16 +91,14 @@ function DataLayout() {
     const [editionMode, setEditionMode] = useState(false);
     const [showDataEditor, setDataEditorVisible] = useState(false);
     const [showAPIInfo, setAPIInfoVisible] = useState(false);
-
+    const nav = useNavigate();
     const mod = searchParams.get('model');
+    const loc = useLocation();
     useEffect(() =>{
-        if (selectedModel?.name)
-            history.pushState({}, null, '?model='+selectedModel?.name);
+        if (selectedModel?.name) {
+            nav('/user/' + getUserHash(me) + '/?model=' + selectedModel?.name);
+        }
     }, [selectedModel?.name])
-    useEffect(() =>{
-        setSelectedModel(models.find(f => f.name === mod));
-        setEditionMode(false);
-    }, [mod, models])
 
 
     useEffect(() => {
@@ -107,6 +107,13 @@ function DataLayout() {
         setAPIInfoVisible(false);
         setEditionMode(true);
     }, []);
+
+    useEffect(() =>{
+        setSelectedModel(models.find(f => f.name === mod));
+        setEditionMode(false);
+    }, [mod, models, searchParams])
+
+
     // La vue courante est dérivée du modèle sélectionné et des préférences stockées.
     const currentView = useMemo(() => {
         if (!selectedModel) return 'table';
@@ -689,10 +696,15 @@ function DataLayout() {
                         onConfigureView={handleConfigureCurrentView}
                     />}
                     <h2>{t(`model_${selectedModel?.name}`, selectedModel?.name)} <>({countByModel?.[selectedModel?.name]})</></h2>
-                    {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
-                        <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
-                    <p className="model-desc hint">{t(`model_description_${selectedModel.name}`, selectedModel.description)}</p>
 
+                    <div className={"flex"}>
+                        {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
+                        <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
+                    {selectedModel.name === 'dashboard' && <button onClick={() => {
+                        nav('/user/'+getUserHash(me)+'/dashboards');
+                    }}><FaEye /> Afficher les tableaux de bord</button> }
+                    </div>
+                    <p className="model-desc hint">{t(`model_description_${selectedModel.name}`, selectedModel.description)}</p>
                     {renderCurrentView()}
 
                     {isDataLoaded && currentView === 'table'  && (<>
