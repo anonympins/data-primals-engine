@@ -710,7 +710,7 @@ const SelectField = forwardRef(
                 setValues(value);
                 onChange(value);
             }else {
-                const index = items.findIndex((i) => i.value === e.target.value);
+                const index = items.findIndex((i) => i.value+'' === e.target.value);
                 onChange(items[index], index);
             }
       }
