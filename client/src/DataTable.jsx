@@ -684,6 +684,28 @@ export function DataTable({
                                             if (field.delay) {
                                                 return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(formatDuration(item[field.name], t))}</td>;
                                             }
+                                            if (field.gauge) {
+                                                const value = item[field.name];
+                                                if (value == null) {
+                                                    return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color}}></td>;
+                                                }
+                                                const min = field.min || 0;
+                                                const max = field.max || 100;
+                                                const percentage = max > min ? Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100)) : 0;
+
+                                                const displayValue = field.percent ? `${Math.round(percentage)}%` : value;
+                                                const title = field.percent ? `${value} (${Math.round(percentage)}%)` : `${value} / ${max}`;
+
+                                                return (
+                                                    <td key={field.name} className={isLightColor(field.color) ? "lighted" : "unlighted"} style={{backgroundColor: field.color}}>
+                                                        {hiddenable(
+                                                            <div className="gauge-container" data-tooltip-id={"tooltipFile"} data-tooltip-content={title}>
+                                                                <div className="gauge-bar" style={{ width: `${percentage}%` }}></div>
+                                                                <span className="gauge-label">{displayValue}</span>
+                                                            </div>
+                                                        )}
+                                                    </td>);
+                                            }
                                             let val = item[field.name];
                                             if (val && field.unit) {
                                                 let formatter = new Intl.NumberFormat(lang);

@@ -543,7 +543,7 @@ const validateField = (field) => {
         break;
     }
     case 'number':
-        allowedFieldTest(['min', 'max', 'step', 'unit', 'delay']);
+        allowedFieldTest(['min', 'max', 'step', 'unit', 'delay', 'gauge', 'percent']);
         if (field.min !== undefined && typeof field.min !== 'number') {
             throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["min"]));
         }
@@ -561,6 +561,12 @@ const validateField = (field) => {
         }
         if (field.delay !== undefined && typeof field.delay !== 'boolean') {
             throw new Error(i18n.t('api.validate.fieldBoolean', "Le champ '{{0}}' doit être un booléen.", ["unit"]));
+        }
+        if (field.gauge !== undefined && typeof field.gauge !== 'boolean') {
+            throw new Error(i18n.t('api.validate.fieldBoolean', "L'attribut '{{0}}' doit être un booléen.", ["gauge"]));
+        }
+        if (field.percent !== undefined && typeof field.percent !== 'boolean') {
+            throw new Error(i18n.t('api.validate.fieldBoolean', "L'attribut '{{0}}' doit être un booléen.", ["percent"]));
         }
         break;
     case 'string':
