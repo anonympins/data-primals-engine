@@ -9,6 +9,26 @@ Your React application must have the following dependencies installed:
 - react-router-dom
 - react-cookie
 
+## What is `data-primals-engine`?
+
+The `data-primals-engine` is more than just a set of utilities; it's a comprehensive toolkit for building data-centric applications. Once integrated, it provides a full suite of UI components and hooks to manage your data lifecycle.
+
+### Core Features
+
+*   **AI-Powered Model Creator**: A complete UI for visually creating your data models, with support for dozens of field types (relations, translated text, numbers, files...) and advanced properties (history, validation, conditional display...).
+*   **Dynamic Data Views**: Ready-to-use components to display your data, including:
+    *   A powerful and configurable **Data Table**.
+    *   A **Kanban View** with drag-and-drop.
+    *   A **Calendar View**.
+*   **Dashboards & KPIs**: Build custom dashboards to monitor your activity with charts and Key Performance Indicators.
+*   **Data Management Tools**:
+    *   A flexible **Data Importer** (CSV, Excel, JSON).
+    *   A powerful **Data Exporter**.
+    *   A **Visual Condition Builder** for creating complex queries.
+*   **Built-in Systems**: The library also includes systems for **user tutorials**, **data versioning/history**, **backups**, and much more.
+
+This guide focuses on the technical integration. Once set up, you will be able to use the components and hooks provided by the library to leverage these features.
+
 ## Installation
 Install the library:
 ```shell
