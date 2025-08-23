@@ -43,7 +43,7 @@ import {
 } from "../mongodb.js";
 import {dbUrl, MongoClient, MongoDatabase} from "../../engine.js";
 import path from "node:path";
-import {getObjectHash, getRandom, isGUID, isPlainObject, randomDate} from "../../core.js";
+import {getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sequential} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
@@ -4328,8 +4328,14 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
 
     // Determine if we're working with an ID or direct pack object
     if (typeof packIdentifier === 'string') {
+        let p;
+        try {
+            p = new ObjectId(packIdentifier);
+        } catch (e) {
+            p = packIdentifier;
+        }
         // Existing behavior - fetch from database
-        pack = await packsCollection.findOne({ _id: new ObjectId(packIdentifier) });
+        pack = await packsCollection.findOne({ $or:[{ _id: p}, { name: packIdentifier }] });
         if (!pack) {
             throw new Error(`Pack with ID ${packIdentifier} not found.`);
         }
@@ -4367,6 +4373,8 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
         const existingModels = user
             ? await modelsCollection.find({ _user: username }).toArray()
             : await modelsCollection.find({ _user: { $exists: false } }).toArray();
+
+        console.log("EXISTING", existingModels);
 
         const existingModelNames = existingModels.map(m => m.name);
 
@@ -4592,7 +4600,8 @@ export const installAllPacks = async () => {
 export async function handleDemoInitialization(req, res) {
     const user = req.me;
     const body = req.fields;
-    const models = (Object.keys(profiles).includes(body.profile) && profiles[body.profile]) || '';
+    const packs = body.packs;
+    const models = (Object.keys(profiles).includes(body.profile) && profiles[body.profile].models) || '';
     if (!isDemoUser(user)) {
         return res.status(403).json({ success: false, error: "This action is only for demo users." });
     }
@@ -4625,6 +4634,10 @@ export async function handleDemoInitialization(req, res) {
         };
 
         logger.info(`[Demo Init] Installing dynamically generated pack with models: [${models.join(', ')}].`);
+
+        await sequential(packs.map(p => {
+            return () => installPack(p, user, req.query.lang || 'en');
+        }));
 
         // Create and install pack
         const result = await installPack(packToInstall, user, req.query.lang || 'en');

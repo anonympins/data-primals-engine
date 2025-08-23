@@ -63,7 +63,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
         return fetch('/api/demo/initialize', {
             method: 'POST',
             headers: { "Content-Type": "application/json"},
-            body: JSON.stringify({profile: profile}),
+            body: JSON.stringify({profile: profile, packs: profiles[profile].packs}),
         });
     });
 

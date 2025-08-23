@@ -1000,7 +1000,8 @@ export async function registerRoutes(engine){
 
             // 1. Récupérer la définition du KPI
             try {
-                kpiDef = await datasCollection.findOne({ _id: new ObjectId(id), _model: 'kpi', _user: req.me._user || req.me.username });
+                const coll = await getCollectionForUser(req.me);
+                kpiDef = await coll.findOne({ _id: new ObjectId(id), _model: 'kpi', _user: req.me._user || req.me.username });
                 if (!kpiDef) {
                     return res.status(404).json({ success: false, error: 'KPI definition not found' });
                 }
