@@ -4364,7 +4364,7 @@ async function manageBackupRotation(user, backupFrequency, s3Config = null) { //
  * @param {string} [lang='en'] - Language code for localized data
  * @returns {Promise<{success: boolean, summary: object, errors: Array, modifiedCount: number}>}
  */
-export async function installPack(packIdentifier, user = null, lang = 'en', isTemporary= false) {
+export async function installPack(packIdentifier, user = null, lang = 'en', options = {}) {
     let pack;
     const packsCollection = getCollection('packs');
 
@@ -4377,7 +4377,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
             p = packIdentifier;
         }
         // Existing behavior - fetch from database
-        pack = await packsCollection.findOne({ $or:[{ _id: p}, { name: packIdentifier }] });
+        pack = await packsCollection.findOne({ $and: [{ _user: {$exists: false} }, {private: false}, {$or:[{ _id: p}, { name: packIdentifier }]}]} );
         if (!pack) {
             throw new Error(`Pack with ID ${packIdentifier} not found.`);
         }
@@ -4463,9 +4463,9 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
 
     // --- PHASE 2: DATA INSTALLATION ---
     const dataToInstall = { ...pack.data?.all, ...pack.data?.[lang] };
-    if (!dataToInstall || Object.keys(dataToInstall).length === 0) {
+    if (dataToInstall || Object.keys(dataToInstall).length === 0) {
         logger.warn(`Pack '${pack.name}' has no data to install.`);
-        return { success: errors.length === 0, summary, errors, modifiedCount: 0 };
+        return { success: false, summary, errors, modifiedCount: 0 };
     }
 
     // Process link references (same as original)
@@ -4618,6 +4618,14 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
         }
     }
 
+    if( options.installForUser && user?.username ){
+        if( pack.name )
+            await packsCollection.deleteOne({ name: pack.name, _user: user.username });
+        logger.info(`--- Creating pack '${pack.name}' for user... ---`);
+        const packToCreate = {...pack, _id: undefined, private: true, _user: user.username };
+        await packsCollection.insertOne(packToCreate);
+    }
+
     // Trigger event only if pack came from database (original behavior)
     if (typeof packIdentifier === 'string') {
         await Event.Trigger("OnPackInstalled", "event", "system", pack);
@@ -4636,7 +4644,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', isTe
 export const installAllPacks = async () => {
     const packs = await getAllPacks();
     await packsCollection.deleteMany({ _user: { $exists : false }});
-    await packsCollection.insertMany(packs);
+    await packsCollection.insertMany(packs.map(p =>({...p, private: false })));
 }
 
 export async function handleDemoInitialization(req, res) {

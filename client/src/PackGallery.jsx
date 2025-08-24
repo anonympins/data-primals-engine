@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import {useMutation, useQuery, useQueryClient} from 'react-query';
 import { Trans, useTranslation } from 'react-i18next';
-import {FaBoxOpen, FaChevronLeft, FaDownload, FaPlus, FaStar, FaTag, FaUser} from 'react-icons/fa';
+import {FaBoxOpen, FaChevronLeft, FaDownload, FaPlus, FaStar, FaTag, FaUser, FaUserCircle, FaTimes} from 'react-icons/fa';
 import Button from './Button.jsx';
 import { useNotificationContext } from './NotificationProvider.jsx';
 import { useModelContext } from './contexts/ModelContext.jsx';
+import { useAuthContext } from './contexts/AuthContext.jsx';
 
 import './PackGallery.scss';
 import {elementsPerPage} from "../../src/constants.js";
 import Markdown from "react-markdown";
 import {Dialog, DialogProvider} from "./Dialog.jsx";
-import {TextField} from "./Field.jsx";
+import {TextField, CheckboxField} from "./Field.jsx";
 
 // --- API Fetching Functions ---
-const fetchPacks = async (sortBy, lang) => {
-    const response = await fetch(`/api/packs?lang=${lang}&sortBy=${sortBy.field}&order=${sortBy.order}`);
+const fetchPacks = async (sortBy, lang, filterByUser = false, user) => {
+    const url = `/api/packs?lang=${lang}&sortBy=${sortBy.field}&order=${sortBy.order}${filterByUser ? '&user='+user.username : ''}`;
+    const response = await fetch(url);
     if (!response.ok) {
         throw new Error('Network response was not ok');
     }
@@ -35,11 +37,20 @@ const fetchPackDetails = async (packId, lang) => {
 // Carte pour afficher un pack dans la galerie
 const PackCard = ({ pack, onSelect }) => {
     const { t } = useTranslation();
+    const { me: user } = useAuthContext();
+
     return (
         <div className="pack-card" onClick={() => onSelect(pack._id)}>
             <div className="pack-card-header">
                 <h3><FaBoxOpen /> {pack.name}</h3>
-                <span className="pack-stars"><FaStar /> {pack.stars || 0}</span>
+                <div className="pack-header-right">
+                    <span className="pack-stars"><FaStar /> {pack.stars || 0}</span>
+                    {user && pack._user === user.username && (
+                        <span className="my-pack-badge" title={t('packs.myPack', 'Mon pack')}>
+                            <FaUserCircle />
+                        </span>
+                    )}
+                </div>
             </div>
             <p className="pack-description">{pack.description?.substring(0, 120) || t('packs.noDescription', 'Aucune description.')}... </p>
             <div className="pack-card-footer">
@@ -59,7 +70,22 @@ const PackDetail = ({ packId, onBack }) => {
     const { addNotification } = useNotificationContext();
     const queryClient = useQueryClient();
     const { selectedModel, page, pagedFilters, pagedSort } = useModelContext();
+    const { me: user } = useAuthContext();
     const { data: pack, isLoading, isError } = useQuery(['packDetails', packId], () => fetchPackDetails(packId, lang));
+
+    const { mutate: updatePack, isLoading: isUpdating } = useMutation(
+        updatePackMutationFn,
+        {
+            onSuccess: () => {
+                addNotification({ status: 'completed', title: t('packs.update.success', 'Pack mis à jour avec succès !') });
+                queryClient.invalidateQueries(['packDetails', packId]);
+                queryClient.invalidateQueries('packs');
+            },
+            onError: (error) => {
+                addNotification({ status: 'error', title: t('packs.update.error', 'Échec de la mise à jour du pack'), message: error.message });
+            }
+        }
+    );
 
     const { mutate: installPack, isLoading: isInstalling } = useMutation(
         installPackMutationFn,
@@ -73,7 +99,7 @@ const PackDetail = ({ packId, onBack }) => {
                 queryClient.invalidateQueries('api/models');
                 queryClient.invalidateQueries(['api/data', selectedModel?.name, 'page', page, elementsPerPage, pagedFilters[selectedModel?.name], pagedSort[selectedModel?.name]]);
 
-                onBack(); // Retourner à la galerie
+                onBack();
             },
             onError: (error) => {
                 addNotification({
@@ -90,6 +116,11 @@ const PackDetail = ({ packId, onBack }) => {
         installPack({ packId: pack._id, lang });
     };
 
+    const handlePublicToggle = (e) => {
+        const pr = !e;
+        updatePack({ packId: pack._id, updateData: { private: pr } });
+    };
+
     if (isLoading) return <div className="spinner-loader"></div>;
     if (isError) return <p className="error-text">{t('packs.error.details', 'Erreur lors du chargement des détails du pack.')}</p>;
     if (!pack) return null;
@@ -98,7 +129,6 @@ const PackDetail = ({ packId, onBack }) => {
         if (!models || models.length === 0) return t('packs.noModelsIncluded', 'Aucun modèle spécifié.');
 
         return models.map(model => {
-            // Si l'élément est un objet, on prend sa propriété 'name', sinon on prend la chaîne de caractères
             const modelName = typeof model === 'object' && model !== null ? model.name : model;
             return modelName;
         }).join(', ');
@@ -109,9 +139,25 @@ const PackDetail = ({ packId, onBack }) => {
             <Button onClick={onBack} className="back-button"><FaChevronLeft /> <Trans i18nKey="btns.back">Retour</Trans></Button>
             <div className="pack-detail-header">
                 <h1>{pack.name}</h1>
-                <Button onClick={handleInstall} disabled={isInstalling}>
-                    <FaDownload /> {isInstalling ? t('packs.installing', 'Installation...') : t('packs.install', 'Installer')}
-                </Button>
+                <div className="pack-detail-actions">
+                    {user && pack._user === user.username && (
+                        <div className="owner-actions">
+                            <span className="my-pack-indicator">
+                                <FaUserCircle /> <Trans i18nKey="packs.myPack">Mon pack</Trans>
+                            </span>
+                            <CheckboxField
+                                label={t('packs.public', 'Public')}
+                                checked={!pack.private}
+                                onChange={handlePublicToggle}
+                                disabled={isUpdating}
+                                title={t('packs.public.tooltip', 'Rendre ce pack visible par les autres utilisateurs dans la galerie.')}
+                            />
+                        </div>
+                    )}
+                    <Button onClick={handleInstall} disabled={isInstalling}>
+                        <FaDownload /> {isInstalling ? t('packs.installing', 'Installation...') : t('Installer')}
+                    </Button>
+                </div>
             </div>
             <div className="pack-meta">
                 <span><FaUser /> {pack._user}</span>
@@ -120,7 +166,6 @@ const PackDetail = ({ packId, onBack }) => {
             </div>
             <div className="pack-content">
                 <h2><Trans i18nKey="packs.description">Description</Trans></h2>
-
                 <div className="description-content"><Markdown>{pack.description}</Markdown></div>
 
                 <h2><Trans i18nKey="packs.modelsIncluded">Modèles inclus</Trans></h2>
@@ -131,14 +176,10 @@ const PackDetail = ({ packId, onBack }) => {
                     <pre>{JSON.stringify(pack.data, null, 2)}</pre>
                 </div>
             </div>
-
-
         </div>
     );
 };
 
-
-// --- NOUVELLE FONCTION POUR LA MUTATION D'INSTALLATION ---
 const installPackMutationFn = async ({packId, lang}) => {
     const response = await fetch(`/api/packs/${packId}/install?lang=${lang}`, {
         method: 'POST',
@@ -153,20 +194,40 @@ const installPackMutationFn = async ({packId, lang}) => {
     return response.json();
 };
 
+const updatePackMutationFn = async ({ packId, updateData }) => {
+    const response = await fetch(`/api/packs/${packId}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update pack');
+    }
+    return response.json();
+};
+
 // --- Main Gallery Component ---
 const PackGallery = () => {
     const { t, i18n } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     const { addNotification } = useNotificationContext();
+    const { me: user } = useAuthContext();
 
     const [showManualInstallDialog, setShowManualInstallDialog] = useState(false);
     const [manualPackJson, setManualPackJson] = useState('');
-    const [view, setView] = useState('list'); // 'list' ou 'detail'
+    const [view, setView] = useState('list');
     const [selectedPackId, setSelectedPackId] = useState(null);
     const [sortBy, setSortBy] = useState({ field: '_updatedAt', order: -1 });
+    const [showOnlyMyPacks, setShowOnlyMyPacks] = useState(false);
 
     const queryClient = useQueryClient()
-    const { data: packs, isLoading, isError } = useQuery(['packs', sortBy], () => fetchPacks(sortBy, lang));
+    const { data: packs, isLoading, isError } = useQuery(
+        ['packs', sortBy, showOnlyMyPacks],
+        () => fetchPacks(sortBy, lang, showOnlyMyPacks, user)
+    );
 
     const handleSelectPack = (packId) => {
         setSelectedPackId(packId);
@@ -196,7 +257,7 @@ const PackGallery = () => {
             });
             setShowManualInstallDialog(false);
             setManualPackJson('');
-            queryClient.invalidateQueries(['packs', sortBy]); // Rafraîchir la liste
+            queryClient.invalidateQueries(['packs', sortBy, showOnlyMyPacks]);
 
         } catch (error) {
             addNotification({
@@ -212,20 +273,31 @@ const PackGallery = () => {
         setView('list');
     };
 
+    const toggleMyPacksFilter = () => {
+        setShowOnlyMyPacks(!showOnlyMyPacks);
+    };
+
+    const clearMyPacksFilter = () => {
+        setShowOnlyMyPacks(false);
+    };
+
     const renderContent = () => {
         if (view === 'detail') {
             return <PackDetail packId={selectedPackId} onBack={handleBackToList} />;
         }
 
-        // Vue 'list'
         if (isLoading) return <div className="spinner-loader"></div>;
         if (isError) return <p className="error-text">{t('packs.error.loading', 'Erreur lors du chargement des packs.')}</p>;
-        if (!packs || packs.length === 0) return <p>{t('packs.noPacks', 'Aucun pack n\'est disponible pour le moment.')}</p>;
 
         return (
             <>
                 <div className="gallery-header">
-                    <h1><Trans i18nKey="packs.galleryTitle">Galerie de Packs</Trans></h1>
+                    <h1>
+                        {showOnlyMyPacks
+                            ? <Trans i18nKey="packs.myPacksTitle">Mes Packs</Trans>
+                            : <Trans i18nKey="packs.galleryTitle">Galerie de Packs</Trans>
+                        }
+                    </h1>
                     <div className="header-actions">
                         <div className="sort-options">
                             <span><Trans i18nKey="packs.sortBy">Trier par :</Trans></span>
@@ -236,14 +308,37 @@ const PackGallery = () => {
                                 <Trans i18nKey="packs.sort.mostStarred">Plus populaires</Trans>
                             </Button>
                         </div>
-                        <Button
-                            onClick={() => setShowManualInstallDialog(true)}
-                            className="add-pack-button"
-                        >
-                            <FaPlus /> <Trans i18nKey="packs.manualInstall">Importer</Trans>
-                        </Button>
+                        <div className="filter-actions">
+                            {showOnlyMyPacks && (
+                                <Button onClick={clearMyPacksFilter} className="clear-filter-btn">
+                                    <FaTimes /> <Trans i18nKey="packs.clearFilter">Voir tous les packs</Trans>
+                                </Button>
+                            )}
+                            {user && !showOnlyMyPacks && (
+                                <Button
+                                    onClick={toggleMyPacksFilter}
+                                    className="my-packs-btn"
+                                >
+                                    <FaUserCircle /> <Trans i18nKey="packs.myPacks">Mes packs</Trans>
+                                </Button>
+                            )}
+                            <Button
+                                onClick={() => setShowManualInstallDialog(true)}
+                                className="add-pack-button"
+                            >
+                                <FaPlus /> <Trans i18nKey="packs.manualInstall">Importer</Trans>
+                            </Button>
+                        </div>
                     </div>
                 </div>
+
+                {showOnlyMyPacks && (
+                    <div className="filter-indicator">
+                        <FaUserCircle />
+                        <Trans i18nKey="packs.filteringMyPacks">Affichage de vos packs uniquement</Trans>
+                    </div>
+                )}
+
                 {showManualInstallDialog && (
                     <DialogProvider>
                         <Dialog
@@ -272,15 +367,21 @@ const PackGallery = () => {
                         </Dialog>
                     </DialogProvider>
                 )}
-                <div className="pack-list">
-                    {packs.map(pack => (
-                        <PackCard key={pack._id} pack={pack} onSelect={handleSelectPack} />
-                    ))}
-                </div>
+
+                {(!packs || packs.length === 0) ? (
+                    showOnlyMyPacks
+                        ? <p className="no-packs-message">{t('packs.noMyPacks', 'Vous n\'avez créé aucun pack.')}</p>
+                        : <p className="no-packs-message">{t('packs.noPacks', 'Aucun pack n\'est disponible pour le moment.')}</p>
+                ) : (
+                    <div className="pack-list">
+                        {packs.map(pack => (
+                            <PackCard key={pack._id} pack={pack} onSelect={handleSelectPack} />
+                        ))}
+                    </div>
+                )}
             </>
         );
     };
-
     return (
         <div className="pack-gallery-container">
             {renderContent()}
