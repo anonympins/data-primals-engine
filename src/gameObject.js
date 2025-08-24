@@ -33,7 +33,7 @@ export const GameObject = {
     }
 }
 // Behavior.js
-class Behaviour {
+export class Behaviour {
     constructor(gameObject) {
         this.gameObject = gameObject;
         Event.Trigger("GameObject."+(this.constructor.name)+".init", "system", "calls", this);
