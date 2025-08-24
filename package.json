@@ -1,6 +1,6 @@
 {
   "name": "data-primals-engine",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "data-primals-engine is a package responsible from handling large amount of data using MongoDB in a practical and performant way. It can also get workflow models working (for automation), and fully supports internationalisation. It also has integrated AI assistant.",
   "main": "src/engine.js",
   "type": "module",
@@ -31,12 +31,11 @@
     "tar-fs": "3.0.9",
     "on-headers": "1.1.0",
     "brace-expansion": "2.0.2",
-    "prismjs": "1.30.0"
+    "prismjs": "1.30.0",
+    "xml2js": ">=0.5.0"
   },
   "overrides": {
-    "refractor": {
-      "prismjs": "1.30.0"
-    }
+    "prismjs": "1.30.0"
   },
   "repository": {
     "type": "git",
@@ -48,12 +47,6 @@
     "./modules/*": "./src/modules/*/index.js",
     "./client": "./client/index.js",
     "./*": "./src/*.js"
-  },
-  "peerDependencies": {
-    "express": "^5.1.0",
-    "react": "18.3.1",
-    "react-query": ">=3.0.0",
-    "react-i18next": "^15.6.1"
   },
   "dependencies": {
     "@langchain/anthropic": "^0.3.26",
@@ -86,6 +79,8 @@
     "node-schedule": "^2.1.1",
     "nodemailer": "^7.0.5",
     "openai": "^5.10.2",
+    "passport": "^0.7.0",
+    "passport-saml-encrypted": "^0.1.13",
     "process": "^0.11.10",
     "prop-types": "^15.8.1",
     "randomcolor": "^0.6.2",
@@ -101,6 +96,14 @@
     "uniqid": "^5.4.0",
     "vitest": "^3.2.4",
     "yaml": "^2.8.0"
+  },
+  "peerDependencies": {
+    "express": "^5.1.0",
+    "passport-azure-ad": "^4.3.5",
+    "passport-google-oauth20": "^2.0.0",
+    "react": "18.3.1",
+    "react-i18next": "^15.6.1",
+    "react-query": ">=3.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

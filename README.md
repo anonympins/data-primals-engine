@@ -569,6 +569,7 @@ const result = await installPack("61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
 
 > You can also open the pack gallery to see the JSON structure of each pack, before installing them.
 
+
 ---
 ### Data Auditing & History 
 data-primals-engine includes a built-in, automatic auditing system that creates a complete history for every record in your database. 
@@ -716,6 +717,60 @@ Expected response :
 }
 
 ```
+
+### Pluggable SSO Authentication (Google, SAML, Azure AD)
+
+`data-primals-engine` features a powerful and modular Single Sign-On (SSO) system built on Passport.js. This allows you to easily integrate with various enterprise and social identity providers. The core engine remains lightweight, and you only enable the providers you need.
+
+#### How It Works
+
+The engine provides a central `Sso` component that manages authentication logic. Each provider (Google, SAML, etc.) is an independent module that "plugs into" this central component.
+
+To enable an SSO provider, follow these three steps:
+
+#### Example: Enabling Google Sign-In
+
+**1. Install the Provider's Library**
+
+The required Passport strategy is a `peerDependency`. You must install it in your project:
+```bash
+npm install passport-google-oauth20
+```
+
+**2. Enable the Module**
+
+To enable the module in your next engine initilization, just add it to the `modules` array:
+```javascript
+Config.Set("modules", ["auth-google", "..."]);
+```
+
+**3. Set Environment Variables**
+
+Create or update your `.env` file with the credentials obtained from the Google Cloud Console:
+```env
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+The login flow will now be available at `/api/auth/google`.
+
+#### Other Providers
+
+The process is identical for other supported providers:
+
+-   **SAML**:
+    1.  `npm install passport-saml-encrypted`
+    2.  Enable the `auth-saml` module.
+    3.  Set `SAML_ENTRY_POINT`, `SAML_ISSUER`, `SAML_CERT`, and `SAML_DECRYPTION_KEY` environment variables.
+
+-   **Microsoft Azure AD**:
+    1.  `npm install passport-azure-ad`
+    2.  Enable the `auth-microsoft` module.
+    3.  Set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_TENANT_ID` environment variables.
+
+This modular approach makes it simple to extend the engine with any Passport-compatible strategy to meet your authentication needs.
+
+See implementations in the `modules` directory.
 
 ---
 ## Extensibility

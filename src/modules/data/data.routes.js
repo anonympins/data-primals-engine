@@ -1386,7 +1386,9 @@ export async function registerRoutes(engine){
             }
 
             // On ne renvoie pas le champ 'datas' pour alléger la réponse de la liste
-            const packs = await packsCollection.find({}, {
+            const packs = await packsCollection.find({
+                _user: req.query.user ? req.query.user : { $exists: false }
+            }, {
                 projection: { datas: 0 }
             }).sort(sortOptions).toArray();
 
@@ -1417,6 +1419,49 @@ export async function registerRoutes(engine){
         } catch (error) {
             logger.error(`[GET /api/packs/${id}] Error fetching pack details:`, error);
             res.status(500).json({ success: false, error: 'Failed to fetch pack details.' });
+        }
+    });
+
+    // --- NOUVEL ENDPOINT POUR METTRE À JOUR UN PACK (ex: public/privé) ---
+    engine.patch('/api/packs/:id', [throttle, middlewareAuthenticator, userInitiator], async (req, res) => {
+        const { id } = req.params;
+        const { private:pr } = req.fields; // Le front-end enverra { isPrivate: true/false }
+        const user = req.me;
+
+        if (!isObjectId(id)) {
+            return res.status(400).json({ success: false, error: 'Invalid pack ID format.' });
+        }
+
+        if (typeof pr !== 'boolean') {
+            return res.status(400).json({ success: false, error: 'A boolean `private` field is required.' });
+        }
+
+        try {
+            const packsCollection = getCollection('packs');
+            const pack = await packsCollection.findOne({ _id: new ObjectId(id) });
+
+            if (!pack) {
+                return res.status(404).json({ success: false, error: 'Pack not found.' });
+            }
+
+            // Vérification des permissions : seul le propriétaire peut modifier
+            if (pack._user !== user.username) {
+                return res.status(403).json({ success: false, error: 'You do not have permission to edit this pack.' });
+            }
+
+            await packsCollection.updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { private: pr, _updatedAt: new Date() } } // Mettre à jour le statut et la date de modification
+            );
+
+            logger.info("Pack updated successfully.", pr);
+
+            const updatedPack = await packsCollection.findOne({ _id: new ObjectId(id) });
+            res.json({ success: true, pack: updatedPack });
+
+        } catch (error) {
+            logger.error(`[PATCH /api/packs/${id}] Error updating pack:`, error);
+            res.status(500).json({ success: false, error: 'Failed to update pack.' });
         }
     });
 
@@ -1551,7 +1596,7 @@ export async function registerRoutes(engine){
                 return res.status(403).json({ success: false, error: i18n.t('api.permission.installPack') });
             }
 
-            const result = await installPack(req.fields.packData, user, lang);
+            const result = await installPack({...req.fields.packData, private: true}, user, lang, { installForUser: true });
 
             if (result.success) {
                 res.status(200).json({ success: true, message: `Pack installed successfully.`, summary: result.summary });
