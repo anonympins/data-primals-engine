@@ -759,9 +759,9 @@ The login flow will now be available at `/api/auth/google`.
 The process is identical for other supported providers:
 
 -   **SAML**:
-    1.  `npm install passport-saml`
+    1.  `npm install passport-saml-encrypted`
     2.  Enable the `auth-saml` module.
-    3.  Set `SAML_ENTRY_POINT`, `SAML_ISSUER`, and `SAML_CERT` environment variables.
+    3.  Set `SAML_ENTRY_POINT`, `SAML_ISSUER`, `SAML_CERT`, and `SAML_DECRYPTION_KEY` environment variables.
 
 -   **Microsoft Azure AD**:
     1.  `npm install passport-azure-ad`
