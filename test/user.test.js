@@ -66,7 +66,7 @@ describe('User Permission Logic', () => {
 
     // --- SETUP : Création des données de test avant tous les tests ---
     beforeAll(async () => {
-        Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "auth-google"]);
+        Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "auth-google", "auth-saml", "auth-microsoft"]);
         engine = await initEngine();
 
     });
