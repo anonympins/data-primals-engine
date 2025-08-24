@@ -1,5 +1,7 @@
-import {compare} from "bcrypt";
+import {compare, hash} from "bcrypt";
 import {maxTotalPrivateFilesSize} from "./constants.js";
+import {getCollection, ObjectId} from "./modules/mongodb.js";
+import {Logger} from "./gameObject.js";
 
 /**
  * @class UserProvider
@@ -178,6 +180,103 @@ export class DefaultUserProvider extends UserProvider {
         return {
             free: {
                 features: ['indexes']
+            }
+        }
+    }
+}
+
+/**
+ * @class MongoUserProvider
+ * Un fournisseur d'utilisateurs prêt pour la production qui stocke les utilisateurs
+ * dans MongoDB et gère les mots de passe de manière sécurisée avec bcrypt.
+ */
+export class MongoUserProvider extends UserProvider {
+    constructor(engine) {
+        super(engine);
+        this.usersCollection = getCollection("users");
+        this.logger = engine.getComponent(Logger);
+        this.logger.info("MongoUserProvider initialized, using 'users' collection for local accounts.");
+    }
+
+    /**
+     * Trouve un utilisateur par son ID MongoDB.
+     * @param {string} id - L'ID de l'utilisateur.
+     * @returns {Promise<object|null>}
+     */
+    async findUserById(id) {
+        try {
+            if (!ObjectId.isValid(id)) return null;
+            // On exclut le mot de passe des requêtes pour des raisons de sécurité
+            return await this.usersCollection.findOne({ _id: new ObjectId(id) }, { projection: { password: 0 } });
+        } catch (e) {
+            this.logger.error(`Error in findUserById: ${e.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Trouve un utilisateur par son nom d'utilisateur ou son email.
+     * @param {string} username - Le nom d'utilisateur ou l'email.
+     * @returns {Promise<object|null>}
+     */
+    async findUserByUsername(username) {
+        // Permet de se connecter avec l'username ou l'email
+        return await this.usersCollection.findOne({ $or: [{ username }, { email: username }] });
+    }
+
+    /**
+     * Valide le mot de passe fourni par rapport au hash stocké.
+     * @param {object} user - L'objet utilisateur complet (avec le hash du mot de passe).
+     * @param {string} password - Le mot de passe en clair à vérifier.
+     * @returns {Promise<boolean>}
+     */
+    async validatePassword(user, password) {
+        if (!user || !user.password || !password) {
+            return false;
+        }
+        return await compare(password, user.password);
+    }
+
+    /**
+     * Crée un nouvel utilisateur avec un mot de passe haché.
+     * @param {object} userData - Données de l'utilisateur (username, email, password, etc.).
+     * @returns {Promise<object>} L'utilisateur nouvellement créé (sans le mot de passe).
+     */
+    async createUser(userData) {
+        const { username, email, password, ...otherData } = userData;
+        if (!username || !email || !password) {
+            throw new Error("Username, email, and password are required to create a user.");
+        }
+
+        const existingUser = await this.usersCollection.findOne({ $or: [{ username }, { email }] });
+        if (existingUser) {
+            throw new Error("User with this username or email already exists.");
+        }
+
+        const hashedPassword = await hash(password, 12);
+
+        const result = await this.usersCollection.insertOne({
+            username,
+            email,
+            password: hashedPassword,
+            createdAt: new Date(),
+            userPlan: 'free', // Plan par défaut
+            ...otherData
+        });
+
+        return await this.findUserById(result.insertedId);
+    }
+
+    /**
+     * Initialise l'utilisateur sur la requête à partir de la session.
+     * Ne gère que les utilisateurs locaux. Le SSO est géré par Passport.
+     * @param {object} req - L'objet requête Express.
+     */
+    async initiateUser(req) {
+        if (req.session?.user?._id) {
+            const user = await this.findUserById(req.session.user._id);
+            if (user) {
+                req.me = user; // Attache l'utilisateur à la requête
             }
         }
     }

@@ -739,15 +739,9 @@ npm install passport-google-oauth20
 
 **2. Enable the Module**
 
-Add the corresponding module to your configuration file (e.g., `config/default.json`):
-```json
-{
-  "modules": [
-    "data",
-    "assistant",
-    "auth-google"
-  ]
-}
+To enable the module in your next engine initilization, just add it to the `modules` array:
+```javascript
+Config.Set("modules", ["auth-google", "..."]);
 ```
 
 **3. Set Environment Variables**
@@ -775,6 +769,8 @@ The process is identical for other supported providers:
     3.  Set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_TENANT_ID` environment variables.
 
 This modular approach makes it simple to extend the engine with any Passport-compatible strategy to meet your authentication needs.
+
+See implementations in the `modules` directory.
 
 ---
 ## Extensibility
