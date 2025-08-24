@@ -699,6 +699,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await setupTestContext();
             // 1. Définir le pack de données mock
             const mockPack = {
+                private: false,
                 name: 'test-pack-for-install',
                 models: [
                     {
@@ -774,6 +775,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await setupTestContext();
             const mockPackWithInvalidModel = {
                 name: 'invalid-model-pack',
+                private: false,
                 models: [
                     {
                         // 'name' est requis, on l'omet pour causer une erreur
@@ -816,6 +818,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             // 1. Définir le pack avec des données JSON
             const mockPackWithJson = {
                 name: 'test-pack-with-json',
+                private: false,
                 models: [
                     {
                         name: 'packConfig',

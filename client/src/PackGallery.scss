@@ -136,6 +136,27 @@
       justify-content: space-between;
       align-items: center;
       h1 { margin: 0; }
+
+      .pack-detail-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .owner-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem; /* Espace entre l'indicateur et la case à cocher */
+        padding: 0.25rem 0.75rem;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background-color: #fafafa;
+        .my-pack-indicator {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+        }
+      }
     }
     .pack-meta {
       display: flex;
