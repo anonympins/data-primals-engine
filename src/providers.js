@@ -19,6 +19,16 @@ export class UserProvider {
     }
 
     /**
+     * Trouve un utilisateur par son ID unique. Nécessaire pour la désérialisation de Passport.
+     * @param {string} id - L'ID de l'utilisateur.
+     * @returns {Promise<object|null>} L'objet utilisateur ou null.
+     */
+    async findUserById(id) {
+        throw new Error("Method 'findUserById()' must be implemented.");
+    }
+
+
+    /**
      * Met à jour un nouvel utilisateur.
      * @param user
      * @returns {Promise<void>}

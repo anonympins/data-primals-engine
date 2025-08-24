@@ -49,12 +49,6 @@
     "./client": "./client/index.js",
     "./*": "./src/*.js"
   },
-  "peerDependencies": {
-    "express": "^5.1.0",
-    "react": "18.3.1",
-    "react-query": ">=3.0.0",
-    "react-i18next": "^15.6.1"
-  },
   "dependencies": {
     "@langchain/anthropic": "^0.3.26",
     "@langchain/core": "^0.3.66",
@@ -86,6 +80,7 @@
     "node-schedule": "^2.1.1",
     "nodemailer": "^7.0.5",
     "openai": "^5.10.2",
+    "passport": "^0.7.0",
     "process": "^0.11.10",
     "prop-types": "^15.8.1",
     "randomcolor": "^0.6.2",
@@ -101,6 +96,15 @@
     "uniqid": "^5.4.0",
     "vitest": "^3.2.4",
     "yaml": "^2.8.0"
+  },
+  "peerDependencies": {
+    "express": "^5.1.0",
+    "passport-azure-ad": "^4.3.5",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-saml": "^3.2.1",
+    "react": "18.3.1",
+    "react-i18next": "^15.6.1",
+    "react-query": ">=3.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
