@@ -4463,7 +4463,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
 
     // --- PHASE 2: DATA INSTALLATION ---
     const dataToInstall = { ...pack.data?.all, ...pack.data?.[lang] };
-    if (dataToInstall || Object.keys(dataToInstall).length === 0) {
+    if (!dataToInstall || Object.keys(dataToInstall).length === 0) {
         logger.warn(`Pack '${pack.name}' has no data to install.`);
         return { success: false, summary, errors, modifiedCount: 0 };
     }
