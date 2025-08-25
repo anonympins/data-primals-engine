@@ -195,6 +195,14 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
     const fieldDefinition = modelDefinition?.fields.find(f => f.name === config.xAxis);
     const timed = fieldDefinition && ['datetime', 'date'].includes(fieldDefinition.type);
 
+    // État local pour gérer l'échelle de temps de manière interactive
+    const [localTimeUnit, setLocalTimeUnit] = useState(config.timeUnit || 'day');
+
+    // S'assurer que l'état local est synchronisé si la config du graphique change
+    useEffect(() => {
+        setLocalTimeUnit(config.timeUnit || 'day');
+    }, [config.timeUnit]);
+
     const isGroupingChart = config && ['pie', 'doughnut'].includes(config.type);
     const requiresYAxisForValidation = config && config.aggregationType && config.aggregationType !== 'count';
     const isValidConfig = config && config.model && config.type && config.title && config.aggregationType &&
@@ -262,25 +270,45 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
             },
         };
 
+        const timeUnit = localTimeUnit; // On utilise l'état local interactif
+
+        const getTooltipFormat = (unit) => {
+            switch(unit) {
+                case 'year': return 'yyyy';
+                case 'month': return 'MMM yyyy';
+                case 'hour': return "dd MMM, HH'h'";
+                case 'minute': return 'dd MMM, HH:mm';
+                case 'day':
+                case 'week':
+                default: return 'dd MMM yyyy';
+            }
+        };
+
         const axisOptions = {
             ...baseOptions,
             scales: {
                 x: {
                     type: timed ? 'time' : 'category',
                     time: timed ? {
-                        tooltipFormat:  'dd/MM/yyyy HH:mm',
-                        unit: 'minute',
+                        tooltipFormat: getTooltipFormat(timeUnit),
+                        unit: timeUnit,
                     } : {},
                     ticks: timed ? {
                         autoSkip: true,
                         maxTicksLimit: 20,
                         callback: function (value) {
-                            const d = new Date();
-                            d.setTime(value);
-                            return d.toLocaleDateString(lang, {
-                                minute: '2-digit',
-                                hour: '2-digit'
-                            });
+                            const d = new Date(value);
+                            let options;
+                            switch(timeUnit) {
+                                case 'year': options = { year: 'numeric' }; break;
+                                case 'month': options = { month: 'short', year: 'numeric' }; break;
+                                case 'day':
+                                case 'week': options = { day: 'numeric', month: 'short' }; break;
+                                case 'hour':
+                                case 'minute':
+                                default: options = { hour: '2-digit', minute: '2-digit' }; break;
+                            }
+                            return new Intl.DateTimeFormat(lang, options).format(d);
                         }
                     } : {}
                 },
@@ -311,7 +339,7 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
                 </div>
             );
         }
-    }, [config, t, chartData, isResizing]);
+    }, [config, t, chartData, isResizing, lang, localTimeUnit]);
 
     if (!isValidConfig) {
         return (
@@ -353,6 +381,30 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
 
     return (
         <div className="dashboard-chart-container" style={containerStyle}>
+            {/* Ajout du sélecteur d'échelle de temps directement sur le graphique */}
+            {timed && (
+                <div style={{ position: 'absolute', top: '5px', right: '5px', zIndex: 10 }}>
+                    <select
+                        value={localTimeUnit}
+                        onChange={(e) => setLocalTimeUnit(e.target.value)}
+                        style={{
+                            padding: '2px 4px',
+                            borderRadius: '4px',
+                            border: '1px solid #ccc',
+                            backgroundColor: 'white',
+                            fontSize: '0.8em'
+                        }}
+                        title={t('charts.timeUnit', 'Échelle de temps')}
+                    >
+                        <option value="minute">{t('time.minute', 'Minute')}</option>
+                        <option value="hour">{t('time.hour', 'Heure')}</option>
+                        <option value="day">{t('time.day', 'Jour')}</option>
+                        <option value="week">{t('time.week', 'Semaine')}</option>
+                        <option value="month">{t('time.month', 'Mois')}</option>
+                        <option value="year">{t('time.year', 'Année')}</option>
+                    </select>
+                </div>
+            )}
             {renderChart}
         </div>
     );
