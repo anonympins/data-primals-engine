@@ -178,8 +178,7 @@ Models are the way to handle structured data. They organize data and they can be
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
 ### Other model features
-- Handles up to 2,000 direct relations by default (can be customized)
-- For larger datasets, use intermediate collections
+- Handles up to 2,000 direct relations by default (can be customized). For larger datasets, use intermediate collections
 - Automatic indexing on key fields
 - Custom indexing on fields
 - Anonymizable fields (encrypted for API users)

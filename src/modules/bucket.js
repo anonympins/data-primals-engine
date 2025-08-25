@@ -12,6 +12,7 @@ import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
 import {getCollectionForUser} from "./mongodb.js";
+import {safeAssignObject} from "../core.js";
 
 const restoreRequests = {};
 
@@ -21,11 +22,11 @@ export const requestRestore = async (user, lang) => {
     const modelsRestoreToken = crypto.randomBytes(32).toString('hex');
     const expiration = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
-    restoreRequests[user?.username] = {
+    safeAssignObject(restoreRequests, user?.username, {
         fullToken: fullRestoreToken,
         modelsToken: modelsRestoreToken,
         expiresAt: expiration
-    };
+    });
 
     i18n.changeLanguage(lang);
 

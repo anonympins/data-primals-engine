@@ -1,3 +1,4 @@
+import {safeAssignObject} from "./core.js";
 
 const events = {};
 
@@ -81,9 +82,9 @@ export const Event = {
             throw new Error(`Layer '${layer}' does not exist in system '${system}'. Valid layers are: ${validLayers.join(', ')}`); // Message d'erreur plus informatif
         }
 
-        events[system] = events[system] || {}; // Simplification de la création des objets
-        events[system][name] = events[system][name] || {};
-        events[system][name][layer] = events[system][name][layer] || [];
+        safeAssignObject(events, system, events[system] || {}); // Simplification de la création des objets
+        safeAssignObject(events[system], name, events[system][name] || {});
+        safeAssignObject(events[system][name], layer, events[system][name][layer] || []);
         events[system][name][layer].push(callback);
     },
     RemoveCallback: (name, callback, layer="medium", system='priority') => {

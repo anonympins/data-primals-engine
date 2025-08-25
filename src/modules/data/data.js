@@ -43,7 +43,7 @@ import {
 } from "../mongodb.js";
 import {dbUrl, MongoClient, MongoDatabase} from "../../engine.js";
 import path from "node:path";
-import {getObjectHash, getRandom, isGUID, isPlainObject, randomDate, sequential} from "../../core.js";
+import {getObjectHash, getRandom, isGUID, isPlainObject, randomDate, safeAssignObject, sequential} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
@@ -461,7 +461,7 @@ export const dataTypes = {
             for (const lang in value) {
                 if (Object.prototype.hasOwnProperty.call(value, lang)) {
                     // On réutilise le même sanitizer que pour le richtext simple
-                    sanitizedObject[lang] = sanitizeHtml(value[lang], optionsSanitizer);
+                    safeAssignObject(sanitizedObject, lang, sanitizeHtml(value[lang], optionsSanitizer));
                 }
             }
             return sanitizedObject;

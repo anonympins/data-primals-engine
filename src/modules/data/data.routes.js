@@ -16,7 +16,7 @@ import {
     isObjectId,
     modelsCollection
 } from "../mongodb.js";
-import {uuidv4} from "../../core.js";
+import {safeAssignObject, uuidv4} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import i18n from "../../i18n.js";
@@ -230,6 +230,7 @@ export async function registerRoutes(engine){
                     for (const field of model.fields) {
                         if (field.type === 'relation' && newDoc[field.name]) {
                             if (Array.isArray(newDoc[field.name])) {
+                                safeAssignObject()
                                 newDoc[field.name] = newDoc[field.name]
                                     .map(oldId => idMap[oldId.toString()]?.toString())
                                     .filter(Boolean);
