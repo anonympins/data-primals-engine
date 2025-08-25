@@ -55,6 +55,7 @@ const ChartConfigModal = ({ isOpen, onClose, onSave, initialConfig = null }) => 
     const [chartType, setChartType] = useState('bar');
     const [chartAggregationType, setChartAggregationType] = useState('count');
     const [chartTitle, setChartTitle] = useState('');
+    const [timeUnit, setTimeUnit] = useState('day');
 
     const currentModel = models.find(f => f.name === selectedModel && f._user === me.username);
 
@@ -74,6 +75,7 @@ const ChartConfigModal = ({ isOpen, onClose, onSave, initialConfig = null }) => 
                 setColorField(initialConfig.chartBackgroundColor || null);
                 setGroupByLabelField(initialConfig.groupByLabelField || '');
                 setChartAggregationType(initialConfig.aggregationType || 'count');
+                setTimeUnit(initialConfig.timeUnit || 'day');
                 // Note: modelFields et relatedModelFields seront chargés par les autres useEffects
                 // déclenchés par le changement de selectedModel et groupByField.
             } else {
@@ -87,6 +89,7 @@ const ChartConfigModal = ({ isOpen, onClose, onSave, initialConfig = null }) => 
                 setGroupByField('');
                 setGroupByLabelField('');
                 setChartAggregationType('count');
+                setTimeUnit('day');
                 setModelFields([]);
                 setRelatedModelFields([]);
             }
@@ -155,6 +158,9 @@ const ChartConfigModal = ({ isOpen, onClose, onSave, initialConfig = null }) => 
     const isRelationGroupBy = isGroupingChart && modelFields.find(f => f.name === groupByField)?.type === 'relation';
     const isYAxisRequiredForValidation = chartAggregationType && !['count'].includes(chartAggregationType);
 
+    const xAxisFieldDefinition = modelFields.find(f => f.name === xAxisField);
+    const isTemporal = !isGroupingChart && xAxisFieldDefinition && ['date', 'datetime'].includes(xAxisFieldDefinition.type);
+
     // handleSave (inchangé - envoie l'état actuel)
     const handleSave = () => {
         const isValid = selectedModel && chartType && chartTitle &&
@@ -178,6 +184,7 @@ const ChartConfigModal = ({ isOpen, onClose, onSave, initialConfig = null }) => 
                 aggregationType: chartAggregationType,
                 chartBackgroundColor: colorField,
                 filter,
+                timeUnit: isTemporal ? timeUnit : undefined,
             });
         } else {
             let errorMsg = t('chartConfigModal.fillFields', "Veuillez remplir tous les champs requis.");
@@ -321,15 +328,33 @@ const ChartConfigModal = ({ isOpen, onClose, onSave, initialConfig = null }) => 
                                 )}
                             </>
                         ) : (
-                            <SelectField
-                                label={t('chartConfigModal.xAxis', 'Axe X')}
-                                value={xAxisField}
-                                onChange={(item) => setXAxisField(item.value)}
-                                items={[{label: t('selectPlaceholder', 'Choisir...'), value: ''}, ...xAxisOptions]}
-                                required={!isGroupingChart}
-                                disabled={xAxisOptions.length === 0}
-                                hint={xAxisOptions.length === 0 ? t('chartConfigModal.noXAxisFields', 'Aucun champ utilisable pour l\'axe X') : ''}
-                            />
+                            <>
+                                <SelectField
+                                    label={t('chartConfigModal.xAxis', 'Axe X')}
+                                    value={xAxisField}
+                                    onChange={(item) => setXAxisField(item.value)}
+                                    items={[{label: t('selectPlaceholder', 'Choisir...'), value: ''}, ...xAxisOptions]}
+                                    required={!isGroupingChart}
+                                    disabled={xAxisOptions.length === 0}
+                                    hint={xAxisOptions.length === 0 ? t('chartConfigModal.noXAxisFields', 'Aucun champ utilisable pour l\'axe X') : ''}
+                                />
+                                {isTemporal && (
+                                    <SelectField
+                                        label={t('charts.timeUnit', 'Échelle de temps')}
+                                        value={timeUnit}
+                                        onChange={(item) => setTimeUnit(item.value)}
+                                        items={[
+                                            { value: 'minute', label: t('time.minute', 'Minute') },
+                                            { value: 'hour', label: t('time.hour', 'Heure') },
+                                            { value: 'day', label: t('time.day', 'Jour') },
+                                            { value: 'week', label: t('time.week', 'Semaine') },
+                                            { value: 'month', label: t('time.month', 'Mois') },
+                                            { value: 'year', label: t('time.year', 'Année') },
+                                        ]}
+                                        hint={t('charts.timeUnitHelp', "Définit l'unité de regroupement pour l'axe des dates.")}
+                                    />
+                                )}
+                            </>
                         )}
 
                         {/* Axe Y (inchangé) */}

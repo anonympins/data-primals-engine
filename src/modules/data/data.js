@@ -4699,7 +4699,7 @@ export async function handleDemoInitialization(req, res) {
             res.status(200).json({ success: true, message: "Demo environment initialized successfully.", summary: result.summary });
         } else {
             logger.error(`[Demo Init] Pack installation failed for user '${user.username}'.`);
-            res.status(500).json({ success: false, error: 'Demo pack installation failed.', errors: result.errors });
+            res.status(200).json({ success: false, error: 'Demo pack installation failed.', errors: result.errors });
         }
 
     } catch (error) {
