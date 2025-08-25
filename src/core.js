@@ -36,7 +36,7 @@ export function escapeHtml(string){
 export const isDate = dt => String(new Date(dt)) !== 'Invalid Date'
 
 export const safeAssignObject = (obj, key, value) => {
-    if( !["__proto__", "constructor"].includes(key)){
+    if( !["__proto__", "constructor", "prototype"].includes(key)){
         obj[key] = value;
     }
 }
@@ -351,13 +351,13 @@ export const event_trigger = (name, ...params) => {
 };
 export const event_on = (name, callback) => {
     if (!Array.isArray(triggers[name])) {
-        triggers[name] = [];
+        safeAssignObject(triggers, name, []);
     }
     triggers[name].push({ callback });
 };
 export const event_off = (name, callback) => {
     if (callback && triggers[name]) {
-        triggers[name] = triggers[name].filter((f) => f.callback !== callback);
+        safeAssignObject(triggers, name, triggers[name].filter((f) => f.callback !== callback));
     } else {
         triggers[name] = undefined;
     }

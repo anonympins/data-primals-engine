@@ -1,4 +1,4 @@
-import {isPlainObject} from "../../core.js";
+import {isPlainObject, safeAssignObject} from "../../core.js";
 import {getCollection, getCollectionForUser, isObjectId, ObjectId} from "../mongodb.js";
 import {getModel, handleDemoInitialization} from "./data.js";
 import { Event} from "../../events.js"
@@ -55,10 +55,10 @@ function calculateDiff(beforeDoc, afterDoc, historizedFields) {
         const afterValue = afterDoc[fieldName];
 
         if (!isEqual(beforeValue, afterValue)) {
-            changes[fieldName] = {
+            safeAssignObject(changes, fieldName, {
                 from: beforeValue,
                 to: afterValue
-            };
+            });
         }
     }
     // Retourne null si aucun changement n'a été détecté, ce qui est plus facile à vérifier qu'un objet vide.

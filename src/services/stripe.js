@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import {editData, insertData, searchData} from '../modules/data/index.js';
 import {getEnv} from "../modules/user.js";
+import {safeAssignObject} from "../core.js";
 
 const stripeInstances = {};
 
@@ -15,10 +16,10 @@ async function getStripeClient(user) {
     if (!stripeInstances[userId]) {
         const env = await getEnv(user);
         if (env.STRIPE_SECRET_KEY) {
-            stripeInstances[userId] = {
+            safeAssignObject(stripeInstances, userId, {
                 client: new Stripe(env.STRIPE_SECRET_KEY),
                 webhookSecret: env.STRIPE_WEBHOOK_SECRET
-            };
+            });
         }
     }
     return stripeInstances[userId] || null;

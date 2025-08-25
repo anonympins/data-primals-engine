@@ -1,4 +1,4 @@
-
+import {safeAssignObject} from "./core.js";
 
 
 const config = [];
@@ -11,6 +11,6 @@ export const Config = {
         return config[name];
     },
     Set: (name, value) => {
-        config[name] = value;
+        safeAssignObject(config, name, value);
     }
 }
