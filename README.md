@@ -129,10 +129,11 @@ By default, the app runs on port **7633** : http://localhost:7633
 
 The engine includes a pluggable system for user management. For development and testing, it uses a `DefaultUserProvider` which creates a volatile **`demo`** user. This is perfect for getting started quickly without setting up a user database.
 
-For production environments, you should extend the base `UserProvider` class to connect to your actual user database (e.g., another MongoDB collection, a SQL database, or an external authentication service). This allows you to implement your own logic for finding users and validating passwords.
+For production environments, you should use SSO providers as seen in the page below, or extend the base `UserProvider` class to connect to your actual user database (e.g., another MongoDB collection, a SQL database, or an external authentication service). This allows you to implement your own logic for finding and creating users.
 
-### Models
-Define schemas using JSON:
+### Model generation
+Models are the way to handle structured data. They organize data and they can be declared in JSON.
+
 ```json
 {
   "name": "product",
@@ -150,12 +151,8 @@ Define schemas using JSON:
   ]
 }
 ```
-### Smart Relations
-- Handles up to 2,000 direct relations by default (can be customized)
-- For larger datasets, use intermediate collections
-- Automatic indexing on key fields
-- Custom indexing on fields
-- Custom fields :
+
+### Custom fields types
 
 | Type        | Description                                                                         | 	Properties/Notes                                                         | 
 |:------------|:------------------------------------------------------------------------------------|:--------------------------------------------------------------------------|
@@ -179,6 +176,13 @@ Define schemas using JSON:
 | color	      | Stores an hexadecimal value of an RGB color	                                        | '#FF0000'                                                                 |                                            
 | model	      | Stores a model by name                                                              | –                                                                         |                                            
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
+
+### Other model features
+- Handles up to 2,000 direct relations by default (can be customized)
+- For larger datasets, use intermediate collections
+- Automatic indexing on key fields
+- Custom indexing on fields
+- Anonymizable fields (encrypted for API users)
 
 ### Model constraints
 ```javascript
