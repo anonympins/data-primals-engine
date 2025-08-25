@@ -2,6 +2,12 @@
 export const websiteTranslations = {
     fr: {
         translation: {
+            "time.minute": "Minute",
+            "time.hour": "Heure",
+            "time.day": "Jour",
+            "time.week": "Semaine",
+            "time.month": "Mois",
+            "time.year": "Année",
             "modelcreator.gauge.hint": "Affiche le champ numérique sous forme de jauge visuelle. Nécessite de définir une valeur minimale et maximale.",
             "modelcreator.percent.hint": "En mode jauge, affiche la valeur sous forme de pourcentage (calculé à partir du min/max) au lieu de la valeur brute.",
 
@@ -600,6 +606,13 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "time.minute":"Minute",
+            "time.hour":"Hour",
+            "time.day":"Day",
+            "time.week":"Week",
+            "time.month":"Month",
+            "time.year":"Year",
+
             "modelcreator.gauge.hint": "Displays the numeric field as a visual gauge. Requires a minimum and maximum value to be set.",
             "modelcreator.percent.hint": "In gauge mode, displays the value as a percentage (calculated from the min/max) instead of the raw value.",
             "duration.unit.days": "days",
@@ -2071,6 +2084,12 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
+            "time.minute": "Minuto",
+            "time.hour": "Hora",
+            "time.day": "Día",
+            "time.week": "Semana",
+            "time.month": "Mes",
+            "time.year": "Año",
             "packs.myPack": "Mi Pack",
             "packs.public": "Público",
             "packs.public.tooltip": "Hacer este pack visible para otros usuarios en la galería.",
@@ -3545,6 +3564,12 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
+            "time.minute":"Minuto",
+            "time.hour":"Hora",
+            "time.day":"Dia",
+            "time.week":"Semana",
+            "time.month":"Mês",
+            "time.year":"Ano",
             "packs.myPack": "Meu Pacote",
             "packs.public": "Público",
             "packs.public.tooltip": "Tornar este pacote visível para outros usuários na galeria.",
@@ -5014,6 +5039,12 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
+            "time.minute":"Minute",
+            "time.hour":"Stunde",
+            "time.day":"Tag",
+            "time.week":"Woche",
+            "time.month":"Monat",
+            "time.year":"Jahr",
             "packs.myPack": "Mein Pack",
             "packs.public": "Öffentlich",
             "packs.public.tooltip": "Dieses Pack für andere Nutzer in der Galerie sichtbar machen.",
@@ -6468,6 +6499,12 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
+            "time.minute":"Minuto",
+            "time.hour":"Ora",
+            "time.day":"Giorno",
+            "time.week":"Settimana",
+            "time.month":"Mese",
+            "time.year":"Anno",
             "packs.myPack": "Il mio pacchetto",
             "packs.public": "Pubblico",
             "packs.public.tooltip": "Rendi questo pacchetto visibile agli altri utenti nella galleria.",
@@ -7935,6 +7972,12 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
+            "time.minute":"Minuta",
+            "time.hour":"Hodina",
+            "time.day":"Den",
+            "time.week":"Týden",
+            "time.month":"Měsíc",
+            "time.year":"Rok",
             "packs.myPack": "Můj balíček",
             "packs.public": "Veřejný",
             "packs.public.tooltip": "Zobrazit tento balíček ostatním uživatelům v galerii.",
@@ -9396,6 +9439,12 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
+            "time.minute":"Минута",
+            "time.hour":"Час",
+            "time.day":"День",
+            "time.week":"Неделя",
+            "time.month":"Месяц",
+            "time.year":"Год",
             "packs.myPack": "Мой пакет",
             "packs.public": "Публичный",
             "packs.public.tooltip": "Сделать этот пакет видимым для других пользователей в галерее",
@@ -10869,6 +10918,7 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
+            "الدقيقة الزمنية": "الدقيقة", "الساعة الزمنية": "الساعة", "اليوم الزمني": "اليوم", "الأسبوع الزمني": "الأسبوع", "الشهر الزمني": "الشهر", "السنة الزمنية": "السنة",
             "packs.myPack": "حزمتي",
             "packs.public": "عامة",
             "packs.public.tooltip": "إظهار هذه الحزمة للمستخدمين الآخرين في المعرض",
@@ -12357,6 +12407,12 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
+            "time.minute":"Minut",
+            "time.hour":"Timme",
+            "time.day":"Dag",
+            "time.week":"Vecka",
+            "time.month":"Månad",
+            "time.year":"År",
             "packs.myPack": "حزمتي",
             "packs.public": "عامة",
             "packs.public.tooltip": "إظهار هذه الحزمة للمستخدمين الآخرين في المعرض",
@@ -13818,6 +13874,12 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
+            "time.minute":"Λεπτό",
+            "time.hour":"Ώρα",
+            "time.day":"Ημέρα",
+            "time.week":"Εβδομάδα",
+            "time.month":"Μήνας",
+            "time.year":"Έτος",
             "packs.myPack": "Το Πακέτο μου",
             "packs.public": "Δημόσιο",
             "packs.public.tooltip": "Κάντε αυτό το πακέτο ορατό σε άλλους χρήστες στη συλλογή.",
@@ -15288,6 +15350,12 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
+            "time.minute":"دقیقه",
+            "time.hour":"ساعت",
+            "time.day":"روز",
+            "time.week":"هفته",
+            "time.month":"ماه",
+            "time.year":"سال",
             "packs.myPack": "بسته من",
             "packs.public": "عمومی",
             "packs.public.tooltip": "این بسته را برای سایر کاربران در گالری قابل مشاهده کنید.",
