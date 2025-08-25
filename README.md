@@ -1,4 +1,4 @@
-# Data Primals Engine
+# data-primals-engine
 [![Node.js CI](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml/badge.svg?branch=main)](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml)
 ![](https://img.shields.io/npm/dw/data-primals-engine)
 ![](https://img.shields.io/npm/last-update/data-primals-engine)
