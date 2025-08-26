@@ -1,12 +1,12 @@
 import {isPlainObject, safeAssignObject} from "../../core.js";
 import {getCollection, getCollectionForUser, isObjectId, ObjectId} from "../mongodb.js";
-import {getModel, handleDemoInitialization} from "./data.js";
+import {handleDemoInitialization} from "./data.js";
 import { Event} from "../../events.js"
 import {Logger} from "../../gameObject.js";
 import {hasPermission, middlewareAuthenticator, userInitiator} from "../user.js";
 import {isLocalUser} from "../../data.js";
+import {getModel} from "./data.operations.js";
 
-let logger;
 /**
  * Compare deux valeurs de manière récursive. Gère les ObjectId, les objets, les tableaux et les primitives.
  * @param {*} a - Première valeur.
@@ -264,13 +264,16 @@ export async function handleGetRevisionRequest(req, res) {
 }
 
 
+
+let engine, logger;
 /**
  * Initialise les écouteurs d'événements pour le module d'historique.
- * @param {object} engine - L'instance du moteur.
+ * @param {object} defaultEngine - L'instance du moteur.
  */
-export function onInit(engine) {
-    logger = engine.getComponent(Logger);
+export function onInit(defaultEngine) {
 
+    engine = defaultEngine;
+    logger = engine.getComponent(Logger);
     engine.get('/api/data/history/:modelName/:recordId', [middlewareAuthenticator, userInitiator], handleGetHistoryRequest);
     engine.get('/api/data/history/:modelName/:recordId/:version', [middlewareAuthenticator, userInitiator], handleGetRevisionRequest);
     engine.post('/api/data/history/:modelName/:recordId/revert/:version', [middlewareAuthenticator, userInitiator], handleRevertToRevisionRequest);

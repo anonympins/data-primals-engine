@@ -367,7 +367,14 @@ export function DataTable({
             body,
             headers: {"Content-Type": "application/json"}
         })
-            .then(resp => resp.status === 200 ? resp.blob() : Promise.reject('something went wrong'))
+            .then(async resp => {
+                if( resp.status === 200 )
+                    return resp.blob();
+                else {
+                    const res = await resp.json();
+                    throw new Error(res.error || 'something went wrong')
+                }
+            })
             .then((blob) => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -380,11 +387,10 @@ export function DataTable({
                 window.URL.revokeObjectURL(url);
             })
             .then(e => {
-
                 const notificationData = {
-                    title: t('dataimporter.success', 'Exportation de ' + model.name + ' réussie'),
-                    icon: <FaInfo/>,
-                    status: 'completed'
+                    title: e.success ? t('dataimporter.success', 'Exportation de ' + model.name + ' réussie'): e.error,
+                    icon: e.success ? <FaInfo/> : null,
+                    status: e.success ? 'completed' : 'error'
                 };
                 addNotification(notificationData);
                 return e;

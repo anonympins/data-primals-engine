@@ -13,7 +13,6 @@ import {
 import http from "http";
 import cookieParser from "cookie-parser";
 import requestIp from 'request-ip';
-import {createModel, deleteModels, getModels, installAllPacks, validateModelStructure} from "./modules/data/data.js";
 import {defaultModels} from "./defaultModels.js";
 import {DefaultUserProvider} from "./providers.js";
 import formidableMiddleware from 'express-formidable';
@@ -22,6 +21,8 @@ import * as tls from "node:tls";
 import {Event} from "./events.js";
 import path from "node:path";
 import { fileURLToPath } from 'node:url';
+import {validateModelStructure} from "./modules/data/data.validation.js";
+import {createModel, deleteModels, getModels, installAllPacks} from "./modules/data/data.operations.js";
 // Constants
 
 // On définit __dirname pour obtenir le chemin absolu du répertoire courant,
