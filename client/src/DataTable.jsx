@@ -71,7 +71,8 @@ const Header = ({
                     filterActive,
                     onChangeFilterValue,
                     setFilterValues,
-                    filterValues
+                    filterValues,
+                    advanced=true
                 }) => {
 
     const {t} = useTranslation()
@@ -92,13 +93,13 @@ const Header = ({
         setAdvancedFilterVisible(true);
     }
     return <><tr className={reversed ? ' reversed' : ''}>
-        <th className={"mini"}>
+        {advanced && (<th className={"mini"}>
             <div className="flex flex-row">
 
                 <Button onClick={handleFilter} className={filterActive ? ' active' : ''}><FaFilter/></Button>
                 {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
-                <CheckboxField checked={checkedItems.length === data.length} onChange={e => {
-                    if (checkedItems.length === data.length) {
+                <CheckboxField checked={checkedItems?.length === data.length} onChange={e => {
+                    if (checkedItems?.length === data.length) {
                         setCheckedItems([]);
                     } else {
                         setCheckedItems(data);
@@ -126,8 +127,8 @@ const Header = ({
                     )}
                 </DialogProvider>
             </div>
-        </th>
-        {model.fields.map(field => {
+        </th>)}
+        {(model?.fields || []).map(field => {
             if (field.type === 'password')
                 return <></>;
             if( field.type === 'relation' && !models.find(f => f.name === field.relation && f._user === me?.username ))
@@ -143,11 +144,11 @@ const Header = ({
             </th>;
 
             totalCol++;
-            return <FilterField reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
+            return <FilterField advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
                                 model={model} field={field} active={filterActive}
                                 onChangeFilterValue={onChangeFilterValue}/>;
         })}
-        <th><Trans i18nKey="actions">Actions</Trans>
+        {advanced && (<th><Trans i18nKey="actions">Actions</Trans>
             {Object.keys(pagedFilters[model.name] || {})
                 .filter(f=> Object.keys(pagedFilters[model.name]?.[f] || {}).length > 0).length > 0  && <div>
                 <button onClick={() => {
@@ -155,7 +156,7 @@ const Header = ({
                     setPagedFilters(pagedFilters => ({...pagedFilters, [model.name]: {}}));
                 }}><FaEraser />
                 </button>
-            </div>}</th>
+            </div>}</th>)}
     </tr>
         {reversed && (
             <tr>
@@ -237,14 +238,17 @@ const RichText = ({ value, initialLang }) => {
 export function DataTable({
                               model,
                               checkedItems,
-                              setCheckedItems,
+                              setCheckedItems = () => {},
                               onEdit,
                               onAddData,
                               onDuplicateData,
                               onDelete,
                               onShowAPI,
                               filterValues,
-                              setFilterValues
+                              setFilterValues = () => {},
+                              data: propData, // NOUVEAU: Accepter les données via les props
+                                advanced=true
+
                           }) {
     const {
         models,
@@ -260,14 +264,14 @@ export function DataTable({
     const {t, i18n} = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     const queryClient = useQueryClient();
-    const {me} = useAuthContext()
+    const {me} = useAuthContext();
 
+    // Si des données sont passées en props, on les utilise, sinon on prend celles du contexte.
+    const data = propData || paginatedDataByModel[model?.name] || [];
 
     const isDataLoaded = true;
     const [importVisible, setImportVisible] = useState(false);
     const [filterActive, setFilterActive] = useState(false)
-
-    const data = paginatedDataByModel[model?.name] || [];
 
     const [showPackGallery, setShowPackGallery] = useState(false);
     const [showExportDialog, setExportDialogVisible] = useState(false);
@@ -475,7 +479,7 @@ export function DataTable({
     };
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {<div className="flex actions flex-left">
+            {advanced && <div className="flex actions flex-left">
                 <Button onClick={() => onAddData(model)}><FaPlus/><Trans i18nKey="btns.addData">Ajouter une
                     donnée</Trans></Button>
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
@@ -500,7 +504,7 @@ export function DataTable({
                     onShowAPI(selectedModel);
                 }}><FaBook/> {t('btns.api', 'API')}</Button>
             </div>}
-            <div className="table-wrapper">
+            <div className={"table-wrapper"}>
                 <Tooltip id={"tooltipFile"} clickable={true} />
                 <Tooltip id={"tooltipActions"} />
                 <Lightbox
@@ -517,7 +521,7 @@ export function DataTable({
                 {isDataLoaded && (
                     <table>
                         <thead>
-                        <Header model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>
+                        <Header advanced={advanced} model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>
                         </thead>
                         <tbody>
                         {(data || []).map((item) => (
@@ -532,9 +536,9 @@ export function DataTable({
                                         setCheckedItems(items => items.filter(i => i._id !== item._id));
                                     }
                                 }}>
-                                    <td className={"mini"}>
+                                    {advanced && (<td className={"mini"}>
                                         <CheckboxField className={"input-ref"}
-                                                       checked={checkedItems.some(i => i._id === item._id)}
+                                                       checked={checkedItems?.some(i => i._id === item._id)}
                                                        onChange={(e) => {
                                                            if (e) {
                                                                setCheckedItems(items => {
@@ -543,8 +547,8 @@ export function DataTable({
                                                            } else {
                                                                setCheckedItems(items => items.filter(i => i._id !== item._id));
                                                            }
-                                                       }}/></td>
-                                    {model.fields.map(field => {
+                                                       }}/></td>)}
+                                    {(model?.fields ||[]).map(field => {
 
                                         if( !isConditionMet(model, field.condition, item, models, me)){
                                             return <td className={"notmet"} key={item._id + field.name}></td>; // Do not render the header cell if the condition isn't met
@@ -744,7 +748,7 @@ export function DataTable({
                                         return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>
                                             {hiddenable(item[field.name])}</td>;
                                     })}
-                                    <td>
+                                    {advanced && (<td>
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.edit', 'Modifier')}
                                                 onClick={() => handleEdit(item)}><FaPencil/></button>
@@ -766,7 +770,7 @@ export function DataTable({
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.delete', 'Supprimer')}
                                                 onClick={() => handleDelete(item)}><FaTrash/></button>
-                                    </td>
+                                    </td>)}
                                 </tr>
                             </DialogProvider></>
                         ))}
@@ -774,7 +778,7 @@ export function DataTable({
                         </tbody>
 
                         <tfoot>
-                        {data.length > 10 && (<Header reversed={true} model={model} setCheckedItems={setCheckedItems}
+                        {data.length > 10 && (<Header advanced={advanced} reversed={true} model={model} setCheckedItems={setCheckedItems}
                                                       filterValues={filterValues} data={data}
                                                       setFilterValues={setFilterValues}
                                                       onChangeFilterValue={onChangeFilterValue}

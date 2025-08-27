@@ -74,36 +74,39 @@ const createSystemPrompt = (modelDefs, lang) => {
 Tu es "Prior", un assistant expert en analyse de données pour le moteur data-primals-engine..
 Ta mission est d'aider l'utilisateur en répondant à ses questions sur ses données.
 
+REGLE FONDATRICE : suis les règles et ne dévie pas du chemin.
+STYLE UTILISE : apporte l'information au plus rapide, sans détours, ni sollicitation à l'utilisateur, ou à des tiers.
 
 FORMAT DE RÉPONSE OBLIGATOIRE :
 Un SEUL objet JSON valide contenant exactement 2 champs :
 1. "action" (string) 
 2. "params" (object)
 
-Tu as accès aux outils suivants. 
+Tu as accès aux outils et actions suivants.
 
-OUTILS PRIORITAIRE: (à utiliser avant toute opération sur les données)
+OUTILS DE RAISONNEMENT INTERNE: (Utilisés pour collecter de l'information avant de décider de l'action finale)
 1.  **search_models**: Pour rechercher les modèles de données disponibles.
     - Utilisation: { "action": "search_models", "params": { "query": "^regexToSearchFor$" } }
 ====
 
-2.  **search**: Pour chercher des informations dans les données de l'utilisateur.
+ACTIONS FINALES: (Actions qui terminent ta réflexion et renvoient un résultat à l'utilisateur)
+1.  **search**: Pour chercher des informations et les AFFICHER à l'utilisateur sous forme de tableau.
     - Utilisation: { "action": "search", "params": { "model": "nomDuModele", "filter": {}, "limit": 10 } }
 
-3.  **post**: Pour créer une nouvelle donnée.
+2.  **post**: Pour créer une nouvelle donnée (nécessite confirmation).
     - Utilisation: { "action": "post", "params": { "model": "nomDuModele", "data": {} } }
 
-4.  **update**: Pour mettre à jour des données existantes.
+3.  **update**: Pour mettre à jour des données existantes (nécessite confirmation).
     - Utilisation: { "action": "update", "params": { "model": "nomDuModele", "filter": {}, "data": {} } }
     - filter est très pratique pour mettre à jour des données ciblées en une seule passe.
 
-5.  **delete**: Pour supprimer des données.
+4.  **delete**: Pour supprimer des données (nécessite confirmation).
     - Utilisation: { "action": "delete", "params": { "model": "nomDuModele", "filter": {} } }
 
-6.  **displayMessage**: Pour répondre directement à l'utilisateur. N'utilise cette action QUE lorsque tu as toutes les informations nécessaires pour formuler une réponse finale.
+5.  **displayMessage**: Pour répondre avec un simple message texte. N'utilise cette action QUE lorsque tu as toutes les informations nécessaires pour formuler une réponse finale.
     - Utilisation: { "action": "displayMessage", "params": { "message": "Ta réponse textuelle." } }
     
-7.  **generateChart**: Pour créer et afficher un graphique à partir des données. 
+6.  **generateChart**: Pour créer et afficher un graphique. 
     - Utilisation: { "action": "generateChart", "params": { ...config } }
     - Le paramètre \`config\` doit contenir :
         - \`title\` (string): Un titre clair pour le graphique.
@@ -135,8 +138,8 @@ PROCESSUS DE RAISONNEMENT:
 a- L'utilisateur pose une question, ou demande une action de ta part.
 b- Utilise l'outil **search_models** pour trouver le(s) modèle(s) qui correspondent à la question.
  Si tu as déjà fait la recherche dans la conversation, garde la définition initiale et n'effectue pas de recherche, va directement à l'étape c
-c- Une fois la réponse retournée et intégrée, tu pourras utiliser les autres outils (search, post, etc.) dans la conversation pour satisfaire la question initiale, en utilisant les informations des modèles précédents (COMMANDE FINALE)
-Si tu ne sais pas quelle commande utiliser, réponds à l'utilisateur avec "displayMessage".
+c- Une fois la réponse retournée et intégrée, tu devras utiliser les autres outils (search, post, etc.) dans la conversation pour satisfaire la question initiale, en utilisant les informations des modèles précédents (COMMANDE FINALE)
+Si tu n'as aucune commande à exécuter directement, réponds simplement à l'utilisateur avec "displayMessage".
 
 CONTEXTE ACTUEL:
 - Date du jour de la conversation : ${dt}
@@ -204,6 +207,34 @@ Ma question: Bonjour, je voudrais les requêtes effectuées aujourd'hui sur le m
 Ta réponse: { "action" : "search_models", "params": { "query": "request" } }
 COMMANDE FINALE : 
 { "action" : "search", "params" : { "model": "request", "filter": { "$and": [{"$gte": "${dt}"}, {"$regexMatch": { "input": "$url", "regex": "content"}}] }, "limit" : 10, "sort" : "_id:DESC" }}`;
+}
+
+/**
+ * Corrige un filtre généré par l'IA qui pourrait avoir plusieurs opérateurs
+ * au premier niveau sans les encapsuler dans un "$and".
+ * @param {object} filter - Le filtre potentiellement incorrect.
+ * @returns {object} Le filtre corrigé.
+ */
+function correctAIFilter(filter) {
+    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+        return filter; // Pas un objet à corriger
+    }
+
+    const keys = Object.keys(filter);
+    if (keys.length <= 1) {
+        return filter; // Rien à corriger
+    }
+
+    // Vérifie si toutes les clés sont des opérateurs (commencent par '$')
+    const allKeysAreOperators = keys.every(key => key.startsWith('$'));
+
+    if (allKeysAreOperators) {
+        logger.warn(`[Assistant] Correction d'un filtre malformé généré par l'IA. Original: ${JSON.stringify(filter)}`);
+        const andConditions = keys.map(key => ({ [key]: filter[key] }));
+        return { '$and': andConditions };
+    }
+
+    return filter; // Aucune correction nécessaire
 }
 
 /**
@@ -348,15 +379,36 @@ async function handleChatRequest(message, history, provider, context, user, conf
             };
         }
 
-        logger.debug(`[Assistant] Action décidée par l'IA: ${parsedResponse.action}`);
+        logger.debug(`[Assistant] Action décidée par l'IA: ${parsedResponse.action}`, parsedResponse);
         conversationHistory.push(new SystemMessage(JSON.stringify(parsedResponse)));
 
         const { action, params } = parsedResponse;
+
+        // Correction automatique du filtre généré par l'IA, qui hallucine parfois
+        if (params && params.filter) {
+            logger.debug(`[Assistant] Filtre original de l'IA: ${JSON.stringify(params.filter)}`);
+            params.filter = correctAIFilter(params.filter);
+        }
 
         // Action de génération de graphique, gérée par le front-end
         if (action === 'generateChart') {
             // On retourne directement la configuration du graphique au client.
             return { success: true, chartConfig: params };
+        }
+
+        // NOUVEAU: Action de recherche à afficher, gérée par le front-end
+        if (action === 'search') {
+            const searchResult = await searchData({
+                model: params.model,
+                filter: params.filter,
+                limit: params.limit || 10,
+                sort: params.sort
+            }, user);
+            if (searchResult.data?.length > 0) {
+                return { success: true, dataResult: { model: params.model, data: searchResult.data } };
+            } else {
+                return { success: true, displayMessage: i18n.t('assistant.search.noResults', "Je n'ai trouvé aucun résultat.") };
+            }
         }
 
         // Actions nécessitant une confirmation de l'utilisateur
@@ -374,8 +426,8 @@ async function handleChatRequest(message, history, provider, context, user, conf
             return { success: true, displayMessage: params.message };
         }
 
-        // Actions à exécuter immédiatement (outils)
-        if (['search', 'search_models'].includes(action)) {
+        // Outils pour le raisonnement interne de l'IA
+        if (['search_models'].includes(action)) { // On a enlevé 'search' d'ici
             const toolResult = await executeTool(action, params, user, allModels);
             conversationHistory.push(new SystemMessage(`Résultat de l'outil '${action}':\n${toolResult}`));
             continue; // On continue la boucle pour que l'IA puisse raisonner avec ce nouveau résultat
