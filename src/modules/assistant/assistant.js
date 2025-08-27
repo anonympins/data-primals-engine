@@ -58,7 +58,7 @@ async function searchModels(query, user) {
         $or: [{ _user: user.username }, { _user: { $exists: false } }],
         $and: [{ $or: [{ name: { $regex: searchRegex } }, { description: { $regex: searchRegex } }] }]
     }, {
-        projection: { name: 1, description: 1, _id: 0 }
+        projection: { name: 1, description: 1, fields: 1, _id: 0 }
     }).limit(10).toArray();
 }
 
@@ -79,34 +79,41 @@ FORMAT DE RÉPONSE OBLIGATOIRE :
 Un SEUL objet JSON valide contenant exactement 2 champs :
 1. "action" (string) 
 2. "params" (object)
-    2.1 : query (string) : Les mots clés de la recherche
-    2.2 : filter (object) : Les filtres de la recherche
-    2.3 : limit (number) : Le nombre de résultats à afficher
-    2.4 : sort (string) : La clé de tri de la recherche
-    2.6 : model (string) : Le nom du modèle à utiliser
-    2.7 : data (object) : Les données à ajouter à la base de données
 
 Tu as accès aux outils suivants. 
 
-NOUVEL OUTIL PRIORITAIRE:
-1.  **search_models**: À utiliser EN PREMIER SI TU NE SAIS PAS QUEL MODÈLE UTILISER pour répondre à la question de l'utilisateur. Si tu l'as déjà recherché, garde la définition initiale et n'effectue pas de recherche.
-    - Utilisation: { "action": "search_models", "params": { "query": "mots-clés de la recherche" } }
-    
-1.  **search**: Pour chercher des informations dans les données de l'utilisateur.
+OUTILS PRIORITAIRE: (à utiliser avant toute opération sur les données)
+1.  **search_models**: Pour rechercher les modèles de données disponibles.
+    - Utilisation: { "action": "search_models", "params": { "query": "^regexToSearchFor$" } }
+====
+
+2.  **search**: Pour chercher des informations dans les données de l'utilisateur.
     - Utilisation: { "action": "search", "params": { "model": "nomDuModele", "filter": {}, "limit": 10 } }
 
-2.  **post**: Pour créer une nouvelle donnée.
+3.  **post**: Pour créer une nouvelle donnée.
     - Utilisation: { "action": "post", "params": { "model": "nomDuModele", "data": {} } }
 
-3.  **update**: Pour mettre à jour des données existantes.
+4.  **update**: Pour mettre à jour des données existantes.
     - Utilisation: { "action": "update", "params": { "model": "nomDuModele", "filter": {}, "data": {} } }
     - filter est très pratique pour mettre à jour des données ciblées en une seule passe.
 
-4.  **delete**: Pour supprimer des données.
+5.  **delete**: Pour supprimer des données.
     - Utilisation: { "action": "delete", "params": { "model": "nomDuModele", "filter": {} } }
 
-5.  **displayMessage**: Pour répondre directement à l'utilisateur. N'utilise cette action QUE lorsque tu as toutes les informations nécessaires pour formuler une réponse finale.
+6.  **displayMessage**: Pour répondre directement à l'utilisateur. N'utilise cette action QUE lorsque tu as toutes les informations nécessaires pour formuler une réponse finale.
     - Utilisation: { "action": "displayMessage", "params": { "message": "Ta réponse textuelle." } }
+    
+7.  **generateChart**: Pour créer et afficher un graphique à partir des données. 
+    - Utilisation: { "action": "generateChart", "params": { ...config } }
+    - Le paramètre \`config\` doit contenir :
+        - \`title\` (string): Un titre clair pour le graphique.
+        - \`model\` (string): Le nom du modèle de données à utiliser.
+        - \`type\` (string): Le type de graphique. Peut être 'bar', 'line', 'pie', 'doughnut'.
+        - \`aggregationType\` (string): Comment agréger les données. 'count' (par défaut), 'sum', 'avg', 'min', 'max'.
+        - \`xAxis\` (string): (Pour bar/line) Le champ pour l'axe des X. Un champ de type date, enum ou string du modèle.
+        - \`groupBy\` (string): (Pour pie/doughnut) Le champ sur lequel grouper les données (un champ enum ou relation du modèle).
+        - \`yAxis\` (string): (Optionnel, sauf pour sum/avg/min/max) Le champ numérique à agréger du modèle.
+        - \`filter\` (object): (Optionnel, filtre de la recherche, même écriture stricte que pour les filtres de recherche (voir plus bas pour les exemples) 
 
 Voici le mémo pour assigner des valeurs aux champs des modèles,avec ces types de données : 
 utilise une chaine de caractère convertible en ObjectId (mongodb) lorsque le nom du champ est _id 
@@ -125,15 +132,14 @@ utilise la valeur en héxadecimal, ex: '#FF0000' pour les champs de type : color
 utilise les valeurs de cron standard '* * * * * *' pour : cronSchedule 
 
 PROCESSUS DE RAISONNEMENT:
-1. L'utilisateur pose une question.
-2. Si le nom du modèle n'est pas évident, utilise d'abord l'outil "search_models" pour trouver le bon modèle.
-3. Une fois le modèle identifié, utilise les autres outils (search, post, etc.) pour effectuer l'action.
-4. Si tu as assez d'informations, réponds à l'utilisateur avec "displayMessage".
-
-Chacune de tes réponses doit être une étape en soi, ou au plus près d'une étape.
+a- L'utilisateur pose une question, ou demande une action de ta part.
+b- Utilise l'outil **search_models** pour trouver le(s) modèle(s) qui correspondent à la question.
+ Si tu as déjà fait la recherche dans la conversation, garde la définition initiale et n'effectue pas de recherche, va directement à l'étape c
+c- Une fois la réponse retournée et intégrée, tu pourras utiliser les autres outils (search, post, etc.) dans la conversation pour satisfaire la question initiale, en utilisant les informations des modèles précédents (COMMANDE FINALE)
+Si tu ne sais pas quelle commande utiliser, réponds à l'utilisateur avec "displayMessage".
 
 CONTEXTE ACTUEL:
-- Date du jour de ton conversateur : ${dt}
+- Date du jour de la conversation : ${dt}
 - La langue ISO à utiliser dans la conversation : ${lang}
 - L'utilisateur a accès aux modèles de données suivants et ne peut utiliser les filtres que sur les champs associés:
 Si tu as besoin de savoir lesquels, utilise l'outil "search_models".
@@ -143,35 +149,60 @@ Si tu as besoin de savoir lesquels, utilise l'outil "search_models".
 
 Par exemple :  
 Question : Je voudrais les événements non terminés, qui ne sont pas des festivals ou des salons :
-Réponse : { "action" : "search", "params" : ${cond1} }
+Ta réponse: { "action" : "search_models", "params": { "query": "event|événement" } }
+COMMANDE FINALE : { "action" : "search", "params" : ${cond1} }
 
 Question : Donne moi les 5 nouvelles entreprises
-Réponse : { "action" : "search", "params" : ${cond2} }
+Ta réponse: { "action" : "search_models", "params": { "query": "company|entreprise" } }
+COMMANDE FINALE : { "action" : "search", "params" : ${cond2} }
 
 Question : Je veux les 10 dernières traductions ajoutées dans la langue française.
-Réponse : { "action" : "search", "params" : ${cond3} }
+Ta réponse: { "action" : "search_models", "params": { "query": "translation|traduction" } }
+COMMANDE FINALE : { "action" : "search", "params" : ${cond3} }
 
 Question : Je veux les commandes qui ont été faites par un admin ou un modérateur
-Réponse : { "action" : "search", "params" : ${cond4} }
-====
+Ta réponse: { "action" : "search_models", "params": { "query": "order|commande" } }
+COMMANDE FINALE : { "action" : "search", "params" : ${cond4} }
 
+Question : Fais-moi un camembert des produits par catégorie.
+Ta réponse: { "action" : "search_models", "params": { "query": "product|produit" } }
+COMMANDE FINALE :
+{
+  "action": "generateChart",
+  "params": {
+    "title": "Répartition des produits par catégorie",
+    "model": "product",
+    "type": "pie",
+    "groupBy": "category",
+    "aggregationType": "count",
+    "filter": { "$and": [{"$gt": ["$publishedAt", "2023-10-05T20:12:00Z"]}, {"$lte": ["$publishedAt", "2024-10-05T20:12:00Z"]} ]}
+  }
+}
+
+Absolute rules:
+====
 NEVER use the non-aggregated syntax of the MongoDB operators :
-Use { '$gt': ["$publishedAt", "2023-10-05T20:12:00Z" } } } and NOT { publishedAt: { '$gt': '2023-10-05T20:12:00Z' } } }
+Use { "$gt": ["$publishedAt", "2023-10-05T20:12:00Z" ] } and NOT { "publishedAt": { "$gt": "2023-10-05T20:12:00Z" } }
+=====
+If several filters must be combined or juxtaposed, the operators $and, $or, $nor, $not MUST be used to make the logic.
+You need at least one of these operators.
+Example : 
+Use filters like this: { "$and": [{"$gt": ["$publishedAt", "2023-10-05T20:12:00Z"]}, {"$lte": ["$publishedAt", "2024-10-05T20:12:00Z"]} ]}
+You MUST NOT write filters like this : {"$gt": ["$publishedAt", "2023-10-05T20:12:00Z"], "$lte": ["$publishedAt", "2024-10-05T20:12:00Z"]}  without the $and operator
 =====
 Et si tu dois utiliser une date :
 "2025-08-05T20:12:00Z" au lieu de { "$date": "2025-08-05T20:12:00Z" }
 =====
-Si plusieurs filtres doivent être combinés, utilise OBLIGATOIREMENT les opérateurs $and, $or, $nor, $not
-=====
-
-Règles ABSOLUES:
 - UNE SEULE COMMANDE JSON PAR RÉPONSE
 - AUCUN TEXTE HORS DU JSON
+- PAS de MARKDOWN pour formatter le JSON, juste le JSON {...} brut.
+=====
 
 Exemple d'échange correct :
 
 Ma question: Bonjour, je voudrais les requêtes effectuées aujourd'hui sur le modèle "content".
-Ta réponse:
+Ta réponse: { "action" : "search_models", "params": { "query": "request" } }
+COMMANDE FINALE : 
 { "action" : "search", "params" : { "model": "request", "filter": { "$and": [{"$gte": "${dt}"}, {"$regexMatch": { "input": "$url", "regex": "content"}}] }, "limit" : 10, "sort" : "_id:DESC" }}`;
 }
 
@@ -216,7 +247,7 @@ async function executeTool(action, params, user, allModels) {
 
             if (foundModels.length > 0) {
                 return "J'ai trouvé les modèles suivants qui pourraient correspondre : " +
-                        foundModels.map(m => `\n- Modèle "${m.name}": ${m.description || 'Pas de description.'}`).join('');
+                        foundModels.map(m => `\n- Modèle "${m.name}": ${m.description || 'Pas de description.'}\n- Champs: ${m.fields.map(f => JSON.stringify(f, null, 2))}`).join('');
             } else {
                 return "Je n'ai trouvé aucun modèle correspondant à votre recherche.";
             }
@@ -286,7 +317,7 @@ async function handleChatRequest(message, history, provider, context, user, conf
     // --- PRÉPARATION DE L'HISTORIQUE DE CONVERSATION ---
     const systemPrompt = createSystemPrompt([], user.lang || 'en');
     const conversationHistory = history
-        .filter(msg => !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
+        .filter(msg => msg.text && !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
         .map(msg => new (msg.from === 'user' ? HumanMessage : SystemMessage)(msg.text));
 
     conversationHistory.unshift(new SystemMessage(systemPrompt));
@@ -321,6 +352,12 @@ async function handleChatRequest(message, history, provider, context, user, conf
         conversationHistory.push(new SystemMessage(JSON.stringify(parsedResponse)));
 
         const { action, params } = parsedResponse;
+
+        // Action de génération de graphique, gérée par le front-end
+        if (action === 'generateChart') {
+            // On retourne directement la configuration du graphique au client.
+            return { success: true, chartConfig: params };
+        }
 
         // Actions nécessitant une confirmation de l'utilisateur
         if (['post', 'update', 'delete'].includes(action)) {
