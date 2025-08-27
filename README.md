@@ -33,15 +33,6 @@
 - **📦 Starter Packs**: Quickly bootstrap applications with pre-built data packs for CRM, e-commerce, and more.
 - **📄Auto-Generated API Documentation**: Interactive API documentation available via the interface or at `/api-docs`.
 
-## ⚛️ Frontend Integration (React)
-
-This engine is designed to work seamlessly with its dedicated client library, **`data-primals-engine/client`**. This library provides a complete set of React hooks and UI components to build a rich, data-centric user interface on top of the backend.
-
-While this README focuses on the backend engine and its API, you can find detailed instructions on how to integrate the client part in your React application here:
-
-➡️ **[View the Frontend Integration Guide](https://github.com/anonympins/data-primals-engine/tree/develop/client)**
-
-
 ## 🌟 Why Choose data-primals-engine?
 
 - **Zero Boilerplate**: Focus on your business logic, not infrastructure
@@ -828,6 +819,16 @@ Results are merged together if multiple events are triggered.
 - booleans are ANDed
 - arrays are concatenated
 - objects are merged using spread operator
+
+---
+
+## ⚛️ Frontend Integration (React)
+
+This engine is designed to work seamlessly with its dedicated client library, **`data-primals-engine/client`**. This library provides a complete set of React hooks and UI components to build a rich, data-centric user interface on top of the backend.
+
+While this README focuses on the backend engine and its API, you can find detailed instructions on how to integrate the client part in your React application here:
+
+➡️ **[View the Frontend Integration Guide](https://github.com/anonympins/data-primals-engine/tree/develop/client)**
 
 
 ---
