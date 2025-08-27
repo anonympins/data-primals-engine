@@ -15,9 +15,10 @@ import {getUserHash, getUserId} from "../../src/data.js";
 import {useNavigation} from "react-router";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import {useNavigate} from "react-router-dom";
+import {DataTable} from "./DataTable.jsx";
 
 const AssistantChat = ({ config }) => {
-    const { selectedModel } = useModelContext();
+    const { selectedModel, models } = useModelContext();
     const { me } = useAuthContext();
     const nav = useNavigate();
     const { t } = useTranslation();
@@ -115,13 +116,15 @@ const AssistantChat = ({ config }) => {
                 }
 
                 // On ajoute le message à la liste uniquement s'il a du contenu textuel
-                // NOUVEAU : Si un graphique est demandé
                 if (result.chartConfig) {
                     botMessage.chartConfig = result.chartConfig;
                 }
-
+                // Si des données tabulaires sont retournées
+                if (result.dataResult) {
+                    botMessage.dataResult = result.dataResult;
+                }
                 // On ajoute le message à la liste uniquement s'il a du contenu textuel ou un graphique
-                if (botMessage.text || botMessage.chartConfig) {
+                if (botMessage.text || botMessage.chartConfig || botMessage.dataResult) {
                     setMessages(prev => [...prev, botMessage]);
                 }
 
@@ -257,6 +260,13 @@ const AssistantChat = ({ config }) => {
                                         </span>
                                     </Button>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* NOUVEAU : Affichage des données tabulaires */}
+                        {msg.dataResult && (
+                            <div className="data-table-container">
+                                <DataTable model={models.find(f => f.name === msg.dataResult.model)} advanced={false} data={msg.dataResult.data} />
                             </div>
                         )}
                         {msg.actionDetails && (
