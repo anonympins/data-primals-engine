@@ -23,7 +23,7 @@ import {getHost} from "../constants.js";
 import {providers} from "./assistant/constants.js";
 import {ChatAnthropic} from "@langchain/anthropic";
 import {getAIProvider} from "./assistant/assistant.js";
-import {escapeRegex} from "../core.js";
+import {escapeRegex, safeAssignObject} from "../core.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -1143,7 +1143,8 @@ export async function substituteVariables(template, contextData, user) {
         const newObj = {};
         for (const key in template) {
             if (Object.prototype.hasOwnProperty.call(template, key)) {
-                newObj[key] = await substituteVariables(template[key], contextData, user);
+                const val = await substituteVariables(template[key], contextData, user);
+                safeAssignObject(newObj, key, val);
             }
         }
         return newObj;

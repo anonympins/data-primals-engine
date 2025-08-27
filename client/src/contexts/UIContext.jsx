@@ -11,6 +11,8 @@ export const UIProvider = ({ children }) => {
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [allTourSteps, setAllTourSteps] = useState({});
 
+    const [chartToAdd, setChartToAdd] = useState(null);
+
     const [currentTour, setCurrentTour] = useLocalStorage("spotlight-tour", null);
 // This is the single source of truth for tours that have been launched.
     // It correctly reads from localStorage on initial load and persists any changes.
@@ -36,14 +38,15 @@ export const UIProvider = ({ children }) => {
         launchedTours, setLaunchedTours, addLaunchedTour,
         currentTour, setCurrentTour,
         isTourOpen, setIsTourOpen, setAllTourSteps, allTourSteps,
-        tourStepIndex, setTourStepIndex
+        tourStepIndex, setTourStepIndex, chartToAdd, setChartToAdd
     }), [isLocked,
         setLocked,
         currentTourSteps, setCurrentTourSteps,
         launchedTours,setLaunchedTours,
         currentTour, setCurrentTour,
         isTourOpen, setIsTourOpen, setAllTourSteps, allTourSteps,
-        tourStepIndex, setTourStepIndex, addLaunchedTour]);
+        tourStepIndex, setTourStepIndex, addLaunchedTour,
+        chartToAdd, setChartToAdd]);
 
     return (
         <UIContext.Provider value={contextValue}>

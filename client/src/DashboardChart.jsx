@@ -13,7 +13,7 @@ import i18n from 'i18next';
 
 import 'chartjs-adapter-date-fns';
 import {useModelContext} from "./contexts/ModelContext.jsx";
-import {isDate} from "../../src/core.js";
+import {isDate, stringToHslColor} from "../../src/core.js";
 import useWindowSize from "./hooks/useWindowSize.js";
 import useDebounce from "./hooks/useDebounce.js";
 
@@ -72,6 +72,8 @@ const formatDateLabel = (label, locale = 'fr-FR') => {
     }
     return String(label);
 };
+
+
 
 const parsePotentiallyFormattedDate = (str) => {
     if (typeof str !== 'string') return null;
@@ -150,7 +152,7 @@ const processDataForChart = (inputData, config, t, timed, lang) => {
                 barPercentage: timed && config.type === 'bar' ? 0.9 : undefined,
                 categoryPercentage: timed && config.type === 'bar' ? 0.8 : undefined,
                 backgroundColor: (type === 'pie' || type === 'doughnut')
-                    ? ['rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)', 'rgba(199, 199, 199, 0.7)', 'rgba(83, 102, 89, 0.7)']
+                    ? labels.map(label => stringToHslColor(String(label))) // Génération dynamique
                     : config.chartBackgroundColor,
                 borderColor: (type === 'pie' || type === 'doughnut')
                     ? '#fff'
@@ -194,6 +196,14 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
     const modelDefinition = models?.find(f => f.name === config.model);
     const fieldDefinition = modelDefinition?.fields.find(f => f.name === config.xAxis);
     const timed = fieldDefinition && ['datetime', 'date'].includes(fieldDefinition.type);
+
+    // État local pour gérer l'échelle de temps de manière interactive
+    const [localTimeUnit, setLocalTimeUnit] = useState(config.timeUnit || 'day');
+
+    // S'assurer que l'état local est synchronisé si la config du graphique change
+    useEffect(() => {
+        setLocalTimeUnit(config.timeUnit || 'day');
+    }, [config.timeUnit]);
 
     const isGroupingChart = config && ['pie', 'doughnut'].includes(config.type);
     const requiresYAxisForValidation = config && config.aggregationType && config.aggregationType !== 'count';
@@ -262,25 +272,45 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
             },
         };
 
+        const timeUnit = localTimeUnit; // On utilise l'état local interactif
+
+        const getTooltipFormat = (unit) => {
+            switch(unit) {
+                case 'year': return 'yyyy';
+                case 'month': return 'MMM yyyy';
+                case 'hour': return "dd MMM, HH'h'";
+                case 'minute': return 'dd MMM, HH:mm';
+                case 'day':
+                case 'week':
+                default: return 'dd MMM yyyy';
+            }
+        };
+
         const axisOptions = {
             ...baseOptions,
             scales: {
                 x: {
                     type: timed ? 'time' : 'category',
                     time: timed ? {
-                        tooltipFormat:  'dd/MM/yyyy HH:mm',
-                        unit: 'minute',
+                        tooltipFormat: getTooltipFormat(timeUnit),
+                        unit: timeUnit,
                     } : {},
                     ticks: timed ? {
                         autoSkip: true,
                         maxTicksLimit: 20,
                         callback: function (value) {
-                            const d = new Date();
-                            d.setTime(value);
-                            return d.toLocaleDateString(lang, {
-                                minute: '2-digit',
-                                hour: '2-digit'
-                            });
+                            const d = new Date(value);
+                            let options;
+                            switch(timeUnit) {
+                                case 'year': options = { year: 'numeric' }; break;
+                                case 'month': options = { month: 'short', year: 'numeric' }; break;
+                                case 'day':
+                                case 'week': options = { day: 'numeric', month: 'short' }; break;
+                                case 'hour':
+                                case 'minute':
+                                default: options = { hour: '2-digit', minute: '2-digit' }; break;
+                            }
+                            return new Intl.DateTimeFormat(lang, options).format(d);
                         }
                     } : {}
                 },
@@ -289,7 +319,32 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
                 }
             },
         };
-        const noAxisOptions = { ...baseOptions, scales: undefined };
+
+        const noAxisOptions = {
+            ...baseOptions,
+            scales: undefined,
+            plugins: {
+                ...baseOptions.plugins, // Conserve la légende et le titre de base
+                tooltip: {
+                    callbacks: {
+                        // Le titre de l'infobulle doit être le libellé de la section survolée (ex: "Catégorie A")
+                        title: (tooltipItems) => tooltipItems[0]?.label || '',
+
+                        // Le corps de l'infobulle doit afficher la valeur et son contexte (ex: "Count: 123")
+                        // et non le titre général du graphique.
+                        label: (tooltipItem) => {
+                            const aggregationLabel = t('aggregation.' + config.aggregationType, config.aggregationType);
+                            const value = tooltipItem.formattedValue || tooltipItem.raw;
+                            if (config.yAxis && config.aggregationType !== 'count') {
+                                const yAxisLabel = t(`field_${config.model}_${config.yAxis}`, config.yAxis);
+                                return `${aggregationLabel} (${yAxisLabel}): ${value}`;
+                            }
+                            return `${aggregationLabel}: ${value}`;
+                        }
+                    }
+                }
+            }
+        };
 
         const data = !isResizing ? chartData : { labels: [], datasets: [] };
         try {
@@ -311,7 +366,7 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
                 </div>
             );
         }
-    }, [config, t, chartData, isResizing]);
+    }, [config, t, chartData, isResizing, lang, localTimeUnit]);
 
     if (!isValidConfig) {
         return (
@@ -353,6 +408,30 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
 
     return (
         <div className="dashboard-chart-container" style={containerStyle}>
+            {/* Ajout du sélecteur d'échelle de temps directement sur le graphique */}
+            {timed && (
+                <div style={{ position: 'absolute', top: '5px', right: '5px', zIndex: 10 }}>
+                    <select
+                        value={localTimeUnit}
+                        onChange={(e) => setLocalTimeUnit(e.target.value)}
+                        style={{
+                            padding: '2px 4px',
+                            borderRadius: '4px',
+                            border: '1px solid #ccc',
+                            backgroundColor: 'white',
+                            fontSize: '0.8em'
+                        }}
+                        title={t('charts.timeUnit', 'Échelle de temps')}
+                    >
+                        <option value="minute">{t('time.minute', 'Minute')}</option>
+                        <option value="hour">{t('time.hour', 'Heure')}</option>
+                        <option value="day">{t('time.day', 'Jour')}</option>
+                        <option value="week">{t('time.week', 'Semaine')}</option>
+                        <option value="month">{t('time.month', 'Mois')}</option>
+                        <option value="year">{t('time.year', 'Année')}</option>
+                    </select>
+                </div>
+            )}
             {renderChart}
         </div>
     );

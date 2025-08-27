@@ -1265,7 +1265,7 @@ export const FilterStringField = ({ field, onChangeFilterValue, filterValues, se
         </>
     );
 };
-export const FilterField = ({model, reversed, field, active, onChangeFilterValue, filterValues, setFilterValues}) => {
+export const FilterField = ({advanced,model, reversed, field, active, onChangeFilterValue, filterValues, setFilterValues}) => {
     const { elementsPerPage, pagedSort, setPagedSort, setPage, page, pagedFilters, lockedColumns, setLockedColumns } = useModelContext();
     const {t} = useTranslation();
     const [locked, setLocked] = useState(lockedColumns.includes(field.name));
@@ -1365,6 +1365,7 @@ export const FilterField = ({model, reversed, field, active, onChangeFilterValue
                 {renderIconFromType(field)}
                 <span title={field.name} className={"flex-1 title"}>{t(`field_${model.name}_${field.name}`, field.name)}</span>
             </div>
+            {advanced && (<>
             { 'password'!==field.type && (<div className={"flex flex-no-gap"}>
                 {(<>
                         {(pagedSort[model.name]?.[field.name] !== 1) &&
@@ -1395,6 +1396,7 @@ export const FilterField = ({model, reversed, field, active, onChangeFilterValue
             {active && field.type === 'number' && <div className="filter flex flex-no-wrap flex-mini-gap">
                 <FilterNumberField model={model} setFilterValues={setFilterValues} filterValues={filterValues} field={field} onChangeFilterValue={onChangeFilterValue} />
             </div>}
+            </>)}
         </div>
     </th>
 }

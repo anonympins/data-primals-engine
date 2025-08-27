@@ -36,7 +36,7 @@ export function escapeHtml(string){
 export const isDate = dt => String(new Date(dt)) !== 'Invalid Date'
 
 export const safeAssignObject = (obj, key, value) => {
-    if( !["__proto__", "constructor"].includes(key)){
+    if( !["__proto__", "constructor", "prototype"].includes(key)){
         obj[key] = value;
     }
 }
@@ -351,13 +351,13 @@ export const event_trigger = (name, ...params) => {
 };
 export const event_on = (name, callback) => {
     if (!Array.isArray(triggers[name])) {
-        triggers[name] = [];
+        safeAssignObject(triggers, name, []);
     }
     triggers[name].push({ callback });
 };
 export const event_off = (name, callback) => {
     if (callback && triggers[name]) {
-        triggers[name] = triggers[name].filter((f) => f.callback !== callback);
+        safeAssignObject(triggers, name, triggers[name].filter((f) => f.callback !== callback));
     } else {
         triggers[name] = undefined;
     }
@@ -418,3 +418,21 @@ export function object_equals( x, y ) {
 export const isValidPath = (path) =>{
     return /^(?:[a-z]:)?[\/\\]{0,2}(?:[.\/\\ ](?![.\/\\\n])|[^<>:"|?*.\/\\ \n])+$/gmi.test(path);
 }
+
+
+/**
+ * Génère une couleur de base cohérente à partir d'une chaîne de caractères.
+ * @param {string} str La chaîne à hasher (par exemple, le libellé d'une catégorie).
+ * @returns {string} Une couleur au format 'hsl(h, s, l)'.
+ */
+export const stringToHslColor = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // Utiliser HSL pour un meilleur contrôle sur la saturation et la luminosité
+    const h = hash % 360; // Teinte (0-359)
+    const s = 70;         // Saturation (fixe pour des couleurs vives mais pas criardes)
+    const l = 55;         // Luminosité (fixe pour une bonne lisibilité)
+    return `hsl(${h}, ${s}%, ${l}%)`;
+};

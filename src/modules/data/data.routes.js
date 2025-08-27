@@ -1,56 +1,48 @@
 import {Logger} from "../../gameObject.js";
-import {BSON, ObjectId} from "mongodb";
+import {ObjectId} from "mongodb";
 import * as util from 'node:util';
 import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {isDemoUser, isLocalUser} from "../../data.js";
 import {
-    install, maxBytesPerSecondThrottleData,
+    install,
+    maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
     maxMagnetsModels,
     maxModelsPerUser
 } from "../../constants.js";
-import {
-    datasCollection, filesCollection,
-    getCollection,
-    getCollectionForUser,
-    isObjectId,
-    modelsCollection
-} from "../mongodb.js";
-import {uuidv4} from "../../core.js";
+import {datasCollection, getCollection, getCollectionForUser, isObjectId, modelsCollection} from "../mongodb.js";
+import {safeAssignObject, uuidv4} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import i18n from "../../i18n.js";
-import {
-    triggerWorkflows
-} from "../workflow.js";
+import {executeSafeJavascript, triggerWorkflows} from "../workflow.js";
 import {openaiJobModel} from "../../openai.jobs.js";
-import {fileURLToPath} from 'url';
-import {removeFile} from "../file.js";
 import {getS3Stream, getUserS3Config} from "../bucket.js";
-import {
-    generateLimiter,
-    hasPermission,
-    middlewareAuthenticator,
-    userInitiator
-} from "../user.js";
+import {generateLimiter, hasPermission, middlewareAuthenticator, userInitiator} from "../user.js";
 import {assistantGlobalLimiter} from "../assistant/assistant.js";
 import {Config} from "../../config.js";
 import {processFilterPlaceholders} from "../../../client/src/filter.js";
 import {tutorialsConfig} from "../../../client/src/tutorials.js";
-import {
-    cancelAlerts, deleteData,
-    dumpUserData,
-    editData, editModel, exportData,
-    getModel, getResource,
-    handleCustomEndpointRequest,
-    handleDemoInitialization, importData, insertData, installPack, loadFromDump, middlewareEndpointAuthenticator,
-    patchData, searchData, validateModelStructure
-} from "./data.js";
+import {getResource, handleDemoInitialization} from "./data.js";
 import process from "node:process";
 import {throttleMiddleware} from "../../middlewares/throttle.js";
-import {importJobs, modelsCache} from "./data.core.js";
+import {importJobs, modelsCache, runImportExportWorker} from "./data.core.js";
+import {validateModelStructure} from "./data.validation.js";
+import {
+    deleteData,
+    editData,
+    editModel,
+    exportData,
+    getModel,
+    importData,
+    insertData,
+    installPack,
+    patchData,
+    searchData
+} from "./data.operations.js";
+import {dumpUserData, loadFromDump} from "./data.backup.js";
 
-let logger;
+let logger, engine;
 
 const sseConnections = new Map();
 
@@ -155,11 +147,114 @@ export async function sendSseToUser(username, data) {
 }
 
 
-export async function registerRoutes(engine){
+export async function handleCustomEndpointRequest(req, res) {
+    const endpointDef = req.endpointDef;
+
+    try {
+        let executionUser = null;
+
+        // 1. Déterminer le contexte utilisateur pour l'exécution
+        if (endpointDef.isPublic) {
+            // Pour les endpoints publics, on exécute le script en tant que propriétaire de l'endpoint.
+            if (!endpointDef._user) {
+                logger.error(`[Endpoint] Misconfiguration: Public endpoint '${endpointDef.name}' (ID: ${endpointDef._id}) has no owner.`);
+                return res.status(500).json({success: false, message: 'Endpoint misconfigured: owner missing.'});
+            }
+            executionUser = await engine.userProvider.findUserByUsername(endpointDef._user);
+            if (!executionUser) {
+                logger.error(`[Endpoint] Execution failed: Owner '${endpointDef._user}' for public endpoint '${endpointDef.name}' not found.`);
+                return res.status(500).json({success: false, message: 'Endpoint owner not found.'});
+            }
+            logger.info(`[Endpoint] Public endpoint '${endpointDef.name}' running as owner '${executionUser.username}'.`);
+        } else {
+            // Pour les endpoints privés, l'utilisateur a déjà été authentifié par le middleware.
+            // req.me est garanti d'exister ici.
+            executionUser = req.me;
+            logger.info(`[Endpoint] Private endpoint '${endpointDef.name}' running as authenticated user '${executionUser.username}'.`);
+        }
+
+        // 2. Préparer le contexte pour le script
+        const contextData = {
+            request: {
+                // MODIFICATION: Utiliser req.body si disponible (pour les requêtes JSON comme les webhooks Stripe),
+                // sinon, utiliser req.fields (pour les données de formulaire).
+                body: (req.body && Object.keys(req.body).length > 0) ? req.body : (req.fields || {}),
+                query: req.query,
+                params: req.params,
+                headers: req.headers
+            }
+        };
+
+        // 3. Exécuter le code de l'endpoint
+        const result = await executeSafeJavascript(
+            {script: endpointDef.code},
+            contextData,
+            executionUser // Use the determined user for execution
+        );
+
+        // 4. Envoyer la réponse
+        if (result.success) {
+            res.status(200).json(result.data);
+        } else {
+            logger.error(`[Endpoint] Execution failed for '${endpointDef.name}'. Error: ${result.message}`);
+            const responseError = {
+                success: false,
+                message: 'Endpoint script execution failed.',
+                details: result.message,
+                logs: result.logs
+            };
+            res.status(500).json(responseError);
+        }
+
+    } catch (error) {
+        logger.error(`[Endpoint] Critical error handling request for path '${endpointDef.path}': ${error.message}`, error.stack);
+        res.status(500).json({success: false, message: 'An internal server error occurred.'});
+    }
+}
+
+export async function middlewareEndpointAuthenticator(req, res, next) {
+    const {path} = req.params;
+    const method = req.method.toUpperCase();
+    const user = await engine.userProvider.findUserByUsername(req.query._user || req.params.user || req.me.username);
+    const datasCollection = await getCollectionForUser(user);
+
+    try {
+        const endpointDef = await datasCollection.findOne({
+            _model: 'endpoint',
+            path: path,
+            method: method,
+            isActive: true
+        });
+
+        if (!endpointDef) {
+            return res.status(404).json({success: false, message: 'Endpoint not found.'});
+        }
+
+        // Attacher la définition à la requête pour que le handler suivant puisse l'utiliser
+        req.endpointDef = endpointDef;
+
+        // Si l'endpoint n'est PAS public, on exécute le vrai middleware d'authentification
+        if (!endpointDef.isPublic) {
+            // On "chaîne" vers le middleware authenticator standard.
+            // Il se chargera de vérifier le token et de renvoyer une 401 si nécessaire.
+            return middlewareAuthenticator(req, res, next);
+        }
+
+        // Si l'endpoint EST public, on passe simplement à la suite.
+        next();
+
+    } catch (error) {
+        logger.error(`[EndpointAuth] Critical error: ${error.message}`, error.stack);
+        res.status(500).json({success: false, message: 'Internal server error during endpoint authentication.'});
+    }
+}
+
+export async function registerRoutes(defaultEngine){
+
+    engine = defaultEngine;
+    logger = engine.getComponent(Logger);
 
     let userMiddlewares = await engine.userProvider.getMiddlewares();
-
-    logger = engine.getComponent(Logger);
 
     engine.all('/api/actions/:user/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.all('/api/actions/:path', [middlewareAuthenticator, middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
@@ -230,6 +325,7 @@ export async function registerRoutes(engine){
                     for (const field of model.fields) {
                         if (field.type === 'relation' && newDoc[field.name]) {
                             if (Array.isArray(newDoc[field.name])) {
+                                safeAssignObject()
                                 newDoc[field.name] = newDoc[field.name]
                                     .map(oldId => idMap[oldId.toString()]?.toString())
                                     .filter(Boolean);
@@ -1319,10 +1415,8 @@ export async function registerRoutes(engine){
 
             // --- Execute Aggregation ---
             const results = await collection.aggregate(pipeline).toArray();
-            const finalResults = results;
-
             // --- Send Response ---
-            res.json(finalResults);
+            res.json(results);
 
         } catch (error) {
             // ... (gestion des erreurs existante, inchangée) ...

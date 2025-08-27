@@ -1,3 +1,5 @@
+import {safeAssignObject} from "../core.js";
+
 const TEST_REGEX = /^\$|\./;
 const TEST_REGEX_WITHOUT_DOT = /^\$/;
 const REPLACE_REGEX = /^\$|\./g;
@@ -59,7 +61,7 @@ function _sanitize(target, options) {
         let shouldRecurse = true;
 
         if( (key === 'regex' && obj.input) || key === '$regex' ){
-            obj[key] = new RegExp(val, "ui");
+            safeAssignObject(obj, key, new RegExp(val, "ui"));
         }
         else if (!wl.includes(key) && regex.test(key)) {
             isSanitized = true;

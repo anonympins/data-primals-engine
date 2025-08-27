@@ -14,6 +14,7 @@ import {Logger} from "../gameObject.js";
 import rateLimit from "express-rate-limit";
 import ivm from "isolated-vm";
 import {emailDefaultConfig} from "../constants.js";
+import {safeAssignObject} from "../core.js";
 
 export const userInitiator = async (req, res, next) => {
 
@@ -269,7 +270,7 @@ export async function calculateTotalUserStorageUsage(user) {
 export async function getEnv(user){
     const result = await searchData({ model: 'env' }, user);
     const envObject = result.data.reduce((acc, v) => {
-        acc[v.name] = v.value;
+        safeAssignObject(acc, v.name, v.value);
         return acc;
     }, {});
     return envObject;
