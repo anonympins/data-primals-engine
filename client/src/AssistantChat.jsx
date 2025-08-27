@@ -8,6 +8,7 @@ import { Trans, useTranslation } from "react-i18next";
 import Markdown from 'react-markdown';
 import {useQueryClient} from "react-query";
 import {providers} from "../../src/modules/assistant/constants.js";
+import DashboardChart from "./DashboardChart.jsx";
 
 const AssistantChat = ({ config }) => {
     const { selectedModel } = useModelContext();
@@ -74,7 +75,8 @@ const AssistantChat = ({ config }) => {
                 const botMessage = {
                     from: 'bot',
                     text: null,
-                    actionDetails: null // Pour stocker les détails de l'action à afficher
+                    actionDetails: null,
+                    chartConfig: null// Pour stocker les détails de l'action à afficher
                 };
 
                 // Gérer le texte à afficher
@@ -104,7 +106,13 @@ const AssistantChat = ({ config }) => {
                 }
 
                 // On ajoute le message à la liste uniquement s'il a du contenu textuel
-                if (botMessage.text) {
+                // NOUVEAU : Si un graphique est demandé
+                if (result.chartConfig) {
+                    botMessage.chartConfig = result.chartConfig;
+                }
+
+                // On ajoute le message à la liste uniquement s'il a du contenu textuel ou un graphique
+                if (botMessage.text || botMessage.chartConfig) {
                     setMessages(prev => [...prev, botMessage]);
                 }
 
@@ -225,9 +233,19 @@ const AssistantChat = ({ config }) => {
             <div className="chat-messages">
                 {messages.map((msg, index) => (
                     <div key={index} className={`message ${msg.from}`}>
-                        <Markdown>{msg.text}</Markdown>
+                        {msg.text && <Markdown>{msg.text}</Markdown>}
+                        {msg.chartConfig && (
+                            <div className="chart-container">
+                                <DashboardChart config={msg.chartConfig} />
+                            </div>
+                        )}
                         {msg.actionDetails && (
                             <div className="action-details">
+                                {msg.chartConfig && (
+                                    <div style={styles.chartWrapper}>
+                                        <DashboardChart config={msg.chartConfig} />
+                                    </div>
+                                )}
                                 {msg.actionDetails.model && (
                                     <p><strong>{t('model', 'Modèle')}:</strong> <code>{msg.actionDetails.model}</code></p>
                                 )}
