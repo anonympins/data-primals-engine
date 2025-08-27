@@ -13,6 +13,9 @@ import {getObjectHash} from "../../src/core.js";
 import {getUserHash, getUserId} from "../../src/data.js";
 import Button from "./Button.jsx";
 import {FaNoteSticky} from "react-icons/fa6";
+import ChartConfigModal from "./ChartConfigModal.jsx";
+import {useUI} from "./contexts/UIContext.jsx";
+import {DialogProvider} from "./Dialog.jsx";
 
 // --- DashboardsPage (Reste inchangé) ---
 export function DashboardsPage() {
@@ -21,6 +24,7 @@ export function DashboardsPage() {
     const { me } = useAuthContext();
     const [selectedDashboardId, setSelectedDashboardId] = useState(null);
 
+    const { chartToAdd, setChartToAdd } = useUI();
     const [searchParams, setSearchParams] = useSearchParams();
     const { hash } = useParams(); // 2. Récupérer le hash de l'URL
 
@@ -30,6 +34,10 @@ export function DashboardsPage() {
     const [isCreating, setIsCreating] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [dashboardToEdit, setDashboardToEdit] = useState(null);
+
+    // États pour le modal de configuration des graphiques
+    const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+    const [chartToConfigure, setChartToConfigure] = useState(null);
 
     const createDashboardMutation = useMutation(
         async (dashboardName) => {
@@ -112,6 +120,28 @@ export function DashboardsPage() {
         setDashboardToEdit(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleSaveChart = (chartConfig) => {
+        if (!selectedDashboard) return;
+
+        const newLayout = [...(selectedDashboard.layout || [])];
+
+        if (chartConfig.id) { // Mode édition
+            const index = newLayout.findIndex(c => c.id === chartConfig.id);
+            if (index > -1) {
+                newLayout[index] = chartConfig;
+            }
+        } else { // Mode ajout
+            newLayout.push({ ...chartConfig, id: new Date().getTime().toString() });
+        }
+
+        updateDashboardMutation.mutate({
+            ...selectedDashboard,
+            layout: newLayout
+        });
+
+        setIsChartModalOpen(false);
+        setChartToConfigure(null);
+    };
     const { data: dashboardsData, isLoading: isLoadingDashboards, error: errorDashboards } = useQuery(
         ['userDashboards', me?.username],
         async () => {
@@ -142,6 +172,15 @@ export function DashboardsPage() {
         { label: t('dashboards.refreshPresets.5m', '5 minutes'), value: 300 },
         { label: t('dashboards.refreshPresets.15m', '15 minutes'), value: 900 },
     ], [t]);
+
+    useEffect(() => {
+        if( chartToAdd ){
+            // Ouvre le modal de configuration avec les données du graphique de l'IA
+            setChartToConfigure(chartToAdd);
+            setIsChartModalOpen(true);
+            setChartToAdd(null); // Réinitialise le contexte pour éviter de rouvrir le modal
+        }
+    }, [chartToAdd, setChartToAdd]);
     useEffect(() => {
         // When a new dashboard is selected, close the editing form
         setIsEditing(false);
@@ -343,6 +382,14 @@ export function DashboardsPage() {
                         }, [dashboard?.refreshInterval, queryClient]);
                     */}
                     <DashboardView dashboard={selectedDashboard} />
+
+                    {/* Modal pour ajouter/éditer un graphique */}
+                    <DialogProvider><ChartConfigModal
+                        isOpen={isChartModalOpen}
+                        onClose={() => setIsChartModalOpen(false)}
+                        onSave={handleSaveChart}
+                        initialConfig={chartToConfigure}
+                    /></DialogProvider>
                 </>
             )}
         </div>

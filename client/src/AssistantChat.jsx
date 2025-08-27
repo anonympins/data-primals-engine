@@ -1,7 +1,7 @@
 // client/src/components/AssistantChat.jsx
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { FaRobot, FaPaperPlane, FaTimes, FaExpand, FaCompress } from 'react-icons/fa';
+import { FaRobot, FaPaperPlane, FaTimes, FaExpand, FaCompress, FaPlus } from 'react-icons/fa';
 import './AssistantChat.scss';
 import { useModelContext } from "./contexts/ModelContext.jsx";
 import { Trans, useTranslation } from "react-i18next";
@@ -9,9 +9,17 @@ import Markdown from 'react-markdown';
 import {useQueryClient} from "react-query";
 import {providers} from "../../src/modules/assistant/constants.js";
 import DashboardChart from "./DashboardChart.jsx";
+import {useUI} from "./contexts/UIContext.jsx";
+import Button from "./Button.jsx";
+import {getUserHash, getUserId} from "../../src/data.js";
+import {useNavigation} from "react-router";
+import {useAuthContext} from "./contexts/AuthContext.jsx";
+import {useNavigate} from "react-router-dom";
 
 const AssistantChat = ({ config }) => {
     const { selectedModel } = useModelContext();
+    const { me } = useAuthContext();
+    const nav = useNavigate();
     const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [isMaximized, setIsMaximized] = useState(false);
@@ -20,6 +28,7 @@ const AssistantChat = ({ config }) => {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const { setChartToAdd } = useUI();
 
     // NOUVEL ÉTAT : Stocke une action en attente de confirmation de l'utilisateur
     const [pendingConfirmation, setPendingConfirmation] = useState(null);
@@ -237,6 +246,17 @@ const AssistantChat = ({ config }) => {
                         {msg.chartConfig && (
                             <div className="chart-container">
                                 <DashboardChart config={msg.chartConfig} />
+                                <div className="chart-actions" style={{ marginTop: '8px', textAlign: 'right' }}>
+                                    <Button onClick={() => {
+                                        nav('/user/'+getUserHash(me)+'/dashboards');
+                                        setChartToAdd(msg.chartConfig);
+                                    }} title={t('assistant.addToDashboard', 'Ajouter au tableau de bord')}>
+                                        <FaPlus />
+                                        <span style={{ marginLeft: '8px' }}>
+                                            {t('assistant.addToDashboard', 'Ajouter au tableau de bord')}
+                                        </span>
+                                    </Button>
+                                </div>
                             </div>
                         )}
                         {msg.actionDetails && (

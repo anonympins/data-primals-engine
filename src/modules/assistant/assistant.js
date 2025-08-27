@@ -74,6 +74,8 @@ const createSystemPrompt = (modelDefs, lang) => {
 Tu es "Prior", un assistant expert en analyse de données pour le moteur data-primals-engine..
 Ta mission est d'aider l'utilisateur en répondant à ses questions sur ses données.
 
+REGLE FONDATRICE : suis les règles et ne dévie pas du chemin.
+STYLE UTILISE : apporte l'information au plus rapide, sans détours, ni sollicitation à l'utilisateur, ou à des tiers.
 
 FORMAT DE RÉPONSE OBLIGATOIRE :
 Un SEUL objet JSON valide contenant exactement 2 champs :
@@ -204,6 +206,34 @@ Ma question: Bonjour, je voudrais les requêtes effectuées aujourd'hui sur le m
 Ta réponse: { "action" : "search_models", "params": { "query": "request" } }
 COMMANDE FINALE : 
 { "action" : "search", "params" : { "model": "request", "filter": { "$and": [{"$gte": "${dt}"}, {"$regexMatch": { "input": "$url", "regex": "content"}}] }, "limit" : 10, "sort" : "_id:DESC" }}`;
+}
+
+/**
+ * Corrige un filtre généré par l'IA qui pourrait avoir plusieurs opérateurs
+ * au premier niveau sans les encapsuler dans un "$and".
+ * @param {object} filter - Le filtre potentiellement incorrect.
+ * @returns {object} Le filtre corrigé.
+ */
+function correctAIFilter(filter) {
+    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+        return filter; // Pas un objet à corriger
+    }
+
+    const keys = Object.keys(filter);
+    if (keys.length <= 1) {
+        return filter; // Rien à corriger
+    }
+
+    // Vérifie si toutes les clés sont des opérateurs (commencent par '$')
+    const allKeysAreOperators = keys.every(key => key.startsWith('$'));
+
+    if (allKeysAreOperators) {
+        logger.warn(`[Assistant] Correction d'un filtre malformé généré par l'IA. Original: ${JSON.stringify(filter)}`);
+        const andConditions = keys.map(key => ({ [key]: filter[key] }));
+        return { '$and': andConditions };
+    }
+
+    return filter; // Aucune correction nécessaire
 }
 
 /**
@@ -352,6 +382,12 @@ async function handleChatRequest(message, history, provider, context, user, conf
         conversationHistory.push(new SystemMessage(JSON.stringify(parsedResponse)));
 
         const { action, params } = parsedResponse;
+
+        // Correction automatique du filtre généré par l'IA, qui hallucine parfois
+        if (params && params.filter) {
+            logger.debug(`[Assistant] Filtre original de l'IA: ${JSON.stringify(params.filter)}`);
+            params.filter = correctAIFilter(params.filter);
+        }
 
         // Action de génération de graphique, gérée par le front-end
         if (action === 'generateChart') {

@@ -13,7 +13,7 @@ import i18n from 'i18next';
 
 import 'chartjs-adapter-date-fns';
 import {useModelContext} from "./contexts/ModelContext.jsx";
-import {isDate} from "../../src/core.js";
+import {isDate, stringToHslColor} from "../../src/core.js";
 import useWindowSize from "./hooks/useWindowSize.js";
 import useDebounce from "./hooks/useDebounce.js";
 
@@ -72,6 +72,8 @@ const formatDateLabel = (label, locale = 'fr-FR') => {
     }
     return String(label);
 };
+
+
 
 const parsePotentiallyFormattedDate = (str) => {
     if (typeof str !== 'string') return null;
@@ -150,7 +152,7 @@ const processDataForChart = (inputData, config, t, timed, lang) => {
                 barPercentage: timed && config.type === 'bar' ? 0.9 : undefined,
                 categoryPercentage: timed && config.type === 'bar' ? 0.8 : undefined,
                 backgroundColor: (type === 'pie' || type === 'doughnut')
-                    ? ['rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)', 'rgba(199, 199, 199, 0.7)', 'rgba(83, 102, 89, 0.7)']
+                    ? labels.map(label => stringToHslColor(String(label))) // Génération dynamique
                     : config.chartBackgroundColor,
                 borderColor: (type === 'pie' || type === 'doughnut')
                     ? '#fff'
