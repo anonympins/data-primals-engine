@@ -282,6 +282,7 @@ curl -X DELETE "http://localhost:7633/api/model?_user=demo&name=newModel" \
 ### 🗂️ Data Management
 
 #### Create a document
+> Creates a single new document in the specified model. The `data` object must conform to the model's schema.
 ```bash
 curl -X POST http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -297,7 +298,10 @@ curl -X POST http://localhost:7633/api/data?_user=demo \
          }'
 ```
 
+
 #### Search documents
+> Searches for documents using a MongoDB-style filter. This endpoint is ideal for complex queries, pagination, and sorting.
+
 ```bash
 curl -X POST http://localhost:7633/api/data/search?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -309,6 +313,7 @@ curl -X POST http://localhost:7633/api/data/search?_user=demo \
 ```
 
 #### Update a document by ID
+> Updates a single document by its unique ID. The request body contains the fields to be modified.
 ```bash
 curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -319,7 +324,9 @@ curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demo \
          }'
 ```
 
+
 #### Bulk update
+> Updates multiple documents matching a filter. This is efficient for applying changes to a batch of records, such as restocking all out-of-stock products.
 ```bash
 curl -X PUT http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -331,6 +338,7 @@ curl -X PUT http://localhost:7633/api/data?_user=demo \
 ```
 
 #### Delete documents
+> Deletes one or more documents. You can provide an array of `ids` to delete specific documents.
 ```bash
 curl -X DELETE http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -853,4 +861,4 @@ Distributed under the **MIT License**. See `LICENSE` file.
 
 ---
 
-## [🔼](https://github.com/anonympins/data-primals-engine?tab=readme-ov-file#data-primals-engine) Back to Top
+## [🔼](#data-primals-engine) Back to Top
