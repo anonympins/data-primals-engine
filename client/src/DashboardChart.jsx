@@ -317,7 +317,32 @@ const DashboardChart = ({ config }) => { // config peut maintenant contenir conf
                 }
             },
         };
-        const noAxisOptions = { ...baseOptions, scales: undefined };
+
+        const noAxisOptions = {
+            ...baseOptions,
+            scales: undefined,
+            plugins: {
+                ...baseOptions.plugins, // Conserve la légende et le titre de base
+                tooltip: {
+                    callbacks: {
+                        // Le titre de l'infobulle doit être le libellé de la section survolée (ex: "Catégorie A")
+                        title: (tooltipItems) => tooltipItems[0]?.label || '',
+
+                        // Le corps de l'infobulle doit afficher la valeur et son contexte (ex: "Count: 123")
+                        // et non le titre général du graphique.
+                        label: (tooltipItem) => {
+                            const aggregationLabel = t('aggregation.' + config.aggregationType, config.aggregationType);
+                            const value = tooltipItem.formattedValue || tooltipItem.raw;
+                            if (config.yAxis && config.aggregationType !== 'count') {
+                                const yAxisLabel = t(`field_${config.model}_${config.yAxis}`, config.yAxis);
+                                return `${aggregationLabel} (${yAxisLabel}): ${value}`;
+                            }
+                            return `${aggregationLabel}: ${value}`;
+                        }
+                    }
+                }
+            }
+        };
 
         const data = !isResizing ? chartData : { labels: [], datasets: [] };
         try {

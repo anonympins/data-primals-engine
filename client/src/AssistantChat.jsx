@@ -241,11 +241,6 @@ const AssistantChat = ({ config }) => {
                         )}
                         {msg.actionDetails && (
                             <div className="action-details">
-                                {msg.chartConfig && (
-                                    <div style={styles.chartWrapper}>
-                                        <DashboardChart config={msg.chartConfig} />
-                                    </div>
-                                )}
                                 {msg.actionDetails.model && (
                                     <p><strong>{t('model', 'Modèle')}:</strong> <code>{msg.actionDetails.model}</code></p>
                                 )}
