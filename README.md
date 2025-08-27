@@ -244,6 +244,7 @@ data-primals-engine/
 ### 📁 Model Management
 
 #### Create a model
+> Defines a new data model (schema) in the system. The request body must contain the model's name and an array of field definitions.
 ```bash
 curl -X POST http://localhost:7633/api/model?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -259,6 +260,7 @@ curl -X POST http://localhost:7633/api/model?_user=demo \
 ```
 
 #### Update a model
+> Modifies an existing model's structure using its unique ID. This allows you to add, remove, or change fields.
 ```bash
 curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -274,6 +276,7 @@ curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demo 
 ```
 
 #### Delete a model
+> Permanently deletes a model definition using its name. This action is irreversible.
 ```bash
 curl -X DELETE "http://localhost:7633/api/model?_user=demo&name=newModel" \
      -H "Authorization: Bearer demotoken"
@@ -308,7 +311,7 @@ curl -X POST http://localhost:7633/api/data/search?_user=demo \
      -H "Content-Type: application/json" \
      -d '{
            "model": "product",
-           "filter": { "price": { "$gt": 50 } }
+           "filter": { "$gt" : ["$price", 50] }
          }'
 ```
 
