@@ -2,6 +2,7 @@
 export const websiteTranslations = {
     fr: {
         translation: {
+            "field.geolocation": "Géolocalisation",
             "time.minute": "Minute",
             "time.hour": "Heure",
             "time.day": "Jour",
@@ -604,6 +605,7 @@ export const websiteTranslations = {
     },
     en: {
         translation: {
+            "field.geolocation": "Geolocation",
             "time.minute":"Minute",
             "time.hour":"Hour",
             "time.day":"Day",
@@ -2082,6 +2084,7 @@ export const websiteTranslations = {
     },
     es: {
         translation: {
+            "field.geolocation": "Geolocalización",
             "time.minute": "Minuto",
             "time.hour": "Hora",
             "time.day": "Día",
@@ -3562,6 +3565,7 @@ export const websiteTranslations = {
     },
     pt: {
         translation: {
+            "field.geolocation": "Geolocalização",
             "time.minute":"Minuto",
             "time.hour":"Hora",
             "time.day":"Dia",
@@ -5037,7 +5041,7 @@ export const websiteTranslations = {
     },
     de: {
         translation: {
-
+            "field.geolocation": "Geolokalisierung",
             "time.minute":"Minute",
             "time.hour":"Stunde",
             "time.day":"Tag",
@@ -6498,7 +6502,7 @@ export const websiteTranslations = {
     },
     it: {
         translation: {
-
+            "field.geolocation": "Geolocalizzazione",
             "time.minute":"Minuto",
             "time.hour":"Ora",
             "time.day":"Giorno",
@@ -7972,7 +7976,7 @@ export const websiteTranslations = {
     },
     cs: {
         translation: {
-
+            "field.geolocation": "Geolokace",
             "time.minute":"Minuta",
             "time.hour":"Hodina",
             "time.day":"Den",
@@ -9440,7 +9444,7 @@ export const websiteTranslations = {
     },
     ru: {
         translation: {
-
+            "field.geolocation": "Геолокация",
             "time.minute":"Минута",
             "time.hour":"Час",
             "time.day":"День",
@@ -10920,7 +10924,7 @@ export const websiteTranslations = {
     },
     ar: {
         translation: {
-
+            "field.geolocation": "تحديد الموقع الجغرافي",
             "الدقيقة الزمنية": "الدقيقة", "الساعة الزمنية": "الساعة", "اليوم الزمني": "اليوم", "الأسبوع الزمني": "الأسبوع", "الشهر الزمني": "الشهر", "السنة الزمنية": "السنة",
             "packs.myPack": "حزمتي",
             "packs.public": "عامة",
@@ -12410,7 +12414,7 @@ export const websiteTranslations = {
     },
     sv: {
         translation: {
-
+            "field.geolocation": "Geolocation",
             "time.minute":"Minut",
             "time.hour":"Timme",
             "time.day":"Dag",
@@ -13878,6 +13882,7 @@ export const websiteTranslations = {
     },
     el: {
         translation: {
+            "field.geolocation": "Γεωγραφική τοποθεσία",
             "time.minute":"Λεπτό",
             "time.hour":"Ώρα",
             "time.day":"Ημέρα",
@@ -15354,7 +15359,7 @@ export const websiteTranslations = {
     },
     fa: {
         "translation": {
-
+            "field.geolocation": "موقعیت جغرافیایی",
             "time.minute":"دقیقه",
             "time.hour":"ساعت",
             "time.day":"روز",
