@@ -314,8 +314,11 @@ describe('CRUD on model definitions and integrity tests', () => {
     });
 
     describe('Special Pipeline Execution via searchData', () => {
+        let currentTestUser;
+
         beforeEach(async () => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const context = await setupTestContext();
+            currentTestUser = context.currentTestUser;
             const testModel = {
                 name: 'searchTestModel',
                 description: '',
@@ -341,28 +344,24 @@ describe('CRUD on model definitions and integrity tests', () => {
         });
 
         it('should execute a $regex query correctly', async () => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             const { data, count } = await searchData({ model: 'searchTestModel', filter: { name: { $regex: 'item', $options: 'i' } } }, currentTestUser);
             expect(count).toBe(2);
             expect(data.some(d => d.name === 'First Item')).toBe(true);
         });
 
         it('should execute a $text search query correctly', async () => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             const { data, count } = await searchData({ model: 'searchTestModel', filter: { $text: { $search: 'mongodb' } } }, currentTestUser);
             expect(count).toBe(1);
             expect(data[0].name).toBe('First Item');
         });
 
         it('should execute a $nearSphere query correctly', async () => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             const { data, count } = await searchData({ model: 'searchTestModel', filter: { location: { $nearSphere: { $geometry: { type: 'Point', coordinates: [-73.9, 40.7] }, $maxDistance: 20000 } } } }, currentTestUser);
             expect(count).toBe(2);
             expect(data.some(d => d.name === 'Third Thing')).toBe(false);
         });
 
         it('should execute a $geoNear stage and sort by distance', async () => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             const { data, count } = await searchData({ model: 'searchTestModel', filter: { $geoNear: { near: { type: 'Point', coordinates: [-74.0, 40.71] }, distanceField: "dist.calculated", spherical: true } } }, currentTestUser);
             expect(count).toBe(3);
             expect(data[0].name).toBe('Second TEST Item');
@@ -370,7 +369,6 @@ describe('CRUD on model definitions and integrity tests', () => {
         });
 
         it('should handle a mix of special and standard operators in an $or clause', async () => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
             const { data, count } = await searchData({ model: 'searchTestModel', filter: { $or: [{ name: { $regex: 'Third' } }, { value: { $gt: 15 } }] } }, currentTestUser);
             expect(count).toBe(2);
             expect(data.some(d => d.name === 'Second TEST Item')).toBe(true);

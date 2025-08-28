@@ -1467,13 +1467,13 @@ export const searchData = async (query, user) => {
     filter = standardFilter;
     // --- END: Added logic for special query operators ---
 
-    let sortObj = {};
-    sort?.split(',').forEach(s => {
-        const v = s.split(':');
-        sortObj[v[0] || s] = v[1] === 'DESC' ? -1 : 1;
-    })
-    if (!sort) {
-        sortObj = {[modelElement.fields[0]?.name || '_id']: ['datetime', 'date'].includes(modelElement.fields[0].type) ? -1 : 1};
+    let sortObj = null; // Initialize to null
+    if (sort) {
+        sortObj = {};
+        sort.split(',').forEach(s => {
+            const v = s.split(':');
+            sortObj[v[0] || s] = v[1] === 'DESC' ? -1 : 1;
+        });
     }
 
     let i = 0;
@@ -1860,14 +1860,71 @@ export const searchData = async (query, user) => {
     let pipelines = [];
 
     // --- START: Modified pipeline construction for special operators ---
-    if (specialFilterOps.$geoNear && specialFilterOps.$text) {
-        throw new Error("Query cannot contain both $geoNear and $text operators.");
+    if (specialFilterOps.$geoNear && (Object.values(specialFilterOps).some(v => v?.$nearSphere) || specialFilterOps.$text)) {
+        throw new Error("A $geoNear stage cannot be combined with $nearSphere or $text operators in the same query.");
     }
 
-    // Handle $geoNear stage, which must be the first stage in the pipeline.
-    if (specialFilterOps.$geoNear) {
+    // --- Strategy ---
+    // 1. If a $nearSphere operator is found, convert it to a $geoNear stage. This must be the first stage.
+    //    Other special filters (like $regex) will be moved into the `query` part of the $geoNear stage.
+    // 2. If a user-provided $geoNear stage exists, use it. It must be the first stage.
+    // 3. If a $text operator is found, it must be in the first $match stage. It is mutually exclusive with geo-queries.
+
+    let nearSphereField = null;
+    let nearSphereKey = null;
+    for (const key in specialFilterOps) {
+        if (isPlainObject(specialFilterOps[key]) && specialFilterOps[key].$nearSphere) {
+            if (nearSphereField) {
+                throw new Error("Query cannot contain multiple $nearSphere operators. Use a single $geoNear stage for complex geo-queries.");
+            }
+            nearSphereField = specialFilterOps[key].$nearSphere;
+            nearSphereKey = key;
+        }
+    }
+
+    if (nearSphereField) {
+        // A $geoNear stage must be the first stage.
+        if (specialFilterOps.$geoNear || specialFilterOps.$text) {
+            throw new Error("Cannot use $nearSphere with a $geoNear stage or a $text operator.");
+        }
+
+        const geoNearStage = {
+            near: nearSphereField.$geometry,
+            distanceField: "distance", // Default distance field name
+            key: nearSphereKey, // The field to perform the search on
+            spherical: true,
+            query: { // Base query for model and user
+                _model: modelElement.name,
+                _user: user.username
+            }
+        };
+
+        // Conditionally add distance fields to avoid passing 'undefined' to MongoDB
+        if (nearSphereField.$maxDistance !== undefined) {
+            geoNearStage.maxDistance = nearSphereField.$maxDistance;
+        }
+        if (nearSphereField.$minDistance !== undefined) {
+            geoNearStage.minDistance = nearSphereField.$minDistance;
+        }
+
+        // Remove the processed nearSphere operator from specialFilterOps
+        delete specialFilterOps[nearSphereKey];
+
+        // Add any other special filters (like $regex) to the $geoNear query
+        Object.assign(geoNearStage.query, specialFilterOps);
+
+        if (allIds.length > 0) {
+            geoNearStage.query._id = { $in: allIds };
+        }
+
+        pipelines.push({ $geoNear: geoNearStage });
+
+        // Clear specialFilterOps as they've all been moved into the $geoNear query
+        Object.keys(specialFilterOps).forEach(key => delete specialFilterOps[key]);
+
+    } else if (specialFilterOps.$geoNear) {
+        // Handle a user-provided $geoNear stage
         const geoNearStage = { ...specialFilterOps.$geoNear };
-        // The query part of $geoNear can include other filters.
         geoNearStage.query = {
             ...(geoNearStage.query || {}),
             _model: modelElement.name,
@@ -1878,25 +1935,26 @@ export const searchData = async (query, user) => {
         }
         pipelines.push({ $geoNear: geoNearStage });
         delete specialFilterOps.$geoNear;
-    }
 
-    // Handle other special operators like $text and $nearSphere in a standard $match stage.
-    const standardMatchQueries = {};
-    if (specialFilterOps.$text) {
-        // If $text is used, it must be in the first $match stage.
-        standardMatchQueries.$text = specialFilterOps.$text;
-        delete specialFilterOps.$text;
-    }
-    // Add any other remaining special operators (like fields with $nearSphere).
-    Object.assign(standardMatchQueries, specialFilterOps);
+    } else if (Object.keys(specialFilterOps).length > 0) {
+        // Handle other special operators like $text and $regex if no geo-query was present.
+        const standardMatchQueries = {};
+        if (specialFilterOps.$text) {
+            standardMatchQueries.$text = specialFilterOps.$text;
+            delete specialFilterOps.$text;
+        }
+        Object.assign(standardMatchQueries, specialFilterOps);
 
-    if (Object.keys(standardMatchQueries).length > 0) {
+        standardMatchQueries._model = modelElement.name;
+        standardMatchQueries._user = user.username;
+        if (allIds.length > 0) {
+            standardMatchQueries._id = { $in: allIds };
+        }
         pipelines.push({ $match: standardMatchQueries });
     }
 
-    // Add the original initial match logic, but only if $geoNear was not used,
-    // as $geoNear already performs filtering.
-    if (!pipelines.some(stage => stage.$geoNear)) {
+    // Add the original initial match logic, but only if no pipeline stages have been created yet.
+    if (pipelines.length === 0) {
         if (allIds.length) {
             // Note: allIds are already ObjectIds from the start of the function.
             const id = {$in: ["$_id", allIds]};
@@ -1941,8 +1999,14 @@ export const searchData = async (query, user) => {
     const count = await collection.aggregate([...pipelines, {$count: "count"}]).maxTimeMS(ts).toArray();
     let prom = collection.aggregate(pipelines).maxTimeMS(ts);
 
-    if (Object.keys(sortObj).length > 0) {
+    // Apply sort logic:
+    // 1. If a user-defined sort exists, use it.
+    // 2. If not, and if there's no $geoNear stage (which has implicit sort), apply a default sort.
+    if (sortObj) {
         prom.sort(sortObj);
+    } else if (!pipelines.some(stage => stage.$geoNear)) {
+        const defaultSort = { [modelElement.fields[0]?.name || '_id']: ['datetime', 'date'].includes(modelElement.fields[0].type) ? -1 : 1 };
+        prom.sort(defaultSort);
     }
     prom.skip(p ? (p - 1) * l : 0).limit(l);
     let data = await prom.toArray();
