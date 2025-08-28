@@ -1484,8 +1484,13 @@ export const searchData = async (query, user) => {
 
     const recursiveLookup = async (model, data, depth = 1, already = [], parentPath = '') => {
 
-        if (depth > depthParam)
+        if (depth > depthParam) {
             return [];
+        }
+        // Handle null, array, or other non-object data gracefully to prevent crashes.
+        if (!isPlainObject(data)) {
+            return [];
+        }
 
         let pipelines = [], pipelinesLookups = [];
         let modelElement;
@@ -1541,8 +1546,7 @@ export const searchData = async (query, user) => {
             }
             const relSort = {};
             if (fi.type === 'relation' && depthParam !== 1) {
-                delete f[fi.name];
-                if (sortObj[fi.name]) {
+                if (sortObj?.[fi.name]) {
 
                     const sortColumn = await getModel(fi.relation, user);
                     let t = sortColumn.fields.find(f => f.asMain)?.name;
