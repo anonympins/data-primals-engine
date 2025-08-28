@@ -43,14 +43,14 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
                 // Recherche sur les champs principaux (asMain)
                 model.fields.forEach(f => {
                     if (f.asMain && mainFieldsTypes.includes(f.type)) {
-                        orConditions.push({ [f.name]: { "$regex": searchValue, "$options": "i" } });
+                        orConditions.push({"$regexMatch": {input: "$" + f.name, regex: searchValue}});
                     }
                 });
                 // Si aucun champ principal, recherche sur les champs texte
                 if (orConditions.length === 0) {
                     model.fields.forEach(f => {
                         if (["string", "string_t", "richtext", "url"].includes(f.type)) {
-                            orConditions.push({ [f.name]: { "$regex": searchValue, "$options": "i" } });
+                            orConditions.push({"$regexMatch": {input: "$" + f.name, regex: searchValue}});
                         }
                     });
                 }
