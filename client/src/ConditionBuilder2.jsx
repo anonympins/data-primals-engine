@@ -2,10 +2,11 @@ import React, {useEffect, useState} from 'react';
 import { Tooltip } from 'react-tooltip';
 import {FaPlus, FaProjectDiagram, FaTrash, FaInfoCircle, FaEdit, FaTags, FaCalendarAlt} from 'react-icons/fa';
 import { Trans } from 'react-i18next';
-import {convertInputValue, MONGO_CALC_OPERATORS} from "./filter.js";
+import {convertInputValue} from "./filter.js";
 import i18n from "i18next";
 import {FaRepeat} from "react-icons/fa6";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
+import {MONGO_CALC_OPERATORS} from "../../src/constants.js";
 
 
 // Déterminer si le champ doit être une date

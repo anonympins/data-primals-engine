@@ -544,7 +544,7 @@ const CheckboxField = forwardRef(
                 <ul className="error">
                     {errors.map((e, key) => (
                         <li key={key} aria-live="assertive" role="alert">
-                            {e}
+                            {JSON.stringify(e, null, 2)}
                         </li>
                     ))}
                 </ul>

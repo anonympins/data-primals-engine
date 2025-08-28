@@ -70,7 +70,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
     function renderInputField(model, field, value, handleChange, refreshTime, formData, user, models) { // Ajout de formData
 
         // Évaluer la condition AVANT de rendre le champ
-        if (!isConditionMet(model, field.condition, formData)) {
+        if (!isConditionMet(model, field.condition, formData, models, user, false)) {
             return null; // Ne rien rendre si la condition n'est pas remplie
         }
 

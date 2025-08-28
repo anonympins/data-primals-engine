@@ -14,9 +14,9 @@ import './ConditionBuilder.scss';
 import { useTranslation, Trans } from "react-i18next";
 import { CodeField } from "./Field.jsx";
 import { useAuthContext } from "./contexts/AuthContext.jsx";
-import { MONGO_CALC_OPERATORS} from "./filter.js";
 import {ConditionBuilder2} from "./ConditionBuilder2.jsx";
 import {mongoOperators} from "./constants.js";
+import {MONGO_CALC_OPERATORS} from "../../src/constants";
 
 const getFieldDefinition = (fields, fieldName) => fields?.find(f => f.name === fieldName);
 const getModelFields = (modelName, allModels, user) => {

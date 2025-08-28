@@ -1,4 +1,14 @@
-import safeRegex from 'safe-regex';
+
+let safeRegex = null; // Par défaut, aucune fonction de validation n'est définie.
+
+/**
+ * Permet d'injecter une fonction de validation de regex (côté serveur).
+ * @param {function} validator - La fonction qui valide une regex, ex: la fonction du module 'safe-regex'.
+ */
+export function setSafeRegex(validator) {
+    safeRegex = validator;
+}
+
 /**
  * Evaluates a single condition against form data.
  * @param {object} currentModelDef - The definition of the current model.
@@ -8,7 +18,7 @@ import safeRegex from 'safe-regex';
  * @param {object} user - The current user.
  * @returns {boolean} - True if the condition is met, false otherwise.
  */
-const evaluateSingleCondition = (currentModelDef, condition, formData, allModels, user) => {
+const evaluateSingleCondition = (currentModelDef, condition, formData, allModels, user, checkRegex =true) => {
     // Condition est directement un filtre MongoDB, donc on l'applique
     // en utilisant les opérateurs et les valeurs qu'il contient.
 
@@ -150,7 +160,9 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
                 if (typeof targetValue !== 'string') return false;
                 if (typeof processedConditionValue !== 'string') return false;
                 try {
-                    if( safeRegex(processedConditionValue)) {
+                    // On vérifie si la fonction a été injectée ET si la regex est sûre.
+                    // Côté client, `safeRegex` sera null, donc la vérification est simplement ignorée.
+                    if( checkRegex && safeRegex && safeRegex(processedConditionValue)) {
                         const regex = new RegExp(processedConditionValue, 'i');
                         return regex.test(targetValue);
                     }
@@ -174,7 +186,7 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
     }
 };
 
-export const isConditionMet = (model, cond, formData, allModels, user) => {
+export const isConditionMet = (model, cond, formData, allModels, user,checkRegex=true) => {
     const condition = cond;
 
     if (!condition) return true;
@@ -198,13 +210,13 @@ export const isConditionMet = (model, cond, formData, allModels, user) => {
         switch (operator) {
         // Opérateurs logiques (récursifs)
         case '$and':
-            return Array.isArray(operands) && operands.every(sub => isConditionMet(null, sub, formData, allModels, user));
+            return Array.isArray(operands) && operands.every(sub => isConditionMet(null, sub, formData, allModels, user,checkRegex));
         case '$or':
-            return Array.isArray(operands) && operands.some(sub => isConditionMet(null, sub, formData, allModels, user));
+            return Array.isArray(operands) && operands.some(sub => isConditionMet(null, sub, formData, allModels, user,checkRegex));
         case '$not':
             return !isConditionMet(null, operands, formData, allModels, user);
         case '$nor':
-            return Array.isArray(operands) && !operands.some(sub => isConditionMet(null, sub, formData, allModels, user));
+            return Array.isArray(operands) && !operands.some(sub => isConditionMet(null, sub, formData, allModels, user,checkRegex));
 
         // Opérateurs de comparaison (terminaux)
         case '$eq':
@@ -234,18 +246,18 @@ export const isConditionMet = (model, cond, formData, allModels, user) => {
 
     if (condition.$and && Array.isArray(condition.$and)) {
         if (condition.$and.length === 0) return true;
-        return condition.$and.every(sub => isConditionMet(model, sub, formData, allModels, user));
+        return condition.$and.every(sub => isConditionMet(model, sub, formData, allModels, user,checkRegex));
     }
     if (condition.$or && Array.isArray(condition.$or)) {
         if (condition.$or.length === 0) return false;
-        return condition.$or.some(sub => isConditionMet(model, sub, formData, allModels, user));
+        return condition.$or.some(sub => isConditionMet(model, sub, formData, allModels, user,checkRegex));
     }
     if (condition.$not) {
-        return !isConditionMet(model, condition.$not, formData, allModels, user);
+        return !isConditionMet(model, condition.$not, formData, allModels, user,checkRegex);
     }
     if (condition.$nor && Array.isArray(condition.$nor)) {
         if (condition.$nor.length === 0) return true;
-        return !condition.$nor.some(sub => isConditionMet(model, sub, formData, allModels, user));
+        return !condition.$nor.some(sub => isConditionMet(model, sub, formData, allModels, user,checkRegex));
     }
 
     // Cas 3: Syntaxe d'agrégation {$eq: ['$field', value]}
@@ -253,9 +265,9 @@ export const isConditionMet = (model, cond, formData, allModels, user) => {
         const operator = Object.keys(condition)[0];
         if (operator.startsWith('$') && operator !== '$find' &&
             Array.isArray(condition[operator])) {
-            return evaluateSingleCondition(model, condition, formData, allModels, user);
+            return evaluateSingleCondition(model, condition, formData, allModels, user,checkRegex);
         }
     }
 
-    return evaluateSingleCondition(model, condition, formData, allModels, user);
+    return evaluateSingleCondition(model, condition, formData, allModels, user, checkRegex);
 };
