@@ -1310,7 +1310,7 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
     }
 }
 export const searchData = async (query, user) => {
-    const {page, limit, sort, model, ids, timeout, pack} = query; // Les filtres de la requête (attention aux injections MongoDB !)
+    const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack} = query;
 
     if (user && user.username !== 'demo' && isLocalUser(user) && (
         !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_" + model], user) ||
@@ -1396,9 +1396,7 @@ export const searchData = async (query, user) => {
             return v <= v2 ? -1 : (t1 <= t2 ? -1 : 1);
         })) {
 
-            // **Circular Reference Check:**
             if (already.includes(fi.relation)) {
-                // Skip the lookup if we've already processed this relation in the current chain.
                 console.warn(`Skipping circular reference to model: ${fi.relation}`);
                 continue;
             }
@@ -1428,7 +1426,6 @@ export const searchData = async (query, user) => {
                     }
                 }
 
-                // Création du lookup si l'expand est activé
                 ++i;
                 const lookup = {
                     $lookup: {
@@ -1448,7 +1445,7 @@ export const searchData = async (query, user) => {
                                                 fi.multiple ? {
                                                     $in: [{$toString: "$_id"}, {
                                                         $map: {
-                                                            input: {$ifNull: ["$$convertedId", []]}, // On utilise le tableau d'IDs, ou un tableau vide s'il est null
+                                                            input: {$ifNull: ["$$convertedId", []]},
                                                             as: "relationId",
                                                             in: {$toString: "$$relationId"}
                                                         }
@@ -1472,7 +1469,6 @@ export const searchData = async (query, user) => {
                 pipelinesLookups.push(lookup);
                 pipelinesLookups.push({$limit: Math.floor(maxTotalDataPerUser)});
 
-                // Construct the path for the current field
                 const currentPath = parentPath ? `${parentPath}_${fi.name}` : fi.name;
                 fi.path = currentPath;
                 pipelinesLookups.push(
@@ -1489,7 +1485,6 @@ export const searchData = async (query, user) => {
                     }
                 );
 
-                //found = true;
                 pipelinesLookups.push(
                     {$project: {['items' + i]: 0}}
                 );
@@ -1517,13 +1512,10 @@ export const searchData = async (query, user) => {
                 );
 
             } else if (fi.type === 'file') {
-                // Logique pour enrichir un champ fichier unique
-
-                // Stage 1: Lookup file details from the 'files' collection
                 pipelinesLookups.push({
                     $lookup: {
-                        from: "files", // The global collection where file metadata is stored
-                        let: {fileGuid: '$' + fi.name}, // The GUID string from the current document's field
+                        from: "files",
+                        let: {fileGuid: '$' + fi.name},
                         pipeline: [
                             {
                                 $match: {
@@ -1535,95 +1527,75 @@ export const searchData = async (query, user) => {
                                     }
                                 }
                             },
-                            {$limit: 1} // GUIDs should be unique, so limit to 1
+                            {$limit: 1}
                         ],
-                        as: fi.name + "_details_temp" // Temporary field to store the lookup result (an array)
+                        as: fi.name + "_details_temp"
                     }
                 });
 
-                // Stage 2: Replace the original GUID string with the fetched file object (or null if not found)
                 pipelinesLookups.push({
                     $addFields: {
                         [fi.name]: {
-                            // $lookup returns an array, take the first element.
-                            // If lookup result is empty or null, set the field to null.
                             $ifNull: [{$first: '$' + fi.name + "_details_temp"}, null]
                         }
                     }
                 });
 
-                // Stage 3: Clean up the temporary lookup field
                 pipelinesLookups.push({
                     $project: {
                         [fi.name + "_details_temp"]: 0
                     }
                 });
             } else if (fi.type === 'array' && fi.itemsType === 'file' && depthParam !== 1) {
-                // This field (e.g., 'myImageGallery') stores an array of GUID strings: ["guid1", "guid2"]
                 pipelinesLookups.push(
                     {
                         $lookup: {
-                            from: "files", // The global collection where file metadata is stored
-                            let: {localGuidsArray: '$' + fi.name}, // The array of GUID strings from the current document
+                            from: "files",
+                            let: {localGuidsArray: '$' + fi.name},
                             pipeline: [
                                 {
                                     $match: {
                                         $expr: {
-                                            // Match documents in "files" collection where 'guid' is in the '$$localGuidsArray'
-                                            $in: ['$guid', {$ifNull: ['$$localGuidsArray', []]}] // Handle null or missing array
+                                            $in: ['$guid', {$ifNull: ['$$localGuidsArray', []]}]
                                         }
                                     }
                                 }
-                                // Optional: Project only necessary fields from the "files" collection if needed
-                                // {
-                                //     $project: {
-                                //         _id: 0, // Exclude MongoDB's _id from the 'files' collection documents
-                                //         // mainUser: 0, // Example: if you don't need these in the result
-                                //         // user: 0,
-                                //         // _model:0, // The _model "privateFile" might not be useful here
-                                //         // Keep: guid, filename (as name), mimetype, size, timestamp etc.
-                                //     }
-                                // }
                             ],
-                            as: fi.name + "_details_temp" // Temporary field to store the array of matched file detail objects
+                            as: fi.name + "_details_temp"
                         }
                     },
-                    // The following $addFields and $project stages are what you had
-                    // in your fi.type === 'file' block, and they are correct for this array scenario.
                     {
                         $addFields: {
-                            [fi.name]: { // Remplacer le tableau de chaînes GUID par un tableau d'objets fichiers détaillés
-                                $ifNull: [ // Gérer le cas où le champ fi.name est null (original array of GUIDs)
+                            [fi.name]: {
+                                $ifNull: [
                                     {
                                         $map: {
-                                            input: '$' + fi.name, // Itérer sur le tableau original de chaînes GUID
-                                            as: "originalGuidString", // Each element from the input array (a GUID string)
+                                            input: '$' + fi.name,
+                                            as: "originalGuidString",
                                             in: {
                                                 $let: {
                                                     vars: {
-                                                        // Trouver le détail correspondant dans _details_temp par GUID
                                                         matchedDetail: {
                                                             $arrayElemAt: [
                                                                 {
                                                                     $filter: {
-                                                                        input: '$' + fi.name + "_details_temp", // Use the result from the $lookup above
-                                                                        as: "detailFile", // Each document from _details_temp
+                                                                        input: '$' + fi.name + "_details_temp",
+                                                                        as: "detailFile",
                                                                         cond: {$eq: ["$$detailFile.guid", "$$originalGuidString"]}
                                                                     }
                                                                 },
-                                                                0 // Take the first match (GUIDs should be unique in "files")
+                                                                0
                                                             ]
                                                         }
                                                     },
                                                     in: {
                                                         $cond: {
-                                                            if: '$$matchedDetail', // Si des détails ont été trouvés
-                                                            then: '$$matchedDetail', // Utiliser l'objet détaillé complet
-                                                            else: { // Si aucun détail trouvé pour ce GUID (e.g., broken reference)
-                                                                guid: '$$originalGuidString', // Conserver le GUID original
-                                                                name: null, // Ou une valeur par défaut comme "Fichier inconnu"
+                                                            if: '$$matchedDetail',
+                                                            then: '$$matchedDetail',
+                                                            else: {
+                                                                guid: '$$originalGuidString',
+                                                                name: null,
                                                                 _error: "File details not found"
-                                                                // Ou simplement: '$$originalGuidString' si vous voulez juste garder la chaîne
                                                             }
                                                         }
                                                     }
@@ -1631,13 +1603,13 @@ export const searchData = async (query, user) => {
                                             }
                                         }
                                     },
-                                    [] // Si le champ original fi.name était null, le résultat est un tableau vide
+                                    []
                                 ]
                             }
                         }
                     },
                     {
-                        $project: { // Nettoyer le champ temporaire
+                        $project: {
                             [fi.name + "_details_temp"]: 0
                         }
                     }
@@ -1645,27 +1617,18 @@ export const searchData = async (query, user) => {
             } else if (fi.type === 'calculated' && fi.calculation && fi.calculation.pipeline && fi.calculation.final) {
                 const calcPipelineAbstract = fi.calculation.pipeline;
                 const calcFinalFieldName = fi.calculation.final;
-                const tempLookupsForThisCalcField = []; // Pour stocker les noms 'as' des lookups de CE champ calculé
+                const tempLookupsForThisCalcField = [];
 
-                // Ajouter les étapes $lookup définies par le calcul
                 if (calcPipelineAbstract.lookups && calcPipelineAbstract.lookups.length > 0) {
                     for (const lookupDef of calcPipelineAbstract.lookups) {
-                        // ... (votre logique existante de vérification de foreignModel et localField) ...
-                        // Assurez-vous que cette logique est robuste comme discuté précédemment.
-                        // Si une erreur se produit ici (foreignModel non trouvé, etc.),
-                        // vous ajoutez déjà un $addFields pour initialiser lookupDef.as à null/[]
-                        // et vous faites 'continue'. C'est bien.
-
-                        // Si tout va bien, on construit le lookup :
-                        const targetCollectionName = await getUserCollectionName(user);
-                        const localFieldValueInPipeline = `$${lookupDef.localField}`;
-
-                        // Vérification basique du localField (déjà présente dans votre code précédent)
                         if (!lookupDef.localField || typeof lookupDef.localField !== 'string' || lookupDef.localField.trim() === '') {
                             logger.warn(`[Calculated Field Error] ... localField ... invalide ...`);
                             pipelinesLookups.push({$addFields: {[lookupDef.as]: lookupDef.isMultiple ? [] : null}});
                             continue;
                         }
+
+                        const targetCollectionName = await getUserCollectionName(user);
+                        const localFieldValueInPipeline = `$${lookupDef.localField}`;
 
                         const mongoLookupStage = {
                             $lookup: {
@@ -1685,13 +1648,12 @@ export const searchData = async (query, user) => {
                                             }
                                         }
                                     }
-                                    // Optionnel: Projeter uniquement les champs nécessaires
                                 ],
                                 as: lookupDef.as
                             }
                         };
                         pipelinesLookups.push(mongoLookupStage);
-                        tempLookupsForThisCalcField.push(lookupDef.as); // Suivre ce champ temporaire
+                        tempLookupsForThisCalcField.push(lookupDef.as);
 
                         if (!lookupDef.isMultiple) {
                             pipelinesLookups.push({
@@ -1704,38 +1666,30 @@ export const searchData = async (query, user) => {
                     }
                 }
 
-                // Ajouter l'étape $addFields pour les calculs eux-mêmes
                 if (calcPipelineAbstract.addFields && Object.keys(calcPipelineAbstract.addFields).length > 0) {
                     const addFields = Object.keys(calcPipelineAbstract.addFields).map(m => ({$addFields: {[m]: calcPipelineAbstract.addFields[m]}}));
                     pipelinesLookups = pipelinesLookups.concat(addFields);
                 }
 
-                // S'assurer que le champ final du calcul (calcFinalFieldName) est bien accessible
-                // sous le nom du champ du modèle (fi.name).
                 if (calcFinalFieldName !== fi.name) {
                     pipelinesLookups.push({$addFields: {[fi.name]: `$${calcFinalFieldName}`}});
                 }
 
-                // --- NOUVEAU : Supprimer les champs de lookup temporaires pour CE champ calculé ---
                 if (tempLookupsForThisCalcField.length > 0) {
                     const unsetProjection = {};
                     for (const tempField of tempLookupsForThisCalcField) {
-                        // On peut supprimer tous les champs __calc_lookup_... car le CalculationBuilder
-                        // empêche que outputAlias (et donc calcFinalFieldName, et donc fi.name)
-                        // soit un de ces champs temporaires.
-                        unsetProjection[tempField] = 0; // 0 signifie supprimer/exclure le champ
+                        unsetProjection[tempField] = 0;
                     }
                     if (Object.keys(unsetProjection).length > 0) {
                         pipelinesLookups.push({$project: unsetProjection});
                     }
                 }
             } else if (fi.type === 'array') {
-                // Handle array filtering here
                 if (data[fi.name]) {
                     pipelines.push({
                         $match: {
                             $expr: {
-                                $in: [data[fi.name], '$' + fi.name] // Check if the array contains the value
+                                $in: [data[fi.name], '$' + fi.name]
                             }
                         }
                     });
@@ -1753,16 +1707,15 @@ export const searchData = async (query, user) => {
             }
         }
 
-
-        let addFields = [];
-        /*modelElement.fields.forEach(field => {
-            if( field.type==='relation' && !field.multiple && depthParam !== 1 && (dataRelationF.length)){
-                addFields.push(
-                    {$addFields: {[`${field.name}`]: {$first: '$'+field.name }}}
-                )
-            }
-        })*/
-        return pipelines.concat([{$match: {'_pack': pack ? pack : {$exists: false}}}, {$match: {$expr: dataNoRelation}}], pipelinesLookups, addFields, [{$match: {$expr: {$and: dataRelationF}}}]);
+        return pipelines.concat(
+            [
+                {$match: {'_pack': pack ? pack : {$exists: false}}},
+                {$match: {$expr: dataNoRelation}}
+            ],
+            customPipelines, // ← INTÉGRATION DES PIPELINES PERSONNALISÉES
+            pipelinesLookups,
+            [{$match: {$expr: {$and: dataRelationF}}}]
+        );
     };
 
     let pipelines = [];
@@ -1771,30 +1724,38 @@ export const searchData = async (query, user) => {
         pipelines.push({
             $match: {$expr: id}
         });
-
     } else {
-
         pipelines.push(
             {
                 $match: {
                     $expr: {
-                        $and: [{$eq: ["$_model", modelElement.name]},
-                            {$eq: ["$_user", user.username]}]
+                        $and: [
+                            {$eq: ["$_model", modelElement.name]},
+                            {$eq: ["$_user", user.username]}
+                        ]
                     }
                 }
             }
         )
     }
 
+    // Intégration des pipelines personnalisés au début si nécessaire
+    if (customPipelines.length > 0 && pipelinesPosition === 'start') {
+        pipelines = pipelines.concat(customPipelines);
+    }
+
     pipelines = pipelines.concat(await recursiveLookup(model, filter, 1, []));
+
+    // Intégration des pipelines personnalisés à la fin si nécessaire
+    if (customPipelines.length > 0 && pipelinesPosition !== 'start') {
+        pipelines = pipelines.concat(customPipelines);
+    }
+
     if (depthParam) {
         pipelines.push({$project: {_user: 0}});
         pipelines.push({$project: {_model: 0}});
     }
 
-    //console.log(util.inspect(pipelines, false, 29, true));
-
-    // 4. Exécuter la pipeline
     const ts = parseInt(timeout, 10) / 2.0 || searchRequestTimeout;
     const count = await collection.aggregate([...pipelines, {$count: "count"}]).maxTimeMS(ts).toArray();
     let prom = collection.aggregate(pipelines).maxTimeMS(ts);
