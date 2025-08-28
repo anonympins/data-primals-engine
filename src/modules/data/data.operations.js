@@ -1,4 +1,4 @@
-import {getObjectHash, getRandom, isPlainObject, randomDate, safeAssignObject} from "../../core.js";
+import {getObjectHash, getRand, getRandom, isPlainObject, randomDate, safeAssignObject, setSeed} from "../../core.js";
 import {
     maxExportCount,
     maxFileSize,
@@ -410,8 +410,9 @@ export const dataTypes = {
             // Generate random coordinates for a GeoJSON Point.
             // Longitude: -180 to 180
             // Latitude: -90 to 90
-            const longitude = (Math.random() * 360) - 180;
-            const latitude = (Math.random() * 180) - 90;
+            setSeed(new Date().getTime()+'');
+            const longitude = (getRand() * 360) - 180;
+            const latitude = (getRand() * 180) - 90;
             return {
                 type: 'Point',
                 coordinates: [longitude, latitude]
