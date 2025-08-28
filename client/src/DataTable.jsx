@@ -98,7 +98,7 @@ const Header = ({
 
                 <Button onClick={handleFilter} className={filterActive ? ' active' : ''}><FaFilter/></Button>
                 {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
-                <CheckboxField checked={checkedItems?.length === data.length} onChange={e => {
+                <CheckboxField checkbox={true} checked={checkedItems?.length === data.length} onChange={e => {
                     if (checkedItems?.length === data.length) {
                         setCheckedItems([]);
                     } else {
@@ -537,7 +537,7 @@ export function DataTable({
                                     }
                                 }}>
                                     {advanced && (<td className={"mini"}>
-                                        <CheckboxField className={"input-ref"}
+                                        <CheckboxField checkbox={true} className={"input-ref"}
                                                        checked={checkedItems?.some(i => i._id === item._id)}
                                                        onChange={(e) => {
                                                            if (e) {

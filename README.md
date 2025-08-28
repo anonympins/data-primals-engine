@@ -816,7 +816,7 @@ Event.Listen("OnDataAdded", (engine, data) => {
 | OnDataInsert     | Triggered just before data insertion. It will use the overrided data.   | System        | internal             | (data)                                                                                                                                   |
 | OnDataValidate   | Triggered to override validation check.                                 | System        | internal             | (value, field, data)                                                                                                                     |
 | OnDataFilter     | Triggered to override data filtering operation.                         | System        | internal             | (filteredValue, field, data)                                                                                                             |
-| OnEmailTemplate  | Triggered to override custom email templates                            | System        | internal             | (filteredValue, field, data)                                                                                                             |
+| OnEmailTemplate  | Triggered to override custom email templates                            | System        | internal             | (templateData, lang)                                                                                                                     |
 
 ### Triggering events
 

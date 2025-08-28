@@ -109,8 +109,9 @@ function DataLayout({refreshUI}) {
     }, []);
 
     useEffect(() =>{
-        setSelectedModel(models.find(f => f.name === mod));
-        setEditionMode(false);
+        const m = models.find(f => f.name === mod);
+        setSelectedModel(m);
+        setEditionMode(!m);
     }, [mod, models, searchParams])
 
 
