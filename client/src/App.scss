@@ -1039,10 +1039,18 @@ h2.shadow {
   }
 }
 
-.mini input[type=checkbox] {
-  cursor: pointer;
-  width: 15px;
-  height: 15px;
+.mini {
+  .field-checkbox.field-bg {
+    background: none;
+  }
+  input[type=checkbox] {
+    cursor: pointer;
+    margin: 0 auto;
+    background: none;
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
 }
 
 .pagination-wrapper {

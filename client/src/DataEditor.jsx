@@ -26,6 +26,7 @@ import CronBuilder from "./CronBuilder.jsx";
 import RTETrans from "./RTETrans.jsx";
 import uniqid from "uniqid";
 import {isConditionMet} from "../../src/filter";
+import GeolocationField from "./GeolocationField.jsx";
 
 // ... (fonction getInputType) ...
 // Fonction pour obtenir le type d'input HTML basé sur le type de champ du modèle
@@ -70,7 +71,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
     function renderInputField(model, field, value, handleChange, refreshTime, formData, user, models) { // Ajout de formData
 
         // Évaluer la condition AVANT de rendre le champ
-        if (!isConditionMet(model, field.condition, formData)) {
+        if (!isConditionMet(model, field.condition, formData, models, user, false)) {
             return null; // Ne rien rendre si la condition n'est pas remplie
         }
 
@@ -283,6 +284,13 @@ export const DataEditor = forwardRef(function MyDataEditor({
                 return <ColorField help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} name={field.name} value={value} onChange={handleChange} />
             case 'email':
                 return <EmailField  help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
+            case 'geolocation':
+                return <GeolocationField
+                    key={field.name}
+                    name={field.name}
+                    value={value}
+                    onChange={(newValue) => handleChange(newValue)}
+                />;
             default:
                 return <TextField  help={t('field_'+model.name+'_'+field.name+'_hint', field.hint || '')} key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />
         }

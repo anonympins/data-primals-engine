@@ -1,4 +1,4 @@
-import {getObjectHash, getRandom, isPlainObject, randomDate, safeAssignObject} from "../../core.js";
+import {getObjectHash, getRand, getRandom, isPlainObject, randomDate, safeAssignObject, setSeed} from "../../core.js";
 import {
     maxExportCount,
     maxFileSize,
@@ -388,6 +388,37 @@ export const dataTypes = {
             return value;
         }
     },
+    geolocation: {
+        validate: (value) => {
+            if (value === null) return true;
+            // Basic GeoJSON structure validation
+            if (typeof value !== 'object' || !value.type || !value.coordinates) {
+                return false;
+            }
+            // For now, we only validate 'Point' type, which is the most common.
+            if (value.type !== 'Point') {
+                // This can be extended to support 'Polygon', 'LineString', etc.
+                return false;
+            }
+            // Validate coordinates for a Point
+            return Array.isArray(value.coordinates) &&
+                value.coordinates.length === 2 &&
+                typeof value.coordinates[0] === 'number' &&
+                typeof value.coordinates[1] === 'number';
+        },
+        anonymize: () => {
+            // Generate random coordinates for a GeoJSON Point.
+            // Longitude: -180 to 180
+            // Latitude: -90 to 90
+            setSeed(new Date().getTime()+'');
+            const longitude = (getRand() * 360) - 180;
+            const latitude = (getRand() * 180) - 90;
+            return {
+                type: 'Point',
+                coordinates: [longitude, latitude]
+            };
+        }
+    },
     richtext_t: {
         validate: (value, field) => {
             // La valeur doit être un objet (ou null/undefined)
@@ -459,43 +490,82 @@ export const editModel = async (user, id, data) => {
             })
         }
 
-        const coll = await getCollectionForUser(user);
-        // Update indexes
         // Update indexes
         if (await engine.userProvider.hasFeature(user, 'indexes')) {
+            const coll = await getCollectionForUser(user);
             let indexes = [];
             try {
-                // On essaie de récupérer les index existants
                 indexes = await coll.indexes();
             } catch (e) {
-                // Si la collection n'existe pas, c'est normal.
-                // createIndex la créera. Il n'y a juste pas d'index à supprimer.
                 if (e.codeName !== 'NamespaceNotFound') {
-                    throw e; // On relance les autres erreurs
+                    throw e;
                 }
             }
 
-            // Le reste de votre logique de gestion d'index peut maintenant s'exécuter en toute sécurité
-            for (const field of data.fields) {
-                const elField = el.fields.find(f => f.name === field.name);
-                if (!elField) continue;
+            const oldFields = el.fields || [];
+            const newFields = data.fields || [];
 
-                const index = indexes.find(i => i.key[field.name] === 1 &&
-                    i.partialFilterExpression?._model === el.name &&
-                    i.partialFilterExpression?._user === user.username);
+            // --- Text Index Management (Compound) ---
+            const newTextFields = newFields.filter(f => f.index && f.indexType === 'text').map(f => f.name).sort();
+            const textIndexName = `_text_search_idx_${data.name}`;
+            const existingTextIndex = indexes.find(i => i.name === textIndexName);
+            const existingTextFields = existingTextIndex ? Object.keys(existingTextIndex.weights || {}).sort() : [];
 
-                if (elField.index !== field.index && !field.index) {
-                    if (index) {
-                        await coll.dropIndex(index.name);
+            // Check if the text index definition has changed
+            const textIndexChanged = JSON.stringify(existingTextFields) !== JSON.stringify(newTextFields);
+
+            if (textIndexChanged) {
+                if (existingTextIndex) {
+                    logger.info(`[Index] Dropping existing text index '${textIndexName}' due to changes.`);
+                    await coll.dropIndex(textIndexName);
+                }
+                if (newTextFields.length > 0) {
+                    const textIndexSpec = newTextFields.reduce((acc, fieldName) => {
+                        acc[fieldName] = 'text';
+                        return acc;
+                    }, {});
+                    const indexOptions = {
+                        name: textIndexName,
+                        partialFilterExpression: { _model: data.name, _user: user.username }
+                    };
+                    logger.info(`[Index] Creating compound text index on fields: [${newTextFields.join(', ')}].`);
+                    await coll.createIndex(textIndexSpec, indexOptions);
+                }
+            }
+
+            // --- Regular and 2dsphere Index Management (per field) ---
+            const managedFields = newFields.concat(oldFields.filter(oldField => !newFields.some(nf => nf.name === oldField.name)));
+
+            for (const field of managedFields) {
+                const oldField = oldFields.find(f => f.name === field.name);
+                const newField = newFields.find(f => f.name === field.name);
+                const fieldName = field.name;
+
+                // Skip text fields, they are handled above
+                if ((oldField?.indexType === 'text') || (newField?.indexType === 'text')) continue;
+
+                const wasIndexed = oldField?.index;
+                const isIndexed = newField?.index ?? false;
+                const oldIndexType = oldField?.indexType || 'regular';
+                const newIndexType = newField?.indexType || 'regular';
+                const indexName = `${fieldName}_${newIndexType}_idx`;
+                const existingIndex = indexes.find(i => i.key[fieldName] && i.name.startsWith(fieldName));
+                const indexExists = !!existingIndex;
+                const existingIndexTypeFromName = indexExists ? existingIndex.name.split('_')[1] : null;
+
+                const needsUpdate = !newField || (isIndexed !== indexExists) || (isIndexed && indexExists && newIndexType !== existingIndexTypeFromName);
+
+                if (needsUpdate) {
+                    if (existingIndex) {
+                        logger.info(`[Index] Dropping existing index '${existingIndex.name}' for field '${fieldName}' due to changes or deletion.`);
+                        await coll.dropIndex(existingIndex.name);
                     }
-                } else if (elField.index !== field.index && field.index) {
-                    if (!index) {
-                        await coll.createIndex({[field.name]: 1}, {
-                            partialFilterExpression: {
-                                _model: data.name,
-                                _user: user.username
-                            }
-                        });
+                    if (isIndexed && newField) {
+                        const indexValue = newIndexType === '2dsphere' ? '2dsphere' : 1;
+                        const indexSpec = { [fieldName]: indexValue };
+                        const indexOptions = { name: indexName, partialFilterExpression: { _model: data.name, _user: user.username } };
+                        logger.info(`[Index] Creating '${newIndexType}' index on field '${fieldName}'.`);
+                        await coll.createIndex(indexSpec, indexOptions);
                     }
                 }
             }
@@ -1309,8 +1379,39 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
         });
     }
 }
+
+
+// List of operators that cannot be used inside $expr. $geoNear is handled separately
+// as it's a full stage, not just an operator.
+const specialOpKeys = ['$text', '$near', '$nearSphere', '$geoWithin', '$geoIntersects', '$regex'];
+
+/**
+ * Recursively checks if any part of a filter expression contains a special operator.
+ * @param {*} expression - The filter expression or a part of it.
+ * @returns {boolean}
+ */
+const containsSpecialOp = (expression) => {
+    if (Array.isArray(expression)) {
+        return expression.some(item => containsSpecialOp(item));
+    }
+    if (!isPlainObject(expression)) {
+        return false;
+    }
+
+    for (const key in expression) {
+        if (specialOpKeys.includes(key)) {
+            return true;
+        }
+        if (containsSpecialOp(expression[key])) {
+            return true;
+        }
+    }
+    return false;
+};
+
+
 export const searchData = async (query, user) => {
-    const {page, limit, sort, model, ids, timeout, pack} = query; // Les filtres de la requête (attention aux injections MongoDB !)
+    const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack} = query;
 
     if (user && user.username !== 'demo' && isLocalUser(user) && (
         !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_" + model], user) ||
@@ -1328,13 +1429,51 @@ export const searchData = async (query, user) => {
     let p = parseInt(page, 10);
     let filter = query.filter || {};
 
-    let sortObj = {};
-    sort?.split(',').forEach(s => {
-        const v = s.split(':');
-        sortObj[v[0] || s] = v[1] === 'DESC' ? -1 : 1;
-    })
-    if (!sort) {
-        sortObj = {[modelElement.fields[0]?.name || '_id']: ['datetime', 'date'].includes(modelElement.fields[0].type) ? -1 : 1};
+    // --- START: Added logic for special query operators ---
+    const specialFilterOps = {};
+    let standardFilter = {};
+
+    // Recursively separate special operators ($text, $nearSphere, etc.) that cannot be used within $expr
+    for (const key in filter) {
+        const value = filter[key];
+
+        // $geoNear is a special case; it's a stage and must be at the top level of the filter.
+        if (key === '$geoNear') {
+            specialFilterOps[key] = value;
+        }
+        // For logical operators, we split their child arrays based on whether they contain special ops.
+        else if ((key === '$and' || key === '$or' || key === '$nor') && Array.isArray(value)) {
+            const hasSpecial = value.some(child => containsSpecialOp(child));
+
+            // If a logical operator contains any condition with a special operator (like $regex or a geo-op),
+            // the entire logical block must be processed in a standard `$match` stage.
+            // This is because splitting the block would break the original logic (e.g., an `$or` would become an `$and`).
+            if (hasSpecial) {
+                specialFilterOps[key] = value;
+            } else {
+                // Otherwise, the entire block is "standard" and can be processed by the $expr-based logic.
+                standardFilter[key] = value;
+            }
+        }
+        // For other keys, check if the expression {key: value} contains a special op.
+        else if (containsSpecialOp({ [key]: value })) {
+            specialFilterOps[key] = value;
+        } else {
+            standardFilter[key] = value;
+        }
+    }
+
+    // The rest of the function will use `standardFilter` for the recursive lookup.
+    filter = standardFilter;
+    // --- END: Added logic for special query operators ---
+
+    let sortObj = null; // Initialize to null
+    if (sort) {
+        sortObj = {};
+        sort.split(',').forEach(s => {
+            const v = s.split(':');
+            sortObj[v[0] || s] = v[1] === 'DESC' ? -1 : 1;
+        });
     }
 
     let i = 0;
@@ -1345,8 +1484,13 @@ export const searchData = async (query, user) => {
 
     const recursiveLookup = async (model, data, depth = 1, already = [], parentPath = '') => {
 
-        if (depth > depthParam)
+        if (depth > depthParam) {
             return [];
+        }
+        // Handle null, array, or other non-object data gracefully to prevent crashes.
+        if (!isPlainObject(data)) {
+            return [];
+        }
 
         let pipelines = [], pipelinesLookups = [];
         let modelElement;
@@ -1396,16 +1540,13 @@ export const searchData = async (query, user) => {
             return v <= v2 ? -1 : (t1 <= t2 ? -1 : 1);
         })) {
 
-            // **Circular Reference Check:**
             if (already.includes(fi.relation)) {
-                // Skip the lookup if we've already processed this relation in the current chain.
                 console.warn(`Skipping circular reference to model: ${fi.relation}`);
                 continue;
             }
             const relSort = {};
             if (fi.type === 'relation' && depthParam !== 1) {
-                delete f[fi.name];
-                if (sortObj[fi.name]) {
+                if (sortObj?.[fi.name]) {
 
                     const sortColumn = await getModel(fi.relation, user);
                     let t = sortColumn.fields.find(f => f.asMain)?.name;
@@ -1428,7 +1569,6 @@ export const searchData = async (query, user) => {
                     }
                 }
 
-                // Création du lookup si l'expand est activé
                 ++i;
                 const lookup = {
                     $lookup: {
@@ -1448,7 +1588,7 @@ export const searchData = async (query, user) => {
                                                 fi.multiple ? {
                                                     $in: [{$toString: "$_id"}, {
                                                         $map: {
-                                                            input: {$ifNull: ["$$convertedId", []]}, // On utilise le tableau d'IDs, ou un tableau vide s'il est null
+                                                            input: {$ifNull: ["$$convertedId", []]},
                                                             as: "relationId",
                                                             in: {$toString: "$$relationId"}
                                                         }
@@ -1472,7 +1612,6 @@ export const searchData = async (query, user) => {
                 pipelinesLookups.push(lookup);
                 pipelinesLookups.push({$limit: Math.floor(maxTotalDataPerUser)});
 
-                // Construct the path for the current field
                 const currentPath = parentPath ? `${parentPath}_${fi.name}` : fi.name;
                 fi.path = currentPath;
                 pipelinesLookups.push(
@@ -1489,7 +1628,6 @@ export const searchData = async (query, user) => {
                     }
                 );
 
-                //found = true;
                 pipelinesLookups.push(
                     {$project: {['items' + i]: 0}}
                 );
@@ -1517,13 +1655,10 @@ export const searchData = async (query, user) => {
                 );
 
             } else if (fi.type === 'file') {
-                // Logique pour enrichir un champ fichier unique
-
-                // Stage 1: Lookup file details from the 'files' collection
                 pipelinesLookups.push({
                     $lookup: {
-                        from: "files", // The global collection where file metadata is stored
-                        let: {fileGuid: '$' + fi.name}, // The GUID string from the current document's field
+                        from: "files",
+                        let: {fileGuid: '$' + fi.name},
                         pipeline: [
                             {
                                 $match: {
@@ -1535,95 +1670,75 @@ export const searchData = async (query, user) => {
                                     }
                                 }
                             },
-                            {$limit: 1} // GUIDs should be unique, so limit to 1
+                            {$limit: 1}
                         ],
-                        as: fi.name + "_details_temp" // Temporary field to store the lookup result (an array)
+                        as: fi.name + "_details_temp"
                     }
                 });
 
-                // Stage 2: Replace the original GUID string with the fetched file object (or null if not found)
                 pipelinesLookups.push({
                     $addFields: {
                         [fi.name]: {
-                            // $lookup returns an array, take the first element.
-                            // If lookup result is empty or null, set the field to null.
                             $ifNull: [{$first: '$' + fi.name + "_details_temp"}, null]
                         }
                     }
                 });
 
-                // Stage 3: Clean up the temporary lookup field
                 pipelinesLookups.push({
                     $project: {
                         [fi.name + "_details_temp"]: 0
                     }
                 });
             } else if (fi.type === 'array' && fi.itemsType === 'file' && depthParam !== 1) {
-                // This field (e.g., 'myImageGallery') stores an array of GUID strings: ["guid1", "guid2"]
                 pipelinesLookups.push(
                     {
                         $lookup: {
-                            from: "files", // The global collection where file metadata is stored
-                            let: {localGuidsArray: '$' + fi.name}, // The array of GUID strings from the current document
+                            from: "files",
+                            let: {localGuidsArray: '$' + fi.name},
                             pipeline: [
                                 {
                                     $match: {
                                         $expr: {
-                                            // Match documents in "files" collection where 'guid' is in the '$$localGuidsArray'
-                                            $in: ['$guid', {$ifNull: ['$$localGuidsArray', []]}] // Handle null or missing array
+                                            $in: ['$guid', {$ifNull: ['$$localGuidsArray', []]}]
                                         }
                                     }
                                 }
-                                // Optional: Project only necessary fields from the "files" collection if needed
-                                // {
-                                //     $project: {
-                                //         _id: 0, // Exclude MongoDB's _id from the 'files' collection documents
-                                //         // mainUser: 0, // Example: if you don't need these in the result
-                                //         // user: 0,
-                                //         // _model:0, // The _model "privateFile" might not be useful here
-                                //         // Keep: guid, filename (as name), mimetype, size, timestamp etc.
-                                //     }
-                                // }
                             ],
-                            as: fi.name + "_details_temp" // Temporary field to store the array of matched file detail objects
+                            as: fi.name + "_details_temp"
                         }
                     },
-                    // The following $addFields and $project stages are what you had
-                    // in your fi.type === 'file' block, and they are correct for this array scenario.
                     {
                         $addFields: {
-                            [fi.name]: { // Remplacer le tableau de chaînes GUID par un tableau d'objets fichiers détaillés
-                                $ifNull: [ // Gérer le cas où le champ fi.name est null (original array of GUIDs)
+                            [fi.name]: {
+                                $ifNull: [
                                     {
                                         $map: {
-                                            input: '$' + fi.name, // Itérer sur le tableau original de chaînes GUID
-                                            as: "originalGuidString", // Each element from the input array (a GUID string)
+                                            input: '$' + fi.name,
+                                            as: "originalGuidString",
                                             in: {
                                                 $let: {
                                                     vars: {
-                                                        // Trouver le détail correspondant dans _details_temp par GUID
                                                         matchedDetail: {
                                                             $arrayElemAt: [
                                                                 {
                                                                     $filter: {
-                                                                        input: '$' + fi.name + "_details_temp", // Use the result from the $lookup above
-                                                                        as: "detailFile", // Each document from _details_temp
+                                                                        input: '$' + fi.name + "_details_temp",
+                                                                        as: "detailFile",
                                                                         cond: {$eq: ["$$detailFile.guid", "$$originalGuidString"]}
                                                                     }
                                                                 },
-                                                                0 // Take the first match (GUIDs should be unique in "files")
+                                                                0
                                                             ]
                                                         }
                                                     },
                                                     in: {
                                                         $cond: {
-                                                            if: '$$matchedDetail', // Si des détails ont été trouvés
-                                                            then: '$$matchedDetail', // Utiliser l'objet détaillé complet
-                                                            else: { // Si aucun détail trouvé pour ce GUID (e.g., broken reference)
-                                                                guid: '$$originalGuidString', // Conserver le GUID original
-                                                                name: null, // Ou une valeur par défaut comme "Fichier inconnu"
+                                                            if: '$$matchedDetail',
+                                                            then: '$$matchedDetail',
+                                                            else: {
+                                                                guid: '$$originalGuidString',
+                                                                name: null,
                                                                 _error: "File details not found"
-                                                                // Ou simplement: '$$originalGuidString' si vous voulez juste garder la chaîne
                                                             }
                                                         }
                                                     }
@@ -1631,13 +1746,13 @@ export const searchData = async (query, user) => {
                                             }
                                         }
                                     },
-                                    [] // Si le champ original fi.name était null, le résultat est un tableau vide
+                                    []
                                 ]
                             }
                         }
                     },
                     {
-                        $project: { // Nettoyer le champ temporaire
+                        $project: {
                             [fi.name + "_details_temp"]: 0
                         }
                     }
@@ -1645,27 +1760,18 @@ export const searchData = async (query, user) => {
             } else if (fi.type === 'calculated' && fi.calculation && fi.calculation.pipeline && fi.calculation.final) {
                 const calcPipelineAbstract = fi.calculation.pipeline;
                 const calcFinalFieldName = fi.calculation.final;
-                const tempLookupsForThisCalcField = []; // Pour stocker les noms 'as' des lookups de CE champ calculé
+                const tempLookupsForThisCalcField = [];
 
-                // Ajouter les étapes $lookup définies par le calcul
                 if (calcPipelineAbstract.lookups && calcPipelineAbstract.lookups.length > 0) {
                     for (const lookupDef of calcPipelineAbstract.lookups) {
-                        // ... (votre logique existante de vérification de foreignModel et localField) ...
-                        // Assurez-vous que cette logique est robuste comme discuté précédemment.
-                        // Si une erreur se produit ici (foreignModel non trouvé, etc.),
-                        // vous ajoutez déjà un $addFields pour initialiser lookupDef.as à null/[]
-                        // et vous faites 'continue'. C'est bien.
-
-                        // Si tout va bien, on construit le lookup :
-                        const targetCollectionName = await getUserCollectionName(user);
-                        const localFieldValueInPipeline = `$${lookupDef.localField}`;
-
-                        // Vérification basique du localField (déjà présente dans votre code précédent)
                         if (!lookupDef.localField || typeof lookupDef.localField !== 'string' || lookupDef.localField.trim() === '') {
                             logger.warn(`[Calculated Field Error] ... localField ... invalide ...`);
                             pipelinesLookups.push({$addFields: {[lookupDef.as]: lookupDef.isMultiple ? [] : null}});
                             continue;
                         }
+
+                        const targetCollectionName = await getUserCollectionName(user);
+                        const localFieldValueInPipeline = `$${lookupDef.localField}`;
 
                         const mongoLookupStage = {
                             $lookup: {
@@ -1685,13 +1791,12 @@ export const searchData = async (query, user) => {
                                             }
                                         }
                                     }
-                                    // Optionnel: Projeter uniquement les champs nécessaires
                                 ],
                                 as: lookupDef.as
                             }
                         };
                         pipelinesLookups.push(mongoLookupStage);
-                        tempLookupsForThisCalcField.push(lookupDef.as); // Suivre ce champ temporaire
+                        tempLookupsForThisCalcField.push(lookupDef.as);
 
                         if (!lookupDef.isMultiple) {
                             pipelinesLookups.push({
@@ -1704,38 +1809,30 @@ export const searchData = async (query, user) => {
                     }
                 }
 
-                // Ajouter l'étape $addFields pour les calculs eux-mêmes
                 if (calcPipelineAbstract.addFields && Object.keys(calcPipelineAbstract.addFields).length > 0) {
                     const addFields = Object.keys(calcPipelineAbstract.addFields).map(m => ({$addFields: {[m]: calcPipelineAbstract.addFields[m]}}));
                     pipelinesLookups = pipelinesLookups.concat(addFields);
                 }
 
-                // S'assurer que le champ final du calcul (calcFinalFieldName) est bien accessible
-                // sous le nom du champ du modèle (fi.name).
                 if (calcFinalFieldName !== fi.name) {
                     pipelinesLookups.push({$addFields: {[fi.name]: `$${calcFinalFieldName}`}});
                 }
 
-                // --- NOUVEAU : Supprimer les champs de lookup temporaires pour CE champ calculé ---
                 if (tempLookupsForThisCalcField.length > 0) {
                     const unsetProjection = {};
                     for (const tempField of tempLookupsForThisCalcField) {
-                        // On peut supprimer tous les champs __calc_lookup_... car le CalculationBuilder
-                        // empêche que outputAlias (et donc calcFinalFieldName, et donc fi.name)
-                        // soit un de ces champs temporaires.
-                        unsetProjection[tempField] = 0; // 0 signifie supprimer/exclure le champ
+                        unsetProjection[tempField] = 0;
                     }
                     if (Object.keys(unsetProjection).length > 0) {
                         pipelinesLookups.push({$project: unsetProjection});
                     }
                 }
             } else if (fi.type === 'array') {
-                // Handle array filtering here
                 if (data[fi.name]) {
                     pipelines.push({
                         $match: {
                             $expr: {
-                                $in: [data[fi.name], '$' + fi.name] // Check if the array contains the value
+                                $in: [data[fi.name], '$' + fi.name]
                             }
                         }
                     });
@@ -1753,54 +1850,167 @@ export const searchData = async (query, user) => {
             }
         }
 
-
-        let addFields = [];
-        /*modelElement.fields.forEach(field => {
-            if( field.type==='relation' && !field.multiple && depthParam !== 1 && (dataRelationF.length)){
-                addFields.push(
-                    {$addFields: {[`${field.name}`]: {$first: '$'+field.name }}}
-                )
-            }
-        })*/
-        return pipelines.concat([{$match: {'_pack': pack ? pack : {$exists: false}}}, {$match: {$expr: dataNoRelation}}], pipelinesLookups, addFields, [{$match: {$expr: {$and: dataRelationF}}}]);
+        return pipelines.concat(
+            [
+                {$match: {'_pack': pack ? pack : {$exists: false}}},
+                {$match: {$expr: dataNoRelation}}
+            ],
+            customPipelines, // ← INTÉGRATION DES PIPELINES PERSONNALISÉES
+            pipelinesLookups,
+            [{$match: {$expr: {$and: dataRelationF}}}]
+        );
     };
 
     let pipelines = [];
-    if (allIds.length) {
-        const id = {$in: ["$_id", allIds.map(m => new ObjectId(m))]};
-        pipelines.push({
-            $match: {$expr: id}
-        });
 
-    } else {
+    // --- START: Modified pipeline construction for special operators ---
+    if (specialFilterOps.$geoNear && (Object.values(specialFilterOps).some(v => v?.$nearSphere) || specialFilterOps.$text)) {
+        throw new Error("A $geoNear stage cannot be combined with $nearSphere or $text operators in the same query.");
+    }
 
-        pipelines.push(
-            {
-                $match: {
-                    $expr: {
-                        $and: [{$eq: ["$_model", modelElement.name]},
-                            {$eq: ["$_user", user.username]}]
+    // --- Strategy ---
+    // 1. If a $nearSphere operator is found, convert it to a $geoNear stage. This must be the first stage.
+    //    Other special filters (like $regex) will be moved into the `query` part of the $geoNear stage.
+    // 2. If a user-provided $geoNear stage exists, use it. It must be the first stage.
+    // 3. If a $text operator is found, it must be in the first $match stage. It is mutually exclusive with geo-queries.
+
+    let nearSphereField = null;
+    let nearSphereKey = null;
+    for (const key in specialFilterOps) {
+        if (isPlainObject(specialFilterOps[key]) && specialFilterOps[key].$nearSphere) {
+            if (nearSphereField) {
+                throw new Error("Query cannot contain multiple $nearSphere operators. Use a single $geoNear stage for complex geo-queries.");
+            }
+            nearSphereField = specialFilterOps[key].$nearSphere;
+            nearSphereKey = key;
+        }
+    }
+
+    if (nearSphereField) {
+        // A $geoNear stage must be the first stage.
+        if (specialFilterOps.$geoNear || specialFilterOps.$text) {
+            throw new Error("Cannot use $nearSphere with a $geoNear stage or a $text operator.");
+        }
+
+        const geoNearStage = {
+            near: nearSphereField.$geometry,
+            distanceField: "distance", // Default distance field name
+            key: nearSphereKey, // The field to perform the search on
+            spherical: true,
+            query: { // Base query for model and user
+                _model: modelElement.name,
+                _user: user.username
+            }
+        };
+
+        // Conditionally add distance fields to avoid passing 'undefined' to MongoDB
+        if (nearSphereField.$maxDistance !== undefined) {
+            geoNearStage.maxDistance = nearSphereField.$maxDistance;
+        }
+        if (nearSphereField.$minDistance !== undefined) {
+            geoNearStage.minDistance = nearSphereField.$minDistance;
+        }
+
+        // Remove the processed nearSphere operator from specialFilterOps
+        delete specialFilterOps[nearSphereKey];
+
+        // Add any other special filters (like $regex) to the $geoNear query
+        Object.assign(geoNearStage.query, specialFilterOps);
+
+        if (allIds.length > 0) {
+            geoNearStage.query._id = { $in: allIds };
+        }
+
+        pipelines.push({ $geoNear: geoNearStage });
+
+        // Clear specialFilterOps as they've all been moved into the $geoNear query
+        Object.keys(specialFilterOps).forEach(key => delete specialFilterOps[key]);
+
+    } else if (specialFilterOps.$geoNear) {
+        // Handle a user-provided $geoNear stage
+        const geoNearStage = { ...specialFilterOps.$geoNear };
+        geoNearStage.query = {
+            ...(geoNearStage.query || {}),
+            _model: modelElement.name,
+            _user: user.username
+        };
+        if (allIds.length > 0) {
+            geoNearStage.query._id = { $in: allIds };
+        }
+        pipelines.push({ $geoNear: geoNearStage });
+        delete specialFilterOps.$geoNear;
+
+    } else if (Object.keys(specialFilterOps).length > 0) {
+        // Handle other special operators like $text and $regex if no geo-query was present.
+        const standardMatchQueries = {};
+        if (specialFilterOps.$text) {
+            standardMatchQueries.$text = specialFilterOps.$text;
+            delete specialFilterOps.$text;
+        }
+        Object.assign(standardMatchQueries, specialFilterOps);
+
+        standardMatchQueries._model = modelElement.name;
+        standardMatchQueries._user = user.username;
+        if (allIds.length > 0) {
+            standardMatchQueries._id = { $in: allIds };
+        }
+        pipelines.push({ $match: standardMatchQueries });
+    }
+
+    // Add the original initial match logic, but only if no pipeline stages have been created yet.
+    if (pipelines.length === 0) {
+        if (allIds.length) {
+            // Note: allIds are already ObjectIds from the start of the function.
+            const id = {$in: ["$_id", allIds]};
+            pipelines.push({
+                $match: {$expr: id}
+            });
+        } else {
+            pipelines.push(
+                {
+                    $match: {
+                        $expr: {
+                            $and: [
+                                {$eq: ["$_model", modelElement.name]},
+                                {$eq: ["$_user", user.username]}
+                            ]
+                        }
                     }
                 }
-            }
-        )
+            );
+        }
+    }
+    // --- END: Modified pipeline construction ---
+
+    // Intégration des pipelines personnalisés au début si nécessaire
+    if (customPipelines.length > 0 && pipelinesPosition === 'start') {
+        pipelines = pipelines.concat(customPipelines);
     }
 
     pipelines = pipelines.concat(await recursiveLookup(model, filter, 1, []));
+
+    // Intégration des pipelines personnalisés à la fin si nécessaire
+    if (customPipelines.length > 0 && pipelinesPosition !== 'start') {
+        pipelines = pipelines.concat(customPipelines);
+    }
+
     if (depthParam) {
         pipelines.push({$project: {_user: 0}});
         pipelines.push({$project: {_model: 0}});
     }
 
-    //console.log(util.inspect(pipelines, false, 29, true));
-
-    // 4. Exécuter la pipeline
     const ts = parseInt(timeout, 10) / 2.0 || searchRequestTimeout;
     const count = await collection.aggregate([...pipelines, {$count: "count"}]).maxTimeMS(ts).toArray();
     let prom = collection.aggregate(pipelines).maxTimeMS(ts);
 
-    if (Object.keys(sortObj).length > 0) {
+    // Apply sort logic:
+    // 1. If a user-defined sort exists, use it.
+    // 2. If not, and if there's no $geoNear stage (which has implicit sort), apply a default sort.
+    if (sortObj) {
         prom.sort(sortObj);
+    } else if (!pipelines.some(stage => stage.$geoNear)) {
+        const defaultSort = { [modelElement.fields[0]?.name || '_id']: ['datetime', 'date'].includes(modelElement.fields[0].type) ? -1 : 1 };
+        prom.sort(defaultSort);
     }
     prom.skip(p ? (p - 1) * l : 0).limit(l);
     let data = await prom.toArray();

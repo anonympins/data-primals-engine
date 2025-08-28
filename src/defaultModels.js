@@ -1487,17 +1487,17 @@ export const defaultModels = {
         description: "Defines custom API endpoints that execute a server-side script.",
         fields: [
             {
+                name: "isActive",
+                type: "boolean",
+                default: true,
+                hint: "If checked, the endpoint is active and can be called."
+            },
+            {
                 name: "name",
                 type: "string",
                 required: true,
                 asMain: true,
                 hint: "A human-readable name to identify the endpoint."
-            },
-            {
-                name: "isActive",
-                type: "boolean",
-                default: true,
-                hint: "If checked, the endpoint is active and can be called."
             },
             {
                 name: "path",
@@ -1515,12 +1515,6 @@ export const defaultModels = {
                 hint: "The HTTP method required to call this endpoint."
             },
             {
-                name: 'isPublic',
-                type: 'boolean',
-                default: false,
-                hint: "Si coché, ce point d'accès sera accessible sans authentification."
-            },
-            {
                 name: "code",
                 type: "code",
                 language: "javascript",
@@ -1534,6 +1528,12 @@ logger.info('Custom endpoint executed with body:', request.body);
 
 return { success: true, message: 'Endpoint executed!', received: request.body };
 `
+            },
+            {
+                name: 'isPublic',
+                type: 'boolean',
+                default: false,
+                hint: "Si coché, ce point d'accès sera accessible sans authentification."
             }
         ]
     }

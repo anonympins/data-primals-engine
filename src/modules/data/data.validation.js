@@ -162,6 +162,9 @@ export const validateField = (field) => {
     case 'cronSchedule':
         allowedFieldTest(['cronMask']);
         return true;
+    case 'geolocation':
+        allowedFieldTest([]);
+        return true;
     case 'calculated':
         allowedFieldTest(['calculation']);
         return true;

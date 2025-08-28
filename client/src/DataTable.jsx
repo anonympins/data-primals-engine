@@ -98,7 +98,7 @@ const Header = ({
 
                 <Button onClick={handleFilter} className={filterActive ? ' active' : ''}><FaFilter/></Button>
                 {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
-                <CheckboxField checked={checkedItems?.length === data.length} onChange={e => {
+                <CheckboxField checkbox={true} checked={checkedItems?.length === data.length} onChange={e => {
                     if (checkedItems?.length === data.length) {
                         setCheckedItems([]);
                     } else {
@@ -537,7 +537,7 @@ export function DataTable({
                                     }
                                 }}>
                                     {advanced && (<td className={"mini"}>
-                                        <CheckboxField className={"input-ref"}
+                                        <CheckboxField checkbox={true} className={"input-ref"}
                                                        checked={checkedItems?.some(i => i._id === item._id)}
                                                        onChange={(e) => {
                                                            if (e) {
@@ -550,7 +550,7 @@ export function DataTable({
                                                        }}/></td>)}
                                     {(model?.fields ||[]).map(field => {
 
-                                        if( !isConditionMet(model, field.condition, item, models, me)){
+                                        if( !isConditionMet(model, field.condition, item, models, me, false)){
                                             return <td className={"notmet"} key={item._id + field.name}></td>; // Do not render the header cell if the condition isn't met
                                         }
 
@@ -616,6 +616,25 @@ export function DataTable({
                                         }
                                         if (field.type === 'model') {
                                             return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>{hiddenable(item[field.name] ? `${t('model_'+item[field.name], item[field.name])} (${item[field.name]})`:'')}</td>;
+                                        }
+                                        if (field.type === 'geolocation') {
+                                            const geoData = item[field.name];
+                                            console.log({geoData})
+                                            if (geoData && geoData.coordinates && geoData.coordinates.length === 2) {
+                                                const [lng, lat] = geoData.coordinates;
+                                                const coordinatesText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                                                const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
+                                                return (
+                                                    <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>
+                                                        {hiddenable(
+                                                            <a href={mapUrl} target="_blank" rel="noopener noreferrer" style={{color: 'inherit'}}>
+                                                                {coordinatesText}
+                                                            </a>
+                                                        )}
+                                                    </td>
+                                                );
+                                            }
+                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>{hiddenable('')}</td>;
                                         }
                                         if (field.type === 'password') {
                                             return <></>;

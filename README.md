@@ -244,6 +244,7 @@ data-primals-engine/
 ### 📁 Model Management
 
 #### Create a model
+> Defines a new data model (schema) in the system. The request body must contain the model's name and an array of field definitions.
 ```bash
 curl -X POST http://localhost:7633/api/model?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -259,6 +260,7 @@ curl -X POST http://localhost:7633/api/model?_user=demo \
 ```
 
 #### Update a model
+> Modifies an existing model's structure using its unique ID. This allows you to add, remove, or change fields.
 ```bash
 curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -274,6 +276,7 @@ curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demo 
 ```
 
 #### Delete a model
+> Permanently deletes a model definition using its name. This action is irreversible.
 ```bash
 curl -X DELETE "http://localhost:7633/api/model?_user=demo&name=newModel" \
      -H "Authorization: Bearer demotoken"
@@ -282,6 +285,7 @@ curl -X DELETE "http://localhost:7633/api/model?_user=demo&name=newModel" \
 ### 🗂️ Data Management
 
 #### Create a document
+> Creates a single new document in the specified model. The `data` object must conform to the model's schema.
 ```bash
 curl -X POST http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -297,18 +301,22 @@ curl -X POST http://localhost:7633/api/data?_user=demo \
          }'
 ```
 
+
 #### Search documents
+> Searches for documents using a MongoDB-style filter. This endpoint is ideal for complex queries, pagination, and sorting.
+
 ```bash
 curl -X POST http://localhost:7633/api/data/search?_user=demo \
      -H "Authorization: Bearer demotoken" \
      -H "Content-Type: application/json" \
      -d '{
            "model": "product",
-           "filter": { "price": { "$gt": 50 } }
+           "filter": { "$gt" : ["$price", 50] }
          }'
 ```
 
 #### Update a document by ID
+> Updates a single document by its unique ID. The request body contains the fields to be modified.
 ```bash
 curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -319,7 +327,9 @@ curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demo \
          }'
 ```
 
+
 #### Bulk update
+> Updates multiple documents matching a filter. This is efficient for applying changes to a batch of records, such as restocking all out-of-stock products.
 ```bash
 curl -X PUT http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -331,6 +341,7 @@ curl -X PUT http://localhost:7633/api/data?_user=demo \
 ```
 
 #### Delete documents
+> Deletes one or more documents. You can provide an array of `ids` to delete specific documents.
 ```bash
 curl -X DELETE http://localhost:7633/api/data?_user=demo \
      -H "Authorization: Bearer demotoken" \
@@ -805,7 +816,7 @@ Event.Listen("OnDataAdded", (engine, data) => {
 | OnDataInsert     | Triggered just before data insertion. It will use the overrided data.   | System        | internal             | (data)                                                                                                                                   |
 | OnDataValidate   | Triggered to override validation check.                                 | System        | internal             | (value, field, data)                                                                                                                     |
 | OnDataFilter     | Triggered to override data filtering operation.                         | System        | internal             | (filteredValue, field, data)                                                                                                             |
-| OnEmailTemplate  | Triggered to override custom email templates                            | System        | internal             | (filteredValue, field, data)                                                                                                             |
+| OnEmailTemplate  | Triggered to override custom email templates                            | System        | internal             | (templateData, lang)                                                                                                                     |
 
 ### Triggering events
 
@@ -853,4 +864,4 @@ Distributed under the **MIT License**. See `LICENSE` file.
 
 ---
 
-## [🔼](https://github.com/anonympins/data-primals-engine?tab=readme-ov-file#data-primals-engine) Back to Top
+## [🔼](#data-primals-engine) Back to Top

@@ -599,6 +599,47 @@ components:
             description: ID of a token document
       required:
         - username
+    userPermission:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: userPermission
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        permission:
+          type: string
+          description: ID of a permission document
+        isGranted:
+          type: boolean
+          description: "True to grant the permission, False to revoke it explicitly."
+        expiresAt:
+          type: string
+          format: date-time
+          description: "If set, the exception (grant or revocation) is temporary."
+      required:
+        - user
+        - permission
+        - isGranted
     token:
       type: object
       properties:
@@ -792,6 +833,39 @@ components:
       required:
         - name
         - type
+    env:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: env
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        value:
+          type: string
+          description: ""
+      required:
+        - name
+        - type
     message:
       type: object
       properties:
@@ -864,6 +938,65 @@ components:
           description: ""
       required:
         - content
+    alert:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique document identifier (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifier of the user owning this document
+          readOnly: true
+        _model:
+          type: string
+          description: Name of the model this document belongs to
+          readOnly: true
+          default: alert
+        _hash:
+          type: number
+          description: Document hash for integrity verification
+          readOnly: true
+        _pack:
+          type: string
+          description: Name of the pack this document belongs to (if applicable)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        targetModel:
+          type: string
+          description: "The name of the model to target."
+        description:
+          type: string
+          description: ""
+        triggerCondition:
+          type: string
+          description: "The condition that, if met, will trigger the alert."
+        frequency:
+          type: string
+          description: "How often to check if the condition is met (CRON format)."
+        isActive:
+          type: boolean
+          default: true
+          description: ""
+        sendEmail:
+          type: boolean
+          default: false
+          description: "Check to also send an email notification."
+        lastNotifiedAt:
+          type: string
+          format: date-time
+          description: "Timestamp of the last notification sent for this alert."
+        message:
+          type: string
+          description: "Custom message for the email. If empty, a default message will be used. You can use variables like {count}, {alert.name}..."
+      required:
+        - name
+        - targetModel
+        - triggerCondition
+        - frequency
     webpage:
       type: object
       properties:

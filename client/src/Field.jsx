@@ -482,6 +482,7 @@ const CheckboxField = forwardRef(
       minlength,
       maxlength,
       checked,
+        checkbox=false,
         ...rest
     },
     ref,
@@ -531,16 +532,19 @@ const CheckboxField = forwardRef(
                     </label>
                 )}
                 {help && <div className="flex help">{help}</div>}
-                <Switch
+                {!checkbox && (<Switch
                     id={id}
                     onChange={handleChange}
-                    checked={value} />
+                    checked={value} />)}
+                {checkbox && (
+                    <input type={"checkbox"} id={id} onChange={handleChange} checked={value} />
+                )}
             </div>
             {errors.length > 0 && (
                 <ul className="error">
                     {errors.map((e, key) => (
                         <li key={key} aria-live="assertive" role="alert">
-                            {e}
+                            {JSON.stringify(e, null, 2)}
                         </li>
                     ))}
                 </ul>
