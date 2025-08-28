@@ -298,7 +298,7 @@ metaModels['erp'] = { load: [ 'accountingExercise', 'accountingLineItem', 'accou
  * Available model field attributes
  * @type {string[]}
  */
-export const allowedFields = ['locked', 'hiddenable', 'anonymized', 'condition', 'color', 'index', 'type', 'required', 'hint', 'default', 'validate', 'unique', 'name', 'placeholder', 'asMain'];
+export const allowedFields = ['locked', 'hiddenable', 'anonymized', 'condition', 'color', 'index', 'indexType', 'type', 'required', 'hint', 'default', 'validate', 'unique', 'name', 'placeholder', 'asMain'];
 
 
 
@@ -487,5 +487,81 @@ export const MONGO_CALC_OPERATORS = {
     $toBool: {label: 'toBool', multi: false, converter: true},
     $toString: {label: 'toString', multi: false, converter: true},
     $toInt: {label: 'toInt', multi: false, converter: true},
-    $toDouble: {label: 'toDouble', multi: false, converter: true}
+    $toDouble: {label: 'toDouble', multi: false, converter: true},
+
+    // --- Special Query Operators (not for $expr) ---
+    // These operators are handled by a standard $match stage, not inside $expr.
+    // The UI should use them to construct parts of the main filter object.
+    $regex: {
+        label: 'Regex',
+        description: 'Matches strings using a regular expression. Applied to a specific field.',
+        isQueryOperator: true,
+        specialStructure: true,
+        args: [
+            { name: 'pattern', label: 'Pattern', type: 'text', description: 'The regex pattern.' },
+            { name: 'options', label: 'Options', type: 'text', optional: true, description: 'Regex options (e.g., "i" for case-insensitivity).' }
+        ]
+    },
+
+    $text: {
+        label: 'Text Search',
+        description: 'Performs a full-text search on the collection. Must be a top-level filter condition.',
+        isQueryOperator: true,
+        isTopLevel: true, // Indicates it's a key in the root of the filter, not under a field name.
+        specialStructure: true,
+        args: [
+            { name: '$search', label: 'Search Terms', type: 'text' },
+            { name: '$language', label: 'Language', type: 'text', optional: true },
+            { name: '$caseSensitive', label: 'Case Sensitive', type: 'boolean', optional: true },
+            { name: '$diacriticSensitive', label: 'Diacritic Sensitive', type: 'boolean', optional: true }
+        ]
+    },
+
+    $nearSphere: {
+        label: 'Near Sphere',
+        description: 'Finds documents near a GeoJSON point on a sphere. Applied to a 2dsphere-indexed field.',
+        isQueryOperator: true,
+        specialStructure: true,
+        args: [
+            { name: 'geometry', label: 'Center Point (GeoJSON)', type: 'code', language: 'json', description: 'e.g., { "type": "Point", "coordinates": [ -73.93, 40.82 ] }' },
+            { name: 'maxDistance', label: 'Max Distance (meters)', type: 'number', optional: true },
+            { name: 'minDistance', label: 'Min Distance (meters)', type: 'number', optional: true }
+        ]
+    },
+
+    $geoWithin: {
+        label: 'Geo Within',
+        description: 'Selects documents with geospatial data that exists entirely within a specified shape.',
+        isQueryOperator: true,
+        specialStructure: true,
+        args: [
+            { name: '$geometry', label: 'Shape (GeoJSON)', type: 'code', language: 'json', description: 'A GeoJSON Polygon or MultiPolygon.' }
+        ]
+    },
+
+    $geoIntersects: {
+        label: 'Geo Intersects',
+        description: 'Selects documents whose geospatial data intersects with a specified GeoJSON object.',
+        isQueryOperator: true,
+        specialStructure: true,
+        args: [
+            { name: '$geometry', label: 'Geometry (GeoJSON)', type: 'code', language: 'json', description: 'A GeoJSON object to test for intersection.' }
+        ]
+    },
+
+    // This represents the $geoNear aggregation stage, which has special placement rules.
+    $geoNear: {
+        label: 'Geo Near (Stage)',
+        description: 'Finds and sorts documents by distance. Must be the first operation in a search.',
+        isQueryOperator: true,
+        isTopLevel: true, // Indicates it's a key in the root of the filter.
+        specialStructure: true,
+        args: [
+            { name: 'near', label: 'Near Point (GeoJSON)', type: 'code', language: 'json', description: 'The point to search near.' },
+            { name: 'distanceField', label: 'Distance Field Name', type: 'text', description: 'The output field to store the distance.' },
+            { name: 'spherical', label: 'Spherical', type: 'boolean', optional: true, default: true },
+            { name: 'query', label: 'Additional Query', type: 'code', language: 'json', optional: true, description: 'Filters documents before distance calculation.' },
+            { name: 'maxDistance', label: 'Max Distance (meters)', type: 'number', optional: true }
+        ]
+    }
 };

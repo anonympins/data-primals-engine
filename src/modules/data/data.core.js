@@ -16,7 +16,8 @@ export const mongoDBWhitelist = [
     "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
     "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
     "$dateDiff", "$dateSubtract", "$dateAdd", "$dateToString",
-    '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond'
+    '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond',
+    '$geoNear', '$regex', '$text', '$nearSphere','$geoWithin','$geoIntersects'
 ];
 export let importJobs = {};
 
