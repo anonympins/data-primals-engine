@@ -1,13 +1,13 @@
 // __tests__/data.integration.test.js
 import { ObjectId } from 'mongodb';
-import {expect, describe, it, beforeAll} from 'vitest';
+import {expect,beforeEach, describe, it, beforeAll} from 'vitest';
 import { Config } from '../src/config.js';
 
 import {
-    getCollection // Accès direct pour vérifications
+    getCollection, modelsCollection // Accès direct pour vérifications
 } from '../src/modules/mongodb.js';
 import {generateUniqueName, initEngine} from "../src/setenv.js";
-import {editModel} from "../src/index.js";
+import {editModel, searchData} from "../src/index.js";
 import {getCollectionForUser} from "../src/modules/mongodb.js";
 import {purgeData} from "../src/modules/data/data.history.js";
 
@@ -219,4 +219,162 @@ describe('CRUD on model definitions and integrity tests', () => {
         });
     });
 
+    describe('Index Management via editModel', () => {
+        it('should create a regular index on a field', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const modelDef = {
+                name: 'indexedModel',
+                description: '',
+                _user: currentTestUser.username,
+                fields: [{ name: 'indexedField', type: 'string', index: true }]
+            };
+            const { insertedId } = await modelsCollection.insertOne(modelDef);
+
+            await editModel(currentTestUser, insertedId, modelDef);
+
+            const dataColl = await getCollectionForUser(currentTestUser);
+            const indexes = await dataColl.indexes();
+            console.log(indexes);
+            const createdIndex = indexes.find(idx => idx.key.indexedField === 1);
+
+            expect(createdIndex).toBeDefined();
+            expect(createdIndex.name).toBe('indexedField_regular_idx');
+            expect(createdIndex.partialFilterExpression).toEqual({
+                _model: 'indexedModel',
+                _user: currentTestUser.username
+            });
+        });
+
+        it('should create a 2dsphere index for geolocation fields', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const modelDef = {
+                name: 'geoModel',
+                description: '',
+                _user: currentTestUser.username,
+                fields: [{ name: 'location', type: 'geolocation', index: true, indexType: '2dsphere' }]
+            };
+            const { insertedId } = await modelsCollection.insertOne(modelDef);
+
+            await editModel(currentTestUser, insertedId, modelDef);
+
+            const dataColl = await getCollectionForUser(currentTestUser);
+            const indexes = await dataColl.indexes();
+            console.log(indexes);
+            const geoIndex = indexes.find(idx => idx.key.location === '2dsphere');
+
+            expect(geoIndex).toBeDefined();
+            expect(geoIndex.name).toBe('location_2dsphere_idx');
+        });
+
+        it('should create a single compound text index for multiple text fields', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const modelDef = {
+                name: 'textSearchModel',
+                description: '',
+                _user: currentTestUser.username,
+                fields: [
+                    { name: 'title', type: 'string', index: true, indexType: 'text' },
+                    { name: 'content', type: 'richtext', index: true, indexType: 'text' }
+                ]
+            };
+            const { insertedId } = await modelsCollection.insertOne(modelDef);
+
+            await editModel(currentTestUser, insertedId, modelDef);
+
+            const dataColl = await getCollectionForUser(currentTestUser);
+            const indexes = await dataColl.indexes();
+            const textIndex = indexes.find(idx => idx.name === `_text_search_idx_${modelDef.name}`);
+
+            expect(textIndex).toBeDefined();
+            expect(textIndex.key._fts).toBe('text');
+            expect(textIndex.weights).toEqual({ title: 1, content: 1 });
+        });
+
+        it('should drop an index when a field is un-indexed', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const initialModelDef = {
+                name: 'toggleIndexModel',
+                description: '',
+                _user: currentTestUser.username,
+                fields: [{ name: 'tempIndexField', type: 'string', index: true }]
+            };
+            const { insertedId } = await modelsCollection.insertOne(initialModelDef);
+            await editModel(currentTestUser, insertedId, initialModelDef);
+
+            const dataColl = await getCollectionForUser(currentTestUser);
+            let indexes = await dataColl.indexes();
+            expect(indexes.some(idx => idx.key.tempIndexField === 1)).toBe(true);
+
+            const updatedModelDef = { ...initialModelDef, fields: [{ name: 'tempIndexField', type: 'string', index: false }] };
+            await editModel(currentTestUser, insertedId, updatedModelDef);
+
+            indexes = await dataColl.indexes();
+            expect(indexes.some(idx => idx.key.tempIndexField === 1)).toBe(false);
+        });
+    });
+
+    describe('Special Pipeline Execution via searchData', () => {
+        beforeEach(async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const testModel = {
+                name: 'searchTestModel',
+                description: '',
+                _user: currentTestUser.username,
+                fields: [
+                    { name: 'name', type: 'string', index: true, indexType: 'text' },
+                    { name: 'description', type: 'string', index: true, indexType: 'text' },
+                    { name: 'value', type: 'number' },
+                    { name: 'location', type: 'geolocation', index: true, indexType: '2dsphere' }
+                ]
+            };
+            const { insertedId } = await modelsCollection.insertOne(testModel);
+            await editModel(currentTestUser, insertedId, testModel);
+
+            const testData = [
+                { _model: 'searchTestModel', _user: currentTestUser.username, name: 'First Item', description: 'A test document about MongoDB.', value: 10, location: { type: 'Point', coordinates: [-73.9667, 40.78] } },
+                { _model: 'searchTestModel', _user: currentTestUser.username, name: 'Second TEST Item', description: 'Another document for testing.', value: 20, location: { type: 'Point', coordinates: [-74.0, 40.71] } },
+                { _model: 'searchTestModel', _user: currentTestUser.username, name: 'Third Thing', description: 'Completely different.', value: 30, location: { type: 'Point', coordinates: [0, 0] } }
+            ];
+            const dataColl = await getCollectionForUser(currentTestUser);
+            await dataColl.insertMany(testData);
+            await new Promise(resolve => setTimeout(resolve, 200)); // Allow indexes to build
+        });
+
+        it('should execute a $regex query correctly', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const { data, count } = await searchData({ model: 'searchTestModel', filter: { name: { $regex: 'item', $options: 'i' } } }, currentTestUser);
+            expect(count).toBe(2);
+            expect(data.some(d => d.name === 'First Item')).toBe(true);
+        });
+
+        it('should execute a $text search query correctly', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const { data, count } = await searchData({ model: 'searchTestModel', filter: { $text: { $search: 'mongodb' } } }, currentTestUser);
+            expect(count).toBe(1);
+            expect(data[0].name).toBe('First Item');
+        });
+
+        it('should execute a $nearSphere query correctly', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const { data, count } = await searchData({ model: 'searchTestModel', filter: { location: { $nearSphere: { $geometry: { type: 'Point', coordinates: [-73.9, 40.7] }, $maxDistance: 20000 } } } }, currentTestUser);
+            expect(count).toBe(2);
+            expect(data.some(d => d.name === 'Third Thing')).toBe(false);
+        });
+
+        it('should execute a $geoNear stage and sort by distance', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const { data, count } = await searchData({ model: 'searchTestModel', filter: { $geoNear: { near: { type: 'Point', coordinates: [-74.0, 40.71] }, distanceField: "dist.calculated", spherical: true } } }, currentTestUser);
+            expect(count).toBe(3);
+            expect(data[0].name).toBe('Second TEST Item');
+            expect(data[0].dist.calculated).toBe(0);
+        });
+
+        it('should handle a mix of special and standard operators in an $or clause', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition } = await setupTestContext();
+            const { data, count } = await searchData({ model: 'searchTestModel', filter: { $or: [{ name: { $regex: 'Third' } }, { value: { $gt: 15 } }] } }, currentTestUser);
+            expect(count).toBe(2);
+            expect(data.some(d => d.name === 'Second TEST Item')).toBe(true);
+            expect(data.some(d => d.name === 'Third Thing')).toBe(true);
+        });
+    });
 });

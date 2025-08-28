@@ -505,13 +505,13 @@ export const editModel = async (user, id, data) => {
             const newFields = data.fields || [];
 
             // --- Text Index Management (Compound) ---
-            const oldTextFields = oldFields.filter(f => f.index && f.indexType === 'text').map(f => f.name);
-            const newTextFields = newFields.filter(f => f.index && f.indexType === 'text').map(f => f.name);
+            const newTextFields = newFields.filter(f => f.index && f.indexType === 'text').map(f => f.name).sort();
             const textIndexName = `_text_search_idx_${data.name}`;
             const existingTextIndex = indexes.find(i => i.name === textIndexName);
+            const existingTextFields = existingTextIndex ? Object.keys(existingTextIndex.weights || {}).sort() : [];
 
             // Check if the text index definition has changed
-            const textIndexChanged = JSON.stringify(oldTextFields.sort()) !== JSON.stringify(newTextFields.sort());
+            const textIndexChanged = JSON.stringify(existingTextFields) !== JSON.stringify(newTextFields);
 
             if (textIndexChanged) {
                 if (existingTextIndex) {
@@ -544,13 +544,15 @@ export const editModel = async (user, id, data) => {
                 if ((oldField?.indexType === 'text') || (newField?.indexType === 'text')) continue;
 
                 const wasIndexed = oldField?.index;
-                const isIndexed = newField?.index;
+                const isIndexed = newField?.index ?? false;
                 const oldIndexType = oldField?.indexType || 'regular';
                 const newIndexType = newField?.indexType || 'regular';
                 const indexName = `${fieldName}_${newIndexType}_idx`;
                 const existingIndex = indexes.find(i => i.key[fieldName] && i.name.startsWith(fieldName));
+                const indexExists = !!existingIndex;
+                const existingIndexTypeFromName = indexExists ? existingIndex.name.split('_')[1] : null;
 
-                const needsUpdate = !newField || wasIndexed !== isIndexed || (isIndexed && oldIndexType !== newIndexType);
+                const needsUpdate = !newField || (isIndexed !== indexExists) || (isIndexed && indexExists && newIndexType !== existingIndexTypeFromName);
 
                 if (needsUpdate) {
                     if (existingIndex) {
