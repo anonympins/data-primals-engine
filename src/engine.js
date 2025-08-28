@@ -22,6 +22,8 @@ import {Event} from "./events.js";
 import path from "node:path";
 import { fileURLToPath } from 'node:url';
 import {validateModelStructure} from "./modules/data/data.validation.js";
+import { setSafeRegex } from "./filter.js";
+import safeRegexCallback from "safe-regex";
 import {createModel, deleteModels, getModels, installAllPacks} from "./modules/data/data.operations.js";
 // Constants
 
@@ -97,6 +99,9 @@ export const MongoDatabase = MongoClient.db(dbName);
 
 export const Engine = {
     Create: async (options = { app : null}) => {
+        // On injecte la dépendance safe-regex dans le module de filtrage au tout début.
+        setSafeRegex(safeRegexCallback);
+
         const engine = GameObject.Create("Engine");
         console.log("Creating engine", Config.Get('modules'));
         const logger = engine.addComponent(Logger);

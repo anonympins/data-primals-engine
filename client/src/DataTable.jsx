@@ -550,7 +550,7 @@ export function DataTable({
                                                        }}/></td>)}
                                     {(model?.fields ||[]).map(field => {
 
-                                        if( !isConditionMet(model, field.condition, item, models, me)){
+                                        if( !isConditionMet(model, field.condition, item, models, me, false)){
                                             return <td className={"notmet"} key={item._id + field.name}></td>; // Do not render the header cell if the condition isn't met
                                         }
 
