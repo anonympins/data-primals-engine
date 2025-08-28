@@ -5,6 +5,23 @@ import LanguageDetector from "i18next-browser-languagedetector";
 export const translations = {
     fr: {
         translation: {
+            "model_alert": "Alertes",
+            "model_endpoint": "Endpoints",
+            "field_endpoint_name": "Nom",
+            "field_endpoint_name_hint": "Un nom pour identifier l'endpoint dans l'interface.",
+            "field_endpoint_isActive": "Actif ?",
+            "field_endpoint_isActive_hint": "Si cette case est cochée, l'endpoint est actif et peut être appelé.",
+            "field_endpoint_path": "Chemin",
+            "field_endpoint_path_hint": "Le chemin d'accès à l'URL après /api/actions/ (par exemple, 'send-welcome-email'). N'incluez pas '/'.",
+            "field_endpoint_method": "Méthode HTTP",
+            "field_endpoint_method_hint": "La méthode HTTP requise pour appeler ce endpoint",
+            "field_endpoint_isPublic": "Public ?",
+            "field_endpoint_isPublic_hint": "Si coché, ce point d'accès sera accessible sans authentification. Le script s'exécutera avec les droits du propriétaire du point d'accès.",
+
+            "field_endpoint_code": "Code exécuté",
+            "field_endpoint_code_hint": "The script to execute. Must return a value or an object that will be the JSON response.",
+            "model_env": "Variables (env)",
+
             "datatable.advancedFilter.title": "Filtre avancé (MongoDB)",
             "datatable.advancedFilter.desc": "Créez de toute pièce vos filtres avancés, avec les opérateurs d'aggrégation de MongoDB disponibles ici.",
 
@@ -1242,6 +1259,21 @@ export const translations = {
     en: {
         translation: {
 
+            "model_alert": "Alerts",
+            "model_endpoint": "Endpoints",
+            "field_endpoint_name": "Name",
+            "field_endpoint_name_hint": "A name to identify the endpoint in the interface.",
+            "field_endpoint_isActive": "Active?",
+            "field_endpoint_isActive_hint": "If checked, the endpoint is active and can be called.",
+            "field_endpoint_path": "Path",
+            "field_endpoint_path_hint": "The URL path after /api/actions/ (e.g., 'send-welcome-email'). Do not include '/'.",
+            "field_endpoint_method": "HTTP Method",
+            "field_endpoint_method_hint": "The HTTP method required to call this endpoint.",
+            "field_endpoint_isPublic": "Public?",
+            "field_endpoint_isPublic_hint": "If checked, this endpoint will be accessible without authentication. The script will run with the permissions of the endpoint owner.",
+            "field_endpoint_code": "Code to execute",
+            "field_endpoint_code_hint": "The script to execute. Must return a value or an object that will be the JSON response.",
+            "model_env": "Environment Variables (env)",
             "datatable.advancedFilter.title": "Advanced Filter (MongoDB)",
             "datatable.advancedFilter.desc": "Create your own advanced filters from scratch, using MongoDB's aggregation operators available here.",
 
@@ -2476,6 +2508,22 @@ export const translations = {
     },
     es: {
         translation: {
+
+            "model_alert": "Alertas",
+            "model_endpoint": "Endpoints",
+            "field_endpoint_name": "Nombre",
+            "field_endpoint_name_hint": "Un nombre para identificar el endpoint en la interfaz.",
+            "field_endpoint_isActive": "¿Activo?",
+            "field_endpoint_isActive_hint": "Si está marcado, el endpoint está activo y se puede llamar.",
+            "field_endpoint_path": "Ruta",
+            "field_endpoint_path_hint": "La ruta de la URL después de /api/actions/ (ej., 'enviar-email-bienvenida'). No incluir '/'.",
+            "field_endpoint_method": "Método HTTP",
+            "field_endpoint_method_hint": "El método HTTP requerido para llamar a este endpoint.",
+            "field_endpoint_isPublic": "¿Público?",
+            "field_endpoint_isPublic_hint": "Si está marcado, este endpoint será accesible sin autenticación. El script se ejecutará con los permisos del propietario del endpoint.",
+            "field_endpoint_code": "Código a ejecutar",
+            "field_endpoint_code_hint": "El script a ejecutar. Debe devolver un valor o un objeto que será la respuesta JSON.",
+            "model_env": "Variables de Entorno (env)",
             "datatable.advancedFilter.title": "Filtro avanzado (MongoDB)",
             "datatable.advancedFilter.desc": "Cree sus propios filtros avanzados desde cero, utilizando los operadores de agregación de MongoDB disponibles aquí.",
 
@@ -3747,6 +3795,27 @@ export const translations = {
     },
     pt: {
         translation: {
+
+            "model_alert": "Alertas",
+            "model_endpoint": "Endpoints",
+            "field_endpoint_name": "Nome",
+            "field_endpoint_name_hint": "Um nome para identificar o endpoint na interface.",
+            "field_endpoint_isActive": "Ativo?",
+            "field_endpoint_isActive_hint": "Se marcado, o endpoint está ativo e pode ser chamado.",
+            "field_endpoint_path": "Caminho",
+            "field_endpoint_path_hint": "O caminho da URL após /api/actions/ (ex.: 'enviar-email-boas-vindas'). Não inclua '/'.",
+            "field_endpoint_method": "Método HTTP",
+            "field_endpoint_method_hint": "O método HTTP necessário para chamar este endpoint.",
+            "field_endpoint_isPublic": "Público?",
+            "field_endpoint_isPublic_hint": "Se marcado, este endpoint estará acessível sem autenticação. O script será executado com as permissões do proprietário do endpoint.",
+            "field_endpoint_code": "Código a executar",
+            "field_endpoint_code_hint": "O script a ser executado. Deve retornar um valor ou um objeto que será a resposta JSON.",
+            "model_env": "Variáveis de Ambiente (env)",
+            "field_env_name": "Chave",
+            "field_env_name_hint": "O nome da chave usada para identificar a variável de ambiente.",
+            "field_env_value": "Valor",
+            "field_env_value_hint": "O valor da variável (oculto por padrão e criptografado para usuários locais).",
+
             "datatable.advancedFilter.title": "Filtro Avançado (MongoDB)",
             "datatable.advancedFilter.desc": "Crie os seus próprios filtros avançados a partir do zero, utilizando os operadores de agregação do MongoDB disponíveis aqui.",
 
@@ -3819,6 +3888,22 @@ export const translations = {
     },
     de: {
         translation: {
+
+            "model_alert": "Warnungen",
+            "model_endpoint": "Endpunkte",
+            "field_endpoint_name": "Name",
+            "field_endpoint_name_hint": "Ein Name, um den Endpunkt in der Oberfläche zu identifizieren.",
+            "field_endpoint_isActive": "Aktiv?",
+            "field_endpoint_isActive_hint": "Wenn aktiviert, ist der Endpunkt aktiv und kann aufgerufen werden.",
+            "field_endpoint_path": "Pfad",
+            "field_endpoint_path_hint": "Der URL-Pfad nach /api/actions/ (z.B. 'willkommens-email-senden'). '/' nicht einschließen.",
+            "field_endpoint_method": "HTTP-Methode",
+            "field_endpoint_method_hint": "Die HTTP-Methode, die zum Aufrufen dieses Endpunkts erforderlich ist.",
+            "field_endpoint_isPublic": "Öffentlich?",
+            "field_endpoint_isPublic_hint": "Wenn aktiviert, ist dieser Endpunkt ohne Authentifizierung zugänglich. Das Skript wird mit den Berechtigungen des Endpunkt-Besitzers ausgeführt.",
+            "field_endpoint_code": "Auszuführender Code",
+            "field_endpoint_code_hint": "Das auszuführende Skript. Muss einen Wert oder ein Objekt zurückgeben, das die JSON-Antwort sein wird.",
+            "model_env": "Umgebungsvariablen (env)",
             "datatable.advancedFilter.title": "Erweiterter Filter (MongoDB)",
             "datatable.advancedFilter.desc": "Erstellen Sie Ihre eigenen erweiterten Filter von Grund auf mit den hier verfügbaren Aggregationsoperatoren von MongoDB.",
             "editData": "Bearbeiten in {{0}}",
@@ -4969,6 +5054,21 @@ export const translations = {
     },
     it: {
         translation: {
+            "model_alert": "Avvisi",
+            "model_endpoint": "Endpoint",
+            "field_endpoint_name": "Nome",
+            "field_endpoint_name_hint": "Un nome per identificare l'endpoint nell'interfaccia.",
+            "field_endpoint_isActive": "Attivo?",
+            "field_endpoint_isActive_hint": "Se selezionato, l'endpoint è attivo e può essere chiamato.",
+            "field_endpoint_path": "Percorso",
+            "field_endpoint_path_hint": "Il percorso URL dopo /api/actions/ (ad esempio, 'invia-email-benvenuto'). Non includere '/'.",
+            "field_endpoint_method": "Metodo HTTP",
+            "field_endpoint_method_hint": "Il metodo HTTP richiesto per chiamare questo endpoint.",
+            "field_endpoint_isPublic": "Pubblico?",
+            "field_endpoint_isPublic_hint": "Se selezionato, questo endpoint sarà accessibile senza autenticazione. Lo script verrà eseguito con i permessi del proprietario dell'endpoint.",
+            "field_endpoint_code": "Codice da eseguire",
+            "field_endpoint_code_hint": "Lo script da eseguire. Deve restituire un valore o un oggetto che sarà la risposta JSON.",
+            "model_env": "Variabili d'Ambiente (env)",
             "datatable.advancedFilter.title": "Filtro avanzato (MongoDB)",
             "datatable.advancedFilter.desc": "Crea i tuoi filtri avanzati da zero, utilizzando gli operatori di aggregazione di MongoDB disponibili qui.",
             "editData": "Modifica in {{0}}",
@@ -6172,6 +6272,25 @@ export const translations = {
     },
     cs: {
         translation: {
+
+            "model_alert": "Upozornění",
+            "model_endpoint": "Koncové body",
+            "field_endpoint_name": "Název",
+            "field_endpoint_name_hint": "Název pro identifikaci koncového bodu v rozhraní.",
+            "field_endpoint_isActive": "Aktivní?",
+            "field_endpoint_isActive_hint": "Je-li zaškrtnuto, koncový bod je aktivní a lze jej volat.",
+            "field_endpoint_path": "Cesta",
+            "field_endpoint_path_hint": "Cesta URL za /api/actions/ (např. 'send-welcome-email'). Nezahrnujte '/'.",
+            "field_endpoint_method": "HTTP Metoda",
+            "field_endpoint_method_hint": "HTTP metoda vyžadovaná pro volání tohoto koncového bodu.",
+            "field_endpoint_isPublic": "Veřejný?",
+            "field_endpoint_isPublic_hint": "Je-li zaškrtnuto, tento koncový bod bude přístupný bez ověření. Skript bude spuštěn s oprávněním vlastníka koncového bodu.",
+            "field_endpoint_code": "Kód k provedení",
+            "field_endpoint_code_hint": "Skript, který se má spustit. Musí vrátit hodnotu nebo objekt, který bude JSON odpovědí.",
+            "model_env": "Proměnné prostředí (env)",
+            "field_env_name": "Klíč",
+            "field_env_value": "Hodnota",
+
             "datatable.advancedFilter.title": "Rozšířený filtr (MongoDB)",
             "datatable.advancedFilter.desc": "Vytvořte si vlastní pokročilé filtry od nuly pomocí agregačních operátorů MongoDB dostupných zde.",
             "editData": "Upravit v {{0}}",
@@ -7019,6 +7138,23 @@ export const translations = {
     },
     ru: {
         translation: {
+
+            "model_alert": "Оповещения",
+            "model_endpoint": "Эндпоинты",
+            "field_endpoint_name": "Название",
+            "field_endpoint_name_hint": "Имя для идентификации эндпоинта в интерфейсе.",
+            "field_endpoint_isActive": "Активен?",
+            "field_endpoint_isActive_hint": "Если отмечено, эндпоинт активен и может быть вызван.",
+            "field_endpoint_path": "Путь",
+            "field_endpoint_path_hint": "Путь URL после /api/actions/ (например, 'send-welcome-email'). Не включайте '/'.",
+            "field_endpoint_method": "HTTP-метод",
+            "field_endpoint_method_hint": "HTTP-метод, необходимый для вызова этого эндпоинта.",
+            "field_endpoint_isPublic": "Публичный?",
+            "field_endpoint_isPublic_hint": "Если отмечено, этот эндпоинт будет доступен без аутентификации. Скрипт будет запущен с разрешениями владельца эндпоинта.",
+            "field_endpoint_code": "Исполняемый код",
+            "field_endpoint_code_hint": "Скрипт для выполнения. Должен возвращать значение или объект, который будет ответом JSON.",
+            "model_env": "Переменные среды (env)",
+
             "datatable.advancedFilter.title": "Расширенный фильтр (MongoDB)",
             "datatable.advancedFilter.desc": "Создайте свои собственные расширенные фильтры с нуля, используя операторы агрегации MongoDB, доступные здесь",
             "editData": "Редактировать в {{0}}",
@@ -8222,6 +8358,23 @@ export const translations = {
     },
     ar: {
         translation: {
+
+            "model_alert": "التنبيهات",
+            "model_endpoint": "نقاط النهاية (Endpoints)",
+            "field_endpoint_name": "الاسم",
+            "field_endpoint_name_hint": "اسم لتحديد نقطة النهاية في الواجهة.",
+            "field_endpoint_isActive": "نشط؟",
+            "field_endpoint_isActive_hint": "إذا تم تحديده، تكون نقطة النهاية نشطة ويمكن استدعاؤها.",
+            "field_endpoint_path": "المسار",
+            "field_endpoint_path_hint": "مسار URL بعد /api/actions/ (على سبيل المثال، 'send-welcome-email'). لا تقم بتضمين '/'.",
+            "field_endpoint_method": "طريقة HTTP",
+            "field_endpoint_method_hint": "طريقة HTTP المطلوبة لاستدعاء نقطة النهاية هذه.",
+            "field_endpoint_isPublic": "عام؟",
+            "field_endpoint_isPublic_hint": "إذا تم تحديده، ستكون نقطة النهاية هذه accessible بدون مصادقة. سوف يعمل السكريبت بأذونات owner نقطة النهاية.",
+            "field_endpoint_code": "الكود المنفذ",
+            "field_endpoint_code_hint": "السكريبت الذي سيتم تنفيذه. يجب أن يعيد قيمة أو كائنًا سيكون استجابة JSON.",
+            "model_env": "متغيرات البيئة (env)",
+            
             "datatable.advancedFilter.title": "مرشح متقدم (MongoDB)",
             "datatable.advancedFilter.desc": "أنشئ مرشحاتك المتقدمة من الصفر، باستخدام عوامل تجميع MongoDB المتوفرة هنا",
             "editData": "تعديل في {{0}}",
@@ -9476,6 +9629,24 @@ export const translations = {
     },
     sv: {
         translation: {
+
+
+            "model_alert": "Aviseringar",
+            "model_endpoint": "Endpoints",
+            "field_endpoint_name": "Namn",
+            "field_endpoint_name_hint": "Ett namn för att identifiera endpointen i gränssnittet.",
+            "field_endpoint_isActive": "Aktiv?",
+            "field_endpoint_isActive_hint": "Om ikryssad är endpointen aktiv och kan anropas.",
+            "field_endpoint_path": "Sökväg",
+            "field_endpoint_path_hint": "URL-sökvägen efter /api/actions/ (t.ex. 'send-welcome-email'). Inkludera inte '/'.",
+            "field_endpoint_method": "HTTP-metod",
+            "field_endpoint_method_hint": "Den HTTP-metod som krävs för att anropa denna endpoint.",
+            "field_endpoint_isPublic": "Publik?",
+            "field_endpoint_isPublic_hint": "Om ikryssad kommer denna endpoint att vara tillgänglig utan autentisering. Skriptet kommer att köras med endpoint-ägarens behörigheter.",
+            "field_endpoint_code": "Kod att köra",
+            "field_endpoint_code_hint": "Skriptet som ska köras. Måste returnera ett värde eller ett objekt som blir JSON-svaret.",
+            "model_env": "Miljövariabler (env)",
+
             "datatable.advancedFilter.title": "Avancerat filter (MongoDB)",
             "datatable.advancedFilter.desc": "Skapa dina egna avancerade filter från grunden med hjälp av MongoDBs aggregeringsoperatorer som finns här.",
             "editData": "Redigera i {{0}}",
@@ -11764,6 +11935,22 @@ export const translations = {
     },
     fa: {
         translation: {
+
+            "model_alert": "هشدارها",
+            "model_endpoint": "نقطه‌پایانی (Endpoint)",
+            "field_endpoint_name": "نام",
+            "field_endpoint_name_hint": "یک نام برای شناسایی نقطه‌پایانی در رابط کاربری.",
+            "field_endpoint_isActive": "فعال؟",
+            "field_endpoint_isActive_hint": "در صورت انتخاب، نقطه‌پایانی فعال است و می‌توان آن را فراخوانی کرد.",
+            "field_endpoint_path": "مسیر",
+            "field_endpoint_path_hint": "مسیر URL بعد از /api/actions/ (مثلاً 'send-welcome-email'). '/' را شامل نشود.",
+            "field_endpoint_method": "متد HTTP",
+            "field_endpoint_method_hint": "متد HTTP مورد نیاز برای فراخوانی این نقطه‌پایانی.",
+            "field_endpoint_isPublic": "عمومی؟",
+            "field_endpoint_isPublic_hint": "در صورت انتخاب، این نقطه‌پایانی بدون نیاز به احراز هویت در دسترس خواهد بود. اسکریپت با مجوزهای مالک نقطه‌پایانی اجرا می‌شود.",
+            "field_endpoint_code": "کد اجرایی",
+            "field_endpoint_code_hint": "اسکریپتی که باید اجرا شود. باید یک مقدار یا یک شیء را بازگرداند که پاسخ JSON خواهد بود.",
+            "model_env": "متغیرهای محیطی (env)",
             "datatable.advancedFilter.title": "فیلتر پیشرفته (MongoDB)",
             "datatable.advancedFilter.desc": "با استفاده از عملگرهای تجمیع MongoDB که در اینجا موجود است، فیلترهای پیشرفته خود را از ابتدا ایجاد کنید.",
             "editData": "ویرایش در {{0}}",
