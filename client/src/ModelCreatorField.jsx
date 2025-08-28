@@ -117,6 +117,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                 {label: t("field.array"), value: "array"},
                                 {label: t("field.relation"), value: "relation"},
                                 {label: t("field.file"), value: "file"},
+                                {label: t("field.geolocation"), value: "geolocation"},
                                 {label: t("field.code"), value: "code"},
                                 {label: t("field.calculated", "calculated data"), value: "calculated"},
                                 {label: t("field.cronSchedule", "task schedule"), value: "cronSchedule"},

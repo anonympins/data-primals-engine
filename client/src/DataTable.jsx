@@ -617,6 +617,25 @@ export function DataTable({
                                         if (field.type === 'model') {
                                             return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>{hiddenable(item[field.name] ? `${t('model_'+item[field.name], item[field.name])} (${item[field.name]})`:'')}</td>;
                                         }
+                                        if (field.type === 'geolocation') {
+                                            const geoData = item[field.name];
+                                            console.log({geoData})
+                                            if (geoData && geoData.coordinates && geoData.coordinates.length === 2) {
+                                                const [lng, lat] = geoData.coordinates;
+                                                const coordinatesText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                                                const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
+                                                return (
+                                                    <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>
+                                                        {hiddenable(
+                                                            <a href={mapUrl} target="_blank" rel="noopener noreferrer" style={{color: 'inherit'}}>
+                                                                {coordinatesText}
+                                                            </a>
+                                                        )}
+                                                    </td>
+                                                );
+                                            }
+                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>{hiddenable('')}</td>;
+                                        }
                                         if (field.type === 'password') {
                                             return <></>;
                                         }
