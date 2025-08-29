@@ -1409,6 +1409,39 @@ const containsSpecialOp = (expression) => {
     return false;
 };
 
+/**
+ * Transforms a simple $find condition object into a full MongoDB aggregation expression.
+ * e.g., { relatedValue: 101 } becomes { $eq: ['$$this.relatedValue', 101] }
+ * e.g., { name: 'A', value: 1 } becomes { $and: [{ $eq: ['$$this.name', 'A'] }, { $eq: ['$$this.value', 1] }] }
+ * @param {object} findCondition - The condition object from the $find operator.
+ * @returns {object} The complete MongoDB aggregation expression.
+ */
+function transformFindShorthand(findCondition) {
+    // If it's not a plain object, do nothing.
+    if (typeof findCondition !== 'object' || findCondition === null || Array.isArray(findCondition)) {
+        return findCondition;
+    }
+
+    const keys = Object.keys(findCondition);
+
+    // If the object is empty or already contains MongoDB operators (keys starting with '$'),
+    // assume it's already in the full format and don't modify it.
+    if (keys.length === 0 || keys.some(key => key.startsWith('$'))) {
+        return findCondition;
+    }
+
+    // It's the shorthand format. Transform it.
+    // Create an $eq condition for each key/value pair.
+    const conditions = keys.map(key => ({
+        $eq: [`$$this.${key}`, findCondition[key]]
+    }));
+
+    // If there's only one condition, return the $eq object directly.
+    if (conditions.length === 1) return conditions[0];
+
+    // If there are multiple conditions, combine them with an $and.
+    return { $and: conditions };
+}
 
 export const searchData = async (query, user) => {
     const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack} = query;
@@ -1508,13 +1541,14 @@ export const searchData = async (query, user) => {
             if (!field || !name)
                 return {};
             if (field.type === "relation") {
+                const findCondition = transformFindShorthand(d);
                 const dt = {
                     '$ne': [
                         {
                             '$filter': {
                                 'input': (depth === 1 ? "$" + name : "$this." + name),
                                 'as': 'this',
-                                'cond': d
+                                'cond': findCondition
                             }
                         }
                         , []]
