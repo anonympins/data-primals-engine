@@ -898,9 +898,9 @@ export const defaultModels = {
                     {$eq: ["$type", "manual"]},
                     {
                         $or: [
-                            { path: "onEvent", op: "$eq", value: "DataAdded" },
-                            { path: "onEvent", op: "$eq", value: "DataEdited" },
-                            { path: "onEvent", op: "$eq", value: "DataDeleted" }
+                            { $eq: ["$onEvent", "DataAdded"] },
+                            { $eq: ["$onEvent", "DataEdited"] },
+                            { $eq: ["$onEvent", "DataDeleted"] }
                         ]
                     }
                 ]
@@ -911,9 +911,9 @@ export const defaultModels = {
                         {$eq: ["$type", "manual"]},
                         {
                             $or: [
-                                { path: "onEvent", op: "$eq", value: "DataAdded" },
-                                { path: "onEvent", op: "$eq", value: "DataEdited" },
-                                { path: "onEvent", op: "$eq", value: "DataDeleted" }
+                                { $eq: ["$onEvent", "DataAdded"] },
+                                { $eq: ["$onEvent", "DataEdited"] },
+                                { $eq: ["$onEvent", "DataDeleted"] }
                             ]
                         }
                     ]
