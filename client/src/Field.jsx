@@ -14,7 +14,9 @@ import { CodeiumEditor } from "@codeium/react-code-editor";
 import {debounce, escapeRegExp, isGUID, isLightColor} from "../../src/core.js";
 import {mainFieldsTypes, maxFileSize} from "../../src/constants.js";
 import {useModelContext} from "./contexts/ModelContext.jsx";
+import { SketchPicker } from 'react-color'; // Importer le sélecteur
 import {useQueryClient} from "react-query";
+import tinycolor from 'tinycolor2';
 import {
     FaArrowDown,
     FaArrowUp, FaAt, FaEye, FaEyeSlash,
@@ -1593,43 +1595,53 @@ export const ColorField = ({name, label, value, disabled, onChange, className, .
     // 1. État interne pour une réactivité immédiate de l'interface.
     const [internalValue, setInternalValue] = useState(value);
 
-    // 2. On mémoïze le gestionnaire d'événements avec debounce pour éviter de le recréer à chaque rendu.
-    const debouncedOnChange = useCallback(
-        debounce((newValue) => {
-            // On notifie le parent du changement après un court délai.
-            onChange?.({ name, value: newValue });
-        }, 200), // Un délai de 200ms est confortable pour un sélecteur de couleur.
-        [onChange, name] // Dépendances de useCallback
-    );
 
-    // 3. Effet pour synchroniser l'état interne si la prop `value` du parent change.
-    useEffect(() => {
-        if (value !== internalValue) {
-            setInternalValue(value);
+export const ColorField = ({ name, label, value, disabled, onChange, className, ...rest }) => {
+    const [displayColorPicker, setDisplayColorPicker] = useState(false);
+
+    const handleClick = () => {
+        if (!disabled) {
+            setDisplayColorPicker(!displayColorPicker);
         }
-    }, [value]);
+    };
 
-    const handleChange = (e) => {
-        const newValue = e.target.value;
-        // Met à jour l'état interne instantanément pour que l'input soit réactif.
-        setInternalValue(newValue);
-        // Appelle la fonction "debounced" pour notifier le parent.
-        debouncedOnChange(newValue);
+    const handleClose = () => {
+        setDisplayColorPicker(false);
+    };
+
+    const handleChange = (color) => {
+        // react-color nous donne un objet avec tous les formats.
+        // On utilise tinycolor pour le convertir au format canonique attendu par le backend (#RRGGBBAA).
+        const newColor = tinycolor(color.rgb); // color.rgb contient {r, g, b, a}
+        onChange?.({ name, value: newColor.toHex8String().toUpperCase() });
+    };
+
+    const color = tinycolor(value || '#FFFFFFFF');
+    const swatchStyle = {
+        background: color.toRgbString(),
+        minWidth: '50%',
+        flex: 1,
+        height: '36px',
+        borderRadius: '2px',
+        border: '1px solid #ccc',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        // Utiliser le même fond en damier pour visualiser la transparence
+        backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+        backgroundSize: '10px 10px',
+        backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
     };
 
     return (
-        <div className={`flex flex-1  flex-no-wrap ${className || ''}`}>
-            {label && (<label className="flex-1">{label}</label>)}
-            <div className="flex flex-1 flex-no-wrap"><input
-                disabled={disabled}
-                type="color"
-                // L'input est maintenant contrôlé par notre état interne.
-                value={internalValue || '#FFFFFF'}
-                onChange={handleChange}
-                {...rest}
-            />
-            <span className="color-value">{internalValue || '#FFFFFF'}</span>
-            </div>
+        <div className={`flex flex-1 flex-col flex-no-wrap ${className || ''}`}>
+            {label && (<label className="flex-1 mb-1">{label}</label>)}
+            <div style={swatchStyle} onClick={handleClick}>&nbsp;</div>
+            <TextField value={value || ''} readOnly disabled={disabled} className="flex-1" />
+            {displayColorPicker ? (
+                <div style={{ position: 'absolute', zIndex: '2' }}>
+                    <div style={{ position: 'fixed', top: '0px', right: '0px', bottom: '0px', left: '0px' }} onClick={handleClose} />
+                    <SketchPicker color={value || '#FFFFFFFF'} onChange={handleChange} />
+                </div>
+            ) : null}
         </div>
     );
 };

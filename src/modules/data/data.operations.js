@@ -27,7 +27,7 @@ import {
     packsCollection
 } from "../mongodb.js";
 import i18n from "../../i18n.js";
-import {randomColor} from "randomcolor";
+import tinycolor from 'tinycolor2';
 import {Config} from "../../config.js";
 import {calculateTotalUserStorageUsage, hasPermission} from "../user.js";
 import {BSON, ObjectId} from "mongodb";
@@ -367,17 +367,19 @@ export const dataTypes = {
     },
     color: {
         validate: (value) => {
-            // Vérification si la valeur est une chaîne de caractères et correspond à un format de couleur hexadécimal valide.
-            return value === null || typeof value === 'string' && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value);
+            if (value === null) return true;
+            if (typeof value !== 'string') return false;
+            // Utilise tinycolor pour valider n'importe quel format de couleur supporté (hex, rgb, hsl, etc.)
+            return tinycolor(value).isValid();
         },
         filter: async (value) => {
-            // Nettoyage ou transformation de la valeur si nécessaire (par exemple, mise en majuscule des caractères hexadécimaux).
-            return value ? value.toUpperCase() : null; // Retourne null si la valeur est null ou undefined
+            if (!value) return null;
+            const color = tinycolor(value);
+            // Stocke dans un format canonique : HEX8 (#RRGGBBAA) pour supporter la transparence alpha
+            return color.isValid() ? color.toHex8String().toUpperCase() : null;
         },
         anonymize: () => {
-            return randomColor({
-                format: 'hex'
-            });
+            return '#FFFFFFFF';
         }
     },
     calculated: {
