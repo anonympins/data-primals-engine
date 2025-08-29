@@ -6,33 +6,30 @@
 
 ### Summary of Results
 
-| Metric                  | Value      |
-|-------------------------|------------|
-| HTTP Requests           | 147        |
-| Successful Responses (2xx) | 153        |
-| Request Rate            | 47/sec     |
-| Data Downloaded         | 1.16 MB    |
-| Failed Scenarios        | 0          |
+| Metric                     | Value      |
+ |----------------------------|------------|
+| Total HTTP Requests        | 1,475      |
+| Successful Responses (2xx) | 1,475      |
+| Average Request Rate       | 19/sec     |
+| Data Downloaded            | 13.5 MB    |
+| Failed Scenarios           | 0          |
 
 ### Response Time Analysis (in milliseconds)
 
 | Percentile | Response Time (ms) |
 |------------|--------------------|
 | min        | 8                  |
-| median     | 314.2              |
-| mean       | 266                |
-| p95        | 584.2              |
+| median     | **36.2**           |
+| mean       | 253.9              |
+| p95        | 561.2              |
 | p99        | 608                |
-| max        | 615                |
-
+| max        | 805                |
 ---
 
 ### Analysis & Recommendations
 
-*   **Excellent Performance**: The server is not only stable (**0 failed requests**) but also extremely responsive under load.
+*   **Outstanding Performance & Stability**: The final test results are excellent. The server handled **1,475 requests with 0 failures**, demonstrating exceptional stability under sustained load.
 
 *   **Bottleneck Resolved**:
-    *   The **median response time is 314 milliseconds**. This is well within acceptable limits for a responsive API.
-    *   The **p95 response time is to 584 milliseconds**, indicating that even the slowest requests are now fast and consistent.
-x
-*   **Conclusion**: The application is robust, stable, and performant. The recommendations are to use limit / offset pagination options in search request, and ensuring proper database indexing.
+    *   The **median response time is now just 36.2 milliseconds**. This is a dramatic improvement and indicates that the core API operations are extremely fast for the majority of users.
+    *   The **p95 (561.2 ms)** and **p99 (608 ms)** response times remain well under one second. This shows that the application performs consistently, with very few outliers, even during peak load phases.
