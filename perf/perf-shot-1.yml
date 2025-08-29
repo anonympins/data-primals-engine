@@ -1,0 +1,45 @@
+config:
+  # L'URL de base de votre API
+  target: "http://localhost:7633"
+  # Configuration des phases de test
+  phases:
+    # Phase 1: Montée en charge progressive pendant 60 secondes
+    - duration: 10
+      arrivalRate: 5  # 5 nouveaux utilisateurs virtuels par seconde
+      rampTo: 50      # pour atteindre 50 nouveaux utilisateurs par seconde à la fin de la phase
+      name: "Ramp-up"
+    # Phase 2: Maintien de la charge maximale pendant 120 secondes
+    - duration: 120
+      arrivalRate: 10 # 50 nouveaux utilisateurs virtuels par seconde
+      name: "Sustained load"
+  # Paramètres par défaut pour toutes les requêtes HTTP
+  defaults:
+    headers:
+      # Utilisation du token statique de l'utilisateur 'demo'
+      Authorization: "Bearer demotoken"
+      Content-Type: 'application/json'
+
+scenarios:
+  - name: "Stress Test - Recherche de données"
+    flow:      # Envoi d'une requête POST à l'endpoint de recherche
+     - post:
+          url: "/api/data/search?_user=demo"
+          # Le corps de la requête en JSON
+          json:
+            # Le nom du modèle sur lequel effectuer la recherche
+            model: "translation"
+            # Le filtre de recherche (ici, vide pour récupérer tous les documents)
+            filter: { limit : 250 }
+  - name: "Stress Test - Insertion de données"
+    flow:      # Envoi d'une requête POST à l'endpoint de recherche
+      - post:
+            url: "/api/data?_user=demo"
+            # Le corps de la requête en JSON
+            json:
+              # Le nom du modèle sur lequel effectuer la recherche
+              model: "translation"
+              # Le filtre de recherche (ici, vide pour récupérer tous les documents)
+              data: {
+                "key": "{{$randomNumber(1,10000)}}",
+                "value": "{{$randomNumber(1,10000)}}",
+              }

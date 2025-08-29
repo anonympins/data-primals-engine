@@ -174,6 +174,16 @@ export class DefaultUserProvider extends UserProvider {
                 return;
             }
         }
+
+        // Priorité 2: PasF de session, mais on vérifie la présence d'un cookie "username" pour la démo.
+        const user = req.query._user;
+        if (user && typeof user === 'string' && user.startsWith('demo')) {
+            const demoUser = await this.findUserByUsername(user);
+            if (demoUser) {
+                req.me = demoUser;
+                return;
+            }
+        }
     }
 
     getUserPlans(){
