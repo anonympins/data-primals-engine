@@ -101,6 +101,7 @@
     "stripe": "^18.4.0",
     "swagger-ui-express": "^5.0.1",
     "tar": "^7.4.3",
+    "tinycolor2": "^1.6.0",
     "uniqid": "^5.4.0",
     "vitest": "^3.2.4",
     "yaml": "^2.8.0"
