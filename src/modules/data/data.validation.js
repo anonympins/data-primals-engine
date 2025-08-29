@@ -114,7 +114,10 @@ export const validateField = (field) => {
         break;
     case 'model':
     case 'modelField':
-        allowedFieldTest([]);
+        allowedFieldTest(['targetModel']);
+        if (field.targetModel !== undefined && typeof field.targetModel !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["targetModel"]));
+        }
         break;
     case 'object':
         allowedFieldTest([]);

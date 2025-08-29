@@ -1426,101 +1426,134 @@ export const PhoneField = ({name, value, onChange}) => {
     );
 }
 
-export const ModelField = ({field, disableable=false, showModel=true, value, fieldValue, fields=false, onChange}) => {
+export const ModelField = ({field, formData, disableable=false, showModel=true, value, fields=false, onChange}) => {
     const {models} = useModelContext();
     const {me} = useAuthContext();
-    const {t} = useTranslation()
+    const {t} = useTranslation();
     const [checked, setChecked] = useState(true);
 
-    // Trouver le modèle correspondant à la valeur
-    const selectedModel = models.find(m => m.name === value && m._user === me?.username);
+    // --- LOGIQUE AMÉLIORÉE POUR DÉTERMINER LE MODÈLE CIBLE ET LES VALEURS ---
+    const hasTargetModel = !!field?.targetModel;
+    let modelValue, fieldValue, targetModelName;
+
+    if (hasTargetModel) {
+        // Le modèle est déterminé par un autre champ. La valeur de ce champ est juste le nom du champ (string).
+        if (typeof field.targetModel === 'string' && field.targetModel.startsWith('$')) {
+            const dynamicFieldName = field.targetModel.substring(1);
+            targetModelName = formData?.[dynamicFieldName] || null;
+        } else {
+            targetModelName = field.targetModel;
+        }
+        modelValue = targetModelName;
+        fieldValue = value;
+    } else {
+        // La valeur de ce champ contient le modèle et/ou le champ.
+        if (fields) { // fields=true: on sélectionne un modèle ET un champ. La valeur est un objet.
+            targetModelName = value?.model;
+            modelValue = value?.model;
+            fieldValue = value?.field;
+        } else { // fields=false: on sélectionne seulement un modèle. La valeur est une chaîne.
+            targetModelName = value;
+            modelValue = value;
+            fieldValue = undefined;
+        }
+    }
+
+    const selectedModel = models.find(m => m.name === targetModelName); // Note: Removed user check for broader compatibility with system models
 
     // Préparer les options pour les champs du modèle
     const fieldOptions = selectedModel?.fields.map(f => ({
-        label: t(`field_${f.name}`, f.name),
+        label: t(`field_${selectedModel.name}_${f.name}`, f.name),
         value: f.name
     })) || [];
 
-    // Gestion du changement de modèle
+    // Effet pour réinitialiser le champ si le modèle cible change et que le champ actuel n'est plus valide
+    useEffect(() => {
+        if (hasTargetModel) {
+            const isValid = fieldOptions.some(opt => opt.value === fieldValue);
+            if (!isValid) {
+                const newValue = fieldOptions.length > 0 ? fieldOptions[0].value : null;
+                if (fieldValue !== newValue) {
+                    onChange({ name: field.name, value: newValue });
+                }
+            }
+        }
+    }, [targetModelName]); // Se déclenche quand le nom du modèle cible change
+
+    // Gestion du changement de modèle (uniquement si pas de targetModel)
     const handleModelChange = (e) => {
-        const newModel = e.value;
-        const firstField = fieldOptions[0]?.value || null;
+        const newModelName = e.value;
+        const newModel = models.find(m => m.name === newModelName);
+        const firstField = newModel?.fields[0]?.name || null;
 
         if (fields) {
-            onChange({name: field?.name, value: { model: newModel, field: firstField }});
+            onChange({name: field?.name, value: { model: newModelName, field: firstField }});
         } else {
-            onChange({name: field?.name, value: newModel});
+            onChange({name: field?.name, value: newModelName});
         }
     };
 
     // Gestion du changement de champ
     const handleFieldChange = (e) => {
-        onChange({name: field?.name, value: { model: value, field: e.value }});
+        const newFieldName = e.value;
+        if (hasTargetModel) {
+            onChange({ name: field.name, value: newFieldName });
+        } else {
+            onChange({name: field?.name, value: { model: modelValue, field: newFieldName }});
+        }
     };
 
-    const dis = disableable ? (
-        <CheckboxField
-            checked={checked}
-            onChange={e => {
-                setChecked(e);
-                if (!e) {
-                    onChange({name: field?.name, value: null});
-                }
-            }}
-        />
-    ) : null;
+    const dis = disableable ? (<CheckboxField
+        checked={checked}
+        onChange={e => {
+            setChecked(e);
+            if (!e) {
+                onChange({name: field?.name, value: null});
+            }
+        }}
+    />) : null;
 
     if (!fields) {
-        return (
-            <div className="flex flex-1">
-                {dis}
-                {checked && (
-                    <SelectField
-                        className="flex-1"
-                        value={value}
-                        onChange={handleModelChange}
-                        items={models
-                            .filter(m => m._user === me?.username)
-                            .map(m => ({
-                                label: t(`model_${m.name}`, m.name),
-                                value: m.name
-                            }))
-                        }
-                    />
-                )}
-            </div>
-        );
+        return (<div className="flex flex-1">
+            {dis}
+            {checked && (<SelectField
+                className="flex-1"
+                value={modelValue}
+                onChange={handleModelChange}
+                items={models
+                    .filter(m => m._user === me?.username) // Keep user filter for selection
+                    .map(m => ({
+                        label: t(`model_${m.name}`, m.name),
+                        value: m.name
+                    }))}
+            />)}
+        </div>);
     }
 
-    return (
-        <div className="flex flex-1">
-            {dis}
-            {checked && (
-                <div className="flex flex-stretch" key={field?.name ?? 'def'}>
-                    {showModel && (
-                        <SelectField
-                            className="flex-1"
-                            value={value}
-                            onChange={handleModelChange}
-                            items={models
-                                .filter(m => m._user === me?.username)
-                                .map(m => ({
-                                    label: t(`model_${m.name}`, m.name),
-                                    value: m.name
-                                }))
-                            }
-                        />
-                    )}
-                    <SelectField
-                        className="flex-1"
-                        value={fieldValue || (fieldOptions[0]?.value || null)}
-                        onChange={handleFieldChange}
-                        items={fieldOptions}
-                    />
-                </div>
-            )}
-        </div>
-    );
+    return (<div className="flex flex-1">
+        {dis}
+        {checked && (<div className="flex flex-stretch" key={field?.name ?? 'def'}>
+            {showModel && (<SelectField
+                className="flex-1"
+                value={modelValue}
+                onChange={handleModelChange}
+                items={models
+                    .filter(m => m._user === me?.username) // Keep user filter for selection
+                    .map(m => ({
+                        label: t(`model_${m.name}`, m.name),
+                        value: m.name
+                    }))}
+                disabled={hasTargetModel} // Le sélecteur de modèle est désactivé si le modèle est piloté par un autre champ
+            />)}
+            <SelectField
+                className="flex-1"
+                value={fieldValue}
+                onChange={handleFieldChange}
+                items={fieldOptions}
+                disabled={!targetModelName}
+            />
+        </div>)}
+    </div>);
 };
 
 // Fonction pour obtenir le composant icône par son nom
@@ -1591,10 +1624,6 @@ export const IconField = ({name, label, value, disabled, onChange, className, ..
         )}
     </div>
 };
-export const ColorField = ({name, label, value, disabled, onChange, className, ...rest}) => {
-    // 1. État interne pour une réactivité immédiate de l'interface.
-    const [internalValue, setInternalValue] = useState(value);
-
 
 export const ColorField = ({ name, label, value, disabled, onChange, className, ...rest }) => {
     const [displayColorPicker, setDisplayColorPicker] = useState(false);
@@ -1619,8 +1648,8 @@ export const ColorField = ({ name, label, value, disabled, onChange, className, 
     const color = tinycolor(value || '#FFFFFFFF');
     const swatchStyle = {
         background: color.toRgbString(),
-        minWidth: '50%',
-        flex: 1,
+        width: '100%',
+        minWidth: '52px',
         height: '36px',
         borderRadius: '2px',
         border: '1px solid #ccc',
@@ -1632,10 +1661,10 @@ export const ColorField = ({ name, label, value, disabled, onChange, className, 
     };
 
     return (
-        <div className={`flex flex-1 flex-col flex-no-wrap ${className || ''}`}>
+        <div className={`flex flex-1 flex-no-wrap ${className || ''}`}>
             {label && (<label className="flex-1 mb-1">{label}</label>)}
             <div style={swatchStyle} onClick={handleClick}>&nbsp;</div>
-            <TextField value={value || ''} readOnly disabled={disabled} className="flex-1" />
+            <div className={"flex-1"}>{value}</div>
             {displayColorPicker ? (
                 <div style={{ position: 'absolute', zIndex: '2' }}>
                     <div style={{ position: 'fixed', top: '0px', right: '0px', bottom: '0px', left: '0px' }} onClick={handleClose} />
@@ -1752,7 +1781,7 @@ export const CodeField = ({name, label, language, value, disabled, onChange}) =>
             }}
             height="300px"
         /></div> : <div className="code"><SyntaxHighlighter
-            language={language || "javascript"} theme={docco}>{value}</SyntaxHighlighter></div>
+            language={language || "javascript"}>{value}</SyntaxHighlighter></div>
         }</>
 }
 

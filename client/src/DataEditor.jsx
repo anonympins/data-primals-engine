@@ -88,9 +88,9 @@ export const DataEditor = forwardRef(function MyDataEditor({
         // --- Le reste de la fonction renderInputField reste identique ---
         switch (field.type) {
             case 'model':
-                return <ModelField value={value} onChange={handleChange} model={model} field={field} />;
+                return <ModelField value={value} onChange={handleChange} model={model} field={field} formData={formData} />;
             case 'modelField':
-                return <ModelField fields={true} value={value} onChange={handleChange} model={model} field={field} />;
+                return <ModelField fields={true} value={value} onChange={handleChange} model={model} field={field} formData={formData} />;
             case 'datetime':
             case 'date':
                 if( field.min )

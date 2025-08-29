@@ -36,12 +36,14 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
 
     // Gestion des opérateurs d'agrégation (commencent par $)
     const operator = Object.keys(condition)[0];
-    if (operator === '$eq' && Array.isArray(condition[operator])) {
-        // Cas spécial pour {$eq: ['$field', value]}
+    if ((operator === '$eq' || operator === '$ne') && Array.isArray(condition[operator])) {
+        // Cas spécial pour {$op: ['$field', value]}
         const [fieldPath, expectedValue] = condition[operator];
         if (typeof fieldPath === 'string' && fieldPath.startsWith('$')) {
             const fieldName = fieldPath.substring(1); // Enlève le $ devant
-            return formData[fieldName] == expectedValue;
+            const actualValue = formData[fieldName];
+            if (operator === '$eq') return actualValue == expectedValue;
+            if (operator === '$ne') return actualValue != expectedValue;
         }
     }
 

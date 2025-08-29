@@ -666,6 +666,14 @@ This pack doesn't provide a full-fledged website out of the box. Instead, it lay
             "models": ["content", "webpage", "translation", "message", "channel", "taxonomy", "lang", "user", "role", "permission", "kpi", "workflow", "workflowStep", "workflowAction", "workflowTrigger"],
             "data": {
                 "all": {
+                    "kpi": [
+                        {
+                            "name": "kpi.registered_users",
+                            "targetModel": "user",
+                            "aggregationType": "count",
+                            "icon": "FaUsers"
+                        }
+                    ],
                     "taxonomy": [{
                         name: 'Website',
                         description: 'Website main category',
@@ -1492,6 +1500,15 @@ This pack provides the raw data and structure for internationalization (i18n). I
             "models": ["translation", "lang"],
             "data": {
                 "all": {
+                    "kpi": [
+                        {
+                            "name": "kpi.completed_translations",
+                            "targetModel": "translation",
+                            "aggregationType": "count",
+                            "icon": "FaLanguage",
+                            "color": "#3498db"
+                        }
+                    ],
                     "lang": [
                         {
                             "name": "Français",

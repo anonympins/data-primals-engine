@@ -91,7 +91,7 @@ export const dataTypes = {
     },
     modelField: {
         validate: (value, field) => {
-            return value === null || typeof value === 'object' && JSON.stringify(value).length <= maxModelNameLength + 100;
+            return value === null || (typeof value === 'string' && value.length < maxStringLength) || typeof value === 'object' && JSON.stringify(value).length <= maxModelNameLength + 100;
         }
     },
     string: {
