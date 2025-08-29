@@ -1648,8 +1648,8 @@ export const ColorField = ({ name, label, value, disabled, onChange, className, 
     const color = tinycolor(value || '#FFFFFFFF');
     const swatchStyle = {
         background: color.toRgbString(),
-        minWidth: '50%',
-        flex: 1,
+        width: '100%',
+        minWidth: '52px',
         height: '36px',
         borderRadius: '2px',
         border: '1px solid #ccc',
@@ -1661,10 +1661,10 @@ export const ColorField = ({ name, label, value, disabled, onChange, className, 
     };
 
     return (
-        <div className={`flex flex-1 flex-col flex-no-wrap ${className || ''}`}>
+        <div className={`flex flex-1 flex-no-wrap ${className || ''}`}>
             {label && (<label className="flex-1 mb-1">{label}</label>)}
             <div style={swatchStyle} onClick={handleClick}>&nbsp;</div>
-            <TextField value={value || ''} readOnly disabled={disabled} className="flex-1" />
+            <div className={"flex-1"}>{value}</div>
             {displayColorPicker ? (
                 <div style={{ position: 'absolute', zIndex: '2' }}>
                     <div style={{ position: 'fixed', top: '0px', right: '0px', bottom: '0px', left: '0px' }} onClick={handleClose} />
