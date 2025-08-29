@@ -33,8 +33,10 @@ const formatDate = (value, type, t) => {
 
 const FlexDataRenderer = ({ value, fieldDefinition,data }) => {
     const { t, i18n } = useTranslation();
+    const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     const {models} = useModelContext()
     const {me} = useAuthContext()
+
     // 'translatedLabel' is added by getFieldDefinitionByPath
     const field = fieldDefinition;
     const translatedLabel = t('model_'+field.name, field.name);

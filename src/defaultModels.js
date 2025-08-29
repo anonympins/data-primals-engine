@@ -1207,13 +1207,17 @@ export const defaultModels = {
             },
             {
                 name: 'aggregationField',
-                type: 'string',
+                type: 'modelField',
+                targetModel: '$targetModel',
+                condition: { $ne: ["$aggregationType", "count"] },
                 hint: "Nom du champ numérique sur lequel appliquer l'agrégation (ex: totalAmount). Non requis pour 'count'."
             },
             {
                 name: 'matchFormula',
                 type: 'code', // Utiliser l'éditeur de code pour le JSON
                 language: 'json',
+                conditionBuilder: true,
+                targetModel: '$targetModel',
                 default: {}, // Valeur par défaut: aucun filtre
                 hint: "Filtre JSON (MongoDB $match) à appliquer avant l'agrégation (ex: { \"status\": \"delivered\" })"
             },
