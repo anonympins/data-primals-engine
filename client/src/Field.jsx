@@ -1654,10 +1654,6 @@ export const ColorField = ({ name, label, value, disabled, onChange, className, 
         borderRadius: '2px',
         border: '1px solid #ccc',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        // Utiliser le même fond en damier pour visualiser la transparence
-        backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
-        backgroundSize: '10px 10px',
-        backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
     };
 
     return (
