@@ -1684,13 +1684,15 @@ export async function registerRoutes(defaultEngine){
         const user = req.me;
         const lang   = req.query.lang || req.fields.lang;
 
+        const packName = req.fields.packName || null;
+
         try {
             // Vérification des permissions
             if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_INSTALL_PACK"], user)) {
                 return res.status(403).json({ success: false, error: i18n.t('api.permission.installPack') });
             }
 
-            const result = await installPack({...req.fields.packData, private: true}, user, lang, { installForUser: true });
+            const result = await installPack(packName? packName : {...req.fields.packData, private: true}, user, lang, { installForUser: true });
 
             if (result.success) {
                 res.status(200).json({ success: true, message: `Pack installed successfully.`, summary: result.summary });
