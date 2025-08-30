@@ -430,7 +430,7 @@ const NumberField = forwardRef(
                     </label>
                 )}
                 {help && <div className="flex help">{help}</div>}
-                <div className={"flex flex-1 flex-no-wrap flex-mini-gap"}>
+                <div className={"flex flex-1 flex-no-wrap flex-mini-gap flex-end"}>
           <input
             ref={inputRef}
             aria-required={required}

@@ -72,7 +72,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                 newFields[index].name = e.target.value;
                                 setFields(newFields);
                             }}
-                            help={t('modelcreator.name.hint')}
                             required
                             after={!(!modelLocked && isLocalUser(me) && field.locked) && !field._isNewField && (
                                 <Button type={"button"} className={"btn-form btn-last"}
@@ -286,7 +285,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                             newFields[index].multiline = e;
                                             setFields(newFields);
                                         }}
-                                        help={field.multiline && t('modelcreator.multiline.hint')}
                                     />
                                 </div>
                             </div>
@@ -295,15 +293,14 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
                     {['string', 'string_t', 'richtext', 'richtext_t', 'email', 'phone', 'url', 'password', 'code'].includes(field.itemsType || field.type) && (
                         <>
-                            <div className={"flex flex-no-wrap"}>
+                            <div className={"flex flex-no-wrap field-bg"}>
                                 {hint('modelcreator.maxlength.hint')}
-                                <label className={"flex flex-1"}>
-                                    <Trans i18nKey={"modelcreator.maxlength"}>Longueur
-                                        maximale :</Trans>
-                                    <NumberField
+                                <div className={"flex-1"}><NumberField
                                         disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                         step={1}
                                         min={0}
+                                        label={<Trans i18nKey={"modelcreator.maxlength"}>Longueur
+                                            maximale :</Trans>}
                                         className={"flex-1"}
                                         value={field.maxlength}
                                         onChange={(e) => {
@@ -315,8 +312,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                                 newFields[index].maxlength = val;
                                             setFields(newFields);
                                         }}
-                                    />
-                                </label>
+                                    /></div>
                             </div>
                         </>
                     )}
@@ -438,7 +434,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                             newFields[index].required = e;
                                             setFields(newFields);
                                         }}
-                                        help={field.required && t('modelcreator.required.hint')}
                                     />
                                 </div>
                             </div>
@@ -456,7 +451,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                             newFields[index].unique = e;
                                             setFields(newFields);
                                         }}
-                                        help={field.unique && t('modelcreator.unique.hint')}
                                     />
                                 </div>
                             </div>
@@ -807,7 +801,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                             newFields[index].asMain = e;
                                             setFields(newFields);
                                         }}
-                                        help={field.asMain && t('modelcreator.asMain.hint')}
                                     />
                                 </div>
                             </div>)}
@@ -858,7 +851,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                             newFields[index].hiddenable = e;
                                             setFields(newFields);
                                         }}
-                                        help={field.unique && t('modelcreator.hiddenable.hint')}
                                     />
                                 </div>
                             </div>
