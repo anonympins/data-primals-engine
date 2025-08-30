@@ -13,6 +13,7 @@ import {sendEmail} from "../email.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
 import {getCollectionForUser} from "./mongodb.js";
 import {safeAssignObject} from "../core.js";
+import {Config} from "../config.js";
 
 const restoreRequests = {};
 
@@ -46,15 +47,6 @@ export const requestRestore = async (user, lang) => {
         throw new Error('Error sending email.');
     }
 };
-
-const getDefaultS3Config = () => {
-    return {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY, // Utiliser la clé déchiffrée
-        region: process.env.AWS_REGION || awsDefaultConfig.region,
-        bucketName: process.env.AWS_BUCKET || awsDefaultConfig.bucketName
-    };
-}
 
 /**
  * Récupère la configuration S3 depuis les variables d'environnement de l'utilisateur en base de données.
@@ -98,12 +90,16 @@ async function _getUserS3ConfigFromDb(user) {
  * @returns {Promise<object>} - L'objet de configuration S3 final.
  */
 export async function getUserS3Config(user) {
+
+    const adc = awsDefaultConfig;
+    const dc = Config.Get('awsDefaultConfig', {});
+
     // 1. Récupérer la configuration globale par défaut
     const defaultConfig = {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        region: process.env.AWS_REGION || awsDefaultConfig.region,
-        bucketName: process.env.AWS_BUCKET_NAME || awsDefaultConfig.bucketName
+        accessKeyId: dc.accessKeyId || process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: dc.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY,
+        region: dc.region || process.env.AWS_REGION || adc.region,
+        bucketName: dc.bucketName || process.env.AWS_BUCKET_NAME || adc.bucketName
     };
 
     // 2. Récupérer la configuration spécifique de l'utilisateur
@@ -243,12 +239,13 @@ export const getS3Stream = (s3Config, s3Key) => {
     return s3.getObject(params).createReadStream();
 };
 
-const throttle = throttleMiddleware(maxBytesPerSecondThrottleData);
-
 let engine, logger;
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
+
+    const m = Config.Get('maxBytesPerSecondThrottleData', maxBytesPerSecondThrottleData);
+    const throttle = throttleMiddleware(m);
 
     const userMiddlewares = await engine.userProvider.getMiddlewares();
     engine.post('/api/backup/request-restore', [throttle, middlewareAuthenticator, userInitiator, ...userMiddlewares], async (req, res) => {

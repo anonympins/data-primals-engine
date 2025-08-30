@@ -7,7 +7,7 @@ import process from "process";
 import {
     cookiesSecret,
     databasePoolSize,
-    dbName,
+    dbName as dbNameBase,
     tlsAllowInvalidCertificates, tlsAllowInvalidHostnames
 } from "./constants.js";
 import http from "http";
@@ -32,7 +32,7 @@ import {createModel, deleteModels, getModels, installAllPacks} from "./modules/d
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
+let dbName = Config.Get('dbName', dbNameBase);
 let caFile, certFile, keyFile;
 try {
     if (process.env.CA_CERT)
@@ -127,7 +127,9 @@ export const Engine = {
             uploadDir: process.cwd()+'/uploads/tmp',
             multiples: true // req.files to be arrays of files
         }));
-        app.use(cookieParser(process.env.COOKIES_SECRET || cookiesSecret));
+
+        const cs = Config.Get('cookieSecret', process.env.COOKIES_SECRET || cookiesSecret)
+        app.use(cookieParser(cs));
         app.use(requestIp.mw())
 
         engine.use = (...args) => {

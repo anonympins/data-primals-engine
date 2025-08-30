@@ -3,7 +3,7 @@ import {
     maxExportCount,
     maxFileSize,
     maxFilterDepth,
-    maxModelNameLength,
+    maxModelNameLength, maxPackData,
     maxPasswordLength,
     maxPostData,
     maxRelationsPerData,
@@ -91,12 +91,14 @@ export const dataTypes = {
     },
     modelField: {
         validate: (value, field) => {
-            return value === null || (typeof value === 'string' && value.length < maxStringLength) || typeof value === 'object' && JSON.stringify(value).length <= maxModelNameLength + 100;
+            const m = Config.Get('maxStringLength', maxStringLength);
+            return value === null || (typeof value === 'string' && value.length < m) || typeof value === 'object' && JSON.stringify(value).length <= maxModelNameLength + 100;
         }
     },
     string: {
         validate: (value, field) => {
-            const ml = Math.min(Math.max(field.maxlength, 0), maxStringLength);
+            const m = Config.Get('maxStringLength', maxStringLength);
+            const ml = Math.min(Math.max(field.maxlength, 0), m);
             return value === null || typeof value === 'string' && (!ml || value.length <= ml)
         },
         anonymize: anonymizeText
@@ -125,7 +127,8 @@ export const dataTypes = {
     },
     richtext: {
         validate: (value, field) => {
-            const ml = Math.min(Math.max(field.maxlength, 0), maxRichTextLength);
+            const m = Config.Get('maxRichTextLength', maxRichTextLength);
+            const ml = Math.min(Math.max(field.maxlength, 0), m);
             return value === null || typeof value === 'string' && (!ml || value.length <= ml)
         },
         filter: async (value) => {
@@ -137,6 +140,7 @@ export const dataTypes = {
         validate: (value, field) => {
             if (value === null)
                 return true;
+            const m = Config.Get('maxStringLength', maxStringLength);
             const ml = Math.min(Math.max(field.maxlength, 0), maxStringLength);
             // La valeur peut être une chaîne de caractères...
             if (typeof value === 'string') {
@@ -167,7 +171,8 @@ export const dataTypes = {
             return null;
         },
         validate: (value, field) => {
-            const ml = Math.min(Math.max(field.maxlength, 0), maxPasswordLength);
+            const m = Config.Get('maxPasswordLength', maxPasswordLength);
+            const ml = Math.min(Math.max(field.maxlength, 0), m);
             return value === null || typeof value === 'string' && (!ml || value.length <= ml)
         },
         anonymize: anonymizeText
@@ -317,7 +322,8 @@ export const dataTypes = {
     relation: {
         validate: (value, field) => {
             if (field.multiple) {
-                return typeof (value) === 'object' || (Array.isArray(value) && value.length <= maxRelationsPerData && !value.some(v => {
+                const m = Config.Get('maxRelationsPerData', maxRelationsPerData);
+                return typeof (value) === 'object' || (Array.isArray(value) && value.length <= m && !value.some(v => {
                     return !isObjectId(v);
                 }));
             }
@@ -346,12 +352,9 @@ export const dataTypes = {
                     }));
                 }
 
+                const m = Config.Get('maxFileSize', maxFileSize);
                 // Check if the file size is within the limit
-                if (value.size > (field.maxSize || maxFileSize)) {
-                    return false;
-                }
-
-                return true;
+                return value.size <= (field.maxSize || m);
             }
 
             return false; // Invalid type
@@ -936,11 +939,13 @@ async function checkLimits(datas, model, collection, me) {
 
     // Vérification nombre max de documents
     const count = await collection.countDocuments({_user: me._user || me.username});
-    if (count + datas.length > maxTotalDataPerUser) {
+    const m = Config.Get('maxTotalDataPerUser', maxTotalDataPerUser);
+    if (count + datas.length > m) {
         throw new Error(i18n.t("api.data.tooManyData"));
     }
 
-    if (datas.length > maxPostData) {
+    const mp = Config.Get('maxPostData', maxPostData);
+    if (datas.length > mp) {
         throw new Error(i18n.t('api.data.tooManyData'));
     }
 }
@@ -1460,7 +1465,8 @@ export const searchData = async (query, user) => {
     const allIds = (ids || '').split(",").map(m => m.trim()).filter(Boolean).map(m => {
         return new ObjectId(m);
     });
-    let l = Math.min(modelElement.maxRequestData || maxRequestData, limit ? parseInt(limit, 10) : maxRequestData);
+    let m = Config.Get('maxRequestData', maxRequestData);
+    let l = Math.min(modelElement.maxRequestData || m, limit ? parseInt(limit, 10) : m)
     let p = parseInt(page, 10);
     let filter = query.filter || {};
 
@@ -1514,7 +1520,8 @@ export const searchData = async (query, user) => {
     let i = 0;
     const f = {...filter};
 
-    let depthParam = Math.max(1, Math.min(maxFilterDepth, typeof (query.depth) === 'string' ? parseInt(query.depth) : (typeof (query.depth) === 'number' ? query.depth : 1)));
+    let mf = Config.Get('maxFilterDepth', maxFilterDepth);
+    let depthParam = Math.max(1, Math.min(mf, typeof (query.depth) === 'string' ? parseInt(query.depth) : (typeof (query.depth) === 'number' ? query.depth : 1)));
     let autoExpand = typeof (query.autoExpand) === 'undefined' || (typeof (query.autoExpand) === 'string' && ['1', 'true'].includes(query.autoExpand.toLowerCase()));
 
     const recursiveLookup = async (model, data, depth = 1, already = [], parentPath = '') => {
@@ -1640,13 +1647,15 @@ export const searchData = async (query, user) => {
                                     }
                                 }
                             },
-                            {$limit: maxRelationsPerData}
+                            {$limit: Config.Get('maxRelationsPerData', maxRelationsPerData)}
                         ]
                     }
                 };
 
                 pipelinesLookups.push(lookup);
-                pipelinesLookups.push({$limit: Math.floor(maxTotalDataPerUser)});
+
+                const m = Config.Get('maxTotalDataPerUser', maxTotalDataPerUser);
+                pipelinesLookups.push({$limit: Math.floor(m)});
 
                 const currentPath = parentPath ? `${parentPath}_${fi.name}` : fi.name;
                 fi.path = currentPath;
@@ -2035,7 +2044,8 @@ export const searchData = async (query, user) => {
         pipelines.push({$project: {_model: 0}});
     }
 
-    const ts = parseInt(timeout, 10) / 2.0 || searchRequestTimeout;
+    const mt = Config.Get('searchRequestTimeout', searchRequestTimeout);
+    const ts = parseInt(timeout, 10) / 2.0 || mt;
     const count = await collection.aggregate([...pipelines, {$count: "count"}]).maxTimeMS(ts).toArray();
     let prom = collection.aggregate(pipelines).maxTimeMS(ts);
 
@@ -2630,7 +2640,21 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     } else if (typeof packIdentifier === 'object' && packIdentifier !== null) {
         // New behavior - use provided pack object directly
         pack = packIdentifier;
+        let totalEntries = 0;
+        for (const langKey in pack) {
+            const langData = pack[langKey];
+            for (const modelKey in langData) {
+                if (Array.isArray(langData[modelKey])) {
+                    totalEntries += langData[modelKey].length;
+                }
+            }
+        }
 
+        const m = Config.Get('maxPackData',maxPackData);
+        if (totalEntries > m) {
+            // Cette erreur sera retournée à l'utilisateur via l'API.
+            throw new Error(`Pack installation failed: The pack contains ${totalEntries} data entries, which exceeds the limit of ${m}. Please split the pack into smaller ones.`);
+        }
         // Validate basic pack structure
         if (!pack.name || (!pack.models && !pack.data)) {
             throw new Error('Invalid pack structure - must contain at least name and models or data');

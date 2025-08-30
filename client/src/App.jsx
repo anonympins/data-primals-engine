@@ -55,7 +55,7 @@ import { translations as allTranslations} from "../../src/i18n.js";
 import {getBrowserRandom, getRandom} from "../../src/core.js";
 import {getUserHash} from "../../src/data.js";
 import {langs, seoTitle} from "./constants.js";
-import {host, useAI} from "../../src/constants.js";
+import {host} from "../../src/constants.js";
 import i18next from "i18next";
 import {websiteTranslations} from "./translations.js";
 

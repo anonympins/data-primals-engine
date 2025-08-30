@@ -29,7 +29,7 @@ if (process.argv.length === 3) {
 }
 
 
-const realPort = process.env.PORT || port;
+const realPort = Config.Get('port', process.env.PORT || port);
 engine.start(realPort, async (r) => {
     const logger = engine.getComponent(Logger);
     console.log("Server started on port " + realPort);

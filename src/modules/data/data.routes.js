@@ -8,10 +8,10 @@ import {
     maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
     maxMagnetsModels,
-    maxModelsPerUser
+    maxModelsPerUser, maxPackData, maxPackPreviewData
 } from "../../constants.js";
 import {datasCollection, getCollection, getCollectionForUser, isObjectId, modelsCollection} from "../mongodb.js";
-import {safeAssignObject, uuidv4} from "../../core.js";
+import {countKeys, safeAssignObject, uuidv4} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import i18n from "../../i18n.js";
@@ -45,9 +45,6 @@ import {dumpUserData, loadFromDump} from "./data.backup.js";
 let logger, engine;
 
 const sseConnections = new Map();
-
-const throttle = throttleMiddleware(maxBytesPerSecondThrottleData);
-
 
 
 
@@ -253,6 +250,9 @@ export async function registerRoutes(defaultEngine){
 
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
+
+    const m = Config.Get('maxBytesPerSecondThrottleData', maxBytesPerSecondThrottleData)
+    const throttle = throttleMiddleware(m);
 
     let userMiddlewares = await engine.userProvider.getMiddlewares();
 
@@ -868,13 +868,14 @@ export async function registerRoutes(defaultEngine){
 
         // get by name
         try {
+            const m = Config.Get('maxModelsPerUser', maxModelsPerUser);
             let models = await modelsCollection.find({$or: [{_user: {$exists: false}}]})
-                .sort({_user:-1, _id: 1 }).limit(maxModelsPerUser).toArray();
+                .sort({_user:-1, _id: 1 }).limit(m).toArray();
             models = models
                 .concat(
                     await modelsCollection.find({$or: [{_user: req.me._user}, {_user: req.me.username}]})
                         .sort({_user:-1, _id: 1 })
-                        .limit(maxModelsPerUser).toArray());
+                        .limit(m).toArray());
             res.json(models);
         } catch (error) {
             logger.error(error);
@@ -902,7 +903,8 @@ export async function registerRoutes(defaultEngine){
                 const count = await modelsCollection.count({
                     $and: [{_user: {$exists: true}}, {_user: req.me.username}]
                 });
-                if( count < maxModelsPerUser) {
+                const m = Config.Get('maxModelsPerUser', maxModelsPerUser);
+                if( count < m) {
                     if(await engine.userProvider.hasFeature(req.me, 'indexes')){
                         for (const field of modelData.fields) {
                             if( field.index ) {
@@ -1479,11 +1481,11 @@ export async function registerRoutes(defaultEngine){
                 sortOptions['_updatedAt'] = -1; // Tri par défaut
             }
 
-            // On ne renvoie pas le champ 'datas' pour alléger la réponse de la liste
+            // On ne renvoie pas le champ 'data' pour alléger la réponse de la liste
             const packs = await packsCollection.find({
                 _user: req.query.user ? req.query.user : { $exists: false }
             }, {
-                projection: { datas: 0 }
+                projection: { data: 0 }
             }).sort(sortOptions).toArray();
 
             res.json(packs);
@@ -1508,8 +1510,33 @@ export async function registerRoutes(defaultEngine){
                 return res.status(404).json({ success: false, error: 'Pack not found.' });
             }
 
-            // On retourne le pack complet, incluant les données pour la vue de détail
-            res.json(pack);
+            const PACK_PREVIEW_LIMIT = Config.Get('maxPackPreviewData', maxPackPreviewData);
+
+            const countPackEntries = (p) => {
+                if (!p || !p.data) return 0;
+                let totalEntries = 0;
+                for (const langKey in p.data) {
+                    const langData = p.data[langKey];
+                    for (const modelKey in langData) {
+                        if (Array.isArray(langData[modelKey])) {
+                            totalEntries += langData[modelKey].length;
+                        }
+                    }
+                }
+                return totalEntries;
+            };
+
+            const totalEntries = countPackEntries(pack);
+
+            if (totalEntries > PACK_PREVIEW_LIMIT) {
+                logger.warn(`[GET /api/packs/${id}] Pack data is too large (${totalEntries} entries) and will be truncated for the client.`);
+                const packForClient = { ...pack };
+                delete packForClient.data;
+                packForClient.dataTruncated = true;
+                packForClient.totalDataEntries = totalEntries;
+                return res.json(packForClient);
+            }
+            res.json(pack); // On retourne le pack complet si sa taille est raisonnable
         } catch (error) {
             logger.error(`[GET /api/packs/${id}] Error fetching pack details:`, error);
             res.status(500).json({ success: false, error: 'Failed to fetch pack details.' });
