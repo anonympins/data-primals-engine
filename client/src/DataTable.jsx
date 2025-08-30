@@ -11,7 +11,7 @@ import {Event} from "../../src/events.js";
 import {
     FaBook,
     FaCopy,
-    FaDatabase, FaEraser,
+    FaDatabase, FaEraser, FaEye,
     FaFileExport,
     FaFileImport,
     FaFilter, FaHistory,
@@ -60,7 +60,7 @@ import {pagedFilterToMongoConds} from "./filter.js";
 import {isConditionMet} from "../../src/filter";
 import {DataImporter} from "./DataImporter.jsx";
 import {HistoryDialog} from "./HistoryDialog.jsx";
-import {Config} from "data-primals-engine";
+import {Config} from "../../src/config.js";
 
 const Header = ({
                     reversed = false,
@@ -483,6 +483,12 @@ export function DataTable({
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
             {advanced && <div className="flex actions flex-left">
+                {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
+                    <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
+                {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {
+                    nav('/user/'+getUserHash(me)+'/dashboards');
+                }}><FaEye /> Tableaux de bord</Button> }
+                <p className="model-desc hint">{t(`model_description_${selectedModel.name}`, selectedModel.description)}</p>
                 <Button onClick={() => onAddData(model)}><FaPlus/><Trans i18nKey="btns.addData">Ajouter une
                     donnée</Trans></Button>
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
