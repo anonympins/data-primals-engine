@@ -2,7 +2,7 @@ import {Logger} from "../../gameObject.js";
 import {mkdir} from 'node:fs/promises';
 import {onInit as historyInit} from "./data.history.js";
 import {isDemoUser, isLocalUser} from "../../data.js";
-import {install, maxRequestData, storageSafetyMargin} from "../../constants.js";
+import {install, maxAlertsPerUser, maxRequestData, storageSafetyMargin} from "../../constants.js";
 import {createCollection, getCollection} from "../mongodb.js";
 import path from "node:path";
 import {isGUID, sequential} from "../../core.js";
@@ -22,6 +22,7 @@ import {validateField, onInit as validationInit} from "./data.validation.js";
 import {cancelAlerts, scheduleAlerts, onInit as scheduleInit} from "./data.scheduling.js";
 import {deleteData, installPack, onInit as operationsInit} from "./data.operations.js";
 import {jobDumpUserData, onInit as backupInit} from "./data.backup.js";
+import {Config} from "../../config.js";
 
 let engine;
 let logger;
@@ -54,7 +55,8 @@ export async function onInit(defaultEngine) {
 
     let modelsCollection, datasCollection, filesCollection, packsCollection, magnetsCollection, historyCollection;
 
-    if( install ) {
+    const i = Config.Get('install', install);
+    if( i ) {
         datasCollection = await createCollection("datas");
         historyCollection = await createCollection("history");
         filesCollection = await createCollection("files");
@@ -220,8 +222,9 @@ export async function checkServerCapacity(incomingDataSize = 0) {
         const diskSpace = await checkDiskSpace(DATA_STORAGE_PATH);
         const { free, size } = diskSpace;
 
+        const storageMargin = Config.Get('storageSafetyMargin', storageSafetyMargin);
         // Limite maximale d'utilisation du disque (ex: 90% de la taille totale)
-        const maxAllowedUsage = size * storageSafetyMargin;
+        const maxAllowedUsage = size * storageMargin;
         const currentUsage = size - free;
         const projectedUsage = currentUsage + incomingDataSize;
 

@@ -36,7 +36,7 @@ export const createNewNode = (type) => {
         return {
             ...baseNode,
             type: 'item',
-            itemStyle: { width: '100px', height: '50px' },
+            itemStyle: {  },
             content: { type: 'placeholder' }
         };
     }

@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 import ivm from "isolated-vm";
 import {emailDefaultConfig} from "../constants.js";
 import {safeAssignObject} from "../core.js";
+import {Config} from "../config.js";
 
 export const userInitiator = async (req, res, next) => {
 
@@ -278,6 +279,8 @@ export async function getEnv(user){
 
 export async function getSmtpConfig(user) {
 
+    const cfg = Config.Get('emailDefaultConfig', emailDefaultConfig);
+
     // 1. Récupérer la configuration SMTP depuis le modèle 'env' de l'utilisateur
     const envVars = await searchData({
         model: 'env',
@@ -289,7 +292,7 @@ export async function getSmtpConfig(user) {
         return acc;
     }, {});
     if( !smtpConfig.port )
-        smtpConfig.port = emailDefaultConfig.port;
+        smtpConfig.port = cfg.port;
 
     return smtpConfig;
 }

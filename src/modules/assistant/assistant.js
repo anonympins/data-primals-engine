@@ -12,6 +12,7 @@ import {maxAIReflectiveSteps} from "../../constants.js";
 import {providers} from "./constants.js";
 import {ChatDeepSeek} from "@langchain/deepseek";
 import {ChatAnthropic} from "@langchain/anthropic";
+import {Config} from "../../config.js";
 
 let logger = null;
 
@@ -356,7 +357,8 @@ async function handleChatRequest(message, history, provider, context, user, conf
 
 
     // --- BOUCLE DE RAISONNEMENT ET D'EXÉCUTION D'OUTILS ---
-    for (let i = 0; i < maxAIReflectiveSteps; i++) {
+    const m = Config.Get('maxAIReflectiveSteps', maxAIReflectiveSteps);
+    for (let i = 0; i < m; i++) {
         logger.debug(`[Assistant] Tour de boucle ${i + 1}. Invocation de l'IA...`);
 
         const response = await llm.invoke(conversationHistory);

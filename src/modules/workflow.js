@@ -6,12 +6,9 @@ import crypto from "node:crypto";
 import ivm from 'isolated-vm';
 
 import {Logger} from "../gameObject.js";
-import {deleteData, getModel, insertData, patchData, scheduleAlerts, searchData} from "./data/index.js";
-import {emailDefaultConfig, maxExecutionsByStep, maxWorkflowSteps, port} from "../constants.js";
-import {ChatOpenAI} from "@langchain/openai";
-import {ChatGoogleGenerativeAI} from "@langchain/google-genai";
+import {deleteData, getModel, insertData, patchData, searchData} from "./data/index.js";
+import { maxExecutionsByStep, maxWorkflowSteps, port} from "../constants.js";
 import {ChatPromptTemplate} from "@langchain/core/prompts";
-import { ChatDeepSeek } from "@langchain/deepseek";
 import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
 
@@ -21,9 +18,9 @@ import { services } from '../services/index.js';
 import {getEnv, getSmtpConfig} from "./user.js";
 import {getHost} from "../constants.js";
 import {providers} from "./assistant/constants.js";
-import {ChatAnthropic} from "@langchain/anthropic";
 import {getAIProvider} from "./assistant/assistant.js";
-import {escapeRegex, safeAssignObject} from "../core.js";
+import { safeAssignObject} from "../core.js";
+import {Config} from "../config.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -1449,14 +1446,16 @@ export async function processWorkflowRun(workflowRunId, user) {
         }
 
         let stepCount = 0;
+        const mw = Config.Get('maxWorkflowSteps', maxWorkflowSteps);
         while (currentStepId) {
-            if (stepCount++ >= maxWorkflowSteps) {
+            if (stepCount++ >= mw) {
                 return await logError(`Maximum workflow step executions exceeded (${maxWorkflowSteps} max).`);
             }
 
             const execCount = (stepExecutionsCount[currentStepId] || 0) + 1;
-            if (execCount > maxExecutionsByStep) {
-                return await logError(`Maximum executions (${maxExecutionsByStep}) exceeded for step ${currentStepId}.`);
+            const m = Config.Get('maxExecutionsByStep', maxExecutionsByStep);
+            if (execCount > m) {
+                return await logError(`Maximum executions (${m}) exceeded for step ${currentStepId}.`);
             }
             stepExecutionsCount[currentStepId] = execCount;
             logger.info(`[processWorkflowRun] Run ID: ${runId}, Current Step ID: ${currentStepId}`);

@@ -190,7 +190,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                                         key={'modelist' + model.name} onClick={() => generatedModels.some(g => g.name === model.name) ? onEditModel(model) : onModelSelect(model)}>
                                         <div className="flex flex-center flex-fw">
                                             <div
-                                                className="flex flex-1 flex-no-wrap break-word">
+                                                className="flex flex-1 flex-no-wrap break-word gap-2">
                                                 <div className={"icon"}>{IconComponent ? IconComponent : <></>}</div>
                                                 <div>{t(`model_${model.name}`, model.name)} {generatedModels.some(f => f.name === model.name) ? '(tmp)' : (mods.some(f => f.mod === model.name) ? `(${mods.find(f => f.mod === model.name).count})` : '')}</div></div>
                                             <div className="btns">

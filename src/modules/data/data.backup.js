@@ -153,7 +153,8 @@ export const loadFromDump = async (user, options = {}) => {
         }
 
         // --- EXÉCUTION DE MONGORESTORE ---
-        const restoreSourceDir = path.join(tmpRestoreDir, dbName);
+        const d = Config.Get('dbName', dbName);
+        const restoreSourceDir = path.join(tmpRestoreDir, d);
         if (!fs.existsSync(restoreSourceDir)) {
             throw new Error(`Restore source directory (${restoreSourceDir}) not found.`);
         }
@@ -161,15 +162,15 @@ export const loadFromDump = async (user, options = {}) => {
         let command;
         const args = [
             '--uri', dbUrl,
-            '--db', dbName
+            '--db', d
         ];
 
         if (modelsOnly) {
-            args.push('--nsInclude', `${dbName}.models`);
+            args.push('--nsInclude', `${d}.models`);
         } else {
             // mongorestore accepte plusieurs fois l'option --nsInclude
-            args.push('--nsInclude', `${dbName}.datas`);
-            args.push('--nsInclude', `${dbName}.models`);
+            args.push('--nsInclude', `${d}.datas`);
+            args.push('--nsInclude', `${d}.models`);
         }
         // Le répertoire source est le dernier argument
         args.push(restoreSourceDir);
@@ -242,6 +243,8 @@ export const dumpUserData = async (user) => {
         const backupFrequency = await engine.userProvider.getBackupFrequency(user);
         logger.info(`Fréquence de sauvegarde : ${backupFrequency}.`);
 
+
+        const d = Config.Get('dbName', dbName);
         const collections = await MongoDatabase.listCollections().toArray();
         for (const collection of collections) {
             const collsToBackup = [await getUserCollectionName(user), 'models'];
@@ -249,7 +252,7 @@ export const dumpUserData = async (user) => {
                 const query = {_user: user.username};
                 const args = [
                     '--uri', dbUrl,
-                    '--db', dbName,
+                    '--db', d,
                     '--out', localTempDumpDir,
                     '--collection', collection.name,
                     '--query', JSON.stringify(query)
@@ -258,9 +261,9 @@ export const dumpUserData = async (user) => {
                 await execFileAsync('mongodump', args);
             }
         }
-        const dumpSourceDir = path.join(localTempDumpDir, dbName);
+        const dumpSourceDir = path.join(localTempDumpDir, d);
         if (fs.existsSync(dumpSourceDir)) {
-            await tar.create({gzip: true, file: localArchivePath, C: localTempDumpDir}, [dbName]);
+            await tar.create({gzip: true, file: localArchivePath, C: localTempDumpDir}, [d]);
             logger.info(`Archive de sauvegarde locale créée : ${localArchivePath}`);
         } else {
             logger.warn(`Le répertoire de dump ${dumpSourceDir} était vide. Aucune archive n'a créée.`);

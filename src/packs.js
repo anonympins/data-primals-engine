@@ -666,6 +666,14 @@ This pack doesn't provide a full-fledged website out of the box. Instead, it lay
             "models": ["content", "webpage", "translation", "message", "channel", "taxonomy", "lang", "user", "role", "permission", "kpi", "workflow", "workflowStep", "workflowAction", "workflowTrigger"],
             "data": {
                 "all": {
+                    "kpi": [
+                        {
+                            "name": "kpi.registered_users",
+                            "targetModel": "user",
+                            "aggregationType": "count",
+                            "icon": "FaUsers"
+                        }
+                    ],
                     "taxonomy": [{
                         name: 'Website',
                         description: 'Website main category',
@@ -1439,13 +1447,13 @@ The magic happens automatically in the background:
                     "workflowStep": [
                         {
                             "name": "Generate SEO description for products",
-                            "workflow": {"$find": {"name": "Generate product description"}},
+                            "workflow": {"$link": {"name": "Generate product description", "_model": "workflow"}},
                             "actions": {
-                                "$find": {
+                                "$link": {
                                     $or: [
                                         {"$eq": ["$name", "Generate SEO Description from Product (OpenAI API)"]},
                                         {"$eq": ["$name", "Update Product with AI Description"]}
-                                    ]
+                                    ], "_model": "workflowAction"
                                 }
                             },
                             "isTerminal": true
@@ -1453,7 +1461,7 @@ The magic happens automatically in the background:
                     ],
                     "workflowTrigger": [{
                         "name": "On new product added",
-                        "workflow": {"$find": {"$eq": ["$name", "Generate product description"]}},
+                        "workflow": {"$link": {"$eq": ["$name", "Generate product description"], "_model": "workflow"}},
                         "type": "manual",
                         "onEvent": "DataAdded",
                         "targetModel": "product",
@@ -1489,9 +1497,18 @@ This pack provides the raw data and structure for internationalization (i18n). I
     b. Add entries in the \`translation\` model for this key for each language you support (e.g., key: "WELCOME_MESSAGE", lang: "en", value: "Welcome!").
     c. Your application's front-end can then fetch the correct translation based on the user's selected language.`,
             "tags": ["i18n"],
-            "models": ["translation", "lang"],
+            "models": ["translation", "lang", "kpi", "dashboard"],
             "data": {
                 "all": {
+                    "kpi": [
+                        {
+                            "name": "kpi.completed_translations",
+                            "targetModel": "translation",
+                            "aggregationType": "count",
+                            "icon": "FaLanguage",
+                            "color": "#3498db"
+                        }
+                    ],
                     "lang": [
                         {
                             "name": "Français",

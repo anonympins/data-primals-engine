@@ -11,7 +11,7 @@ import {Event} from "../../src/events.js";
 import {
     FaBook,
     FaCopy,
-    FaDatabase, FaEraser,
+    FaDatabase, FaEraser, FaEye,
     FaFileExport,
     FaFileImport,
     FaFilter, FaHistory,
@@ -60,6 +60,7 @@ import {pagedFilterToMongoConds} from "./filter.js";
 import {isConditionMet} from "../../src/filter";
 import {DataImporter} from "./DataImporter.jsx";
 import {HistoryDialog} from "./HistoryDialog.jsx";
+import {Config} from "../../src/config.js";
 
 const Header = ({
                     reversed = false,
@@ -92,11 +93,25 @@ const Header = ({
     const handleAdvancedFilter = () => {
         setAdvancedFilterVisible(true);
     }
+
+    const [iconFilterActive, setIconFilterActive] = useState(true);
+    useEffect(() => {
+        if (pagedFilters && selectedModel?.name) {
+            const modelFilters = pagedFilters[selectedModel.name] || {};
+            const isActive = Object.keys(modelFilters)
+                .some(fieldKey => {
+                    const fieldFilter = modelFilters[fieldKey];
+                    return fieldFilter && Object.keys(fieldFilter).length > 0;
+                });
+            setIconFilterActive(isActive);
+        }
+    }, [pagedFilters, selectedModel?.name]);
+
     return <><tr className={reversed ? ' reversed' : ''}>
         {advanced && (<th className={"mini"}>
             <div className="flex flex-row">
 
-                <Button onClick={handleFilter} className={filterActive ? ' active' : ''}><FaFilter/></Button>
+                <Button onClick={handleFilter} className={iconFilterActive ? ' active' : ''}><FaFilter/></Button>
                 {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
                 <CheckboxField checkbox={true} checked={checkedItems?.length === data.length} onChange={e => {
                     if (checkedItems?.length === data.length) {
@@ -355,7 +370,9 @@ export function DataTable({
         params.append("_user", getUserId(me));
 
         // Cas de la table de données : requête paginée
-        params.append('limit', maxRequestData + '');
+
+        const m = Config.Get('maxRequestData', maxRequestData);
+        params.append('limit', m + '');
         params.append('attachment', '1');
         params.append("depth", data.depth+"");
         if( data.withModels )
@@ -446,7 +463,6 @@ export function DataTable({
         setFilterActive(!filterActive);
     }
 
-
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [lightboxOpened, setLightboxOpened] = useState(false);
     const [lightboxSlides, setLightboxSlides] = useState([]);
@@ -480,6 +496,12 @@ export function DataTable({
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
             {advanced && <div className="flex actions flex-left">
+                {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
+                    <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
+                {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {
+                    nav('/user/'+getUserHash(me)+'/dashboards');
+                }}><FaEye /> Tableaux de bord</Button> }
+                <p className="model-desc hint">{t(`model_description_${selectedModel.name}`, selectedModel.description)}</p>
                 <Button onClick={() => onAddData(model)}><FaPlus/><Trans i18nKey="btns.addData">Ajouter une
                     donnée</Trans></Button>
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans

@@ -45,6 +45,9 @@ header {
   &.flex-start {
     align-items: start;
   }
+  &.flex-end {
+    justify-content: flex-end;
+  }
   &.flex-self-end {
     align-self: end;
   }
@@ -80,10 +83,9 @@ header {
     flex-direction: column;
   }
   gap: 4px;
-  @media only screen and (min-width: 480px){
+  @media only screen and (min-width: 720px){
     gap: 12px;
   }
-
 }
 .flex-1 {
   flex: 1;
@@ -1553,4 +1555,12 @@ select[multiple]{
   }
 }
 
-
+.gap-2 {
+  gap: 8px;
+}
+.gap-3 {
+  gap: 16px;
+}
+.gap-4 {
+  gap: 32px;
+}

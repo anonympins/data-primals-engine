@@ -660,11 +660,10 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 {/* Boutons d'action, visibles si un modèle est affiché ou en mode manuel */}
                 {(showModel || !useAI || initialModel) && (
                     <div className="actions flex">
-                        {initialModel && (
+                        
                             <Button type="button" onClick={handleAddField}>
                                 <FaPlus /> <Trans i18nKey={"btns.addField"}>Ajouter un champ</Trans>
                             </Button>
-                        )}
 
                         <Button type="submit">
                             <FaSave />

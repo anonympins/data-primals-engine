@@ -1,0 +1,26 @@
+config:
+  target: "http://localhost:7633"
+  phases:
+    # Exécute ce scénario une seule fois avec un seul utilisateur virtuel
+    - duration: 1
+      arrivalCount: 1
+  defaults:
+    headers:
+      # Utilise le token statique de l'utilisateur 'demo' pour l'installation
+      Authorization: "Bearer demotoken"
+      Content-Type: 'application/json'
+
+scenarios:
+  - name: "Installation unique des packs de données"
+    flow:
+      - log: "Installation du 'Website Starter Pack'..."
+      - post:
+          url: "/api/packs/install?_user=demo"
+          json:
+            packName: "Website Starter Pack"
+      - log: "Installation du 'Multilingual starter pack'..."
+      - post:
+          url: "/api/packs/install?_user=demo"
+          json:
+            packName: "Multilingual starter pack"
+      - log: "Installation terminée."

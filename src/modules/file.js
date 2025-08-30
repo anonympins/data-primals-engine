@@ -15,6 +15,7 @@ import {promisify} from "node:util";
 import {calculateTotalUserStorageUsage, hasPermission} from "./user.js";
 import {Logger} from "../gameObject.js";
 import {deleteFromS3, getUserS3Config, uploadToS3} from "./bucket.js";
+import {Config} from "../config.js";
 
 const pbkdf2Async = promisify(crypto.pbkdf2);
 
@@ -45,8 +46,9 @@ export const zip = async (filename) => {
 export const addFile = async (file, user) => {
     if (!file) throw new Error("Le fichier est requis");
 
-    if (file.size > maxPrivateFileSize) {
-        throw new Error(`La taille du fichier dépasse la limite autorisée (${maxPrivateFileSize / megabytes} Mo).`);
+    const m = Config.Get('maxPrivateFileSize', maxPrivateFileSize);
+    if (file.size > m) {
+        throw new Error(`La taille du fichier dépasse la limite autorisée (${m / megabytes} Mo).`);
     }
 
     if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_UPLOAD_FILE"], user)) {

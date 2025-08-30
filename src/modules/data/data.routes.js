@@ -8,10 +8,10 @@ import {
     maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
     maxMagnetsModels,
-    maxModelsPerUser
+    maxModelsPerUser, maxPackData, maxPackPreviewData
 } from "../../constants.js";
 import {datasCollection, getCollection, getCollectionForUser, isObjectId, modelsCollection} from "../mongodb.js";
-import {safeAssignObject, uuidv4} from "../../core.js";
+import {countKeys, safeAssignObject, uuidv4} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import i18n from "../../i18n.js";
@@ -33,6 +33,7 @@ import {
     editData,
     editModel,
     exportData,
+    flushSearchCache,
     getModel,
     importData,
     insertData,
@@ -40,14 +41,12 @@ import {
     patchData,
     searchData
 } from "./data.operations.js";
-import {dumpUserData, loadFromDump} from "./data.backup.js";
+import { dumpUserData, loadFromDump } from "./data.backup.js";
+import { invalidateModelCache } from "./data.operations.js";
 
 let logger, engine;
 
 const sseConnections = new Map();
-
-const throttle = throttleMiddleware(maxBytesPerSecondThrottleData);
-
 
 
 
@@ -254,6 +253,9 @@ export async function registerRoutes(defaultEngine){
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
+    const m = Config.Get('maxBytesPerSecondThrottleData', maxBytesPerSecondThrottleData)
+    const throttle = throttleMiddleware(m);
+
     let userMiddlewares = await engine.userProvider.getMiddlewares();
 
     engine.all('/api/actions/:user/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
@@ -445,16 +447,18 @@ export async function registerRoutes(defaultEngine){
             const { xpBonus, skill, achievement, notification } = tutorial.rewards;
 
             // --- LOGIQUE CORRIGÉE ---
-            let newData= {};
-            newData.xp = newData.xp || 0;
-            newData.achievements = newData.achievements || [];
-            newData.skills = newData.skills || [];
-            newData.completedTutorials = newData.completedTutorials || [];
+            // On part des données existantes de l'utilisateur pour ne rien écraser
+            let newData = {
+                xp: user.xp || 0,
+                achievements: [...(user.achievements || [])],
+                skills: JSON.parse(JSON.stringify(user.skills || [])), // Copie profonde pour éviter les mutations directes
+                completedTutorials: [...(user.completedTutorials || [])]
+            };
 
             // Appliquer les récompenses directement sur l'objet newData
             if (xpBonus) newData.xp += xpBonus;
             if (achievement && !newData.achievements.includes(achievement)) newData.achievements.push(achievement);
-            if (skill) {
+            if (skill && skill.name) { // S'assurer que la compétence a un nom
                 const existingSkill = newData.skills.find(s => s.name === skill.name);
                 if (existingSkill) {
                     existingSkill.points += skill.points;
@@ -868,13 +872,14 @@ export async function registerRoutes(defaultEngine){
 
         // get by name
         try {
+            const m = Config.Get('maxModelsPerUser', maxModelsPerUser);
             let models = await modelsCollection.find({$or: [{_user: {$exists: false}}]})
-                .sort({_user:-1, _id: 1 }).limit(maxModelsPerUser).toArray();
+                .sort({_user:-1, _id: 1 }).limit(m).toArray();
             models = models
                 .concat(
                     await modelsCollection.find({$or: [{_user: req.me._user}, {_user: req.me.username}]})
                         .sort({_user:-1, _id: 1 })
-                        .limit(maxModelsPerUser).toArray());
+                        .limit(m).toArray());
             res.json(models);
         } catch (error) {
             logger.error(error);
@@ -902,7 +907,8 @@ export async function registerRoutes(defaultEngine){
                 const count = await modelsCollection.count({
                     $and: [{_user: {$exists: true}}, {_user: req.me.username}]
                 });
-                if( count < maxModelsPerUser) {
+                const m = Config.Get('maxModelsPerUser', maxModelsPerUser);
+                if( count < m) {
                     if(await engine.userProvider.hasFeature(req.me, 'indexes')){
                         for (const field of modelData.fields) {
                             if( field.index ) {
@@ -986,6 +992,9 @@ export async function registerRoutes(defaultEngine){
             if (!model) {
                 return res.status(404).json({error: i18n.t( "api.model.notFound", { model: modelName})});
             }
+
+            // Invalider le cache pour ce modèle avant de le supprimer
+            invalidateModelCache(modelName);
 
             if( await engine.userProvider.hasFeature(req.me, 'indexes') ) {
                 const indexes = await datasCollection.indexes();
@@ -1479,11 +1488,11 @@ export async function registerRoutes(defaultEngine){
                 sortOptions['_updatedAt'] = -1; // Tri par défaut
             }
 
-            // On ne renvoie pas le champ 'datas' pour alléger la réponse de la liste
+            // On ne renvoie pas le champ 'data' pour alléger la réponse de la liste
             const packs = await packsCollection.find({
                 _user: req.query.user ? req.query.user : { $exists: false }
             }, {
-                projection: { datas: 0 }
+                projection: { data: 0 }
             }).sort(sortOptions).toArray();
 
             res.json(packs);
@@ -1508,8 +1517,33 @@ export async function registerRoutes(defaultEngine){
                 return res.status(404).json({ success: false, error: 'Pack not found.' });
             }
 
-            // On retourne le pack complet, incluant les données pour la vue de détail
-            res.json(pack);
+            const PACK_PREVIEW_LIMIT = Config.Get('maxPackPreviewData', maxPackPreviewData);
+
+            const countPackEntries = (p) => {
+                if (!p || !p.data) return 0;
+                let totalEntries = 0;
+                for (const langKey in p.data) {
+                    const langData = p.data[langKey];
+                    for (const modelKey in langData) {
+                        if (Array.isArray(langData[modelKey])) {
+                            totalEntries += langData[modelKey].length;
+                        }
+                    }
+                }
+                return totalEntries;
+            };
+
+            const totalEntries = countPackEntries(pack);
+
+            if (totalEntries > PACK_PREVIEW_LIMIT) {
+                logger.warn(`[GET /api/packs/${id}] Pack data is too large (${totalEntries} entries) and will be truncated for the client.`);
+                const packForClient = { ...pack };
+                delete packForClient.data;
+                packForClient.dataTruncated = true;
+                packForClient.totalDataEntries = totalEntries;
+                return res.json(packForClient);
+            }
+            res.json(pack); // On retourne le pack complet si sa taille est raisonnable
         } catch (error) {
             logger.error(`[GET /api/packs/${id}] Error fetching pack details:`, error);
             res.status(500).json({ success: false, error: 'Failed to fetch pack details.' });
@@ -1684,13 +1718,15 @@ export async function registerRoutes(defaultEngine){
         const user = req.me;
         const lang   = req.query.lang || req.fields.lang;
 
+        const packName = req.fields.packName || null;
+
         try {
             // Vérification des permissions
-            if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_INSTALL_PACK"], user)) {
+            if (!isDemoUser(user) && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_INSTALL_PACK"], user)) {
                 return res.status(403).json({ success: false, error: i18n.t('api.permission.installPack') });
             }
 
-            const result = await installPack({...req.fields.packData, private: true}, user, lang, { installForUser: true });
+            const result = await installPack(packName? packName : {...req.fields.packData, private: true}, user, lang, { installForUser: true });
 
             if (result.success) {
                 res.status(200).json({ success: true, message: `Pack installed successfully.`, summary: result.summary });

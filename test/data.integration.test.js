@@ -679,6 +679,85 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             await purge();
         });
 
+        // --- NOUVEAUX TESTS POUR LE SHORTHAND $find ---
+
+        it('devrait trouver un document en utilisant un filtre $find simple (shorthand)', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await initTest();
+            const searchParams = {
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    relationSingle: {
+                        "$find": { "relatedValue": 101 } // Utilisation du shorthand { champ: valeur }
+                    }
+                },
+                depth: 1
+            };
+            const { data, count } = await searchData(searchParams, currentTestUser);
+            expect(count).toBe(1);
+            expect(data).toHaveLength(1);
+            expect(data[0]._id.toString()).toBe(docId1.toString());
+            await purge();
+        });
+
+        it('devrait trouver un document en utilisant un filtre $find simple avec plusieurs conditions (AND implicite)', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await initTest();
+            const searchParams = {
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    relationSingle: {
+                        "$find": {
+                            "relatedName": "Rel_Search_A1",
+                            "relatedValue": 101
+                        }
+                    }
+                },
+                depth: 1
+            };
+            const { data, count } = await searchData(searchParams, currentTestUser);
+            expect(count).toBe(1);
+            expect(data).toHaveLength(1);
+            expect(data[0]._id.toString()).toBe(docId1.toString());
+            await purge();
+        });
+
+        it('ne devrait pas trouver de document si une des conditions du $find simple échoue', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await initTest();
+            const searchParams = {
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    relationSingle: {
+                        "$find": {
+                            "relatedName": "Rel_Search_A1", // Correspond
+                            "relatedValue": 999 // Ne correspond pas
+                        }
+                    }
+                },
+                depth: 1
+            };
+            const { data, count } = await searchData(searchParams, currentTestUser);
+            expect(count).toBe(0);
+            expect(data).toHaveLength(0);
+            await purge();
+        });
+
+        it('devrait trouver un document via une relation multiple en utilisant un filtre $find simple', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await initTest();
+            const searchParams = {
+                model: comprehensiveTestModelDefinition.name,
+                filter: {
+                    relationMultiple: {
+                        "$find": { "relatedValue": 102 } // Devrait trouver docId1 car il a une relation vers relA2
+                    }
+                },
+                depth: 1
+            };
+            const { data, count } = await searchData(searchParams, currentTestUser);
+            expect(count).toBe(1);
+            expect(data).toHaveLength(1);
+            expect(data[0]._id.toString()).toBe(docId1.toString());
+            await purge();
+        });
+
     });
 
     describe('installPack', () => {

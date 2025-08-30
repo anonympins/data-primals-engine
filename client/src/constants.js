@@ -57,7 +57,7 @@ export const profiles = {
     }, // budget,
     'developer': {
         "packs": ["Multilingual starter pack", "Website Starter Pack"],
-        "models": ['alert','endpoint','request','webpage', 'content', 'taxonomy', 'resource', 'translation', 'contact', 'location', 'channel', 'lang', 'token', 'message', 'ticket', 'user', 'permission', 'role']
+        "models": ['alert','endpoint','request','kpi','webpage', 'content', 'taxonomy', 'resource', 'translation', 'contact', 'location', 'channel', 'lang', 'token', 'message', 'ticket', 'user', 'permission', 'role']
     },
     'company': {
         "packs": ["Multilingual starter pack", "E-commerce Starter Kit"],
