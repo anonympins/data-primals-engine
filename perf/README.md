@@ -110,3 +110,38 @@
 *   **Excellent Linear Scaling**: This test confirms the application's ability to scale gracefully. When doubling the load from the previous test (1 user/sec to 2 users/sec), the median and p95 response times also roughly doubled. This linear behavior is ideal and indicates a robust architecture without major bottlenecks.
 *   **Continued Stability**: With **0 failed scenarios**, the application proves its stability even as concurrency increases.
 *   **Conclusion**: The application is ready for higher loads. The performance degradation is predictable and linear, which is a sign of a very healthy system.
+
+
+## Performance Test Report 4 (Bottleneck Identification)
+
+### Test Environment
+- **Machine**: Laptop Intel Core i7 Lenovo Legion
+- **Scenario**: `perf-shot-hardwork.yml` (Full user journey)
+- **Concurrency**: Ramped load from 1 to 4 virtual users/sec for 60 seconds.
+
+### Summary of Results
+
+| Metric | Value |
+ |---|---|
+| Total HTTP Requests | 1,200 |
+| Successful Responses (2xx) | 1,200 |
+| Average Request Rate | 12/sec |
+| **Failed Scenarios** | **0** |
+
+### Response Time Analysis (in milliseconds)
+
+| Percentile | Response Time (ms) |
+|------------|--------------------|
+| min | 3 |
+| median | **70.1** |
+| mean | 483.9 |
+| p95 | **2893.5** |
+| p99 | **8024.5** |
+| max | 8348 |
+---
+
+### Analysis & Recommendations
+
+*   **Bottleneck Identified**: This test successfully identified the application's first major performance bottleneck. While stability remains perfect (**0 failures**), the response times show non-linear degradation. The **p99 jumping to over 8 seconds** indicates that the system is struggling under this write-heavy load.
+*   **Database Contention**: The cause is almost certainly database contention (MongoDB). The scenario involves concurrent model creation, data import, and pack installation, which are highly resource-intensive operations.
+*   **Next Steps**: The immediate next step is to run a detailed analysis to pinpoint the exact slow queries. Monitoring server CPU/Disk I/O during the test and using MongoDB's profiler will be essential for optimization.

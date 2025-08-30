@@ -190,22 +190,22 @@ export const useTutorials = () => {
         setMe(prevMe => ({ ...prevMe, activeTutorial: activeTuto }));
     }, [activeTuto]);
 
+    const handleDataChange = useCallback(async (payload) => {
+        if (me?.activeTutorial) {
+            console.log(`[Tutoriels] Événement de données reçu, déclenchement de la vérification.`, payload);
+            triggerTutorialCheck();
+        }
+    }, [me?.activeTutorial, triggerTutorialCheck]);
+
     // Écoute les événements de modification de données pour vérifier la progression en arrière-plan.
     useEffect(() => {
-        const handleDataChange = async (payload) => {
-            if (me?.activeTutorial) {
-                console.log(`[Tutoriels] Événement de données reçu, déclenchement de la vérification.`, payload);
-                triggerTutorialCheck();
-            }
-        };
-
         const eventTypes = ['API_ADD_DATA', 'API_EDIT_DATA', 'API_DELETE_DATA'];
         eventTypes.forEach(type => Event.Listen(type, handleDataChange, "custom", "data"));
 
         return () => {
             eventTypes.forEach(type => Event.RemoveCallback(type, handleDataChange, "custom", "data"));
         };
-    }, [me?.activeTutorial, triggerTutorialCheck]);
+    }, [handleDataChange]);
 
     // Vérifie la progression lorsqu'un tutoriel devient actif ou que son étape change.
     useEffect(() => {

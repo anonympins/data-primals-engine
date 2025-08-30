@@ -33,6 +33,7 @@ import {
     editData,
     editModel,
     exportData,
+    flushSearchCache,
     getModel,
     importData,
     insertData,
@@ -40,7 +41,8 @@ import {
     patchData,
     searchData
 } from "./data.operations.js";
-import {dumpUserData, loadFromDump} from "./data.backup.js";
+import { dumpUserData, loadFromDump } from "./data.backup.js";
+import { invalidateModelCache } from "./data.operations.js";
 
 let logger, engine;
 
@@ -990,6 +992,9 @@ export async function registerRoutes(defaultEngine){
             if (!model) {
                 return res.status(404).json({error: i18n.t( "api.model.notFound", { model: modelName})});
             }
+
+            // Invalider le cache pour ce modèle avant de le supprimer
+            invalidateModelCache(modelName);
 
             if( await engine.userProvider.hasFeature(req.me, 'indexes') ) {
                 const indexes = await datasCollection.indexes();
