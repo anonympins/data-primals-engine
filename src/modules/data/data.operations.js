@@ -52,6 +52,7 @@ import {
     processDocuments,
     processFileArray
 } from "./data.relations.js";
+import crypto from 'crypto';
 import cronstrue from 'cronstrue/i18n.js';
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
@@ -454,6 +455,26 @@ let engine, logger;
 export function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
+
+    // Nettoyer périodiquement les relations obsolètes
+    setInterval(() => {
+        // Nettoyer les relations pour les clés qui n'existent plus
+        for (let [key, cacheKeys] of cacheRelations.entries()) {
+            const validCacheKeys = new Set();
+
+            cacheKeys.forEach(cacheKey => {
+                if (searchCache.has(cacheKey)) {
+                    validCacheKeys.add(cacheKey);
+                }
+            });
+
+            if (validCacheKeys.size === 0) {
+                cacheRelations.delete(key);
+            } else {
+                cacheRelations.set(key, validCacheKeys);
+            }
+        }
+    }, 300000);
 }
 
 export const editModel = async (user, id, data) => {
@@ -462,6 +483,10 @@ export const editModel = async (user, id, data) => {
         return ({success: false, error: i18n.t('api.permission.editModel', 'Cannot edit models from the API')})
     }
 
+    // --- AMÉLIORATION ---
+    // Vider complètement le cache de recherche, car une modification de modèle (ex: renommage de champ)
+    // peut rendre invalide n'importe quelle recherche mise en cache.
+    flushSearchCache();
     const dataModel = data;
     try {
         const collection = await getCollectionForUser(user);
@@ -657,6 +682,10 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
                 statusCode: 500
             };
         }
+
+        // Invalider le cache pour ce modèle puisque de nouvelles données ont été ajoutées.
+        invalidateModelCache(modelName);
+
 
         // Convertir les IDs en ObjectId pour la recherche
         const objectIds = insertedIds.map(id => new ObjectId(id));
@@ -962,6 +991,18 @@ function calculateDataSize(datas) {
     }
 }
 
+// Fonction utilitaire pour trouver les modèles liés
+async function findRelatedModels(modelName, user) {
+    try {
+        return await modelsCollection.find({
+            "fields.relation": modelName,
+            _user: user.username
+        }).toArray();
+    } catch (error) {
+        console.error("Error finding related models:", error);
+        return [];
+    }
+}
 export const patchData = async (modelName, filter, data, files, user, triggerWorkflow = true, waitForWorkflow = false) => {
     return await internalEditOrPatchData(modelName, filter, data, files, user, true, triggerWorkflow, waitForWorkflow);
 };
@@ -1131,6 +1172,18 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         const bulkResult = await collection.bulkWrite(bulkOps);
         const modifiedCount = bulkResult.modifiedCount || 0;
 
+        if (modifiedCount > 0) {
+            // Invalider le cache pour les IDs modifiés
+            const idsToInvalidate = ids.map(id => id.toString());
+            invalidateIdsCache(modelName, idsToInvalidate);
+            // Invalider aussi les modèles qui pourraient référencer ces documents
+            const relatedModels = await findRelatedModels(modelName, user);
+            for (const relatedModel of relatedModels) {
+                invalidateModelCache(relatedModel.name);
+                console.log(`Also invalidated cache for related model: ${relatedModel.name}`);
+            }
+            console.log(`Invalidated cache for ${idsToInvalidate.length} documents in model: ${modelName}`);
+        }
         // Déclencher l'événement OnDataEdited avec les états avant/après
         if (modifiedCount > 0) {
             const updatedDocs = await collection.find({_id: {$in: ids}}).toArray();
@@ -1212,6 +1265,7 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
         }
 
         const finalIdsToDelete = []; // IDs des documents qui seront effectivement supprimés
+        const idsToInvalidate = [];  // *** AJOUT: IDs à invalider dans le cache ***
 
         for (const docToDelete of documentsToDelete) {
             const deletePromises = [];
@@ -1355,7 +1409,7 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
 
             // Ajouter l'ID à la liste finale si la permission est accordée
             finalIdsToDelete.push(docToDelete._id);
-
+            idsToInvalidate.push(docToDelete._id.toString());
         } // Fin de la boucle sur documentsToDelete
 
         // 3. Supprimer effectivement les documents (ceux pour lesquels on a la permission)
@@ -1365,6 +1419,9 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
                 _id: {$in: finalIdsToDelete}
                 // Le filtre _user est déjà implicite car on a fetch les documents de l'utilisateur
             });
+            invalidateIdsCache(modelName, idsToInvalidate);
+            console.log(`Invalidated cache for ${idsToInvalidate.length} deleted documents in model: ${modelName}`);
+
             deletedCount = result.deletedCount;
             logger.info(`[deleteData] Successfully deleted ${deletedCount} documents for user ${user?.username}.`);
         } else {
@@ -1450,6 +1507,35 @@ function transformFindShorthand(findCondition) {
     return { $and: conditions };
 }
 
+// Fonction pour générer une clé de cache unique
+const generateCacheKey = (query, user) => {
+    const keyData = {
+        query: {
+            page: query.page,
+            limit: query.limit,
+            sort: query.sort,
+            model: query.model,
+            pipelinesPosition: query.pipelinesPosition,
+            customPipelines: query.pipelines || [],
+            ids: query.ids,
+            filter: query.filter,
+            depth: query.depth,
+            autoExpand: query.autoExpand,
+            pack: query.pack
+        },
+        user: user.username
+    };
+
+    return crypto.createHash('md5').update(JSON.stringify(keyData)).digest('hex');
+};
+
+// Configuration du cache (TTL de 5 minutes par défaut)
+const searchCache = new NodeCache({
+    stdTTL: 300, // 5 minutes
+    checkperiod: 60, // Vérification des expirations toutes les 60 secondes
+    useClones: false // Meilleures performances
+});
+
 export const searchData = async (query, user) => {
     const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack} = query;
 
@@ -1457,6 +1543,14 @@ export const searchData = async (query, user) => {
         !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_" + model], user) ||
         await hasPermission(["API_SEARCH_DATA_NOT_" + model], user))) {
         throw new Error(i18n.t('api.permission.searchData'));
+    }
+
+    const cacheKey = generateCacheKey(query, user);
+    // Vérifier si les données sont en cache
+    const cachedData = searchCache.get(cacheKey);
+    if (cachedData) {
+        console.log('Cache hit for key:', cacheKey);
+        return cachedData;
     }
 
     const collection = await getCollectionForUser(user);
@@ -2063,10 +2157,88 @@ export const searchData = async (query, user) => {
     data = await handleFields(modelElement, data, user);
 
     const res = {data, count: count[0]?.count || 0};
+
+    // Mettre en cache le résultat
+    searchCache.set(cacheKey, res);
+
+    // Stocker les clés de cache associées aux modèles et IDs pour l'invalidation
+    storeCacheRelations(cacheKey, model, data.map(item => item._id.toString()));
+
     const plugin = await Event.Trigger("OnDataSearched", "event", "system", engine, {data, count: count[0]?.count});
     await Event.Trigger("OnDataSearched", "event", "user", plugin || {data, count: count[0]?.count});
     return plugin || res;
 }
+
+
+// Map pour stocker les relations entre les données et les clés de cache
+const cacheRelations = new Map();
+
+// Stocker les relations cache-données
+const storeCacheRelations = (cacheKey, model, dataIds) => {
+    const relationKey = `model:${model}`;
+
+    if (!cacheRelations.has(relationKey)) {
+        cacheRelations.set(relationKey, new Set());
+    }
+
+    const modelCacheKeys = cacheRelations.get(relationKey);
+    modelCacheKeys.add(cacheKey);
+
+    // Stocker aussi les relations par ID individuel
+    dataIds.forEach(id => {
+        const idKey = `id:${model}:${id}`;
+        if (!cacheRelations.has(idKey)) {
+            cacheRelations.set(idKey, new Set());
+        }
+        cacheRelations.get(idKey).add(cacheKey);
+    });
+};
+
+// Invalider le cache pour un modèle spécifique
+export const invalidateModelCache = (model) => {
+    const relationKey = `model:${model}`;
+
+    if (cacheRelations.has(relationKey)) {
+        const cacheKeys = cacheRelations.get(relationKey);
+        cacheKeys.forEach(key => searchCache.del(key));
+        cacheRelations.delete(relationKey);
+
+        console.log(`Invalidated cache for model: ${model}`);
+    }
+};
+
+/**
+ * Vide entièrement le cache de recherche. Utile lors de la modification de la structure d'un modèle.
+ */
+export const flushSearchCache = () => {
+    const stats = searchCache.getStats();
+    searchCache.flushAll();
+    cacheRelations.clear();
+    logger.info(`[Cache] Flushed all search cache. Removed ${stats.keys} keys.`);
+};
+// Invalider le cache pour des IDs spécifiques
+const invalidateIdsCache = (model, ids) => {
+    if (!Array.isArray(ids)) {
+        ids = [ids];
+    }
+
+    ids.forEach(id => {
+        const idKey = `id:${model}:${id}`;
+
+        if (cacheRelations.has(idKey)) {
+            const cacheKeys = cacheRelations.get(idKey);
+            cacheKeys.forEach(key => searchCache.del(key));
+            cacheRelations.delete(idKey);
+
+            console.log(`Invalidated cache for ID: ${id} in model: ${model}`);
+        }
+    });
+
+    // Invalider aussi le cache du modèle entier (optionnel, plus agressif)
+    // invalidateModelCache(model);
+};
+
+
 export const importData = async (options, files, user) => {
 
     if (!(isDemoUser(user) && Config.Get("useDemoAccounts")) && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_IMPORT_DATA"], user)) {
