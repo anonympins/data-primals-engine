@@ -1526,7 +1526,7 @@ const generateCacheKey = (query, user) => {
         user: user.username
     };
 
-    return crypto.createHash('md5').update(JSON.stringify(keyData)).digest('hex');
+    return crypto.createHash('sha256').update(JSON.stringify(keyData)).digest('hex');
 };
 
 // Configuration du cache (TTL de 5 minutes par défaut)
