@@ -44,6 +44,17 @@
 
 ---
 
+## 📊 Proven Performance
+
+The engine has been rigorously tested to ensure stability and scalability. Load tests simulating complex, multi-step user journeys (including model creation, data import, and API interactions) show excellent results:
+- **Zero Failures**: 100% success rate under sustained concurrent load.
+- **Excellent Responsiveness**: Median response times as low as 15-30ms.
+- **Linear Scaling**: Predictable performance as user load increases.
+
+For detailed reports, see the [Performance Testing Documentation](./perf/README.md).
+
+---
+
 ## ⚙️ Requirements
 
 - Node.js ≥ 20
