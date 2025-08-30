@@ -1,0 +1,84 @@
+config:
+  # L'URL de base de votre API
+  processor: "./artillery-hooks.js" # Indique à Artillery d'utiliser notre fichier de hooks
+  target: "http://localhost:7633"
+  # Configuration des phases de test
+  phases:
+    # Phase 1: Montée en charge progressive pendant 30 secondes
+    - duration: 60
+      arrivalRate: 1  # 5 nouveaux utilisateurs virtuels par seconde
+      rampTo: 1      # pour atteindre 20 nouveaux utilisateurs virtuels par seconde à la fin de la phase
+      name: "Ramp-up"
+    # Phase 2: Maintien de la charge maximale pendant 60 secondes
+  # Paramètres par défaut pour toutes les requêtes HTTP
+  defaults:
+    headers:
+      # Utilisation du token statique de l'utilisateur 'demo'
+      Authorization: "Bearer demotoken"
+      Content-Type: 'application/json'
+    beforeRequest: "metricsByEndpoint_beforeRequest" # Groups metrics by endpoint
+    afterResponse: "metricsByEndpoint_afterResponse" # Logs errors
+scenarios:
+  - name: "Parcours Utilisateur Complet"
+    flow:
+      # Sets unique variables for EACH scenario run
+      - function: "setScenarioVariables"
+      - log: "--- Démarrage du scénario utilisateur 'developer' ---"
+      - post:
+          url: "/api/demo/initialize?_user={{demoUser}}"
+          json:
+            profile: "developer"
+            packs:
+              - "Multilingual starter pack"
+              - "Website Starter Pack"
+      - log: "--- Searching in translation table by lang relation ---"
+      - post:
+          url: "/api/data/search?_user={{demoUser}}"
+          json:
+            model: "translation"
+            filter: { "lang": { "$find": { "code": "en" } } }
+            limit: 250
+      - log: "---  Étape 2: Ajout d'une nouvelle donnée et capture de son ID ---"
+      - post:
+          url: "/api/data?_user={{demoUser}}"
+          json:
+            model: "translation"
+            data:
+              key: "perf.test.greeting.{{ $uuid }}"
+              value: "Hello from performance test!"
+              lang: { "$find": { "code": "en" } } # Syntaxe $find corrigée
+          capture:
+            - json: "$.insertedIds[0]"
+              as: "insertedId"
+      - log: "---  Étape 3: Import de données (nécessite un modèle et un fichier) ---"
+      # 3a. Création d'un modèle pour l'import (tolère l'erreur si le modèle existe déjà)
+      - post:
+          url: "/api/model?_user={{demoUser}}"
+          json:
+            name: "perf_import_items_{{ vuId }}" # Unique model name to avoid race conditions
+            description: "import model for perf test"
+            fields:
+              - { name: "name", type: "string" }
+              - { name: "value", type: "number" }
+          expect:
+            - statusCode: 201 # Succès de la création
+            - statusCode: 400 # Tolère l'erreur "le modèle existe déjà" pour rendre le test ré-exécutable
+      - log: "---  Étape 4: Installation d'un pack de données ---"
+      - post:
+          url: "/api/packs/install?_user={{demoUser}}&lang=en"
+          json:
+            packData:
+              name: "Perf Test Pack {{ $uuid }}"
+              description: "A pack for performance testing."
+              models: [{ name: "perf_pack_model_{{ vuId }}", description: "", fields: [{ name: "pack_field", type: "string" }] }] # Unique model name
+              data: { all: { "perf_pack_model_{{ vuId }}": [{ "pack_field": "Hello from a pack!" }] } }
+      - log: "--- Étape 5: Suppression des données ---"
+      - delete:
+          url: "/api/model?name=perf_import_items_{{ vuId }}&_user={{demoUser}}" # Delete the unique model
+      - delete:
+          url: "/api/model?name=perf_pack_model_{{ vuId }}&_user={{demoUser}}" # Delete the unique model
+      - delete:
+          url: "/api/data/{{ insertedId }}?_user={{demoUser}}"
+          json:
+            model: "translation"
+          ifTrue: "{{ insertedId !== undefined }}" # Ne s'exécute que si l'ID a été capturé

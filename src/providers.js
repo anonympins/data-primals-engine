@@ -112,16 +112,16 @@ export class UserProvider {
 
 export class DefaultUserProvider extends UserProvider {
 
-    users= [{ username: "demo", password: "demo" }];
+    users= [{ username: "demo", password: "demo", temporary: true }];
 
     /**
      * Trouve un utilisateur. Gère spécifiquement les utilisateurs de démo.
      */
     async findUserByUsername(username) {
         // Si le nom d'utilisateur commence par "demo", on le considère comme un utilisateur de démo valide et volatile.
-        if (typeof username === 'string' && username.startsWith('demo')) {
+        if (this.isDemoUser(username)){
             // On retourne un objet utilisateur de démo avec la structure attendue.
-            return { username: username, password: "demo", userPlan: 'free' }; // Ajout de userPlan pour la cohérence
+            return { username: username, password: "demo", userPlan: 'free', temporary: true }; // Ajout de userPlan pour la cohérence
         }
         // Logique pour les vrais utilisateurs (si vous en ajoutez plus tard)
         return this.users.find(user => user.username === username);
@@ -139,9 +139,13 @@ export class DefaultUserProvider extends UserProvider {
         return []
     }
 
+    isDemoUser(user) {
+        return (typeof (user) === 'string' && (/^demo[0-9]{0,2}$/.test(user) || /^perf[0-9]{1,8}$/.test(user)))
+    }
+
     async validatePassword(user, password) {
         // Pour un utilisateur de démo, le mot de passe est toujours valide.
-        if (user.username.startsWith('demo')) {
+        if (this.isDemoUser(user)){
             return true;
         }
         // Logique pour les vrais utilisateurs
@@ -166,7 +170,7 @@ export class DefaultUserProvider extends UserProvider {
 
         // Priorité 2: PasF de session, mais on vérifie la présence d'un cookie "username" pour la démo.
         const demoUsername = req.cookies?.username;
-        if (demoUsername && typeof demoUsername === 'string' && demoUsername.startsWith('demo')) {
+        if (demoUsername && typeof demoUsername === 'string' && this.isDemoUser(demoUsername)) {
             // On a trouvé un cookie de démo. On crée l'objet utilisateur correspondant.
             const demoUser = await this.findUserByUsername(demoUsername);
             if (demoUser) {
@@ -177,7 +181,7 @@ export class DefaultUserProvider extends UserProvider {
 
         // Priorité 2: PasF de session, mais on vérifie la présence d'un cookie "username" pour la démo.
         const user = req.query._user;
-        if (user && typeof user === 'string' && user.startsWith('demo')) {
+        if (user && typeof user === 'string' && this.isDemoUser(user)) {
             const demoUser = await this.findUserByUsername(user);
             if (demoUser) {
                 req.me = demoUser;
