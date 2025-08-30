@@ -1180,7 +1180,7 @@ export const FilterStringField = ({ field, onChangeFilterValue, filterValues, se
 
             if (currentValue === '') {
                 // No need to call setFilterValues here as it's done immediately in handleChange
-                onChangeFilterValue(field, field.multiple ? [] : undefined, true);
+                onChangeFilterValue(field, field.multiple ? [] : {}, true);
                 return;
             }
 

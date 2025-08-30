@@ -11,7 +11,7 @@ import {
     modelsCollection as getAppModelsCollection,
     getCollectionForUser as getAppUserCollection, getCollectionForUser
 } from '../src/modules/mongodb.js';
-import {sleep} from "data-primals-engine/core";
+import {sleep} from "../src/core.js";
 import fs from "node:fs";
 import {initEngine} from "../src/setenv.js";
 import {Config} from "../src/index.js";

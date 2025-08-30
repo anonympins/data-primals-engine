@@ -698,14 +698,7 @@ function DataLayout({refreshUI}) {
                     />}
                     <h2>{t(`model_${selectedModel?.name}`, selectedModel?.name)} <>({countByModel?.[selectedModel?.name]})</></h2>
 
-                    <div className={"flex"}>
-                        {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
-                        <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
-                    {selectedModel.name === 'dashboard' && <button onClick={() => {
-                        nav('/user/'+getUserHash(me)+'/dashboards');
-                    }}><FaEye /> Afficher les tableaux de bord</button> }
-                    </div>
-                    <p className="model-desc hint">{t(`model_description_${selectedModel.name}`, selectedModel.description)}</p>
+
                     {renderCurrentView()}
 
                     {isDataLoaded && currentView === 'table'  && (<>

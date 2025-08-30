@@ -445,16 +445,18 @@ export async function registerRoutes(defaultEngine){
             const { xpBonus, skill, achievement, notification } = tutorial.rewards;
 
             // --- LOGIQUE CORRIGÉE ---
-            let newData= {};
-            newData.xp = newData.xp || 0;
-            newData.achievements = newData.achievements || [];
-            newData.skills = newData.skills || [];
-            newData.completedTutorials = newData.completedTutorials || [];
+            // On part des données existantes de l'utilisateur pour ne rien écraser
+            let newData = {
+                xp: user.xp || 0,
+                achievements: [...(user.achievements || [])],
+                skills: JSON.parse(JSON.stringify(user.skills || [])), // Copie profonde pour éviter les mutations directes
+                completedTutorials: [...(user.completedTutorials || [])]
+            };
 
             // Appliquer les récompenses directement sur l'objet newData
             if (xpBonus) newData.xp += xpBonus;
             if (achievement && !newData.achievements.includes(achievement)) newData.achievements.push(achievement);
-            if (skill) {
+            if (skill && skill.name) { // S'assurer que la compétence a un nom
                 const existingSkill = newData.skills.find(s => s.name === skill.name);
                 if (existingSkill) {
                     existingSkill.points += skill.points;
