@@ -45,6 +45,9 @@ header {
   &.flex-start {
     align-items: start;
   }
+  &.flex-end {
+    justify-content: flex-end;
+  }
   &.flex-self-end {
     align-self: end;
   }
