@@ -211,10 +211,10 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
                         <div className="flex flex-no-wrap">
                             {hint('modelcreator.relationFilter.hint')}
-                            <label className="checkbox-label flex flex-1"><Trans
-                                i18nKey={"modelcreator.relationFilter"}>Filtre</Trans> :
-                                <input
-                                    type="checkbox"
+                            <div className="checkbox-label flex flex-1">
+                                <CheckboxField
+                                    label={<Trans
+                                        i18nKey={"modelcreator.relationFilter"}>Filtre</Trans>}
                                     disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                     checked={field.relationFilter !== undefined}
                                     onChange={(e) => {
@@ -227,7 +227,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         setFields(newFields);
                                     }}
                                 />
-                            </label>
+                            </div>
                         </div>)}
 
 
@@ -305,8 +305,8 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         value={field.maxlength}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-                                            const val = parseInt(e, 10);
-                                            if (!val)
+                                            const val = parseInt(e.target.value, 10);
+                                            if (isNaN(val))
                                                 newFields[index].maxlength = undefined;
                                             else
                                                 newFields[index].maxlength = val;
@@ -549,7 +549,6 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                         disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                         onChange={(e) => {
                                             const newFields = [...fields];
-
                                             newFields[index].default = e.value;
                                             setFields(newFields);
                                         }}
@@ -620,10 +619,12 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
                             {(['datetime', 'date'].includes(field.itemsType || field.type)) && (
                                 <>
-                                    <div className="flex flex-no-wrap mg-item">
+                                    <div
+                                        className="flex flex-no-wrap mg-item">
                                         {hint('modelcreator.min.hint')}
-                                        <label className={"flex-1"}><Trans i18nKey={"modelcreator.min"}>Valeur minimale :</Trans></label>
-                                        <div className="flex flex-1 field-bg "><input
+                                        <div className="flex field-bg flex-1">
+                                            <label className={"flex-1"}><Trans i18nKey={"modelcreator.min"}>Valeur minimale :</Trans></label>
+                                            <input
                                             className={"flex-1"}
                                             disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                             type={field.type === 'datetime' ? 'datetime-local' : field.type}
@@ -637,13 +638,16 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                                 }
                                                 setFields(newFields);
                                             }}
-                                        /></div>
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="flex flex-no-wrap mg-item">
                                         {hint('modelcreator.max.hint')}
-                                        <label className={"flex-1"}><Trans i18nKey={"modelcreator.max"}>Valeur maximale :</Trans></label>
-                                        <div className="flex flex-1 field-bg "><input
+                                        <div className="flex field-bg flex-1">
+                                            <label className={"flex-1"}><Trans i18nKey={"modelcreator.max"}>Valeur maximale :</Trans></label>
+                                            <input
+                                                className={"flex-1"}
                                             disabled={modelLocked || (isLocalUser(me) && field.locked)}
                                             type={field.type === 'datetime' ? 'datetime-local' : field.type}
                                             value={field.type === "number" ? (field.max + '').replace('.', ',') : field.max}
