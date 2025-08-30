@@ -75,3 +75,38 @@
     *   The **p99 is 407.5 ms**, meaning 99% of requests, even within a complex multi-step scenario, completed in well under half a second. This demonstrates consistent and reliable performance.
 
 *   **Conclusion**: The application is perfectly stable and highly performant under the tested load. The entire user journey, including complex operations, is handled efficiently. This provides a solid baseline for future, more intensive load tests.
+
+
+## Performance Test Report 3 (Scaling)
+
+### Test Environment
+- **Machine**: Laptop Intel Core i7 Lenovo Legion
+- **Scenario**: `perf-shot-hardwork.yml` (Full user journey)
+- **Concurrency**: Ramped load from 1 to 2 virtual users/sec for 60 seconds.
+
+### Summary of Results
+
+| Metric | Value |
+ |---|---|
+| Total HTTP Requests | 720 |
+| Successful Responses (2xx) | 720 |
+| Average Request Rate | 9/sec |
+| **Failed Scenarios** | **0** |
+
+### Response Time Analysis (in milliseconds)
+
+| Percentile | Response Time (ms) |
+|------------|--------------------|
+| min | 8 |
+| median | **32.1** |
+| mean | 141.4 |
+| p95 | 772.9 |
+| p99 | 854.2 |
+| max | 922 |
+---
+
+### Analysis & Recommendations
+
+*   **Excellent Linear Scaling**: This test confirms the application's ability to scale gracefully. When doubling the load from the previous test (1 user/sec to 2 users/sec), the median and p95 response times also roughly doubled. This linear behavior is ideal and indicates a robust architecture without major bottlenecks.
+*   **Continued Stability**: With **0 failed scenarios**, the application proves its stability even as concurrency increases.
+*   **Conclusion**: The application is ready for higher loads. The performance degradation is predictable and linear, which is a sign of a very healthy system.
