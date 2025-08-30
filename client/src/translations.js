@@ -2,6 +2,8 @@
 export const websiteTranslations = {
     fr: {
         translation: {
+            "dashboards.addKpi": "Ajouter un indicateur KPI",
+
             "field.geolocation": "Géolocalisation",
             "time.minute": "Minute",
             "time.hour": "Heure",

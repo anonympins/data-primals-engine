@@ -1688,7 +1688,7 @@ export async function registerRoutes(defaultEngine){
 
         try {
             // Vérification des permissions
-            if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_INSTALL_PACK"], user)) {
+            if (!isDemoUser(user) && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_INSTALL_PACK"], user)) {
                 return res.status(403).json({ success: false, error: i18n.t('api.permission.installPack') });
             }
 

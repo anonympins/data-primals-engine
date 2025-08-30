@@ -30,7 +30,7 @@ export const isLocalUser = (user) => {
 };
 
 export const isDemoUser = (user) => {
-    return /^demo[0-9]{1,2}$/.test(user?.username);
+    return user?.temporary;
 }
 
 export function getUserHash(user) {

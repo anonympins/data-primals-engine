@@ -35,10 +35,11 @@ $input-height: 50px;
 
 // La fenêtre de chat (quand elle est ouverte)
 .assistant-chat-window {
+
   position: fixed;
   bottom: 20px;
-  right: 20px;
-  width: 100%;
+  right: 5px;
+  width: calc(100% - 10px);
   max-width: 720px;
   min-height: 400px;
   height: 60vh;

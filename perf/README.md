@@ -1,8 +1,9 @@
-## Performance Test Report
+## Performance Test Report 1
 
 ### Test Environment
 - **Machine**: Laptop Intel Core i7 Lenovo Legion
 - **Concurrency**: Ramp-up to 50 virtual users/sec
+- Runs on `perf-shot-search.yml` ,that simulates user basic activity on API 
 
 ### Summary of Results
 
@@ -33,3 +34,44 @@
 *   **Bottleneck Resolved**:
     *   The **median response time is now just 36.2 milliseconds**. This is a dramatic improvement and indicates that the core API operations are extremely fast for the majority of users.
     *   The **p95 (561.2 ms)** and **p99 (608 ms)** response times remain well under one second. This shows that the application performs consistently, with very few outliers, even during peak load phases.
+
+
+
+## Performance Test Report 2
+
+### Test Environment
+- **Machine**: Laptop Intel Core i7 Lenovo Legion
+- **Scenario**: `perf-shot-hardwork.yml` (Full user journey including model creation, data import, and pack installation)
+- **Concurrency**: Sustained load of 1 virtual user/sec for 60 seconds.
+
+### Summary of Results
+
+| Metric | Value |
+ |---|---|
+| Total HTTP Requests | 480 |
+| Successful Responses (2xx) | 480 |
+| Average Request Rate | 4/sec |
+| Data Downloaded | 0.88 MB |
+| **Failed Scenarios** | **0** |
+
+### Response Time Analysis (in milliseconds)
+
+| Percentile | Response Time (ms) |
+|------------|--------------------|
+| min | 7 |
+| median | **15** |
+| mean | 96.1 |
+| p95 | 368.8 |
+| p99 | 407.5 |
+| max | 474 |
+---
+
+### Analysis & Recommendations
+
+*   **Total Success & Stability**: The test is a complete success. With a 100% success rate (**0 failed scenarios** and **0 request errors**), it confirms that the previous fixes for race conditions and file upload issues are effective and robust.
+
+*   **Outstanding Performance**: The API's responsiveness is excellent.
+    *   A **median response time of just 15 milliseconds** shows that the core operations are extremely fast for the majority of users.
+    *   The **p99 is 407.5 ms**, meaning 99% of requests, even within a complex multi-step scenario, completed in well under half a second. This demonstrates consistent and reliable performance.
+
+*   **Conclusion**: The application is perfectly stable and highly performant under the tested load. The entire user journey, including complex operations, is handled efficiently. This provides a solid baseline for future, more intensive load tests.

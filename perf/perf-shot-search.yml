@@ -28,8 +28,8 @@ scenarios:
           json:
             # Le nom du modèle sur lequel effectuer la recherche
             model: "translation"
-            # Le filtre de recherche (ici, vide pour récupérer tous les documents)
-            filter: { limit : 250 }
+            filter: { "lang": { "$find": { "code": "en" } } }
+            limit: 250
   - name: "Stress Test - Insertion de données"
     flow:      # Envoi d'une requête POST à l'endpoint de recherche
       - post:
