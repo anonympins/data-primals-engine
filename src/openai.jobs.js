@@ -28,6 +28,7 @@ export const openaiJobModel = async (lang, txt, history, existingModels = []) =>
                         {
                             "models": [{
                               "name": "book",
+                              "icon": "FaBook",
                               "description": "*description détaillée en plusieurs phrases de l'utilité du modèle, et ses cas d'usage, ici : Modèle de référencement de livres multi-support. Peut être utilisé pour des bibliothèques personnelles, virtuelles ou municipales.*",
                               "fields": [
                                 {"name": "title", "type": "string", "required": true, "asMain": true, "hint": "Titre du livre", color: '#FF89CC'},
@@ -40,6 +41,7 @@ export const openaiJobModel = async (lang, txt, history, existingModels = []) =>
                             {
                                 name: "library",
                                 "description": "",
+                                "icon": "FaBookOpenReader",
                                 fields: [
                                     {
                                         "name": "name",
