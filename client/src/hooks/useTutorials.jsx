@@ -4,7 +4,7 @@ import { useUI } from '../contexts/UIContext.jsx';
 import { useNotificationContext } from '../NotificationProvider.jsx';
 import { tutorialsConfig } from '../tutorials.js';
 import { useTranslation } from 'react-i18next';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useLocalStorage from "./useLocalStorage.js";
 import {Event} from "../../../src/events.js";
 
@@ -20,9 +20,9 @@ export const useTutorials = () => {
     const { allTourSteps, setCurrentTourSteps, setIsTourOpen } = useUI();
     const { addNotification } = useNotificationContext();
 
-    // Refs pour gérer la file d'attente des vérifications
-    const isCheckingRef = useRef(false);
-    const isCheckQueuedRef = useRef(false);
+    // Ref pour "verrouiller" la vérification d'une étape spécifique et éviter les notifications en double
+    // à cause des re-renders rapides (race condition).
+    const completingStepRef = useRef(null);
 
     const { data: tutorials, isLoading: isLoadingTutorials } = useQuery('tutorials', async () => {
         return tutorialsConfig.map(t => ({ ...t, _id: t.id }));
@@ -119,75 +119,72 @@ export const useTutorials = () => {
         updateActiveTutorial(newActiveState);
         launchTour(firstStage.tourName);
     };
-
+    
     const triggerTutorialCheck = useCallback(async () => {
-        if (isCheckingRef.current) {
-            console.log('[Tutoriels] Vérification déjà en cours, mise en file d\'attente.');
-            isCheckQueuedRef.current = true; // Mettre en attente
+        // S'il n'y a pas de tutoriel actif, on ne fait rien.
+        if (!me?.activeTutorial || !tutorials) {
             return;
         }
-        if (!me?.activeTutorial || !tutorials) return;
 
-        isCheckingRef.current = true;
-        console.log('[Tutoriels] Démarrage de la vérification en chaîne...');
+        const { id: currentTutorialId, stage: currentStageNumber } = me.activeTutorial;
+        const stepIdentifier = `${currentTutorialId}-${currentStageNumber}`;
+
+        // --- VERROUILLAGE (LOCK) ---
+        // Si on est déjà en train de traiter cette étape exacte, on ignore les appels suivants
+        // pour éviter les notifications multiples.
+        if (completingStepRef.current === stepIdentifier) {
+            console.log(`[Tutoriels] Vérification pour l'étape ${stepIdentifier} déjà en cours. On ignore.`);
+            return;
+        }
+
+        const tutorial = tutorials.find(t => t._id === currentTutorialId);
+        const stageConfig = tutorial?.stages.find(s => s.stage === currentStageNumber);
+
+        if (!stageConfig) return; // Pas d'étape active à vérifier
 
         try {
-            let currentActiveState = me.activeTutorial;
+            // On pose le verrou pour cette étape
+            completingStepRef.current = stepIdentifier;
+            console.log(`[Tutoriels] Verrouillage et vérification de l'étape ${stepIdentifier}`);
 
-            while (true) {
-                const tutorial = tutorials.find(t => t._id === currentActiveState.id);
-                if (!tutorial) break;
+            const { isCompleted } = await checkCompletionCondition(stageConfig.completionCondition);
 
-                const stageConfig = tutorial.stages.find(s => s.stage === currentActiveState.stage);
-                if (!stageConfig) {
-                    console.log('[Tutoriels] Fin du tutoriel, attribution des récompenses.');
+            if (isCompleted) {
+                console.log(`[Tutoriels] Étape ${currentStageNumber} complétée.`);
+
+                const titleKey = `tutorial.${tutorial.id}.stage.${currentStageNumber}.name`;
+                const descriptionKey = `tutorial.${tutorial.id}.stage.${currentStageNumber}.description`;
+
+                addNotification({
+                    title: t(titleKey, stageConfig.name),
+                    message: t(descriptionKey, stageConfig.description),
+                    status: 'success',
+                    id: `tuto-step-${stepIdentifier}` // ID unique pour la notification
+                });
+
+                // On passe à l'étape suivante (ou on termine le tutoriel)
+                const nextStageNumber = currentStageNumber + 1;
+                const nextStage = tutorial.stages.find(s => s.stage === nextStageNumber);
+
+                if (nextStage) {
+                    updateActiveTutorial({ id: currentTutorialId, stage: nextStageNumber });
+                    launchTour(nextStage.tourName);
+                } else {
                     claimRewards(tutorial._id);
                     updateActiveTutorial(null);
                     setIsTourOpen(false);
-                    break;
                 }
-
-                const { isCompleted } = await checkCompletionCondition(stageConfig.completionCondition);
-
-                if (isCompleted) {
-                    console.log(`[Tutoriels] Étape ${currentActiveState.stage} complétée, passage à la suivante.`);
-
-                    // Clés de traduction structurées et robustes
-                    const titleKey = `tutorial.${tutorial.id}.stage.${currentActiveState.stage}.name`;
-                    const descriptionKey = `tutorial.${tutorial.id}.stage.${currentActiveState.stage}.description`;
-
-                    addNotification({
-                        title: t(titleKey, stageConfig.name),
-                        message: t(descriptionKey, stageConfig.description),
-                        status: 'success'
-                    });
-                    currentActiveState = { id: currentActiveState.id, stage: currentActiveState.stage + 1 };
-                } else {
-                    console.log(`[Tutoriels] Arrêt à l'étape ${currentActiveState.stage} (non complétée).`);
-                    if (currentActiveState.stage !== me.activeTutorial.stage) {
-                        updateActiveTutorial(currentActiveState);
-                        launchTour(stageConfig.tourName);
-                    }
-                    break;
-                }
+            } else {
+                console.log(`[Tutoriels] Étape ${currentStageNumber} non complétée.`);
             }
         } catch (error) {
-            console.error("[Tutoriels] Erreur lors de la vérification en chaîne :", error);
+            console.error("[Tutoriels] Erreur lors de la vérification de l'étape :", error);
         } finally {
-            isCheckingRef.current = false;
-            console.log('[Tutoriels] Vérification en chaîne terminée, verrou libéré.');
-
-            // Si une vérification a été mise en attente, on la lance maintenant.
-            if (isCheckQueuedRef.current) {
-                console.log('[Tutoriels] Lancement de la vérification mise en file d\'attente.');
-                isCheckQueuedRef.current = false;
-                triggerTutorialCheck();
-            }
+            // On libère le verrou
+            completingStepRef.current = null;
+            console.log(`[Tutoriels] Libération du verrou pour l'étape ${stepIdentifier}`);
         }
-    }, [
-        tutorials, checkCompletionCondition, claimRewards, updateActiveTutorial,
-        addNotification, launchTour, t, setIsTourOpen, me
-    ]);
+    }, [me, tutorials, checkCompletionCondition, updateActiveTutorial, claimRewards, addNotification, launchTour, t, setIsTourOpen]);
 
     useEffect(() => {
         setMe(prevMe => ({ ...prevMe, activeTutorial: activeTuto }));
@@ -196,25 +193,25 @@ export const useTutorials = () => {
     // Écoute les événements de modification de données pour vérifier la progression en arrière-plan.
     useEffect(() => {
         const handleDataChange = async (payload) => {
-            console.log(`[Tutoriels] Événement de données reçu.`, payload);
             if (me?.activeTutorial) {
+                console.log(`[Tutoriels] Événement de données reçu, déclenchement de la vérification.`, payload);
                 triggerTutorialCheck();
             }
         };
 
-        console.log(me.activeTutorial + new Date().getMilliseconds());
         const eventTypes = ['API_ADD_DATA', 'API_EDIT_DATA', 'API_DELETE_DATA'];
         eventTypes.forEach(type => Event.Listen(type, handleDataChange, "custom", "data"));
 
         return () => {
             eventTypes.forEach(type => Event.RemoveCallback(type, handleDataChange, "custom", "data"));
         };
-    }, [me?.activeTutorial]);
+    }, [me?.activeTutorial, triggerTutorialCheck]);
 
     // Vérifie la progression lorsqu'un tutoriel devient actif ou que son étape change.
     useEffect(() => {
         triggerTutorialCheck();
-    },[]);
+    },[me?.activeTutorial]); // Se déclenche quand le tutoriel/étape change
+
     return {
         tutorials,
         isLoadingTutorials,
