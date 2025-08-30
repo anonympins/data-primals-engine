@@ -17,12 +17,12 @@ import {useModelContext} from "./contexts/ModelContext.jsx";
 import { SketchPicker } from 'react-color'; // Importer le sélecteur
 import {useQueryClient} from "react-query";
 import tinycolor from 'tinycolor2';
-import {
+import { 
     FaArrowDown,
-    FaArrowUp, FaAt, FaEye, FaEyeSlash,
+    FaArrowUp, FaAt, FaCheckCircle, FaEye, FaEyeSlash, FaExclamationCircle,
     FaCalendar, FaCalendarWeek, FaCode, FaFile,
     FaHashtag, FaIcons,
-    FaImage,
+    FaImage, FaSpinner,
     FaLink, FaListOl, FaListUl,
     FaLock, FaMinus,
     FaPallet, FaPhone, FaSitemap,
@@ -30,13 +30,12 @@ import {
 } from "react-icons/fa";
  import * as Fa6Icons from 'react-icons/fa6'; // Importer Fa6
 import {FaCalendarDays, FaCodeCompare, FaPencil, FaT, FaTableColumns} from "react-icons/fa6";
-import { CodeBlock, tomorrowNightBright } from 'react-code-blocks';
 import SyntaxHighlighter from 'react-syntax-highlighter';
-import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import {useAuthContext} from "./contexts/AuthContext.jsx";
+import {useRealtimeValidation} from "./hooks/useValidation.js";
 import Switch from "react-switch";
 export const Form = ({
   name,
@@ -98,6 +97,8 @@ const TextField = forwardRef(function TextField(
       showErrors=false,
       before,
       after,
+      validation, // New prop: { modelName, docId }
+      showTooltipErrors = false,
     ...rest
   },
   ref,
@@ -107,13 +108,24 @@ const TextField = forwardRef(function TextField(
   const [errors, setErrors] = useState([]);
   const inputRef = useRef();
 
+  // --- Real-time validation logic ---
+  const {
+    validate: realtimeValidate,
+    validationState
+  } = useRealtimeValidation(
+      validation?.modelName,
+      validation?.docId
+  );
+  const isRealtimeValidationEnabled = !!validation?.modelName;
+  const fieldValidationState = validationState[name] || { status: 'idle' };
+
   const { type, ...otherRest } = rest;
   const isPasswordField = type === 'password';
 
   const mult = typeof multiline !== 'undefined' ? multiline : maxlength > 255;
   const validate = () => {
     const errs = [];
-    if (required && (!value || value.trim() === "")) {
+    if (required && (!value || String(value).trim() === "")) {
       errs.push("Field required");
     }
     if (
@@ -130,27 +142,56 @@ const TextField = forwardRef(function TextField(
     ) {
       errs.push("Value length must be <= to " + maxlength);
     }
-    if( showErrors )
+      if (isRealtimeValidationEnabled && fieldValidationState.status === 'invalid') {
+          errs.push(fieldValidationState.error);
+      }
+
+    if( showErrors ) {
         setErrors(errs);
-    return !errs.length;
+    }
+    return !errs.length && fieldValidationState.status !== 'invalid';
   };
   useImperativeHandle(ref, () => ({
     ref: inputRef.current,
     validate,
     getValue: () => value,
   }));
+
   const handleChange = (e) => {
     if (onChange) {
       onChange(e);
+    }
+    if (isRealtimeValidationEnabled) {
+      realtimeValidate(name, e.target.value);
     }
   };
 
   const togglePasswordVisibility = () => {
       setIsPasswordVisible(prevState => !prevState);
   };
+
   useEffect(() => {
-    if (value !== null) validate();
+    if (value !== null && !isRealtimeValidationEnabled) validate();
   }, [value]);
+
+    const combinedErrors = [...errors];
+    if (isRealtimeValidationEnabled && fieldValidationState.status === 'invalid' && fieldValidationState.error && !combinedErrors.includes(fieldValidationState.error)) {
+        combinedErrors.push(fieldValidationState.error);
+    }
+    const hasErrors = combinedErrors.length > 0;
+    // Sanitize errors for HTML attribute to prevent XSS
+    const errorsHtml = hasErrors ? `<ul>${combinedErrors.map(e => `<li>${String(e).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')}</ul>` : '';
+
+    const renderValidationIcon = () => {
+        if (!isRealtimeValidationEnabled) return null;
+        const { status, error } = fieldValidationState;
+        switch (status) {
+            case 'validating': return <FaSpinner className="spin-icon validation-icon validating" title="Validating..." />;
+            case 'valid': return <FaCheckCircle className="validation-icon valid" title="Valid" />;
+            case 'invalid': return <FaExclamationCircle className="validation-icon invalid" title={error} />;
+            default: return null;
+        }
+    };
   return (
     <>
         <div
@@ -159,6 +200,13 @@ const TextField = forwardRef(function TextField(
                 flex: true,
                 "field-text": !mult,
                 "field-multiline": mult,
+                'is-validating': fieldValidationState.status === 'validating',
+                'is-valid': fieldValidationState.status === 'valid',
+                'is-invalid': hasErrors && fieldValidationState.status === 'invalid',
+            })}
+            {...(showTooltipErrors && hasErrors && {
+                'data-tooltip-id': "tooltipField",
+                'data-tooltip-html': errorsHtml
             })}
         >
             {label && (
@@ -218,27 +266,30 @@ const TextField = forwardRef(function TextField(
                         minLength={minlength}
                         maxLength={maxlength}
                         required={required}
-                        style={isPasswordField ? { paddingRight: '40px' } : {}}
+                        style={{ paddingRight: '40px' }}
                         {...otherRest}
                     />
                 )}
-                {isPasswordField && !mult && (
-                    <button type="button" onClick={togglePasswordVisibility} className="password-toggle-icon" style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center'}}>
-                        {isPasswordVisible ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                )}
+                <div className="field-icons-wrapper" style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                    {renderValidationIcon()}
+                    {isPasswordField && !mult && (
+                        <button type="button" onClick={togglePasswordVisibility} className="password-toggle-icon">
+                            {isPasswordVisible ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                    )}
+                </div>
                 {after}
             </div>
         </div>
-        {errors.length > 0 && (
+        {!showTooltipErrors && hasErrors && (
             <ul className="error">
-          {errors.map((e, key) => (
-            <li key={key} aria-live="assertive" role="alert">
-              {e}
-            </li>
-          ))}
-        </ul>
-      )}
+                {combinedErrors.map((e, key) => (
+                    <li key={key} aria-live="assertive" role="alert">
+                        {e}
+                    </li>
+                ))}
+            </ul>
+        )}
     </>
   );
 });
@@ -254,56 +305,103 @@ const EmailField = forwardRef(
       placeholder,
       help,
       editable,
-      defaultValue,
+      value, // Changed from defaultValue to be a controlled component
       required,
       readOnly,
       onChange,
       minlength,
       maxlength,
-      fieldValidated,
+      validation,
+      showErrors = true,
+      showTooltipErrors = false,
     },
     ref,
   ) => {
     const id = "emailfield-" + uniqid();
     const [errors, setErrors] = useState([]);
-    const [value, setValue] = useState(defaultValue || null);
+    const inputRef = useRef();
+
+    // --- Real-time validation logic ---
+    const {
+        validate: realtimeValidate,
+        validationState
+    } = useRealtimeValidation(
+        validation?.modelName,
+        validation?.docId
+    );
+    const isRealtimeValidationEnabled = !!validation?.modelName;
+    const fieldValidationState = validationState[name] || { status: 'idle' };
+
     const validate = () => {
       const errs = [];
-      if (required && (!value || value.trim() === "")) {
+      if (required && (!value || String(value).trim() === "")) {
         errs.push("Field required");
       }
-      if (minlength !== undefined && minlength > 0 && value && value.trim().length < minlength) {
+      if (minlength !== undefined && minlength > 0 && value && String(value).trim().length < minlength) {
         errs.push("Value length must be >= to " + minlength);
       }
-      if (maxlength !== undefined && maxlength > 0 && value && value.trim().length > maxlength) {
+      if (maxlength !== undefined && maxlength > 0 && value && String(value).trim().length > maxlength) {
         errs.push("Value length must be <= to " + maxlength);
       }
-
-    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        errs.push("Invalid email");
+      if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          errs.push("Invalid email");
       }
-      setErrors(errs);
-      return !errs.length;
+      if (isRealtimeValidationEnabled && fieldValidationState.status === 'invalid') {
+          errs.push(fieldValidationState.error);
+      }
+      if (showErrors) setErrors(errs);
+      return !errs.length && fieldValidationState.status !== 'invalid';
     };
+
     useEffect(() => {
-      if (value !== null) validate();
+      if (value !== null && !isRealtimeValidationEnabled) validate();
     }, [value]);
-    useEffect(() => {
-      if (fieldValidated) validate();
-    }, [fieldValidated]);
+
+    const combinedErrors = [...errors];
+    if (isRealtimeValidationEnabled && fieldValidationState.status === 'invalid' && fieldValidationState.error && !combinedErrors.includes(fieldValidationState.error)) {
+        combinedErrors.push(fieldValidationState.error);
+    }
+    const hasErrors = combinedErrors.length > 0;
+    const errorsHtml = hasErrors ? `<ul>${combinedErrors.map(e => `<li>${String(e).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')}</ul>` : '';
+
     useImperativeHandle(ref, () => ({
+      ref: inputRef.current,
       validate,
       getValue: () => value,
     }));
+
     const handleChange = (e) => {
-      setValue(e.target.value);
       if (onChange) {
         onChange(e);
       }
+      if (isRealtimeValidationEnabled) {
+          realtimeValidate(name, e.target.value);
+      }
     };
+
+    const renderValidationIcon = () => {
+        if (!isRealtimeValidationEnabled) return null;
+        const { status, error } = fieldValidationState;
+        switch (status) {
+            case 'validating': return <FaSpinner className="spin-icon validation-icon validating" title="Validating..." />;
+            case 'valid': return <FaCheckCircle className="validation-icon valid" title="Valid" />;
+            case 'invalid': return <FaExclamationCircle className="validation-icon invalid" title={error} />;
+            default: return null;
+        }
+    };
+
     return (
       <>
-        <div className={cn({ field: true, "field-email": true })}>
+        <div className={cn({ field: true, "field-email": true,
+            'is-validating': fieldValidationState.status === 'validating',
+            'is-valid': fieldValidationState.status === 'valid',
+            'is-invalid': hasErrors && fieldValidationState.status === 'invalid',
+        })}
+             {...(showTooltipErrors && hasErrors && {
+                 'data-tooltip-id': "tooltipField",
+                 'data-tooltip-html': errorsHtml
+             })}
+        >
           <label
             contentEditable={editable}
             className={cn({ help: !!help })}
@@ -319,27 +417,34 @@ const EmailField = forwardRef(
               ""
             )}
           </label>
-          <input
-            aria-required={required}
-            aria-readonly={readOnly}
-            readOnly={readOnly}
-            type="email"
-            placeholder={placeholder}
-            id={id}
-            name={name}
-            value={value || ""}
-            onChange={handleChange}
-            minLength={minlength}
-            maxLength={maxlength}
-          />
+            <div className={"flex flex-1 flex-no-gap flex-start"} style={{ position: 'relative' }}>
+              <input
+                ref={inputRef}
+                aria-required={required}
+                aria-readonly={readOnly}
+                readOnly={readOnly}
+                type="email"
+                placeholder={placeholder}
+                id={id}
+                name={name}
+                value={value || ""}
+                onChange={handleChange}
+                minLength={minlength}
+                maxLength={maxlength}
+                style={{ paddingRight: '40px' }}
+              />
+                <div className="field-icons-wrapper" style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                    {renderValidationIcon()}
+                </div>
+            </div>
         </div>
-        {errors.length > 0 && (
+        {!showTooltipErrors && hasErrors && (
           <ul className="error">
-            {errors.map((e, key) => (
-              <li key={key} aria-live="assertive" role="alert">
-                {e}
-              </li>
-            ))}
+              {combinedErrors.map((e, key) => (
+                  <li key={key} aria-live="assertive" role="alert">
+                      {e}
+                  </li>
+              ))}
           </ul>
         )}
       </>
@@ -367,6 +472,9 @@ const NumberField = forwardRef(
       max,
       step,
         unit,
+        validation,
+        showErrors = true,
+        showTooltipErrors = false,
         ...rest
     },
     ref,
@@ -374,6 +482,14 @@ const NumberField = forwardRef(
     const id = "numberfield-" + uniqid();
     const [errors, setErrors] = useState([]);
     const inputRef = useRef();
+
+      const {
+          validate: realtimeValidate,
+          validationState
+      } = useRealtimeValidation(validation?.modelName, validation?.docId);
+      const isRealtimeValidationEnabled = !!validation?.modelName;
+      const fieldValidationState = validationState[name] || { status: 'idle' };
+
     const validate = () => {
       const errs = [];
       if (required && value === undefined) {
@@ -391,25 +507,62 @@ const NumberField = forwardRef(
       if ((max || max === 0) && (value || value === 0) && max < value) {
         errs.push("Value > to " + max);
       }
-      setErrors(errs);
-      return !errs.length;
+        if (isRealtimeValidationEnabled && fieldValidationState.status === 'invalid') {
+            errs.push(fieldValidationState.error);
+        }
+      if(showErrors) setErrors(errs);
+      return !errs.length && fieldValidationState.status !== 'invalid';
     };
+
     useEffect(() => {
-      if (value !== null) validate();
+      if (value !== null && !isRealtimeValidationEnabled) validate();
     }, [value]);
+
+    const combinedErrors = [...errors];
+    if (isRealtimeValidationEnabled && fieldValidationState.status === 'invalid' && fieldValidationState.error && !combinedErrors.includes(fieldValidationState.error)) {
+        combinedErrors.push(fieldValidationState.error);
+    }
+    const hasErrors = combinedErrors.length > 0;
+    const errorsHtml = hasErrors ? `<ul>${combinedErrors.map(e => `<li>${String(e).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')}</ul>` : '';
+
     useImperativeHandle(ref, () => ({
       ref: inputRef.current,
       validate,
       getValue: () => value,
     }));
+
     const handleChange = (e) => {
       if (onChange) {
         onChange(e);
       }
+        if (isRealtimeValidationEnabled) {
+            realtimeValidate(name, e.target.value);
+        }
     };
+
+      const renderValidationIcon = () => {
+          if (!isRealtimeValidationEnabled) return null;
+          const { status, error } = fieldValidationState;
+          switch (status) {
+              case 'validating': return <FaSpinner className="spin-icon validation-icon validating" title="Validating..." />;
+              case 'valid': return <FaCheckCircle className="validation-icon valid" title="Valid" />;
+              case 'invalid': return <FaExclamationCircle className="validation-icon invalid" title={error} />;
+              default: return null;
+          }
+      };
+
     return (
       <>
-        <div className={cn({ field: true, "field-number": true })}>
+        <div className={cn({ field: true, "field-number": true,
+            'is-validating': fieldValidationState.status === 'validating',
+            'is-valid': fieldValidationState.status === 'valid',
+            'is-invalid': hasErrors && fieldValidationState.status === 'invalid',
+        })}
+             {...(showTooltipErrors && hasErrors && {
+                 'data-tooltip-id': "tooltipField",
+                 'data-tooltip-html': errorsHtml
+             })}
+        >
 
             <div className="flex flex-1">
                 {label && (
@@ -430,36 +583,40 @@ const NumberField = forwardRef(
                     </label>
                 )}
                 {help && <div className="flex help">{help}</div>}
-                <div className={"flex flex-1 flex-no-wrap flex-mini-gap flex-end"}>
-          <input
-            ref={inputRef}
-            aria-required={required}
-            aria-readonly={readOnly}
-            readOnly={readOnly}
-            type="number"
-            placeholder={placeholder}
-            id={id}
-            name={name}
-            value={value || ""}
-            onChange={handleChange}
-            minLength={minlength}
-            maxLength={maxlength}
-            min={min}
-            max={max}
-            step={step}
-            {...rest}
-          />
-            {unit && <span className="unit">{unit}</span>}
+                <div className={"flex flex-1 flex-no-wrap flex-mini-gap flex-end"} style={{ position: 'relative' }}>
+                  <input
+                    ref={inputRef}
+                    aria-required={required}
+                    aria-readonly={readOnly}
+                    readOnly={readOnly}
+                    type="number"
+                    placeholder={placeholder}
+                    id={id}
+                    name={name}
+                    value={value ?? ""}
+                    onChange={handleChange}
+                    minLength={minlength}
+                    maxLength={maxlength}
+                    min={min}
+                    max={max}
+                    step={step}
+                    style={{ paddingRight: '40px' }}
+                    {...rest}
+                  />
+                    <div className="field-icons-wrapper" style={{position: 'absolute', right: unit ? '40px' : '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        {renderValidationIcon()}
+                    </div>
+                    {unit && <span className="unit">{unit}</span>}
                 </div>
         </div>
         </div>
-        {errors.length > 0 && (
+        {!showTooltipErrors && hasErrors && (
           <ul className="error">
-            {errors.map((e, key) => (
-              <li key={key} aria-live="assertive" role="alert">
-                {e}
-              </li>
-            ))}
+              {combinedErrors.map((e, key) => (
+                  <li key={key} aria-live="assertive" role="alert">
+                      {e}
+                  </li>
+              ))}
           </ul>
         )}
       </>
