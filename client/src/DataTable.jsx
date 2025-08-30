@@ -96,8 +96,16 @@ const Header = ({
 
     const [iconFilterActive, setIconFilterActive] = useState(true);
     useEffect(() => {
-        setIconFilterActive(Object.keys(pagedFilters[selectedModel?.name]).some(m => Object.keys(pagedFilters[selectedModel?.name][m]).length > 0));
-    }, [pagedFilters[selectedModel?.name]]);
+        if (pagedFilters && selectedModel?.name) {
+            const modelFilters = pagedFilters[selectedModel.name] || {};
+            const isActive = Object.keys(modelFilters)
+                .some(fieldKey => {
+                    const fieldFilter = modelFilters[fieldKey];
+                    return fieldFilter && Object.keys(fieldFilter).length > 0;
+                });
+            setIconFilterActive(isActive);
+        }
+    }, [pagedFilters, selectedModel?.name]);
 
     return <><tr className={reversed ? ' reversed' : ''}>
         {advanced && (<th className={"mini"}>
