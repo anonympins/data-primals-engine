@@ -93,11 +93,17 @@ const Header = ({
     const handleAdvancedFilter = () => {
         setAdvancedFilterVisible(true);
     }
+
+    const [iconFilterActive, setIconFilterActive] = useState(true);
+    useEffect(() => {
+        setIconFilterActive(Object.keys(pagedFilters[selectedModel?.name]).some(m => Object.keys(pagedFilters[selectedModel?.name][m]).length > 0));
+    }, [pagedFilters[selectedModel?.name]]);
+
     return <><tr className={reversed ? ' reversed' : ''}>
         {advanced && (<th className={"mini"}>
             <div className="flex flex-row">
 
-                <Button onClick={handleFilter} className={filterActive ? ' active' : ''}><FaFilter/></Button>
+                <Button onClick={handleFilter} className={iconFilterActive ? ' active' : ''}><FaFilter/></Button>
                 {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
                 <CheckboxField checkbox={true} checked={checkedItems?.length === data.length} onChange={e => {
                     if (checkedItems?.length === data.length) {
@@ -448,7 +454,6 @@ export function DataTable({
     const handleFilter = () => {
         setFilterActive(!filterActive);
     }
-
 
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [lightboxOpened, setLightboxOpened] = useState(false);
