@@ -436,3 +436,17 @@ export const stringToHslColor = (str) => {
     const l = 55;         // Luminosité (fixe pour une bonne lisibilité)
     return `hsl(${h}, ${s}%, ${l}%)`;
 };
+
+export function countKeys(t) {
+    switch (t?.constructor) {
+    case Object:                                     // 1
+        return Object
+            .values(t)
+            .reduce((r, v) => r + 1 + countKeys(v), 0)
+    case Array:                                      // 2
+        return t
+            .reduce((r, v) => r + countKeys(v), 0)
+    default:                                         // 3
+        return 0
+    }
+}

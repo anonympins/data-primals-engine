@@ -60,6 +60,7 @@ import {pagedFilterToMongoConds} from "./filter.js";
 import {isConditionMet} from "../../src/filter";
 import {DataImporter} from "./DataImporter.jsx";
 import {HistoryDialog} from "./HistoryDialog.jsx";
+import {Config} from "data-primals-engine";
 
 const Header = ({
                     reversed = false,
@@ -355,7 +356,9 @@ export function DataTable({
         params.append("_user", getUserId(me));
 
         // Cas de la table de données : requête paginée
-        params.append('limit', maxRequestData + '');
+
+        const m = Config.Get('maxRequestData', maxRequestData);
+        params.append('limit', m + '');
         params.append('attachment', '1');
         params.append("depth", data.depth+"");
         if( data.withModels )

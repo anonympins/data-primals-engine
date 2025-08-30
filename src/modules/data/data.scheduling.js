@@ -10,6 +10,7 @@ import {sendSseToUser} from "./data.routes.js";
 
 import {searchData} from "./data.operations.js";
 import {Logger} from "../../gameObject.js";
+import {Config} from "../../config.js";
 
 
 let engine, logger;
@@ -179,7 +180,7 @@ export async function scheduleAlerts() {
             // 4. Project (Slice): Pour chaque utilisateur, ne garder que les X premières alertes du tableau trié.
             {
                 $project: {
-                    oldestAlerts: {$slice: ["$alerts", maxAlertsPerUser]}
+                    oldestAlerts: {$slice: ["$alerts", Config.Get('maxAlertsPerUser', maxAlertsPerUser)]}
                 }
             },
             // 5. Unwind: Déconstruire le tableau 'oldestAlerts' pour obtenir un flux de documents, un par alerte.

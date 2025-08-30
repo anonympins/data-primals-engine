@@ -31,26 +31,6 @@ export const port = 7633;
 export const cookiesSecret = 'hoaivuymzovyoznllmafivpzaovphlejvalwjvelfhqochakfesv';
 
 /**
- * Available languages of the system
- * You need to translate the i18n file, or translations ones.
- * @type {string[]}
- */
-export const availableLangs = [
-    "en",
-    "fa",
-    "ar",
-    "fr",
-    "it",
-    "es",
-    "pt",
-    "de",
-    "el",
-    "ru",
-    "cs",
-    "sv"
-];
-
-/**
  * AWS default configuration (overrided by AWS_* environment variables)
  * @type {{bucketName: string, region: string}}
  */
@@ -71,8 +51,6 @@ export const emailDefaultConfig = {
     user: 'user',
     pass: 'password'
 }
-
-export const useAI = true;
 
 /**
  * Maximum number of models per user
@@ -216,11 +194,8 @@ export const maxPrivateFileSize = 20 * megabytes; // Taille max par fichier priv
  */
 export const maxTotalPrivateFilesSize = 250 * megabytes;
 
-/**
- * Timeout for Javacript execution in VMs (in milliseconds)
- * @type {number}
- */
-export const timeoutVM = 5000;
+export const maxPackData = 5000;
+export const maxPackPreviewData = maxPackData / 10;
 
 /**
  * Default maximum number of data per request

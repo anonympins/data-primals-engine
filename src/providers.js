@@ -2,6 +2,7 @@ import {compare, hash} from "bcrypt";
 import {maxTotalPrivateFilesSize} from "./constants.js";
 import {getCollection, ObjectId} from "./modules/mongodb.js";
 import {Logger} from "./gameObject.js";
+import {Config} from "./config.js";
 
 /**
  * @class UserProvider
@@ -73,7 +74,7 @@ export class UserProvider {
      * @returns {Promise<number>}
      */
     async getUserStorageLimit(user) {
-        return maxTotalPrivateFilesSize;
+        return Config.Get('maxTotalPrivateFilesSize', maxTotalPrivateFilesSize);
     }
 
     /**
@@ -128,7 +129,7 @@ export class DefaultUserProvider extends UserProvider {
     }
 
     async getUserStorageLimit(user) {
-        return maxTotalPrivateFilesSize;
+        return Config.Get('maxTotalPrivateFilesSize', maxTotalPrivateFilesSize);
     }
 
     async getBackupFrequency(user){
