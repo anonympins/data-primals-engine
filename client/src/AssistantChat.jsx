@@ -29,7 +29,7 @@ const AssistantChat = ({ config }) => {
     const [messages, setMessages] = useState([
         { from: 'bot', text: t('assistant.welcome') }
     ]);
-    const [input, setInput] = useState('Affiche moi une carte pour le premier contact');
+    const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { setChartToAdd, setFlexViewToAdd, setHtmlViewToAdd } = useUI();
 

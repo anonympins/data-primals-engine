@@ -39,6 +39,31 @@ export function DashboardsPage() {
     const [isChartModalOpen, setIsChartModalOpen] = useState(false);
     const [chartToConfigure, setChartToConfigure] = useState(null);
 
+    const { data: dashboardsData, isLoading: isLoadingDashboards, error: errorDashboards } = useQuery(
+        ['userDashboards', me?.username],
+        async () => {
+            if (!me?.username) return null;
+            const response = await fetch(
+                `/api/data/search?model=dashboard&_user=${me.username}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // body: JSON.stringify({ sort: { name: 1 } }) // Optionnel: trier
+                });
+            if (!response.ok) {
+                const res = await response.json();
+                throw new Error(res.error || t('dashboards.errorList', 'Erreur chargement des tableaux de bord'));
+            }
+            return await response.json();
+        },
+        {
+            enabled: !!me?.username
+        }
+    );
+    const selectedDashboard = useMemo(() => {
+        if (!selectedDashboardId || !dashboardsData?.data) return null;
+        return dashboardsData.data.find(db => db._id === selectedDashboardId);
+    }, [selectedDashboardId, dashboardsData]);
+
     const createDashboardMutation = useMutation(
         async (dashboardName) => {
             const isFirstDashboard = !dashboardsData?.data || dashboardsData.data.length === 0;
@@ -182,26 +207,6 @@ export function DashboardsPage() {
         addNotification({ title: t('dashboards.htmlViewAdded', 'Vue HTML ajoutée au tableau de bord.'), status: 'completed' });
     };
 
-    const { data: dashboardsData, isLoading: isLoadingDashboards, error: errorDashboards } = useQuery(
-        ['userDashboards', me?.username],
-        async () => {
-            if (!me?.username) return null;
-            const response = await fetch(
-                `/api/data/search?model=dashboard&_user=${me.username}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    // body: JSON.stringify({ sort: { name: 1 } }) // Optionnel: trier
-                });
-            if (!response.ok) {
-                const res = await response.json();
-                throw new Error(res.error || t('dashboards.errorList', 'Erreur chargement des tableaux de bord'));
-            }
-            return await response.json();
-        },
-        {
-            enabled: !!me?.username
-        }
-    );
     const [isLoading, setIsLoading] = useState(true);
 
     const refreshPresets = useMemo(() => [
@@ -266,10 +271,6 @@ export function DashboardsPage() {
         }
         setIsLoading(false);
     }, [hash,dashboardsData]);
-    const selectedDashboard = useMemo(() => {
-        if (!selectedDashboardId || !dashboardsData?.data) return null;
-        return dashboardsData.data.find(db => db._id === selectedDashboardId);
-    }, [selectedDashboardId, dashboardsData]);
 
     const dashboardOptions = useMemo(() => {
         return (dashboardsData?.data || []).map(db => ({
