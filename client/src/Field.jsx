@@ -2003,8 +2003,9 @@ export const CodeField = ({name, label, language, defaultValue, value, disabled,
                         onChange({name, value: code});
                     } catch (e) {
                     }
-                } else
+                } else {
                     onChange({name, value: e});
+                }
             }}
             height="300px"
         /></div> : <div className="code"><SyntaxHighlighter
