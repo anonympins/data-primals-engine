@@ -225,7 +225,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 delete field['_isNewField'];
                 let otherFields = [];
                 // Check for specific field types
-                switch (field.type) {
+                switch ((field.type)) {
                     case 'relation':
                         otherFields = ['relation', 'multiple', 'relationFilter'];
                         break;
@@ -245,10 +245,11 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                     case 'phone':
                     case 'password':
                     case 'code':
-                        if (field.type === 'code')
+                        const t = (field.itemsType || field.type);
+                        if (t === 'code')
                             otherFields = ['maxlength', 'language', 'conditionBuilder'];
-                        else if( ['string_t', 'string'].includes(field.type))
-                            otherFields = ['maxlength', 'multiline'];
+                        else if( ['string_t', 'string'].includes(t))
+                            otherFields = ['maxlength', 'multiline', 'mask', 'replacement'];
                         else
                             otherFields = ['maxlength'];
                         break;

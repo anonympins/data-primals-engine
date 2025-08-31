@@ -2,6 +2,7 @@ import {Event} from "../../events.js";
 import i18n from "../../i18n.js";
 import {allowedFields, maxFileSize, maxModelNameLength, maxStringLength} from "../../constants.js";
 import {getDefaultForType} from "../../data.js";
+import { generateRegexFromMask } from './data.core.js';
 
 import {dataTypes} from "./data.operations.js";
 import {Logger} from "../../gameObject.js";
@@ -104,12 +105,22 @@ export const validateField = (field) => {
     case 'code':
         if (field.type === 'code')
             allowedFieldTest(['maxlength', 'language', 'conditionBuilder', 'targetModel']);
-        else if (['string_t', 'string'].includes(field.type))
-            allowedFieldTest(['maxlength', 'multiline']);
+        else if (['string_t', 'string'].includes(field.type)) {
+            allowedFieldTest(['maxlength', 'multiline', 'mask', 'replacement']);
+        }
         else
             allowedFieldTest(['maxlength']);
         if (field.maxlength !== undefined && typeof field.maxlength !== 'number') {
             throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxlength"]));
+        }
+        if (field.mask !== undefined && typeof field.mask !== 'string') {
+            throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["mask"]));
+        }
+        if (field.replacement !== undefined && typeof field.replacement !== 'object') {
+            throw new Error(i18n.t('api.validate.fieldObject', "L'attribut '{{0}}' doit être un objet.", ["replacement"]));
+        }
+        if (field.mask && !field.replacement) {
+            throw new Error(i18n.t('api.validate.missingField', "L'attribut 'replacement' est requis quand 'mask' est défini."));
         }
         break;
     case 'model':
@@ -240,6 +251,17 @@ export async function validateModelData(doc, model, isPatch = false) {
     for (const [fieldName, value] of Object.entries(doc)) {
         const fieldDef = model.fields.find(f => f.name === fieldName);
         if (!fieldDef) continue; // On ignore les champs supplémentaires
+
+        // Validation du masque si défini
+        if (fieldDef.mask && value) {
+            const regexString = generateRegexFromMask(fieldDef.mask, fieldDef.replacement);
+            if (regexString) {
+                const regex = new RegExp(regexString);
+                if (!regex.test(value)) {
+                    throw new Error(i18n.t('api.field.maskValidationFailed', { field: fieldName, value: value, mask: fieldDef.mask }));
+                }
+            }
+        }
 
         const validator = dataTypes[fieldDef.type]?.validate;
         const valid = validator && validator(value, fieldDef);

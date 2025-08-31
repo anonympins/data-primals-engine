@@ -14,7 +14,6 @@ const KanbanCard = ({ card, model, subItemsField }) => {
     // Logique du Drag & Drop natif pour la carte
     const lang = (tr.i18n.resolvedLanguage || tr.i18n.language).split(/[-_]/)?.[0];
 
-    console.log(subItems)
     const getfield = (model, data) => {
         const v = getDataAsString(model, data, tr, models);
         if(!v){
