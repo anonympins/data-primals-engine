@@ -826,10 +826,10 @@ export const pushDataUnsecure = async (data, modelName, me, files = {}) => {
             const fileFields = model.fields.filter(f => f.type === 'file' || (f.type === 'array' && f.itemsType === 'file'));
 
             for (const field of fileFields) {
-                const fileData = Object.keys(files).filter(f => f.startsWith(field.name)).map(k => files[k]);
-                if (fileData) {
+                const fileData = Object.keys(files).filter(f => f.startsWith(field.name+'[')).map(k => files[k]);
+                if (fileData && fileData.length > 0) {
                     if (field.type === 'file') {
-                        const fileRef = await addFile(fileData, me);
+                        const fileRef = await addFile(fileData[0], me);
                         docToModify[field.name] = fileRef;
                     } else if (field.type === 'array' && field.itemsType === 'file') {
                         const fileArray = Array.isArray(fileData) ? fileData : [fileData];
