@@ -171,40 +171,66 @@ export function DashboardsPage() {
     const handleSaveFlexView = (flexViewConfig) => {
         if (!selectedDashboard) return;
 
-        const newLayout = [...(selectedDashboard.layout || [])];
+        // Safely get the layout as a mutable array, creating a default section if needed.
+        const newLayout = JSON.parse(JSON.stringify(Array.isArray(selectedDashboard.layout) ? selectedDashboard.layout : []));
 
-        // For flex views, we add them directly. We can add an editor later if needed.
-        newLayout.push({
+        if (newLayout.length === 0) {
+            newLayout.push({
+                name: t('dashboards.defaultSectionName', 'Nouvelle Section'),
+                kpis: [],
+                chartConfigs: [],
+                flexViews: [],
+                htmlViews: []
+            });
+        }
+
+        // Add the widget to the first section
+        const targetSection = newLayout[0];
+        if (!targetSection.flexViews) {
+            targetSection.flexViews = [];
+        }
+
+        targetSection.flexViews.push({
             ...flexViewConfig,
             type: 'flexView', // Add a type to distinguish from charts
             id: new Date().getTime().toString()
         });
 
-        updateDashboardMutation.mutate({
-            ...selectedDashboard,
-            layout: newLayout
-        });
-
-        addNotification({ title: t('dashboards.flexViewAdded', 'Vue ajoutée au tableau de bord.'), status: 'completed' });
+        updateDashboardMutation.mutate({ ...selectedDashboard, layout: newLayout });
     };
 
     const handleSaveHtmlView = (htmlViewConfig) => {
         if (!selectedDashboard) return;
 
-        const newLayout = [...(selectedDashboard.layout || [])];
+        // Safely get the layout as a mutable array, creating a default section if needed.
+        const newLayout = JSON.parse(JSON.stringify(Array.isArray(selectedDashboard.layout) ? selectedDashboard.layout : []));
+
+        if (newLayout.length === 0) {
+            newLayout.push({
+                name: t('dashboards.defaultSectionName', 'Nouvelle Section'),
+                kpis: [],
+                chartConfigs: [],
+                flexViews: [],
+                htmlViews: []
+            });
+        }
+
+        // Add the widget to the first section
+        const targetSection = newLayout[0];
+        if (!targetSection.htmlViews) {
+            targetSection.htmlViews = [];
+        }
 
         // We only need to save the template and data-fetching info, not the data itself.
         const { data, ...configToSave } = htmlViewConfig;
 
-        newLayout.push({
+        targetSection.htmlViews.push({
             ...configToSave,
             type: 'htmlView', // Add a type to distinguish
             id: `html-${Date.now()}`
         });
 
         updateDashboardMutation.mutate({ ...selectedDashboard, layout: newLayout });
-
-        addNotification({ title: t('dashboards.htmlViewAdded', 'Vue HTML ajoutée au tableau de bord.'), status: 'completed' });
     };
 
     const [isLoading, setIsLoading] = useState(true);

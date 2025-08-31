@@ -15,6 +15,7 @@ import { DialogProvider } from "./Dialog.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {DashboardFlexViewItem} from "./DashboardFlexViewItem.jsx";
 import DashboardHtmlViewItem from "./DashboardHtmlViewItem.jsx";
+import HtmlViewBuilderModal from "./HtmlViewBuilderModal.jsx";
 
 // --- updateDashboardLayout (fonction utilitaire, peut rester ici ou être externalisée) ---
 async function updateDashboardLayout(dashboard, newLayoutData, username, t) {
@@ -66,6 +67,8 @@ export function DashboardView({ dashboard }) {
     const queryClient = useQueryClient();
     const { models } = useModelContext();
 
+    const [editingHtmlViewConfig, setEditingHtmlViewConfig] = useState(null);
+    const [isHtmlViewBuilderModalOpen, setIsHtmlViewBuilderModalOpen] = useState(false);
     const [layoutState, setLayoutState] = useState([]);
     const [editingSectionIndex, setEditingSectionIndex] = useState(null);
     const [originalSectionName, setOriginalSectionName] = useState('');
@@ -102,32 +105,39 @@ export function DashboardView({ dashboard }) {
         }
     );
     const processedDashboardId = useRef(null);
+    const processedLayoutRef = useRef(null); // Pour comparer le contenu du layout
 
     useEffect(() => {
         if (!dashboard) return;
-        if (dashboard._id === processedDashboardId.current) return;
+
+        const layoutString = JSON.stringify(dashboard.layout);
+        // On ne met à jour que si l'ID du dashboard ou le contenu de son layout a changé.
+        if (dashboard._id === processedDashboardId.current && layoutString === processedLayoutRef.current) return;
 
         let parsedLayout = [];
 
-        if (dashboard?.layout) {
-            try {
-                parsedLayout = dashboard.layout.map(section => ({
-                    ...section,
-                    kpis: section.kpis || section.kpiIds || [], // Normalisation cohérente
-                    chartConfigs: section.chartConfigs || [],
-                    flexViews: section.flexViews || [],
-                    htmlViews: section.htmlViews || []
-                }));
-            } catch (e) {
-                console.error("Failed to parse layout", e);
-                parsedLayout = [{
-                    name: t('dashboards.defaultSectionName'),
-                    kpis: [],
-                    chartConfigs: [],
-                    flexViews: [],
-                    htmlViews: []
-                }];
-            }
+        // The layout from the DB can be an object (old default) or an array of sections (new format).
+        // We need to handle both cases to avoid crashes.
+        if (dashboard?.layout && Array.isArray(dashboard.layout)) {
+             try {
+                 parsedLayout = dashboard.layout.map(section => ({
+                     ...section,
+                     kpis: section.kpis || section.kpiIds || [], // Normalisation cohérente
+                     chartConfigs: section.chartConfigs || [],
+                     flexViews: section.flexViews || [],
+                     htmlViews: section.htmlViews || []
+                 }));
+             } catch (e) {
+                 console.error("Failed to parse layout array", e);
+                 // Fallback to a default section if mapping fails for some reason
+                 parsedLayout = [{
+                     name: t('dashboards.defaultSectionName'),
+                     kpis: [],
+                     chartConfigs: [],
+                     flexViews: [],
+                     htmlViews: []
+                 }];
+             }
         } else {
             parsedLayout = [{
                 name: t('dashboards.defaultSectionName'),
@@ -140,6 +150,7 @@ export function DashboardView({ dashboard }) {
 
         setLayoutState(parsedLayout);
         processedDashboardId.current = dashboard._id;
+        processedLayoutRef.current = layoutString;
     }, [dashboard, t]);
 
     // Gère le rafraîchissement automatique des données du dashboard.
@@ -202,8 +213,14 @@ export function DashboardView({ dashboard }) {
         } else if (type === 'FlexView') { // Gérer le type FlexView
             setIsFlexBuilderModalOpen(true);
         } else if (type === 'HtmlView') {
-            setIsFlexBuilderModalOpen(true); // On peut réutiliser le même modal pour l'instant
+            setIsHtmlViewBuilderModalOpen(true); // On peut réutiliser le même modal pour l'instant
         }
+    };
+
+    const handleOpenEditHtmlViewModal = (htmlViewToEdit, sectionIndex) => {
+        setEditingHtmlViewConfig(htmlViewToEdit);
+        setAddingToSectionIndex(sectionIndex);
+        setIsHtmlViewBuilderModalOpen(true);
     };
 
     const handleSaveHtmlViewConfig = (config) => {
@@ -221,6 +238,8 @@ export function DashboardView({ dashboard }) {
         }
         mutation.mutate(newLayoutState);
         handleCloseFlexBuilderModal();
+        setIsHtmlViewBuilderModalOpen(false);
+        setEditingHtmlViewConfig(null);
     };
 
     const handleRemoveHtmlView = (htmlViewId, sectionIndex) => {
@@ -471,6 +490,18 @@ export function DashboardView({ dashboard }) {
                         models={models} // Passer les modèles pour la configuration du graphique
                     />
                 )}
+                {isHtmlViewBuilderModalOpen && (
+                    <HtmlViewBuilderModal
+                        isOpen={isHtmlViewBuilderModalOpen}
+                        onClose={() => {
+                            setIsHtmlViewBuilderModalOpen(false);
+                            setEditingHtmlViewConfig(null);
+                        }}
+                        onSave={handleSaveHtmlViewConfig}
+                        models={models}
+                        initialConfig={editingHtmlViewConfig}
+                    />
+                )}
             </DialogProvider>
 
             {isFlexBuilderModalOpen && (
@@ -484,6 +515,7 @@ export function DashboardView({ dashboard }) {
                     // not for the data displayed on the dashboard itself.
                 />
             )}
+
             {dashboard && (
                 <>
                     <h2>{dashboard.name.value}</h2>
@@ -542,6 +574,10 @@ export function DashboardView({ dashboard }) {
                                             <div className="item-actions">
                                                 {/* TODO: Add edit button for HTML views */}
                                                 {/* <button ...><FaPencilAlt /></button> */}
+                                                <button className="edit-item-button"
+                                                        onClick={() => handleOpenEditHtmlViewModal(htmlConfig, sectionIndex)}
+                                                        title={t('dashboards.editHtmlViewTitle', 'Modifier cette vue HTML')}
+                                                        disabled={mutation.isLoading}><FaPencilAlt/></button>
                                                 <button className="remove-item-button"
                                                         onClick={() => handleRemoveHtmlView(htmlConfig.id, sectionIndex)}
                                                         title={t('dashboards.removeHtmlViewTitle', 'Supprimer cette vue HTML')}

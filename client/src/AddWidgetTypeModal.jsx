@@ -2,7 +2,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import { FaChartBar, FaTachometerAlt, FaThLarge } from 'react-icons/fa';
+import { FaChartBar, FaTachometerAlt, FaThLarge, FaFileCode } from 'react-icons/fa';
 import './AddWidgetTypeModal.scss';
 import {Dialog} from "./Dialog.jsx"; // Créez ce fichier SCSS
 
@@ -24,6 +24,10 @@ const AddWidgetTypeModal = ({ onClose, onSelectType }) => {
                     <button disabled={false} onClick={() => onSelectType('FlexView')} className="widget-type-button">
                         <FaThLarge size={40} />
                         <span>{t('dashboard.addFlexView', 'Ajouter une Vue Flex')}</span>
+                    </button>
+                    <button onClick={() => onSelectType('HtmlView')} className="widget-type-button">
+                        <FaFileCode size={40} />
+                        <span>{t('dashboard.addHtmlView', 'Ajouter une Vue HTML')}</span>
                     </button>
                 </div>
     <div className={"flex actions center"}>
