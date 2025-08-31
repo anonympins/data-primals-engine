@@ -354,12 +354,10 @@ function DataLayout({refreshUI}) {
 
             Array.from(document.querySelectorAll('.field-file input[data-field]')).forEach(input =>{
                 const fieldName = input.dataset['field'];
-                if (input.files.length > 0) {
-                    Array.from(input.files).forEach((file, index) => {
-                        if( file)
-                            fd.append(`${fieldName}[${index}]`, file);
-                    });
+                for (let x = 0; x < input.files.length; x++) {
+                    fd.append(`${fieldName}[]`, input.files[x]);
                 }
+                obj[fieldName] = null;
             });
             fd.append('model', selectedModel.name);
 

@@ -53,6 +53,7 @@ import {
 } from "./data.relations.js";
 import crypto from 'crypto';
 import cronstrue from 'cronstrue/i18n.js';
+import util from "node:util";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 const IMPORT_CHUNK_SIZE = 100; // Nombre d'enregistrements à traiter par lot
@@ -815,19 +816,17 @@ export const pushDataUnsecure = async (data, modelName, me, files = {}) => {
         if (datas.length === 0) {
             return [];
         }
+        console.log(util.inspect(files, false,8, true));
 
         // Traitement des fichiers avant l'insertion.
         // Cette logique suppose que si des fichiers sont présents, il s'agit d'une insertion unique.
         if (Object.keys(files).length > 0) {
-            if (datas.length > 1) {
-                // Pour supporter les fichiers en masse, le format de `files` devrait être plus structuré.
-                throw new Error("File uploads are not supported for bulk data insertion in a single request.");
-            }
+
             const docToModify = datas[0];
             const fileFields = model.fields.filter(f => f.type === 'file' || (f.type === 'array' && f.itemsType === 'file'));
 
             for (const field of fileFields) {
-                const fileData = files[field.name];
+                const fileData = files[field.name+'[]'];
                 if (fileData) {
                     if (field.type === 'file') {
                         const fileRef = await addFile(fileData, me);

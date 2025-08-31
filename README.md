@@ -430,6 +430,21 @@ await editData(
 );
 ```
 
+```javascript
+await editData(
+    "resource",
+    { source: "507f1f77bcf86cd799439011" },
+    { "file[]": {
+        "path": "C:/Users/.../test-upload-on-insert.txt",
+        "name": 'test-upload-on-insert.txt',
+        "type": 'text/plain',
+        "size": 1524,
+        "lastModifiedDate": new Date(),
+    }}, // No files
+    currentUser
+);
+```
+
 ### patchData(modelName, filter, data, files, user)
 
 > Partially updates data (only modifies specified fields).

@@ -447,7 +447,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 // Le champ 'fileField' est absent ici, il sera fourni dans l'objet 'files'
             };
 
-            const result = await insertData(comprehensiveTestModelDefinition.name, dataWithFile, { fileField: uploadedFile }, currentTestUser, false);
+            const result = await insertData(comprehensiveTestModelDefinition.name, dataWithFile, { 'fileField[]': uploadedFile }, currentTestUser, false);
 
             expect(result.success, `L'insertion avec un nouveau fichier a échoué: ${result.error}`).toBe(true);
             expect(result.insertedIds).toHaveLength(1);
