@@ -9,6 +9,8 @@ import Markdown from 'react-markdown';
 import {useQueryClient} from "react-query";
 import {providers} from "../../src/modules/assistant/constants.js";
 import DashboardChart from "./DashboardChart.jsx";
+import FlexViewCard from "./FlexViewCard.jsx";
+import HtmlViewCard from "./HtmlViewCard.jsx";
 import {useUI} from "./contexts/UIContext.jsx";
 import Button from "./Button.jsx";
 import {getUserHash, getUserId} from "../../src/data.js";
@@ -29,7 +31,7 @@ const AssistantChat = ({ config }) => {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { setChartToAdd } = useUI();
+    const { setChartToAdd, setFlexViewToAdd, setHtmlViewToAdd } = useUI();
 
     // NOUVEL ÉTAT : Stocke une action en attente de confirmation de l'utilisateur
     const [pendingConfirmation, setPendingConfirmation] = useState(null);
@@ -85,8 +87,10 @@ const AssistantChat = ({ config }) => {
                 const botMessage = {
                     from: 'bot',
                     text: null,
-                    actionDetails: null,
-                    chartConfig: null// Pour stocker les détails de l'action à afficher
+                    actionDetails: null, // Pour stocker les détails de l'action à afficher
+                    chartConfig: null,
+                    flexViewConfig: null,
+                    htmlViewConfig: null
                 };
 
                 // Gérer le texte à afficher
@@ -119,12 +123,18 @@ const AssistantChat = ({ config }) => {
                 if (result.chartConfig) {
                     botMessage.chartConfig = result.chartConfig;
                 }
+                if (result.flexViewConfig) {
+                    botMessage.flexViewConfig = result.flexViewConfig;
+                }
+                if (result.htmlViewConfig) {
+                    botMessage.htmlViewConfig = result.htmlViewConfig;
+                }
                 // Si des données tabulaires sont retournées
                 if (result.dataResult) {
                     botMessage.dataResult = result.dataResult;
                 }
-                // On ajoute le message à la liste uniquement s'il a du contenu textuel ou un graphique
-                if (botMessage.text || botMessage.chartConfig || botMessage.dataResult) {
+                // On ajoute le message à la liste uniquement s'il a du contenu
+                if (botMessage.text || botMessage.chartConfig || botMessage.dataResult || botMessage.flexViewConfig || botMessage.htmlViewConfig) {
                     setMessages(prev => [...prev, botMessage]);
                 }
 
@@ -258,6 +268,36 @@ const AssistantChat = ({ config }) => {
                                         <span style={{ marginLeft: '8px' }}>
                                             {t('assistant.addToDashboard', 'Ajouter au tableau de bord')}
                                         </span>
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* NOUVEAU : Affichage de la Flex View */}
+                        {msg.flexViewConfig && (
+                            <div className="flex-view-container">
+                                <FlexViewCard config={msg.flexViewConfig} />
+                                <div className="chart-actions" style={{ marginTop: '8px', textAlign: 'right' }}>
+                                    <Button onClick={() => {
+                                        nav('/user/'+getUserHash(me)+'/dashboards');
+                                        setFlexViewToAdd(msg.flexViewConfig);
+                                    }} title={t('assistant.addToDashboard', 'Ajouter au tableau de bord')}>
+                                        <FaPlus />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* NOUVEAU : Affichage de la vue HTML personnalisée */}
+                        {msg.htmlViewConfig && (
+                            <div className="html-view-container">
+                                <HtmlViewCard config={msg.htmlViewConfig} />
+                                <div className="chart-actions" style={{ marginTop: '8px', textAlign: 'right' }}>
+                                    <Button onClick={() => {
+                                        nav('/user/'+getUserHash(me)+'/dashboards');
+                                        setHtmlViewToAdd(msg.htmlViewConfig);
+                                    }} title={t('assistant.addToDashboard', 'Ajouter au tableau de bord')}>
+                                        <FaPlus />
                                     </Button>
                                 </div>
                             </div>

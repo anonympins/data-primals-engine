@@ -1,0 +1,18 @@
+.html-view-builder-modal {
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding-bottom: 1rem;
+
+    .code-editor-container {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .actions {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+  }
+}

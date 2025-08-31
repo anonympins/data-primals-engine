@@ -1,4 +1,32 @@
+import React from "react";
 
+/**
+ * Renders a simple HTML template by substituting placeholders.
+ * This is a simplified, self-contained version inspired by `substituteVariables`.
+ * It supports `{{#each data}}...{{/each}}` for loops and `{{path.to.value}}` for variables.
+ *
+ * @param {string} templateString The template with placeholders.
+ * @param {Array<object>} data The array of data objects to inject.
+ * @returns {string} The rendered HTML string.
+ */
+export const renderHtmlTemplate = (templateString, data) => {
+    if (!templateString) return '';
+
+    // Helper to safely get a nested value from an object using a dot-notation path.
+    const getNestedValue = (obj, path) => {
+        if (!path || typeof path !== 'string' || !obj) return '';
+        if (path === 'this') return typeof obj === 'object' ? JSON.stringify(obj) : obj;
+        const realPath = path.startsWith('this.') ? path.substring(5) : path;
+        return realPath.split('.').reduce((p, c) => (p && p[c] !== undefined && p[c] !== null) ? p[c] : '', obj);
+    };
+
+    const loopRegex = /\{\{#each data\}\}([\s\S]*?)\{\{\/each\}\}/g;
+
+    return templateString.replace(loopRegex, (match, loopContent) => {
+        if (!Array.isArray(data)) return '';
+        return data.map(item => loopContent.replace(/\{\{([\s\S]*?)\}\}/g, (placeholderMatch, placeholderKey) => getNestedValue(item, placeholderKey.trim()))).join('');
+    });
+};
 
 export const convertInputValue = (value) => {
     if (typeof value !== 'string') return value;

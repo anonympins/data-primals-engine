@@ -119,6 +119,16 @@ ACTIONS FINALES: (Actions qui terminent ta réflexion et renvoient un résultat 
         - \`yAxis\` (string): (Optionnel, sauf pour sum/avg/min/max) Le champ numérique à agréger du modèle.
         - \`filter\` (object): (Optionnel, filtre de la recherche, même écriture stricte que pour les filtres de recherche (voir plus bas pour les exemples) 
 
+7.  **generateHtmlView**: Pour créer une vue personnalisée en utilisant un template HTML.
+    - Utilisation: { "action": "generateHtmlView", "params": { ...config } }
+    - Le paramètre \`config\` doit contenir :
+        - \`title\` (string): Un titre pour la vue.
+        - \`model\` (string): Le nom du modèle de données à utiliser.
+        - \`template\` (string): Un template HTML riche et bien structuré. Utilise des classes sémantiques, des icônes (caractères unicode comme ⏱️ ou 💡), et des tooltips via l'attribut \`data-tooltip-html="Ton aide"\`. **Pour une liste, tu DOIS utiliser une boucle \`{{#each data}}...{{/each}}\`**. À l'intérieur, accède aux champs avec \`{{this.fieldName}}\`. Pour un seul élément, tu peux utiliser \`{{data.0.fieldName}}\`.
+        - \`css\` (string): (Optionnel) Du CSS riche et créatif pour styliser le template. N'hésite pas à utiliser des dégradés, des ombres, des animations et des polices de caractères pour un rendu professionnel et attrayant. **Règle absolue : tu dois préfixer TOUS tes sélecteurs avec \`#{{containerId}}\` pour isoler les styles.**
+        - \`filter\` (object): (Optionnel) Un filtre pour sélectionner les documents à afficher.
+        - \`limit\` (number): (Optionnel, défaut 10) Le nombre maximum de documents à récupérer.
+
 Voici le mémo pour assigner des valeurs aux champs des modèles,avec ces types de données : 
 utilise une chaine de caractère convertible en ObjectId (mongodb) lorsque le nom du champ est _id 
 utilise une chaine de caracteres lorsque le type de champ est : string, string_t , password, url, phone, email, richtext
@@ -180,6 +190,51 @@ COMMANDE FINALE :
     "groupBy": "category",
     "aggregationType": "count",
     "filter": { "$and": [{"$gt": ["$publishedAt", "2023-10-05T20:12:00Z"]}, {"$lte": ["$publishedAt", "2024-10-05T20:12:00Z"]} ]}
+  }
+}
+
+Question: Affiche une liste simple des noms des contacts.
+Ta réponse: { "action" : "search_models", "params": { "query": "contact" } }
+COMMANDE FINALE :
+{
+  "action": "generateHtmlView",
+  "params": {
+    "title": "Liste des Contacts",
+    "model": "contact", // Note: 'contact' is a placeholder for a real model name
+    "template": "<ul>{{#each data}}<li>{{this.firstName}} {{this.lastName}}</li>{{/each}}</ul>",
+    "filter": {},
+    "limit": 20
+  }
+}
+
+Question: Affiche une carte de visite stylisée pour le premier contact.
+Ta réponse: { "action" : "search_models", "params": { "query": "contact" } }
+COMMANDE FINALE :
+{
+  "action": "generateHtmlView",
+  "params": {
+    "title": "Carte de Visite",
+    "model": "contact",
+    "template": "<div class='card-container'><h3>{{data.0.firstName}} {{data.0.lastName}}</h3><p>{{data.0.email}}</p></div>",
+    "css": "#{{containerId}} .card-container { border: 1px solid #ccc; border-radius: 8px; padding: 16px; background-color: #f9f9f9; } #{{containerId}} h3 { margin-top: 0; color: #333; }",
+    "filter": {},
+    "limit": 1
+  }
+}
+
+Question: Affiche-moi les dernières requêtes API avec un design futuriste.
+Ta réponse: { "action" : "search_models", "params": { "query": "request" } }
+COMMANDE FINALE :
+{
+  "action": "generateHtmlView",
+  "params": {
+    "title": "Journal des Requêtes API",
+    "model": "request",
+    "template": "<div class=\"requests-grid\">{{#each data}}<div class=\"request-card status-{{this.status}}\"><div class=\"card-header\"><span class=\"method-badge method-{{this.method}}\">{{this.method}}</span><span class=\"status-code\" data-tooltip-html=\"Code de statut HTTP\">{{this.status}}</span></div><div class=\"card-body\"><p class=\"url\" data-tooltip-html=\"URL de la requête\">{{this.url}}</p></div><div class=\"card-footer\"><span class=\"latency\" data-tooltip-html=\"Latence de la réponse\">⏱️ {{this.latencyMs}} ms</span><span class=\"timestamp\" data-tooltip-html=\"Date et heure\">{{this.timestamp}}</span></div><div class=\"glow-effect\"></div></div>{{/each}}</div>",
+    "css": "#{{containerId}} .requests-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;font-family:'Orbitron',sans-serif;padding:10px}#{{containerId}} .request-card{background:rgba(10,25,47,.8);border:1px solid #00aaff;border-radius:12px;padding:15px;position:relative;overflow:hidden;transition:transform .3s ease,box-shadow .3s ease;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}#{{containerId}} .request-card:hover{transform:translateY(-5px);box-shadow:0 10px 20px rgba(0,170,255,.3)}#{{containerId}} .glow-effect{position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at 50% 0,rgba(0,170,255,.2),transparent 70%);animation:pulse 4s infinite ease-in-out;pointer-events:none}@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}#{{containerId}} .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid rgba(0,170,255,.2);padding-bottom:8px}#{{containerId}} .method-badge{padding:4px 8px;border-radius:5px;font-weight:700;font-size:.9em;color:#fff;text-shadow:0 0 5px currentColor}#{{containerId}} .method-GET{background-color:#00aaff}#{{containerId}} .method-POST{background-color:#4caf50}#{{containerId}} .method-PUT{background-color:#ff9800}#{{containerId}} .method-DELETE{background-color:#f44336}#{{containerId}} .method-PATCH{background-color:#9c27b0}#{{containerId}} .status-code{font-size:1.2em;font-weight:700;color:#fff}#{{containerId}} .status-200 .status-code{color:#4caf50;text-shadow:0 0 8px #4caf50}#{{containerId}} .status-404 .status-code{color:#f44336;text-shadow:0 0 8px #f44336}#{{containerId}} .status-500 .status-code{color:#ff9800;text-shadow:0 0 8px #ff9800}#{{containerId}} .card-body .url{color:#e0e0e0;font-size:.95em;word-break:break-all;margin:0}#{{containerId}} .card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:15px;font-size:.8em;color:#88a1b9}#{{containerId}} .latency,#{{containerId}} .timestamp{display:flex;align-items:center;gap:5px}",
+    "filter": {},
+    "sort": { "_id": -1 },
+    "limit": 12
   }
 }
 
@@ -396,6 +451,22 @@ async function handleChatRequest(message, history, provider, context, user, conf
         if (action === 'generateChart') {
             // On retourne directement la configuration du graphique au client.
             return { success: true, chartConfig: params };
+        }
+
+        // Action de génération de vue HTML
+        if (action === 'generateHtmlView') {
+            const viewData = await searchData({
+                model: params.model,
+                filter: params.filter,
+                limit: params.limit || 10
+            }, user);
+
+            if (viewData.data.length === 0) {
+                return { success: true, displayMessage: i18n.t('assistant.htmlView.noResult', "Je n'ai trouvé aucune donnée correspondante pour cette vue.") };
+            }
+
+            // On retourne la configuration de la vue ET les données au client.
+            return { success: true, htmlViewConfig: { ...params, data: viewData.data } };
         }
 
         // NOUVEAU: Action de recherche à afficher, gérée par le front-end

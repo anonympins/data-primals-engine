@@ -341,7 +341,6 @@ const TextField = forwardRef(function TextField(
                             minLength={minlength}
                             maxLength={maxlength}
                             required={required}
-                            style={{ paddingRight: '40px' }}
                             {...otherRest}
                         />
                     )}
@@ -506,7 +505,6 @@ const EmailField = forwardRef(
                 onChange={handleChange}
                 minLength={minlength}
                 maxLength={maxlength}
-                style={{ paddingRight: '40px' }}
               />
                 <div className="field-icons-wrapper" style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '5px'}}>
                     {renderValidationIcon()}
@@ -675,7 +673,6 @@ const NumberField = forwardRef(
                     min={min}
                     max={max}
                     step={step}
-                    style={{ paddingRight: '40px' }}
                     {...rest}
                   />
                     <div className="field-icons-wrapper" style={{position: 'absolute', right: unit ? '40px' : '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '5px'}}>
@@ -1658,7 +1655,7 @@ export const PhoneField = ({name, value, onChange}) => {
     );
 }
 
-export const ModelField = ({field, formData, disableable=false, showModel=true, value, fields=false, onChange}) => {
+export const ModelField = ({field, formData, disableable=false, showModel=true, value, fields=false, onChange, ...rest}) => {
     const {models} = useModelContext();
     const {me} = useAuthContext();
     const {t} = useTranslation();
@@ -1758,6 +1755,7 @@ export const ModelField = ({field, formData, disableable=false, showModel=true, 
                         label: t(`model_${m.name}`, m.name),
                         value: m.name
                     }))}
+                {...rest}
             />)}
         </div>);
     }
@@ -1783,6 +1781,7 @@ export const ModelField = ({field, formData, disableable=false, showModel=true, 
                 onChange={handleFieldChange}
                 items={fieldOptions}
                 disabled={!targetModelName}
+                {...rest}
             />
         </div>)}
     </div>);
