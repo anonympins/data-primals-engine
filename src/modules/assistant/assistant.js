@@ -119,6 +119,16 @@ ACTIONS FINALES: (Actions qui terminent ta réflexion et renvoient un résultat 
         - \`yAxis\` (string): (Optionnel, sauf pour sum/avg/min/max) Le champ numérique à agréger du modèle.
         - \`filter\` (object): (Optionnel, filtre de la recherche, même écriture stricte que pour les filtres de recherche (voir plus bas pour les exemples) 
 
+7.  **generateHtmlView**: Pour créer une vue personnalisée en utilisant un template HTML.
+    - Utilisation: { "action": "generateHtmlView", "params": { ...config } }
+    - Le paramètre \`config\` doit contenir :
+        - \`title\` (string): Un titre pour la vue.
+        - \`model\` (string): Le nom du modèle de données à utiliser.
+        - \`template\` (string): Un template HTML. Utilise la syntaxe \`{{fieldName}}\` pour insérer des données.
+        - \`css\` (string): (Optionnel) Du CSS pour styliser le template. **Règle absolue : tu dois préfixer TOUS tes sélecteurs avec \`#{{containerId}}\` pour isoler les styles.**
+        - \`filter\` (object): (Optionnel) Un filtre pour sélectionner les documents à afficher.
+        - \`limit\` (number): (Optionnel, défaut 10) Le nombre maximum de documents à récupérer.
+
 Voici le mémo pour assigner des valeurs aux champs des modèles,avec ces types de données : 
 utilise une chaine de caractère convertible en ObjectId (mongodb) lorsque le nom du champ est _id 
 utilise une chaine de caracteres lorsque le type de champ est : string, string_t , password, url, phone, email, richtext
@@ -180,6 +190,35 @@ COMMANDE FINALE :
     "groupBy": "category",
     "aggregationType": "count",
     "filter": { "$and": [{"$gt": ["$publishedAt", "2023-10-05T20:12:00Z"]}, {"$lte": ["$publishedAt", "2024-10-05T20:12:00Z"]} ]}
+  }
+}
+
+Question: Affiche une liste simple des noms des contacts.
+Ta réponse: { "action" : "search_models", "params": { "query": "contact" } }
+COMMANDE FINALE :
+{
+  "action": "generateHtmlView",
+  "params": {
+    "title": "Liste des Contacts",
+    "model": "contact", // Note: 'contact' is a placeholder for a real model name
+    "template": "<ul>{{#each data}}<li>{{this.firstName}} {{this.lastName}}</li>{{/each}}</ul>",
+    "filter": {},
+    "limit": 20
+  }
+}
+
+Question: Affiche une carte de visite stylisée pour le premier contact.
+Ta réponse: { "action" : "search_models", "params": { "query": "contact" } }
+COMMANDE FINALE :
+{
+  "action": "generateHtmlView",
+  "params": {
+    "title": "Carte de Visite",
+    "model": "contact",
+    "template": "<div class='card-container'><h3>{{data.0.firstName}} {{data.0.lastName}}</h3><p>{{data.0.email}}</p></div>",
+    "css": "#{{containerId}} .card-container { border: 1px solid #ccc; border-radius: 8px; padding: 16px; background-color: #f9f9f9; } #{{containerId}} h3 { margin-top: 0; color: #333; }",
+    "filter": {},
+    "limit": 1
   }
 }
 
@@ -396,6 +435,22 @@ async function handleChatRequest(message, history, provider, context, user, conf
         if (action === 'generateChart') {
             // On retourne directement la configuration du graphique au client.
             return { success: true, chartConfig: params };
+        }
+
+        // Action de génération de vue HTML
+        if (action === 'generateHtmlView') {
+            const viewData = await searchData({
+                model: params.model,
+                filter: params.filter,
+                limit: params.limit || 10
+            }, user);
+
+            if (viewData.data.length === 0) {
+                return { success: true, displayMessage: i18n.t('assistant.htmlView.noResult', "Je n'ai trouvé aucune donnée correspondante pour cette vue.") };
+            }
+
+            // On retourne la configuration de la vue ET les données au client.
+            return { success: true, htmlViewConfig: { ...params, data: viewData.data } };
         }
 
         // NOUVEAU: Action de recherche à afficher, gérée par le front-end

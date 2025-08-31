@@ -22,9 +22,9 @@ export function DashboardsPage() {
     const { setSelectedModel, selectedModel }  = useModelContext()
     const { t } = useTranslation();
     const { me } = useAuthContext();
-    const [selectedDashboardId, setSelectedDashboardId] = useState(null);
+    const [selectedDashboardId, setSelectedDashboardId] = useState(null); // This seems to be the main state
 
-    const { chartToAdd, setChartToAdd } = useUI();
+    const { chartToAdd, setChartToAdd, flexViewToAdd, setFlexViewToAdd, htmlViewToAdd, setHtmlViewToAdd } = useUI();
     const [searchParams, setSearchParams] = useSearchParams();
     const { hash } = useParams(); // 2. Récupérer le hash de l'URL
 
@@ -142,6 +142,46 @@ export function DashboardsPage() {
         setIsChartModalOpen(false);
         setChartToConfigure(null);
     };
+
+    const handleSaveFlexView = (flexViewConfig) => {
+        if (!selectedDashboard) return;
+
+        const newLayout = [...(selectedDashboard.layout || [])];
+
+        // For flex views, we add them directly. We can add an editor later if needed.
+        newLayout.push({
+            ...flexViewConfig,
+            type: 'flexView', // Add a type to distinguish from charts
+            id: new Date().getTime().toString()
+        });
+
+        updateDashboardMutation.mutate({
+            ...selectedDashboard,
+            layout: newLayout
+        });
+
+        addNotification({ title: t('dashboards.flexViewAdded', 'Vue ajoutée au tableau de bord.'), status: 'completed' });
+    };
+
+    const handleSaveHtmlView = (htmlViewConfig) => {
+        if (!selectedDashboard) return;
+
+        const newLayout = [...(selectedDashboard.layout || [])];
+
+        // We only need to save the template and data-fetching info, not the data itself.
+        const { data, ...configToSave } = htmlViewConfig;
+
+        newLayout.push({
+            ...configToSave,
+            type: 'htmlView', // Add a type to distinguish
+            id: `html-${Date.now()}`
+        });
+
+        updateDashboardMutation.mutate({ ...selectedDashboard, layout: newLayout });
+
+        addNotification({ title: t('dashboards.htmlViewAdded', 'Vue HTML ajoutée au tableau de bord.'), status: 'completed' });
+    };
+
     const { data: dashboardsData, isLoading: isLoadingDashboards, error: errorDashboards } = useQuery(
         ['userDashboards', me?.username],
         async () => {
@@ -180,7 +220,24 @@ export function DashboardsPage() {
             setIsChartModalOpen(true);
             setChartToAdd(null); // Réinitialise le contexte pour éviter de rouvrir le modal
         }
-    }, [chartToAdd, setChartToAdd]);
+    }, [chartToAdd, setChartToAdd, selectedDashboard]);
+
+    // NOUVEAU: Gérer l'ajout d'une vue flexible depuis le contexte UI
+    useEffect(() => {
+        if (flexViewToAdd && selectedDashboard) {
+            handleSaveFlexView(flexViewToAdd);
+            setFlexViewToAdd(null); // Réinitialiser le contexte
+        }
+    }, [flexViewToAdd, setFlexViewToAdd, selectedDashboard]);
+
+    // Gérer l'ajout d'une vue HTML depuis le contexte UI
+    useEffect(() => {
+        if (htmlViewToAdd && selectedDashboard) {
+            handleSaveHtmlView(htmlViewToAdd);
+            setHtmlViewToAdd(null); // Réinitialiser le contexte
+        }
+    }, [htmlViewToAdd, setHtmlViewToAdd, selectedDashboard]);
+
     useEffect(() => {
         // When a new dashboard is selected, close the editing form
         setIsEditing(false);

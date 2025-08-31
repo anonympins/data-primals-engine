@@ -14,6 +14,7 @@ import { useAuthContext } from "./contexts/AuthContext.jsx";
 import { DialogProvider } from "./Dialog.jsx";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {DashboardFlexViewItem} from "./DashboardFlexViewItem.jsx";
+import DashboardHtmlViewItem from "./DashboardHtmlViewItem.jsx";
 
 // --- updateDashboardLayout (fonction utilitaire, peut rester ici ou être externalisée) ---
 async function updateDashboardLayout(dashboard, newLayoutData, username, t) {
@@ -114,7 +115,8 @@ export function DashboardView({ dashboard }) {
                     ...section,
                     kpis: section.kpis || section.kpiIds || [], // Normalisation cohérente
                     chartConfigs: section.chartConfigs || [],
-                    flexViews: section.flexViews || []
+                    flexViews: section.flexViews || [],
+                    htmlViews: section.htmlViews || []
                 }));
             } catch (e) {
                 console.error("Failed to parse layout", e);
@@ -122,7 +124,8 @@ export function DashboardView({ dashboard }) {
                     name: t('dashboards.defaultSectionName'),
                     kpis: [],
                     chartConfigs: [],
-                    flexViews: []
+                    flexViews: [],
+                    htmlViews: []
                 }];
             }
         } else {
@@ -130,7 +133,8 @@ export function DashboardView({ dashboard }) {
                 name: t('dashboards.defaultSectionName'),
                 kpis: [],
                 chartConfigs: [],
-                flexViews: []
+                flexViews: [],
+                htmlViews: []
             }];
         }
 
@@ -197,8 +201,36 @@ export function DashboardView({ dashboard }) {
             setIsChartModalOpen(true);
         } else if (type === 'FlexView') { // Gérer le type FlexView
             setIsFlexBuilderModalOpen(true);
+        } else if (type === 'HtmlView') {
+            setIsFlexBuilderModalOpen(true); // On peut réutiliser le même modal pour l'instant
         }
     };
+
+    const handleSaveHtmlViewConfig = (config) => {
+        if (addingToSectionIndex === null) return;
+        const newLayoutState = JSON.parse(JSON.stringify(layoutState));
+        const targetSection = newLayoutState[addingToSectionIndex];
+        if (!targetSection) return;
+        if (!Array.isArray(targetSection.htmlViews)) targetSection.htmlViews = [];
+
+        if (config.id) { // Edition
+            const index = targetSection.htmlViews.findIndex(v => v.id === config.id);
+            if (index !== -1) targetSection.htmlViews[index] = config;
+        } else { // Ajout
+            targetSection.htmlViews.push({ ...config, id: `html-${Date.now()}` });
+        }
+        mutation.mutate(newLayoutState);
+        handleCloseFlexBuilderModal();
+    };
+
+    const handleRemoveHtmlView = (htmlViewId, sectionIndex) => {
+        const newLayoutState = JSON.parse(JSON.stringify(layoutState));
+        if (newLayoutState[sectionIndex]?.htmlViews) {
+            newLayoutState[sectionIndex].htmlViews = newLayoutState[sectionIndex].htmlViews.filter(hv => hv.id !== htmlViewId);
+            mutation.mutate(newLayoutState);
+        }
+    };
+
 
 
     const handleAddKpi = (kpiDefinition) => {
@@ -396,6 +428,8 @@ export function DashboardView({ dashboard }) {
 
                 chartConfigs: section.chartConfigs || [],
 
+                htmlViews: section.htmlViews || [],
+
                 flexViews: section.flexViews || [],
             };
         });
@@ -496,6 +530,21 @@ export function DashboardView({ dashboard }) {
                                                 <button className="remove-item-button"
                                                         onClick={() => handleRemoveChart(chartConfig.id, sectionIndex)}
                                                         title={t('dashboards.removeChartTitle', 'Supprimer ce graphique')}
+                                                        disabled={mutation.isLoading}><FaTrash/></button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* NOUVEAU: Affichage des vues HTML */}
+                                    {sectionData.htmlViews?.map(htmlConfig => (
+                                        <div key={htmlConfig.id} className="dashboard-item-wrapper html-view-wrapper">
+                                            <DashboardHtmlViewItem config={htmlConfig} />
+                                            <div className="item-actions">
+                                                {/* TODO: Add edit button for HTML views */}
+                                                {/* <button ...><FaPencilAlt /></button> */}
+                                                <button className="remove-item-button"
+                                                        onClick={() => handleRemoveHtmlView(htmlConfig.id, sectionIndex)}
+                                                        title={t('dashboards.removeHtmlViewTitle', 'Supprimer cette vue HTML')}
                                                         disabled={mutation.isLoading}><FaTrash/></button>
                                             </div>
                                         </div>

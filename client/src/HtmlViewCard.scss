@@ -1,0 +1,36 @@
+.html-view-card {
+  background-color: var(--bg-color-dark);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+  font-size: 0.9rem;
+
+  h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--text-color-light);
+    border-bottom: 1px solid var(--border-color-light);
+    padding-bottom: 8px;
+  }
+
+  .html-view-content {
+    ul, ol {
+      padding-left: 20px;
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+    li { margin-bottom: 4px; }
+    a {
+      color: var(--primary-color);
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
+    h1, h2, h3 {
+      margin-top: 1em;
+      margin-bottom: 0.5em;
+      color: var(--text-color);
+    }
+    p { line-height: 1.5; }
+  }
+}
