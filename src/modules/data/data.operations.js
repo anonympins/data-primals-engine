@@ -826,7 +826,7 @@ export const pushDataUnsecure = async (data, modelName, me, files = {}) => {
             const fileFields = model.fields.filter(f => f.type === 'file' || (f.type === 'array' && f.itemsType === 'file'));
 
             for (const field of fileFields) {
-                const fileData = files[field.name+'[]'];
+                const fileData = Object.keys(files).filter(f => f.startsWith(field.name)).map(k => files[k]);
                 if (fileData) {
                     if (field.type === 'file') {
                         const fileRef = await addFile(fileData, me);
@@ -1880,7 +1880,7 @@ export const searchData = async (query, user) => {
                         [fi.name + "_details_temp"]: 0
                     }
                 });
-            } else if (fi.type === 'array' && fi.itemsType === 'file' && depthParam !== 1) {
+            } else if (fi.type === 'array' && fi.itemsType === 'file') {
                 pipelinesLookups.push(
                     {
                         $lookup: {

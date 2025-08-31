@@ -673,8 +673,13 @@ export function DataTable({
                                                     })));
                                                     e.preventDefault();
                                                 };
+
                                                 console.log(item[field.name]);
-                                                t = (item[field.name] || []).map((it,i) => {
+                                                if( !Array.isArray(item[field.name]))
+                                                    return <td key={field.name}>
+
+                                                    </td>
+                                                t = (item[field.name] ||[]).map((it,i) => {
 
                                                         const r = `
                                                         <strong>filename</strong> : ${it.filename}<br />
