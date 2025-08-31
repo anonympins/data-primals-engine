@@ -429,9 +429,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const stats = await fs.stat(filePath);
 
             const uploadedFile = {
-                path: filePath,
-                name: 'test-upload-on-insert.txt',
-                type: 'text/plain',
+                filepath: filePath,
+                originalFilename: 'test-upload-on-insert.txt',
+                mimetype: 'text/plain',
                 size: stats.size,
                 lastModifiedDate: new Date(),
                 hash: 'test-hash' // Optionnel, mais souvent présent
