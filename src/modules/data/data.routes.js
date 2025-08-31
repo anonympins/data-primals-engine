@@ -24,10 +24,10 @@ import {Config} from "../../config.js";
 import {processFilterPlaceholders} from "../../../client/src/filter.js";
 import {tutorialsConfig} from "../../../client/src/tutorials.js";
 import {getResource, handleDemoInitialization} from "./data.js";
-import process from "node:process";
+import process from "node:process"; 
 import {throttleMiddleware} from "../../middlewares/throttle.js";
 import {importJobs, modelsCache, runImportExportWorker} from "./data.core.js";
-import {validateModelStructure} from "./data.validation.js";
+import {validateModelData, validateModelStructure} from "./data.validation.js";
 import {
     deleteData,
     editData,
@@ -144,6 +144,62 @@ export async function sendSseToUser(username, data) {
     }
     return false;
 }
+
+/**
+ * Handles real-time validation for a single field or a subset of fields.
+ * This is designed to be called from the frontend with a debounce mechanism.
+ */
+export const validateDataRealtime = async (req, res) => {
+    // `data` is an object with the field(s) to validate, e.g., { "email": "test@example.com" }
+    // `contextId` is the _id of the document being edited, to exclude it from 'unique' checks.
+    const { model: modelName, data, contextId } = req.fields || req.body;
+    const user = req.me; // User is attached by middlewareAuthenticator
+
+    if (!modelName || !data || typeof data !== 'object' || Object.keys(data).length === 0) {
+        return res.status(400).json({ success: false, error: "Request must include 'model' and a non-empty 'data' object." });
+    }
+
+    const fieldName = Object.keys(data)[0]; // Assuming one field at a time for simplicity
+
+    try {
+        const model = await getModel(modelName, user);
+        if (!model) {
+            return res.status(404).json({ success: false, error: `Model '${modelName}' not found.` });
+        }
+
+        // 1. Use the existing validation logic (isPatch=true for partial validation)
+        await validateModelData(data, model, true, user);
+
+        // 2. Perform 'unique' checks against the database, which validateModelData might not do.
+        const fieldDefinition = model.fields.find(f => f.name === fieldName);
+        if (fieldDefinition && fieldDefinition.unique) {
+            const fieldValue = data[fieldName];
+
+            if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+                const collection = await getCollectionForUser(user);
+                const query = {
+                    _user: user.username,
+                    _model: modelName,
+                    [fieldName]: fieldValue,
+                };
+                
+                if (contextId && isObjectId(contextId)) {
+                    query._id = { $ne: new ObjectId(contextId) };
+                }
+
+                const existingDoc = await collection.findOne(query);
+                if (existingDoc) {
+                    throw new Error(i18n.t("api.data.duplicateValue", { field: fieldName, value: fieldValue }));
+                }
+            }
+        }
+
+        res.status(200).json({ success: true, message: "Validation successful.", field: fieldName });
+
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message, field: fieldName });
+    }
+};
 
 
 export async function handleCustomEndpointRequest(req, res) {
@@ -262,6 +318,7 @@ export async function registerRoutes(defaultEngine){
     engine.all('/api/actions/:path', [middlewareAuthenticator, middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
 
+    engine.post('/api/data/validate', [middlewareAuthenticator, userInitiator, middlewareLogger], validateDataRealtime);
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
         const user = req.me;
         const { name, description, modelNames } = req.fields; // Noms des modèles à inclure

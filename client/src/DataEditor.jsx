@@ -276,6 +276,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
                          key={field.name}
                         type={getInputType(field.type)} {...inputProps}
                         value={displayValue}
+                        mask={field.mask}
+                        replacement={field.replacement}
                         onChange={(e) => handleChange({name: field.name, value: e.target.value})}  />
                 }
             case 'file':

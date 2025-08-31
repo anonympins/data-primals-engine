@@ -7,6 +7,32 @@ export const modelsCache = new NodeCache( { stdTTL: 100, checkperiod: 120 } );
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Helper to escape characters for regex.
+ * @param {string} str The string to escape.
+ * @returns {string} The escaped string.
+ */
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Generates a regular expression from a mask pattern and replacement rules.
+ * @param {string} mask - The mask pattern, e.g., '+0 (___) ___-__-__'.
+ * @param {object} replacement - An object mapping placeholder characters to regex patterns, e.g., { "_": "\\d" }.
+ * @returns {string|null} - A regular expression string or null if inputs are invalid.
+ */
+export function generateRegexFromMask(mask, replacement) {
+    if (!mask || !replacement || typeof replacement !== 'object') return null;
+
+    let regex = '^';
+    for (const char of mask) {
+        regex += replacement[char] ? `(${replacement[char]})` : escapeRegex(char);
+    }
+    regex += '$';
+    return regex;
+}
+
 export const mongoDBWhitelist = [
     "$$NOW", "$in", "$eq", "$gt", "$gte", "$in", "$lt", "$lte", "$ne", "$nin", "$type", "$size",
     "$and", "$not", "$nor", "$or", "$regexMatch", "$find", "$elemMatch", "$filter", "$toString", "$toObjectId",

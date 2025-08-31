@@ -35,6 +35,7 @@ import KanbanView from "./KanbanView.jsx";
 import CalendarView from "./CalendarView.jsx";
 import {useLocation, useParams, useSearchParams} from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import {Tooltip} from "react-tooltip";
 
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
@@ -611,6 +612,7 @@ function DataLayout({refreshUI}) {
 
     return (
         <>
+            <Tooltip id="tooltipField" />
             <>{/^demo[0-9]{1,2}$/.test(me.username) && (
                 <TourSpotlight
                 name={"tour_"+getObjectHash({steps:currentTourSteps})}
