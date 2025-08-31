@@ -53,14 +53,40 @@ export const assistantGlobalLimiter = rateLimit({
 });
 
 async function searchModels(query, user) {
-    if (!query) return [];
+    if (!query) return { main: [], related: [] };
     const searchRegex = new RegExp(query, 'i');
-    return await modelsCollection.find({
+    const mainModels = await modelsCollection.find({
         $or: [{ _user: user.username }, { _user: { $exists: false } }],
         $and: [{ $or: [{ name: { $regex: searchRegex } }, { description: { $regex: searchRegex } }] }]
     }, {
         projection: { name: 1, description: 1, fields: 1, _id: 0 }
     }).limit(10).toArray();
+
+    if (mainModels.length === 0) {
+        return { main: [], related: [] };
+    }
+
+    const relatedModelNames = new Set();
+    mainModels.forEach(model => {
+        model.fields.forEach(field => {
+            if (field.type === 'relation' && field.relation) {
+                relatedModelNames.add(field.relation);
+            }
+        });
+    });
+
+    const mainModelNames = new Set(mainModels.map(m => m.name));
+    const finalRelatedModelNames = [...relatedModelNames].filter(name => !mainModelNames.has(name));
+
+    let relatedModels = [];
+    if (finalRelatedModelNames.length > 0) {
+        relatedModels = await modelsCollection.find({
+            name: { $in: finalRelatedModelNames },
+            $or: [{ _user: user.username }, { _user: { $exists: false } }]
+        }, { projection: { name: 1, description: 1, fields: 1, _id: 0 } }).toArray();
+    }
+
+    return { main: mainModels, related: relatedModels };
 }
 
 const createSystemPrompt = (modelDefs, lang) => {
@@ -87,7 +113,7 @@ Tu as accès aux outils et actions suivants.
 
 OUTILS DE RAISONNEMENT INTERNE: (Utilisés pour collecter de l'information avant de décider de l'action finale)
 1.  **search_models**: Pour rechercher les modèles de données disponibles.
-    - Utilisation: { "action": "search_models", "params": { "query": "^regexToSearchFor$" } }
+    - Utilisation: { "action": "search_models", "params": { "query": "^regexToSearchFor$" } }. Il retourne aussi la structure des modèles directement liés.
 ====
 
 ACTIONS FINALES: (Actions qui terminent ta réflexion et renvoient un résultat à l'utilisateur)
@@ -124,14 +150,19 @@ ACTIONS FINALES: (Actions qui terminent ta réflexion et renvoient un résultat 
     - Le paramètre \`config\` doit contenir :
         - \`title\` (string): Un titre pour la vue.
         - \`model\` (string): Le nom du modèle de données à utiliser.
-        - \`template\` (string): Un template HTML riche et bien structuré. Utilise des classes sémantiques, des icônes (caractères unicode comme ⏱️ ou 💡), et des tooltips via l'attribut \`data-tooltip-html="Ton aide"\`. **Pour une liste, tu DOIS utiliser une boucle \`{{#each data}}...{{/each}}\`**. À l'intérieur, accède aux champs avec \`{{this.fieldName}}\`. Pour un seul élément, tu peux utiliser \`{{data.0.fieldName}}\`.
+        - \`template\` (string): Un template au format Handlebars.js. **RÈGLE CRITIQUE : N'utilise QUE les noms de champs (\`fieldName\`) exacts fournis par l'outil \`search_models\` pour le modèle principal ET pour ses modèles liés. N'invente JAMAIS de champs.**
+            Pour une liste, tu DOIS utiliser une boucle \`{{#each data}}...{{/each}}\`.
+            À l'intérieur d'une boucle, accède aux champs avec \`{{this.fieldName}}\`.
+            Pour les champs de type \`string_t\` ou \`richtext_t\`, accède à la traduction avec \`{{this.fieldName.value}}\`.
+            Les champs de type 'relation' sont automatiquement peuplés (hydratés), tu peux donc accéder à leurs propriétés directement (ex: \`{{this.relationField.name}}\` ou \`{{this.relationField.name.value}}\` si le champ 'name' de la relation est un 'string_t').
         - \`css\` (string): (Optionnel) Du CSS riche et créatif pour styliser le template. N'hésite pas à utiliser des dégradés, des ombres, des animations et des polices de caractères pour un rendu professionnel et attrayant. **Règle absolue : tu dois préfixer TOUS tes sélecteurs avec \`#{{containerId}}\` pour isoler les styles.**
         - \`filter\` (object): (Optionnel) Un filtre pour sélectionner les documents à afficher.
         - \`limit\` (number): (Optionnel, défaut 10) Le nombre maximum de documents à récupérer.
 
 Voici le mémo pour assigner des valeurs aux champs des modèles,avec ces types de données : 
 utilise une chaine de caractère convertible en ObjectId (mongodb) lorsque le nom du champ est _id 
-utilise une chaine de caracteres lorsque le type de champ est : string, string_t , password, url, phone, email, richtext
+utilise une chaine de caracteres lorsque le type de champ est : string , password, url, phone, email, richtext
+utilise un objet { key: "trKey", value: "Translation"} lorsque le champ est string_t
 utilise un filtre en retour si le type de champ est code et language='json' et conditionBuilder=true
 utilise une chaine si c'est un type de champ code par défaut. 
 utilise une structure { "iso2langcode":"content..." } pour le champ multi-traductions richtext_t
@@ -145,13 +176,11 @@ utilise un tableau d'_ids pour remplir les champs relation multiple=true
 utilise la valeur en héxadecimal, ex: '#FF0000' pour les champs de type : color 
 utilise les valeurs de cron standard '* * * * * *' pour : cronSchedule 
 
-PROCESSUS DE RAISONNEMENT:
-a- L'utilisateur pose une question, ou demande une action de ta part.
-b- Utilise l'outil **search_models** pour trouver le(s) modèle(s) qui correspondent à la question.
- Si tu as déjà fait la recherche dans la conversation, garde la définition initiale et n'effectue pas de recherche, va directement à l'étape c
-c- Une fois la réponse retournée et intégrée, tu devras utiliser les autres outils (search, post, etc.) dans la conversation pour satisfaire la question initiale, en utilisant les informations des modèles précédents (COMMANDE FINALE)
-Si tu n'as aucune commande à exécuter directement, réponds simplement à l'utilisateur avec "displayMessage".
-
+PROCESSUS DE RAISONNEMENT STRICT:
+a- L'utilisateur pose une question.
+b- **Étape 1 (Obligatoire):** Appelle l'outil \`search_models\` pour obtenir la structure EXACTE du modèle de données. C'est ta seule source de vérité pour les noms de champs.
+c- **Étape 2 (Obligatoire):** Analyse la réponse de \`search_models\` que le système t'a fournie.
+d- **Étape 3 (Commande Finale):** Construis ta commande finale (\`search\`, \`generateHtmlView\`, etc.). **Règle absolue :** Pour les filtres et les templates, tu ne dois utiliser QUE les noms de champs (\`name\`) et les types (\`type\`) que tu as lus dans la réponse de \`search_models\` à l'étape c. N'invente RIEN.
 CONTEXTE ACTUEL:
 - Date du jour de la conversation : ${dt}
 - La langue ISO à utiliser dans la conversation : ${lang}
@@ -193,17 +222,18 @@ COMMANDE FINALE :
   }
 }
 
-Question: Affiche une liste simple des noms des contacts.
-Ta réponse: { "action" : "search_models", "params": { "query": "contact" } }
+Question: Crée un tableau de bord des rôles et permissions avec un design sophistiqué.
+Ta réponse: { "action" : "search_models", "params": { "query": "role" } }
 COMMANDE FINALE :
 {
   "action": "generateHtmlView",
   "params": {
-    "title": "Liste des Contacts",
-    "model": "contact", // Note: 'contact' is a placeholder for a real model name
-    "template": "<ul>{{#each data}}<li>{{this.firstName}} {{this.lastName}}</li>{{/each}}</ul>",
+    "title": "Matrice des Rôles et Permissions",
+    "model": "role",
+    "template": "<div class='roles-container'>{{#each data}}<div class='role-card'><div class='role-header'><span class='role-icon'>🛡️</span><h3>{{this.name.value}}</h3></div><ul class='permissions-list'>{{#each this.permissions}}<li data-tooltip-html='{{this.description}}'><span class='permission-name'>{{this.name.value}}</span></li>{{/each}}</ul></div>{{/each}}</div>",
+    "css": "#{{containerId}} .roles-container{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:25px;padding:25px;font-family:'Poppins',sans-serif;background:#111827}#{{containerId}} .role-card{background:rgba(31,41,55,.5);border-radius:16px;padding:20px;position:relative;overflow:hidden;border:1px solid transparent;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform .3s ease,box-shadow .3s ease}#{{containerId}} .role-card::before{content:'';position:absolute;top:0;right:0;bottom:0;left:0;z-index:-1;margin:-1px;border-radius:inherit;background:conic-gradient(from 180deg at 50% 50%,#2a8af6 0deg,#a855f7 180deg,#f59e0b 360deg);animation:rotate-gradient 5s linear infinite}@keyframes rotate-gradient{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}#{{containerId}} .role-card:hover{transform:translateY(-8px);box-shadow:0 20px 30px rgba(0,0,0,.2)}#{{containerId}} .role-header{display:flex;align-items:center;gap:12px;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1)}#{{containerId}} .role-header .role-icon{font-size:1.8em}#{{containerId}} .role-header h3{margin:0;font-size:1.4em;font-weight:600;color:#f9fafb}#{{containerId}} .permissions-list{list-style:none;padding:0;margin:0;max-height:200px;overflow-y:auto}#{{containerId}} .permissions-list::-webkit-scrollbar{width:6px}#{{containerId}} .permissions-list::-webkit-scrollbar-track{background:rgba(255,255,255,.05);border-radius:3px}#{{containerId}} .permissions-list::-webkit-scrollbar-thumb{background:#4f46e5;border-radius:3px}#{{containerId}} .permissions-list::-webkit-scrollbar-thumb:hover{background:#6366f1}#{{containerId}} .permissions-list li{padding:8px 12px;margin-bottom:6px;background:rgba(255,255,255,.05);border-radius:8px;color:#d1d5db;cursor:help;transition:background-color .2s ease;font-size:.95em}#{{containerId}} .permissions-list li:hover{background:rgba(79,70,229,.5);color:#fff}",
     "filter": {},
-    "limit": 20
+    "limit": 10
   }
 }
 
@@ -215,10 +245,25 @@ COMMANDE FINALE :
   "params": {
     "title": "Carte de Visite",
     "model": "contact",
-    "template": "<div class='card-container'><h3>{{data.0.firstName}} {{data.0.lastName}}</h3><p>{{data.0.email}}</p></div>",
+    "template": "<div class='card-container'><h3>{{this.firstName}} {{this.lastName}}</h3><p>{{this.email}}</p></div>",
     "css": "#{{containerId}} .card-container { border: 1px solid #ccc; border-radius: 8px; padding: 16px; background-color: #f9f9f9; } #{{containerId}} h3 { margin-top: 0; color: #333; }",
     "filter": {},
     "limit": 1
+  }
+}
+
+Question: Montre-moi un catalogue des produits.
+Ta réponse: { "action" : "search_models", "params": { "query": "product" } }
+COMMANDE FINALE :
+{
+  "action": "generateHtmlView",
+  "params": {
+    "title": "Catalogue Produits",
+    "model": "product",
+    "template": "<div class='product-grid'>{{#each data}}<div class='product-card'><div class='product-image-container'><img src='{{this.image.0.url}}' alt='{{this.name.value}}' class='product-image'><span class='product-brand'>{{this.brand.name}}</span></div><div class='product-info'><h3 class='product-name'>{{this.name.value}}</h3><p class='product-category'>{{this.category.name.value}}</p><div class='product-footer'><span class='product-price'>{{this.price}} {{this.currency.symbol}}</span><button class='add-to-cart-btn'>Ajouter au panier</button></div></div></div>{{/each}}</div>",
+    "css": "#{{containerId}} .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2rem;padding:2rem;font-family:'Lato',sans-serif;background-color:#f8f9fa}#{{containerId}} .product-card{background-color:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.05),0 1px 3px rgba(0,0,0,.05);overflow:hidden;transition:transform .3s ease,box-shadow .3s ease;display:flex;flex-direction:column}#{{containerId}} .product-card:hover{transform:translateY(-5px);box-shadow:0 12px 20px rgba(0,0,0,.08),0 3px 8px rgba(0,0,0,.06)}#{{containerId}} .product-image-container{position:relative;width:100%;padding-top:100%}#{{containerId}} .product-image{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}#{{containerId}} .product-brand{position:absolute;top:10px;right:10px;background-color:rgba(0,0,0,.6);color:#fff;padding:4px 8px;border-radius:6px;font-size:.8em;font-weight:700}#{{containerId}} .product-info{padding:15px;display:flex;flex-direction:column;flex-grow:1}#{{containerId}} .product-name{font-size:1.1em;font-weight:700;color:#343a40;margin:0 0 5px 0;line-height:1.3}#{{containerId}} .product-category{font-size:.85em;color:#6c757d;margin:0 0 15px 0;flex-grow:1}#{{containerId}} .product-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e9ecef;padding-top:10px;margin-top:auto}#{{containerId}} .product-price{font-size:1.2em;font-weight:700;color:#007bff}#{{containerId}} .add-to-cart-btn{background-color:#007bff;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;transition:background-color .2s ease}#{{containerId}} .add-to-cart-btn:hover{background-color:#0056b3}",
+    "filter": {},
+    "limit": 12
   }
 }
 
@@ -330,11 +375,17 @@ async function executeTool(action, params, user, allModels) {
             return resultString;
         }
         case 'search_models': {
-            const foundModels = await searchModels(params.query, user);
+            const { main: foundModels, related: relatedModels } = await searchModels(params.query, user);
 
             if (foundModels.length > 0) {
-                return "J'ai trouvé les modèles suivants qui pourraient correspondre : " +
+                let responseText = "J'ai trouvé les modèles suivants qui pourraient correspondre : " +
                         foundModels.map(m => `\n- Modèle "${m.name}": ${m.description || 'Pas de description.'}\n- Champs: ${m.fields.map(f => JSON.stringify(f, null, 2))}`).join('');
+
+                if (relatedModels.length > 0) {
+                    responseText += "\n\nPour votre information, voici la structure des modèles liés que vous pouvez utiliser dans les templates :";
+                    responseText += relatedModels.map(m => `\n- Modèle lié "${m.name}":\n- Champs: ${m.fields.map(f => JSON.stringify(f, null, 2))}`).join('');
+                }
+                return responseText;
             } else {
                 return "Je n'ai trouvé aucun modèle correspondant à votre recherche.";
             }
@@ -422,18 +473,25 @@ async function handleChatRequest(message, history, provider, context, user, conf
         // Parsing JSON robuste
         let parsedResponse;
         try {
+            // Tente d'extraire le JSON de la réponse, même s'il est entouré de texte.
+            const jsonRegex = /\{[\s\S]*\}/s; // 's' flag pour que '.' matche les nouvelles lignes
+            const match = llmOutput.match(jsonRegex);
 
-            parsedResponse = JSON.parse(llmOutput);
+            if (match && match[0]) {
+                // Si un JSON est trouvé, on tente de le parser
+                parsedResponse = JSON.parse(match[0]);
+            } else {
+                // Aucun JSON trouvé, c'est probablement une réponse textuelle simple.
+                return { success: true, displayMessage: llmOutput };
+            }
 
             if (!parsedResponse.action || !parsedResponse.params) {
                 throw new Error("Réponse JSON invalide: 'action' ou 'params' manquant.");
             }
         } catch (parseError) {
             logger.error(`[Assistant] Erreur de parsing de la réponse de l'IA: ${parseError.message}. Réponse brute: "${llmOutput}"`);
-            return {
-                success: true,
-                displayMessage: llmOutput || i18n.t('assistant.invalidResponse', "Désolé, je n'ai pas pu formuler une réponse correcte. Veuillez réessayer.")
-            };
+            // Si le parsing échoue, on renvoie le message brut de l'IA, qui est peut-être une réponse textuelle valide.
+            return { success: true, displayMessage: llmOutput };
         }
 
         logger.debug(`[Assistant] Action décidée par l'IA: ${parsedResponse.action}`, parsedResponse);
@@ -458,7 +516,8 @@ async function handleChatRequest(message, history, provider, context, user, conf
             const viewData = await searchData({
                 model: params.model,
                 filter: params.filter,
-                limit: params.limit || 10
+                limit: params.limit || 10,
+                depth: 2 // Pour avoir accès aux relations de premier niveau dans les templates
             }, user);
 
             if (viewData.data.length === 0) {

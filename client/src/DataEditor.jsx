@@ -182,6 +182,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
                             />)}</>
                         )}</div>
                 }
+
+                {console.log(formData[field.name])}
                 return <CodeField key={field.name} language={field.language} name={inputProps.name}
                                                         value={typeof (value) === 'string' ? value : JSON.stringify(value)}
                                                         onChange={handleChange}/>

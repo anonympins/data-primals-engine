@@ -1,33 +1,55 @@
-import React from "react";
+/**
+ * Finds the matching {{/each}} for a {{#each ...}} tag at a given position.
+ * It correctly handles nested {{#each}} blocks.
+ * @param {string} template - The template string.
+ * @param {number} startIndex - The starting position of the opening {{#each ...}} tag.
+ * @returns {number} The position of the start of the matching {{/each}} tag, or -1 if not found.
+ */
+function findMatchingEndEach(template, startIndex) {
+    const openTag = '{{#each';
+    const closeTag = '{{/each}}';
+    let level = 1;
+    let searchPos = startIndex + openTag.length;
+
+    while (level > 0 && searchPos < template.length) {
+        const nextClose = template.indexOf(closeTag, searchPos);
+        if (nextClose === -1) {
+            return -1; // Unmatched opening tag
+        }
+
+        const nextOpen = template.indexOf(openTag, searchPos);
+
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+            level++;
+            searchPos = nextOpen + openTag.length;
+        } else {
+            level--;
+            searchPos = nextClose + closeTag.length;
+            if (level === 0) {
+                return nextClose; // Found the matching closing tag
+            }
+        }
+    }
+    return -1; // No matching closing tag found
+}
 
 /**
  * Renders a simple HTML template by substituting placeholders.
- * This is a simplified, self-contained version inspired by `substituteVariables`.
- * It supports `{{#each data}}...{{/each}}` for loops and `{{path.to.value}}` for variables.
+ * This is a robust version that correctly handles nested {{#each}} loops.
  *
  * @param {string} templateString The template with placeholders.
- * @param {Array<object>} data The array of data objects to inject.
+ * @param {Array<object>|object} data The data to inject.
  * @returns {string} The rendered HTML string.
  */
-export const renderHtmlTemplate = (templateString, data) => {
-    if (!templateString) return '';
 
-    // Helper to safely get a nested value from an object using a dot-notation path.
-    const getNestedValue = (obj, path) => {
-        if (!path || typeof path !== 'string' || !obj) return '';
-        if (path === 'this') return typeof obj === 'object' ? JSON.stringify(obj) : obj;
-        const realPath = path.startsWith('this.') ? path.substring(5) : path;
-        return realPath.split('.').reduce((p, c) => (p && p[c] !== undefined && p[c] !== null) ? p[c] : '', obj);
-    };
-
-    const loopRegex = /\{\{#each data\}\}([\s\S]*?)\{\{\/each\}\}/g;
-
-    return templateString.replace(loopRegex, (match, loopContent) => {
-        if (!Array.isArray(data)) return '';
-        return data.map(item => loopContent.replace(/\{\{([\s\S]*?)\}\}/g, (placeholderMatch, placeholderKey) => getNestedValue(item, placeholderKey.trim()))).join('');
-    });
-};
-
+/**
+ * Renders a simple HTML template by substituting placeholders.
+ * This is a robust version that correctly handles nested {{#each}} loops.
+ *
+ * @param {string} templateString The template with placeholders.
+ * @param {Array<object>|object} data The data to inject.
+ * @returns {string} The rendered HTML string.
+ */
 export const convertInputValue = (value) => {
     if (typeof value !== 'string') return value;
 
