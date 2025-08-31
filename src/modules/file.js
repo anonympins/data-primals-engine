@@ -77,7 +77,8 @@ export const addFile = async (file, user) => {
 
     const fileData = {
         guid: guid,
-        filename: file.name,
+        name: file.name, // Nom original du fichier
+        filename: newFilename, // Nom du fichier stocké (GUID + extension)
         size: file.size,
         mimeType: file.type,
         createdAt: new Date(),
@@ -85,13 +86,11 @@ export const addFile = async (file, user) => {
         mainUser: user._user
     };
 
-    if (s3Config && s3Config.bucketName && s3Config.accessKeyId && s3Config.secretAccessKey) { // Correction: bucketName au lieu de bucket
+    if (s3Config && s3Config.bucketName && s3Config.accessKeyId && s3Config.secretAccessKey) {
         try {
-            // Correction: Appel manquant à la fonction de téléversement
             await uploadToS3(s3Config, file.path, newFilename);
 
             fileData.storage = 's3';
-            fileData.filename = newFilename; // Le nom sur S3
             logger.info(`Fichier ${newFilename} téléversé sur le bucket S3 ${s3Config.bucketName}.`);
         } catch (error) {
             logger.info(`Le téléversement S3 a échoué pour ${file.name}: ${error.message}`, 'error');
@@ -112,7 +111,6 @@ export const addFile = async (file, user) => {
             // express-formidable place déjà le fichier dans un répertoire temporaire. Nous n'avons qu'éplacer.
             await fsPromises.rename(file.path, newPath);
             fileData.storage = 'local';
-            fileData.filename = newFilename; // Le nom dans le dossier uploads
             fileData.path = newPath; // Le chemin complet pour les fichiers locaux
             logger.info(`Fichier ${newFilename} sauvegardé localement dans ${newPath}.`);
         } catch (error) {
