@@ -150,11 +150,11 @@ ACTIONS FINALES: (Actions qui terminent ta réflexion et renvoient un résultat 
     - Le paramètre \`config\` doit contenir :
         - \`title\` (string): Un titre pour la vue.
         - \`model\` (string): Le nom du modèle de données à utiliser.
-        - \`template\` (string): Un template HTML. **RÈGLE CRITIQUE : N'utilise QUE les noms de champs (\`fieldName\`) exacts fournis par l'outil \`search_models\` pour le modèle principal ET pour ses modèles liés. N'invente JAMAIS de champs.**
+        - \`template\` (string): Un template au format Handlebars.js. **RÈGLE CRITIQUE : N'utilise QUE les noms de champs (\`fieldName\`) exacts fournis par l'outil \`search_models\` pour le modèle principal ET pour ses modèles liés. N'invente JAMAIS de champs.**
             Pour une liste, tu DOIS utiliser une boucle \`{{#each data}}...{{/each}}\`.
             À l'intérieur d'une boucle, accède aux champs avec \`{{this.fieldName}}\`.
             Pour les champs de type \`string_t\` ou \`richtext_t\`, accède à la traduction avec \`{{this.fieldName.value}}\`.
-            Les champs de type 'relation' sont automatiquement peuplés, tu peux donc accéder à leurs propriétés directement (ex: \`{{this.relationField.name}}\` ou \`{{this.relationField.name.value}}\` si le champ 'name' de la relation est un 'string_t').
+            Les champs de type 'relation' sont automatiquement peuplés (hydratés), tu peux donc accéder à leurs propriétés directement (ex: \`{{this.relationField.name}}\` ou \`{{this.relationField.name.value}}\` si le champ 'name' de la relation est un 'string_t').
         - \`css\` (string): (Optionnel) Du CSS riche et créatif pour styliser le template. N'hésite pas à utiliser des dégradés, des ombres, des animations et des polices de caractères pour un rendu professionnel et attrayant. **Règle absolue : tu dois préfixer TOUS tes sélecteurs avec \`#{{containerId}}\` pour isoler les styles.**
         - \`filter\` (object): (Optionnel) Un filtre pour sélectionner les documents à afficher.
         - \`limit\` (number): (Optionnel, défaut 10) Le nombre maximum de documents à récupérer.
