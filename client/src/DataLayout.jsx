@@ -350,17 +350,14 @@ function DataLayout({refreshUI}) {
                 if (formData[key] !== undefined)
                     obj[key] = formData[key];
             }
-            fd.append("_data", JSON.stringify({...obj, _hash: undefined, _id: undefined}));
-
             Array.from(document.querySelectorAll('.field-file input[data-field]')).forEach(input =>{
                 const fieldName = input.dataset['field'];
-                if (input.files.length > 0) {
-                    Array.from(input.files).forEach((file, index) => {
-                        if( file)
-                            fd.append(`${fieldName}[${index}]`, file);
-                    });
+                for (let x = 0; x < input.files.length; x++) {
+                    fd.append(`${fieldName}[${x}]`, input.files[x]);
                 }
+                obj[fieldName] = null;
             });
+            fd.append("_data", JSON.stringify({...obj, _hash: undefined, _id: undefined}));
             fd.append('model', selectedModel.name);
 
             ///fd.append("files", fd2);

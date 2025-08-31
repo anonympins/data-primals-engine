@@ -673,14 +673,20 @@ export function DataTable({
                                                     })));
                                                     e.preventDefault();
                                                 };
-                                                t = (item[field.name] || []).map((it,i) => {
+
+                                                console.log(item[field.name]);
+                                                if( !Array.isArray(item[field.name]))
+                                                    return <td key={field.name}>
+
+                                                    </td>
+                                                t = (item[field.name] ||[]).map((it,i) => {
 
                                                         const r = `
                                                         <strong>filename</strong> : ${it.filename}<br />
                                                         <strong>guid</strong> : ${it.guid}<br />
                                                         <strong>type</strong> : ${it.mimeType}<br />
                                                         <strong>size</strong> : ${it.size} bytes<br />
-                                                        <strong>timestamp</strong> : ${it.timestamp ? new Date(it.timestamp).toLocaleString(lang) : ''}
+                                                        <strong>timestamp</strong> : ${it.createdAt ? new Date(it.createdAts).toLocaleString(lang) : ''}
                                                     `;
                                                     return <a key={it.guid} href={`/resources/${it.guid}`} target="_blank"
                                                               data-tooltip-id={"tooltipFile"} data-tooltip-html={r}
@@ -715,7 +721,7 @@ export function DataTable({
                                                 <strong>guid</strong> : ${item[field.name].guid}<br />
                                                 <strong>type</strong> : ${item[field.name].mimeType}<br />
                                                 <strong>size</strong> : ${item[field.name].size} bytes<br />
-                                                <strong>timestamp</strong> : ${item[field.name].timestamp.toLocaleString(lang)}
+                                                <strong>timestamp</strong> : ${new Date(item[field.name].createdAt)?.toLocaleString(lang)}
                                             `;
                                             if (['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/x-windows-bmp'].includes(item[field.name].mimeType))
                                                 return <td key={field.name}>{hiddenable(<a

@@ -191,7 +191,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
             case 'array':
                 if (field.itemsType === 'file') {
                     return <div key={field.name}><FileField name={field.name} maxSize={field.maxSize}
-                                                            mimeTypes={field.mimeTypes} value={value} onChange={(files) => {
+                                                            mimeTypes={field.mimeTypes} multiple value={value} onChange={(files) => {
                         handleChange({name: field.name, value: files});
                     }} /></div>;
                 } else {

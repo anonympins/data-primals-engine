@@ -288,7 +288,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             // --- FILE VALIDATIONS (metadata) ---
             it('devrait rejeter un file avec un mimeType non autorisé', async () => {
                 const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await setupTestContext();
-                const mockFile = { name: 'test.txt', type: 'text/plain', size: 1024, guid: 'dummy-txt' };
+                const mockFile = { name: 'test.txt', type: 'text/csv', size: 1024, guid: 'dummy-txt' };
                 const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', fileField: mockFile }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('image/png'); // Ou un message plus spécifique sur mimeTypes
@@ -429,9 +429,9 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             const stats = await fs.stat(filePath);
 
             const uploadedFile = {
-                path: filePath,
-                name: 'test-upload-on-insert.txt',
-                type: 'text/plain',
+                filepath: filePath,
+                originalFilename: 'test-upload-on-insert.txt',
+                mimetype: 'text/plain',
                 size: stats.size,
                 lastModifiedDate: new Date(),
                 hash: 'test-hash' // Optionnel, mais souvent présent
@@ -447,7 +447,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
                 // Le champ 'fileField' est absent ici, il sera fourni dans l'objet 'files'
             };
 
-            const result = await insertData(comprehensiveTestModelDefinition.name, dataWithFile, { fileField: uploadedFile }, currentTestUser, false);
+            const result = await insertData(comprehensiveTestModelDefinition.name, dataWithFile, { 'fileField[0]': uploadedFile }, currentTestUser, false);
 
             expect(result.success, `L'insertion avec un nouveau fichier a échoué: ${result.error}`).toBe(true);
             expect(result.insertedIds).toHaveLength(1);
