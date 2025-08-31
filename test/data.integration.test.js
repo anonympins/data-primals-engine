@@ -288,7 +288,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             // --- FILE VALIDATIONS (metadata) ---
             it('devrait rejeter un file avec un mimeType non autorisé', async () => {
                 const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await setupTestContext();
-                const mockFile = { name: 'test.txt', type: 'text/plain', size: 1024, guid: 'dummy-txt' };
+                const mockFile = { name: 'test.txt', type: 'text/csv', size: 1024, guid: 'dummy-txt' };
                 const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', fileField: mockFile }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('image/png'); // Ou un message plus spécifique sur mimeTypes
