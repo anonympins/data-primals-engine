@@ -43,6 +43,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
     const {me} =  useAuthContext();
     const queryClient = useQueryClient()
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedTag, setSelectedTag] = useLocalStorage('modelList-selectedTag', 'all');
 
     const [currentProfile, setCurrentProfile] = useLocalStorage('profile', null);
     useEffect(() =>{
@@ -51,20 +52,38 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
         }
     }, [me])
 
+    const allTags = useMemo(() => {
+        if (!models) return [];
+        const tagsSet = new Set();
+        models
+            .filter(model => model._user === me?.username) // On ne prend que les tags des modèles de l'utilisateur
+            .forEach(model => {
+                if (model.tags && Array.isArray(model.tags)) {
+                    model.tags.forEach(tag => tagsSet.add(tag));
+                }
+            });
+        return Array.from(tagsSet).sort();
+    }, [models, me?.username]);
+
+    console.log(allTags,"t");
     const filteredModels = useMemo(() => {
         if (!models) return [];
-        if (!searchTerm.trim()) return models.filter(model => model._user === me?.username); // Si la recherche est vide, retourne tous les modèles
+        let results = models.filter(model => model._user === me?.username);
 
-        const lowerSearchTerm = searchTerm.toLowerCase();
-        return models.filter(model => {
-            return model._user === me?.username && model.name && (t('model_' + model.name, model.name).toLowerCase().includes(lowerSearchTerm)) ||
-                (model.fields.some(f =>
-                        (model.icon && model.icon.toLowerCase().includes(lowerSearchTerm)) ||
-                        f.name?.toLowerCase().includes(lowerSearchTerm) ||
-                        f.hint?.toLowerCase().includes(lowerSearchTerm)) ||
-                (model.description && model.description.toLowerCase().includes(lowerSearchTerm)))
-            });
-    }, [models, searchTerm]);
+        // Filtrage par tag
+        if (selectedTag && selectedTag !== 'all') {
+            results = results.filter(model => model.tags?.includes(selectedTag));
+        }
+
+        // Filtrage par terme de recherche
+        if (searchTerm.trim()) {
+            const lowerSearchTerm = searchTerm.toLowerCase();
+            results = results.filter(model =>
+                (t('model_' + model.name, model.name).toLowerCase().includes(lowerSearchTerm)) ||
+                (model.description && model.description.toLowerCase().includes(lowerSearchTerm)));
+        }
+        return results;
+    }, [models, searchTerm, selectedTag, me?.username, t]);
 
     const handleSelectModel = (model) => {
         setSelectedModel(model);
@@ -157,7 +176,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
         <div className="models">
             <h2 className={"field-bg p-2"}><Trans i18nKey="models">Modèles</Trans></h2>
             <div className="model-list-container">
-                <div className="model-list-search-bar-container">
+                <div className="flex flex-no-wrap model-list-search-bar-container">
                     <input
                         type="search"
                         placeholder={t('models.searchPlaceholder', 'Rechercher un modèle...')}
@@ -165,6 +184,18 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="model-list-search-input"
                     />
+                    {allTags.length > 0 && (
+                        <div className="model-list-tag-filter">
+                            <select value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)}>
+                                <option value="all">{t('models.tags.all', 'Tous les tags')}</option>
+                                {allTags.map(tag => (
+                                    <option key={tag} value={tag}>
+                                        {t(`tags.${tag}`, tag.charAt(0).toUpperCase() + tag.slice(1))}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
                 {filteredModels.length > 0 ? (
                     <div className="model-list">

@@ -4,6 +4,7 @@ export const defaultModels = {
         "name": "permission",
         "icon": "FaKey",
         "description": "",
+        "tags": ["system", "security"],
         "fields": [
             {
                 "name": "name",
@@ -20,6 +21,7 @@ export const defaultModels = {
         name: 'role',
         "icon": "FaUserTag",
         "description": "",
+        "tags": ["system", "security"],
         fields: [
             { name: 'name', type: 'string_t', required: true, unique: true, color: '#363636' },
             { name: 'permissions', type: 'relation', multiple: true, relation: 'permission' }
@@ -30,6 +32,7 @@ export const defaultModels = {
         "description": "",
         "icon": "FaUser",
         locked: true,
+        "tags": ["system", "users"],
         fields: [
             { name: 'username', type: 'string', required: true, unique: true, color: '#3C7D08' },
             { name: 'password', type: 'password' },
@@ -53,6 +56,7 @@ export const defaultModels = {
         "icon": "FaUserCheck",
         "name": "userPermission",
         "description": "Gère les exceptions aux permissions des rôles pour un utilisateur (ajouts ou retraits, permanents ou temporaires).",
+        "tags": ["system", "security"],
         "fields": [
             {
                 "name": "user",
@@ -87,6 +91,7 @@ export const defaultModels = {
         name: 'token',
         "icon": "FaKey",
         "description": "",
+        "tags": ["system", "security"],
         fields: [
             { name: 'name', type: 'string' },
             { name: 'value', type: 'password' },
@@ -98,6 +103,7 @@ export const defaultModels = {
         "icon": "FaLanguage",
         locked: true,
         "description": "",
+        "tags": ["system", "i18n"],
         fields: [
             { name: 'lang', type: 'relation', 'relation': 'lang', required: true, color: '#4CACCD' },
             { name: 'key', type: 'string', maxlength: 200, required: true },
@@ -109,6 +115,7 @@ export const defaultModels = {
         "icon": "FaGlobe",
         locked: true,
         "description": "",
+        "tags": ["system", "i18n"],
         fields: [
             { name: 'name', unique: true, type: 'string_t', maxlength: 200, color: '#4CACCD' },
             { name: 'code', type: 'string', maxlength: 5 }
@@ -119,6 +126,7 @@ export const defaultModels = {
         "icon": "FaMoneyBill",
         "description": "",
         locked: true,
+        "tags": ["system", "finance"],
         fields: [
             { name: 'symbol', type: 'string', required: true, color: '#E0E0E0', maxlength: 20, asMain: true },
             { name: 'code', type: 'string', required: true, unique: true, maxlength: 3, asMain: true },
@@ -131,6 +139,7 @@ export const defaultModels = {
         name: 'channel',
         "icon": "FaComments",
         "description": "",
+        "tags": ["system", "messaging"],
         fields: [
             { name: 'name', type: 'string_t', required: true, unique: true }, // Nom du canal (ex: "email", "SMS")
             { name: 'description', type: 'string_t' },
@@ -142,6 +151,7 @@ export const defaultModels = {
         "icon": "FaEnvelope",
         "description": "",
         locked: true,
+        "tags": ["system", "messaging"],
         fields: [
             { name: 'sender', type: 'relation', relation: 'user' }, // Utilisateur émetteur (si applicable, sinon système)
             { name: 'recipient', type: 'relation', relation: 'user' }, // Utilisateur destinataire
@@ -160,6 +170,7 @@ export const defaultModels = {
         name: "alert",
         "icon": "FaBell",
         description: "Définit les règles pour les alertes et les insights automatiques.",
+        "tags": ["system", "automation", "monitoring"],
         fields: [
             { name: "name", type: "string", required: true, asMain: true },
             { name: "targetModel", type: "model", required: true },
@@ -206,6 +217,7 @@ export const defaultModels = {
         name: "env",
         "icon": "FaCog",
         description: "Définit les variables d'environnement qui seront accessibles dans vos scripts et webhooks.",
+        "tags": ["system", "configuration"],
         fields: [
             { name: "name", type: "string", required: true, unique: true, asMain: true },
             { name: "value", type: "string", anonymized: true, hiddenable: true }
@@ -216,6 +228,7 @@ export const defaultModels = {
         "icon": "FaFileAlt",
         locked: true,
         "description": "",
+        "tags": ["cms", "website"],
         fields: [
             { name: 'title', type: 'string_t', required: true, color: '#659DE6' },
             { name: 'path', type: 'string', required: true, unique: true, color: '#DEDEDE' },
@@ -232,6 +245,7 @@ export const defaultModels = {
         name: 'content',
         "icon": "FaFileAlt",
         "description": "",
+        "tags": ["cms", "website"],
         fields: [
             { name: 'lang', type: 'relation', relation: 'lang' },
             { name: 'title', type: 'string_t', required: true },
@@ -263,6 +277,7 @@ export const defaultModels = {
         name: 'resource',
         "icon": "FaBoxOpen",
         "description": "",
+        "tags": ["cms", "assets"],
         fields: [
             { name: "source", type: "url"},
             { name: "file", type: "file"}
@@ -272,6 +287,7 @@ export const defaultModels = {
         name: 'taxonomy',
         "icon": "FaTags",
         "description": "",
+        "tags": ["cms", "organization"],
         fields: [
             { name: 'name', type: 'string_t', required: true, color: '#71A314' },
             { name: 'parent', type: 'relation', relation: 'taxonomy', color: '#233607' }, // Relation vers la taxonomie parente
@@ -286,6 +302,7 @@ export const defaultModels = {
         name: 'contact',
         "icon": "FaAddressBook",
         "description": "",
+        "tags": ["crm", "contacts"],
         fields: [
             { name: 'legalName', type: 'string', asMain: true, color: '#D9D9D9' },
             { name: 'firstName', type: 'string', asMain: true},
@@ -301,6 +318,7 @@ export const defaultModels = {
         "icon": "FaMapMarkerAlt",
         locked: true,
         "description": "",
+        "tags": ["crm", "geolocation"],
         "fields": [
             {
                 "name": "address_1",
@@ -359,6 +377,7 @@ export const defaultModels = {
         name: 'brand',
         "icon": "FaTrademark",
         "description": "",
+        "tags": ["ecommerce", "products"],
         fields: [
             { name: 'name', type: 'string', required: true },
             { name: 'logo', type: 'file' },
@@ -370,6 +389,7 @@ export const defaultModels = {
         name: 'product',
         "icon": "FaShoppingBag",
         "description": "",
+        "tags": ["ecommerce", "products"],
         fields: [
             { name: 'name', type: 'string_t', required: true },
             { name: 'image', type: 'array', itemsType: 'file', mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] },
@@ -388,6 +408,7 @@ export const defaultModels = {
         name: 'productVariant',
         "icon": "FaBox",
         "description": "",
+        "tags": ["ecommerce", "products"],
         fields: [
             { name: 'product', type: 'relation', relation: 'product', required: true },
             { name: 'size', type: 'string' },
@@ -404,6 +425,7 @@ export const defaultModels = {
         name: 'cart',
         "icon": "FaShoppingCart",
         "description": "",
+        "tags": ["ecommerce", "sales"],
         fields: [
             { name: 'user', type: 'relation', relation: 'user', required: true },
             { name: 'items', type: 'relation', relation: 'cartItem', multiple: true },
@@ -416,6 +438,7 @@ export const defaultModels = {
         name: 'cartItem',
         "icon": "FaShoppingBasket",
         "description": "",
+        "tags": ["ecommerce", "sales"],
         fields: [
             { name: 'product', type: 'relation', relation: 'product', required: true },
             { name: 'quantity', type: 'number', required: true, min: 1, step: 1 },
@@ -427,6 +450,7 @@ export const defaultModels = {
         "icon": "FaTicketAlt",
         locked: true,
         "description": "",
+        "tags": ["ecommerce", "sales"],
         fields: [
             { "name": "code", "type": "string", "required": true, "unique": true },
             { "name": "productSelection", "type": "relation", "relation": "product", "required": false, multiple: true },
@@ -445,6 +469,7 @@ export const defaultModels = {
         "icon": "FaClipboardList",
         locked: true,
         "description": "",
+        "tags": ["ecommerce", "sales"],
         fields: [
             { "name": "orderId", "type": "string", "required": true, "unique": true },
             { "name": "orderDate", "type": "datetime" },
@@ -466,6 +491,7 @@ export const defaultModels = {
         name: 'invoice',
         "icon": "FaFileInvoice",
         "description": "",
+        "tags": ["ecommerce", "finance"],
         fields: [
             { name: 'order', type: 'relation', relation: 'order', required: true },
             { name: 'invoiceId', type: 'string', required: true, unique: true },
@@ -479,6 +505,7 @@ export const defaultModels = {
         "icon": "FaCalendarCheck",
         "description": "",
         locked: true,
+        "tags": ["ecommerce", "billing"],
         fields: [
             { name: 'user', type: 'relation', relation: 'user', required: true },
             { name: 'product', type: 'relation', relation: 'product', required: true },
@@ -499,6 +526,7 @@ export const defaultModels = {
         name: 'stock',
         "icon": "FaWarehouse",
         "description": "",
+        "tags": ["ecommerce", "inventory"],
         fields: [
             { name: 'product', type: 'relation', relation: 'product', required: true },
             { name: 'variant', type: 'relation', relation: 'productVariant' }, // Optionnel
@@ -511,6 +539,7 @@ export const defaultModels = {
         name: 'stockAlert',
         "icon": "FaExclamationTriangle",
         "description": "",
+        "tags": ["ecommerce", "inventory", "monitoring"],
         fields: [
             { name: 'user', type: 'relation', relation: 'user', required: true },
             { name: 'stock', type: 'relation', relation: 'stock', required: true },
@@ -522,6 +551,7 @@ export const defaultModels = {
         name: 'shipment',
         "icon": "FaTruck",
         "description": "",
+        "tags": ["ecommerce", "logistics"],
         fields: [
             { name: 'order', type: 'relation', relation: 'order', required: true },
             { name: 'trackingNumber', type: 'string' },
@@ -535,6 +565,7 @@ export const defaultModels = {
         name: 'warehouse',
         "description": "",
         "icon": "FaWarehouse",
+        "tags": ["ecommerce", "inventory"],
         fields: [
             { name: 'name', type: 'string_t', required: true },
             { name: 'location', type: 'relation', relation: 'location' },
@@ -545,6 +576,7 @@ export const defaultModels = {
         name: "return",
         "description": "",
         "icon": "FaUndo",
+        "tags": ["ecommerce", "sales"],
         fields: [
             { "name": "order", "type": "relation", "relation": "order", "required": true },
             { "name": "user", "type": "relation", relation: "user" },
@@ -560,6 +592,7 @@ export const defaultModels = {
         name: 'returnItem',
         "icon": "FaBoxOpen",
         "description": "",
+        "tags": ["ecommerce", "sales"],
         fields: [
             { name: 'return', type: 'relation', relation: 'return', required: true },
             { name: 'product', type: 'relation', relation: 'product', required: true },
@@ -573,6 +606,7 @@ export const defaultModels = {
         "icon": "FaTicketAlt",
         "description": "",
         locked: true,
+        "tags": ["support", "communication"],
         fields: [
             { name: 'user', type: 'relation', relation: 'user', required: true },
             { name: 'order', type: 'relation', relation: 'order' },
@@ -590,6 +624,7 @@ export const defaultModels = {
         name: "review",
         "icon": "FaStar",
         "description": "",
+        "tags": ["ecommerce", "feedback"],
         fields: [
             { "name": "user", "type": "relation", relation: "user" },
             { "name": "product", "type": "relation", relation: 'product' },
@@ -603,6 +638,7 @@ export const defaultModels = {
         name: "device",
         "icon": "FaMobile",
         "description": "",
+        "tags": ["system", "iot"],
         fields: [
             { "name": "location", "type": "relation", relation: 'location' },
             { "name": "lastLocationUpdate", "type": "datetime" }
@@ -613,6 +649,7 @@ export const defaultModels = {
         name: 'accountingExercise',
         "icon": "FaBook",
         description: "Représente un exercice comptable pour une entreprise donnée.",
+        "tags": ["finance", "accounting"],
         fields: [
             { name: 'name', type: 'string_t', 'required': true, unique: true, hint: "Intitulé de l'exercice comptable" },
             { name: 'companyContact', type: 'relation', relation: 'contact', 'required': true, hint: "Désignation de l'entreprise" },
@@ -628,6 +665,7 @@ export const defaultModels = {
         "icon": "FaListAlt",
         description: "Définit une ligne/catégorie dans un document comptable.",
         locked: true, // Probablement géré par l'application, pas par l'utilisateur final
+        "tags": ["finance", "accounting"],
         fields: [
             { name: 'accountingExercise', type: 'relation', required: true, unique: true, relation: "accountingExercise" },
             { name: 'code', type: 'string', required: true, unique: true, hint: "Code unique de la ligne (ex: AA, FB, HA)" },
@@ -657,6 +695,7 @@ export const defaultModels = {
         "name": "accountingEntry",
         "icon": "FaPenAlt",
         "description": "",
+        "tags": ["finance", "accounting"],
         "fields": [
             {
                 "name": "exercise",
@@ -727,6 +766,7 @@ export const defaultModels = {
         "name": "employee",
         "icon": "FaUserTie",
         "description": "",
+        "tags": ["hr", "users"],
         "fields": [
             {
                 "name": "employeeId",
@@ -868,6 +908,7 @@ export const defaultModels = {
         name: 'workflow',
         "icon": "FaProjectDiagram",
         description: "Defines an automated process.",
+        "tags": ["system", "automation"],
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Unique name for the workflow (e.g., 'Order Validation', 'Low Stock Notification')." },
             { name: 'description', type: 'richtext', hint: "Detailed explanation of the workflow's purpose." },
@@ -878,6 +919,7 @@ export const defaultModels = {
         name: 'workflowTrigger',
         "icon": "FaPlay",
         description: "Represents an event that can initiate a workflow.",
+        "tags": ["system", "automation"],
         fields: [
             { name: 'workflow', type: 'relation', relation: 'workflow', required: true, hint: "The workflow this step belongs to." },
             { name: 'name', type: 'string_t', required: true, unique: true, hint: "Descriptive name for the trigger (e.g., 'New Order Created', 'Stock < 5', 'Monday 9 AM Report')." },
@@ -930,6 +972,7 @@ export const defaultModels = {
         name: 'workflowStep',
         "icon": "FaStepForward",
         description: "A single step within a workflow process.",
+        "tags": ["system", "automation"],
         fields: [
             { name: 'workflow', type: 'relation', relation: 'workflow', required: true, hint: "The workflow this step belongs to." },
             { name: 'name', type: 'string_t', hint: "Optional descriptive name for the step (e.g., 'Check Inventory', 'Send Confirmation Email')." },
@@ -944,6 +987,7 @@ export const defaultModels = {
         name: 'workflowAction',
         "icon": "FaCogs",
         description: "Defines a specific operation to be performed by a workflow step.",
+        "tags": ["system", "automation"],
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Name of the action (e.g., 'Update Order Status', 'Send Email', 'Call Payment API')." },
             {
@@ -1044,6 +1088,7 @@ export const defaultModels = {
         name: 'workflowRun',
         "icon": "FaRunning",
         description: "Tracks a specific execution instance of a workflow.",
+        "tags": ["system", "automation", "logs"],
         fields: [
             { name: 'workflow', type: 'relation', relation: 'workflow', required: true, hint: "The workflow definition that was executed." },
             { name: 'contextData', type: 'code', language: 'json',default: {},  hint: "Snapshot of the data or event that triggered this run." },
@@ -1068,6 +1113,7 @@ export const defaultModels = {
         "icon": "FaTachometerAlt",
         description: "Configuration d'un tableau de bord personnalisé par l'utilisateur.", // Description du modèle
         locked: false, // Indique si le modèle peut être modifié par l'utilisateur (false = modifiable)
+        "tags": ["reporting", "analytics"],
         fields: [
             {
                 name: 'name', // Nom du tableau de bord
@@ -1109,6 +1155,7 @@ export const defaultModels = {
         "icon": "FaExchangeAlt",
         description: "Journal des requêtes reçues par l'API.",
         locked: true, // Géré par le système, non modifiable directement par l'utilisateur via l'UI standard
+        "tags": ["system", "logs", "monitoring"],
         fields: [
             {
                 name: 'timestamp',
@@ -1194,6 +1241,7 @@ export const defaultModels = {
         name: 'kpi',
         "icon": "FaChartLine",
         description: "Configuration d'un Indicateur Clé de Performance (KPI)",
+        "tags": ["reporting", "analytics"],
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Nom affiché du KPI (ex: Chiffre d'affaires total)" },
             { name: 'description', type: 'string_t', hint: "Informations complémentaires sur le KPI" },
@@ -1263,6 +1311,7 @@ export const defaultModels = {
         "icon": "FaImages",
         description: "Représente une galerie d'images avec un titre et une description.",
         locked: false, // Les utilisateurs peuvent créer/gérer leurs galeries
+        "tags": ["cms", "assets"],
         fields: [
             {
                 name: 'name',
@@ -1304,6 +1353,7 @@ export const defaultModels = {
         name: 'budget',
         "icon": "FaMoneyCheck",
         description: "Un budget permet de lister vos transactions personnelles.",
+        "tags": ["personal", "finance"],
         fields: [
             {
                 name: 'name',
@@ -1376,6 +1426,7 @@ export const defaultModels = {
         "name": "event",
         "icon": "FaCalendar",
         "description": "A model for managing events, conferences, meetups, and gatherings.",
+        "tags": ["cms", "events"],
         "fields": [
             {
                 "name": "title",
@@ -1489,6 +1540,7 @@ export const defaultModels = {
         name: "endpoint",
         "icon": "FaCode",
         description: "Defines custom API endpoints that execute a server-side script.",
+        "tags": ["system", "api", "automation"],
         fields: [
             {
                 name: "isActive",

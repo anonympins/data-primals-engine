@@ -751,6 +751,7 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
             "tags": ["crm", "sales", "contacts"],
             "models": [
                 "contact",
+                "user",
                 {
                     "name": "deal",
                     "description": "Représente une opportunité commerciale avec un contact ou une entreprise.",
@@ -761,7 +762,8 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "name": "amount", "type": "number"},
                         { "name": "status", "type": "enum", "items": ["Nouveau", "Qualifié", "Proposition", "Gagné", "Perdu"], "default": "Nouveau" },
                         { "name": "closingDate", "type": "date" }
-                    ]
+                    ],
+                    "tags": ["crm", "sales"]
                 },
                 {
                     "name": "interaction",
@@ -773,7 +775,8 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "name": "notes", "type": "richtext" },
                         { "name": "deal", "type": "relation", "relation": "deal" },
                         { "name": "contact", "type": "relation", "relation": "contact" }
-                    ]
+                    ],
+                    "tags": ["crm", "communication"]
                 },
                 {
                     "name": "task",
@@ -785,7 +788,8 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "name": "relatedDeal", "type": "relation", "relation": "deal" },
                         { "name": "assignedTo", "type": "relation", "relation": "user" },
                         { "name": "description", "type": "richtext" }
-                    ]
+                    ],
+                    "tags": ["crm", "organization"]
                 },
                 "workflow",
                 "workflowStep",
