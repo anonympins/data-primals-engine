@@ -12,6 +12,63 @@ let engine, logger;
 export function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
+
+    Event.Listen("OnValidateModelStructure", async (modelStructure) =>{
+
+        const objectKeys = Object.keys(modelStructure);
+
+        if( objectKeys.find(o => !["name", "_user", "icon", "history", "locked", "_id", "description", "maxRequestData", "fields", "tags"].includes(o)) ){
+            throw new Error(i18n.t('api.model.invalidStructure'));
+        }
+
+        // Vérification du type de name
+        if (typeof modelStructure.name !== 'string' || !modelStructure.name) {
+            throw new Error(i18n.t("api.validate.requiredFieldString", ["name"]));
+        }
+
+        // Vérification du type de description
+        if (typeof modelStructure.description !== 'string') {
+            throw new Error(i18n.t("api.validate.fieldString", ["description"]));
+        }
+
+        // Vérification de la présence et du type du tableau fields
+        if (!Array.isArray(modelStructure.fields)) {
+            throw new Error(i18n.t('api.validate.fieldArray', ["fields"]));
+        }
+
+        // Vérification de la présence et du type du tableau fields
+        if (typeof(modelStructure.tags) !== 'undefined' && (!Array.isArray(modelStructure.tags) || modelStructure.tags.some(tag => typeof tag !== 'string'))) {
+            throw new Error(i18n.t('api.validate.fieldArray', ["tags"]));
+            //todo: fieldStringArray trad
+        }
+
+        // Vérification de chaque champ dans le tableau fields
+        for (const field of modelStructure.fields) {
+            validateField(field);
+        }
+
+        if (modelStructure.constraints) {
+            if (!Array.isArray(modelStructure.constraints)) {
+                throw new Error('Model "constraints" property must be an array.');
+            }
+            const fieldNames = new Set(modelStructure.fields.map(f => f.name));
+            for (const constraint of modelStructure.constraints) {
+                if (constraint.type === 'unique') {
+                    if (!constraint.name || !Array.isArray(constraint.keys) || constraint.keys.length === 0) {
+                        throw new Error('Unique constraint must have a "name" and a non-empty "keys" array.');
+                    }
+                    for (const key of constraint.keys) {
+                        if (!fieldNames.has(key)) {
+                            throw new Error(`Constraint key "${key}" in constraint "${constraint.name}" does not exist as a field in the model.`);
+                        }
+                    }
+                }
+            }
+        }
+
+        return true; // La structure du modèle est valide
+    }, "event", "system");
+
 }
 
 export async function validateModelStructure(modelStructure) {

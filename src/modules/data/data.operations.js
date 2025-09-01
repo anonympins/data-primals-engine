@@ -2910,11 +2910,10 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
             ? await modelsCollection.find({_user: username}).toArray()
             : await modelsCollection.find({_user: {$exists: false}}).toArray();
 
-        console.log("EXISTING", existingModels);
-
         const existingModelNames = existingModels.map(m => m.name);
 
-        for (const modelOrName of pack.models) {
+        for (let i = 0; i < pack.models.length; i++) {
+            const modelOrName = pack.models[i];
             try {
                 const modelName = typeof modelOrName === 'string' ? modelOrName : modelOrName?.name;
                 if (!modelName) throw new Error('Model definition in pack is missing a name.');
@@ -2946,8 +2945,8 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
                 await validateModelStructure(preparedModel);
                 await modelsCollection.insertOne(preparedModel);
                 summary.models.installed.push(modelName);
-
             } catch (e) {
+                logger.error(e);
                 const modelName = typeof modelOrName === 'string' ? modelOrName : modelOrName?.name || 'unknown';
                 errors.push(`Failed to install model '${modelName}': ${e.message}`);
                 summary.models.failed.push(modelName);
