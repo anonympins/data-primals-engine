@@ -496,7 +496,7 @@ export function DataTable({
     };
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && !selectionMode && <div className="flex actions flex-left">
+            {advanced && !selectionMode && <div className="flex">
                 {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
                     <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
                 {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {

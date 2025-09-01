@@ -163,6 +163,7 @@ export async function handleRevertToRevisionRequest(req, res) {
  */
 export async function handleGetHistoryRequest(req, res) {
     const { modelName, recordId } = req.params;
+    const { limit = 10, page = 1 } = req.query;
     const user = req.me; // Le middleware d'authentification attache l'utilisateur à req.me
 
     try {
@@ -180,10 +181,23 @@ export async function handleGetHistoryRequest(req, res) {
 
         // 3. Récupération des données depuis la collection 'history'
         const historyCollection = getCollection('history');
-        const historyData = await historyCollection.find({
+        const filter = {
             documentId: new ObjectId(recordId),
             model: modelName
-        }).sort({ version: -1 }).toArray(); // Trier du plus récent au plus ancien
+        };
+
+        const limitInt = parseInt(limit, 10);
+        const pageInt = parseInt(page, 10);
+        const skip = (pageInt - 1) * limitInt;
+
+        const [totalCount, historyData] = await Promise.all([
+            historyCollection.countDocuments(filter),
+            historyCollection.find(filter)
+                .sort({ version: -1 })
+                .skip(skip)
+                .limit(limitInt)
+                .toArray()
+        ]);
 
         // 4. Transformation des données pour correspondre au format attendu par le composant HistoryDialog.jsx
         const opMap = {
@@ -195,8 +209,14 @@ export async function handleGetHistoryRequest(req, res) {
         const transformedHistory = historyData.map(entry => {
             const { documentId, version, operation, timestamp, user: historyUser, snapshot, changes, ...rest } = entry;
 
-            // Le contenu est soit un snapshot complet, soit un objet de changements
-            const dataPayload = snapshot || changes || {};
+            // Pour l'affichage, on priorise les 'changes' pour une mise à jour,
+            // et le 'snapshot' pour une création ou suppression.
+            let dataPayload;
+            if (operation === 'update') {
+                dataPayload = changes || {};
+            } else { // 'create', 'delete'
+                dataPayload = snapshot || {};
+            }
 
             // On exclut les métadonnées du payload pour ne pas les dupliquer
             const { _id: originalDocId, _model, _user, _hash, ...payloadFields } = dataPayload;
@@ -212,7 +232,7 @@ export async function handleGetHistoryRequest(req, res) {
             };
         });
 
-        res.json({ success: true, data: transformedHistory });
+        res.json({ success: true, data: transformedHistory, count: totalCount });
 
     } catch (error) {
         logger.error(`[handleGetHistoryRequest] Error fetching history for model ${modelName}, record ${recordId}:`, error);
@@ -337,9 +357,9 @@ export function onInit(defaultEngine) {
 
                 // Récupérer la dernière version pour incrémenter
                 const lastVersionDoc = await historyCollection.findOne({ documentId: afterDoc._id }, { sort: { version: -1 } });
-                const newVersion = lastVersionDoc ? lastVersionDoc.version + 1 : 2; // v1 est la création
+                const newVersion = lastVersionDoc ? lastVersionDoc.version + 1 : 1; // If no history, this is version 1.
 
-                await historyCollection.insertOne({
+                const historyEntry = {
                     documentId: afterDoc._id,
                     model: modelName,
                     timestamp: new Date(),
@@ -347,8 +367,17 @@ export function onInit(defaultEngine) {
                     version: newVersion,
                     operation: 'update',
                     changes: changes // On stocke uniquement les différences
-                });
-                logger.debug(`History v${newVersion} (update) created for ${modelName} document ${afterDoc._id}`);
+                }
+
+                // If this is the first history record for this document, add a snapshot of the 'before' state.
+                if (!lastVersionDoc) {
+                    historyEntry.snapshot = beforeDoc;
+                    logger.debug(`History v${newVersion} (update with initial snapshot) created for ${modelName} document ${afterDoc._id}`);
+                } else {
+                    logger.debug(`History v${newVersion} (update) created for ${modelName} document ${afterDoc._id}`);
+                }
+
+                await historyCollection.insertOne(historyEntry);
             }
         } catch (error) {
             logger.error("History Module (OnDataEdited) Error:", error);
@@ -419,6 +448,16 @@ export async function getDocumentAtVersion(documentId, modelName, targetVersion)
 
     // 2. Start with this snapshot.
     let reconstructedDoc = lastSnapshotEntry.snapshot;
+
+    // If the snapshot entry itself is an update, apply its changes to the base snapshot.
+    // This handles the case where the first history entry is an update with a snapshot.
+    if (lastSnapshotEntry.operation === 'update' && lastSnapshotEntry.changes) {
+        for (const fieldName in lastSnapshotEntry.changes) {
+            if (Object.prototype.hasOwnProperty.call(lastSnapshotEntry.changes, fieldName)) {
+                reconstructedDoc[fieldName] = lastSnapshotEntry.changes[fieldName].to;
+            }
+        }
+    }
 
     if (lastSnapshotEntry.version === version) {
         return reconstructedDoc;

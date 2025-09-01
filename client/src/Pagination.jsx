@@ -14,9 +14,11 @@ export const Pagination = ({
   page,
   setPage,
   useParam = false,
-    showElementsPerPage=false
+    showElementsPerPage=false,
+    elementsPerPage: propElementsPerPage
 }) => {
-  const { elementsPerPage, setElementsPerPage } = useModelContext();
+  const { elementsPerPage: contextElementsPerPage, setElementsPerPage } = useModelContext();
+  const elementsPerPage = propElementsPerPage || contextElementsPerPage;
   let pageCount = Math.ceil(totalCount / elementsPerPage);
   const [searchParams, setSearchParams] = useSearchParams();
 
