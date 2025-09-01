@@ -342,7 +342,7 @@ This pack sets up an automated ecosystem for your store:
 4.  **Notify Customers:** When a shipment is ready, trigger the "Shipment Notification" workflow to inform the customer.
 5.  **Monitor:** Keep an eye on the "Business Overview" dashboard and the in-app alerts to stay on top of your business.`,
             "tags": ["e-commerce", "business", "store"],
-            "models": ["env", "taxonomy", "product", "productVariant", "brand", "currency", "order", "shipment", "review", "cart", "cartItem", "discount", "workflow", "workflowStep", "workflowAction","workflowRun", "workflowTrigger", "translation", "lang", "kpi", "dashboard", "alert", "return"],
+            "models": ["env", "taxonomy", "product", "productVariant", "brand", "currency", "order", "shipment", "review", "cart", "cartItem", "discount", "workflow", "workflowStep", "workflowAction","workflowRun", "workflowTrigger", "translation", "lang", "kpi", "dashboard", "alert", "return", "user", "permission", "userPermission", "role"],
             "data": {
                 "all": {
                     "env":envSmtp,
