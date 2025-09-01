@@ -154,6 +154,7 @@ ACTIONS FINALES: (Actions qui terminent ta réflexion et renvoient un résultat 
             Pour une liste, tu DOIS utiliser une boucle \`{{#each data}}...{{/each}}\`.
             À l'intérieur d'une boucle, accède aux champs avec \`{{this.fieldName}}\`.
             Pour les champs de type \`string_t\` ou \`richtext_t\`, accède à la traduction avec \`{{this.fieldName.value}}\`.
+            Pour les champs de type \`file\` on utilise <img src="/resources/${this.fieldName.guid}" />
             Les champs de type 'relation' sont automatiquement peuplés (hydratés), tu peux donc accéder à leurs propriétés directement (ex: \`{{this.relationField.name}}\` ou \`{{this.relationField.name.value}}\` si le champ 'name' de la relation est un 'string_t').
         - \`css\` (string): (Optionnel) Du CSS riche et créatif pour styliser le template. N'hésite pas à utiliser des dégradés, des ombres, des animations et des polices de caractères pour un rendu professionnel et attrayant. **Règle absolue : tu dois préfixer TOUS tes sélecteurs avec \`#{{containerId}}\` pour isoler les styles.**
         - \`filter\` (object): (Optionnel) Un filtre pour sélectionner les documents à afficher.
