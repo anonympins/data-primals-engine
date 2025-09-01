@@ -466,7 +466,7 @@ const EmailField = forwardRef(
 
     return (
       <>
-        <div className={cn({ field: true, "field-email": true,
+        <div className={cn({ field: true, "flex": true, "field-email": true,
             'is-validating': fieldValidationState.status === 'validating',
             'is-valid': fieldValidationState.status === 'valid',
             'is-invalid': hasErrors && fieldValidationState.status === 'invalid',

@@ -4,6 +4,7 @@ import * as util from 'node:util';
 import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {isDemoUser, isLocalUser} from "../../data.js";
 import {
+    getHost,
     install,
     maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
@@ -180,7 +181,7 @@ export const validateDataRealtime = async (req, res) => {
                 const query = {
                     _user: user.username,
                     _model: modelName,
-                    [fieldName]: fieldValue,
+                    [fieldName]: fieldValue
                 };
                 
                 if (contextId && isObjectId(contextId)) {
@@ -416,7 +417,7 @@ export async function registerRoutes(defaultEngine){
             res.status(201).json({
                 success: true,
                 message: "Magnet link created successfully!",
-                url: `https://data.primals.net/magnet/${magnetUuid}` // ou votre URL de dev
+                url: `https://${getHost()}/magnet/${magnetUuid}` // ou votre URL de dev
             });
 
         } catch (error) {

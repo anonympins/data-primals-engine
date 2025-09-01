@@ -6,7 +6,7 @@ import {decryptValue, encryptValue} from "../data.js";
 import {loadFromDump, validateRestoreRequest} from "./data/index.js";
 import {Logger} from "../gameObject.js";
 import {middlewareAuthenticator, userInitiator} from "./user.js";
-import {awsDefaultConfig, maxBytesPerSecondThrottleData} from "../constants.js";
+import {awsDefaultConfig, getHost, maxBytesPerSecondThrottleData} from "../constants.js";
 import crypto from "node:crypto";
 import i18n from "../../src/i18n.js";
 import {sendEmail} from "../email.js";
@@ -38,6 +38,7 @@ export const requestRestore = async (user, lang) => {
             content: i18n.t('email.backup.restoreRequest.content', {
                 user: user?.username,
                 fullToken: fullRestoreToken,
+                host: getHost(),
                 modelsToken: modelsRestoreToken
             })
         });
