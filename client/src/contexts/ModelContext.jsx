@@ -216,7 +216,7 @@ export const ModelProvider = ({ children }) => {
             enabled: !!selectedModel,
             onSettled: (data)=>{
                 try {
-                    Object.keys(onSuccessCallbacks?.['api/data/' + model.name + '/paged']).forEach(cb => {
+                    Object.keys(onSuccessCallbacks?.['api/data/' + model.name + '/paged'] || []).forEach(cb => {
                         onSuccessCallbacks?.['api/data/' + model.name + '/paged'][cb](data)
                     });
                 } catch (e){

@@ -6,11 +6,19 @@ import {Trans, useTranslation} from "react-i18next";
 import "./HistoryDialog.scss";
 import {Tooltip} from "react-tooltip";
 import {CodeField} from "./Field.jsx";
+import {Pagination} from "./Pagination.jsx";
+import {useModelContext} from "./contexts/ModelContext.jsx";
 
 // Helper to render values in a friendly way for the summary list
-const renderSummaryValue = (value) => {
+const renderSummaryValue = (value, field, t) => {
     if (value === undefined || value === null) {
         return <i className="value-empty">empty</i>;
+    }
+    if (field?.type === 'string_t' && t) {
+        // For string_t, the stored value is the key. We display the translated value.
+        const key = (typeof value === 'object' && value?.key) ? value.key : String(value);
+        const displayValue = t(key, key);
+        return <span className="value-text" title={key}>{displayValue}</span>;
     }
     if (typeof value === 'boolean') {
         return <code className="value-boolean">{value.toString()}</code>;
@@ -31,16 +39,26 @@ const renderSummaryValue = (value) => {
 // New sub-component for rendering a single field change
 const ChangeDetail = ({ field, from, to }) => {
     const { t } = useTranslation();
+    const { selectedModel } = useModelContext();
+    const fieldObj = selectedModel?.fields?.find(f => f.name === field);
 
-    const tt = typeof(to) === 'object' ? JSON.stringify(to,null,2):to;
-    const f = typeof(from) === 'object' ? JSON.stringify(from,null,2):from;
+    const getTooltipText = (value, field) => {
+        if (field?.type === 'string_t') {
+            const key = (typeof value === 'object' && value?.key) ? value.key : String(value);
+            return t(key, key); // Affiche la valeur traduite dans la tooltip
+        }
+        return (typeof value === 'object' && value !== null) ? JSON.stringify(value, null, 2) : String(value);
+    };
+
+    const tt = getTooltipText(to, fieldObj);
+    const f = getTooltipText(from, fieldObj);
     return (
         <div className="change-detail">
             <strong className="change-field-name" title={field}>{field}</strong>
             <div className="change-values">
-                <div className="value-from" data-tooltip-id={"changeTooltip"} data-tooltip-content={f}>{renderSummaryValue(from)}</div>
+                <div className="value-from" data-tooltip-id={"changeTooltip"} data-tooltip-content={f}>{renderSummaryValue(from, fieldObj, t)}</div>
                 <div className="change-arrow">→</div>
-                <div className="value-to"  data-tooltip-id={"changeTooltip"} data-tooltip-content={tt}>{renderSummaryValue(to)}</div>
+                <div className="value-to"  data-tooltip-id={"changeTooltip"} data-tooltip-content={tt}>{renderSummaryValue(to, fieldObj, t)}</div>
             </div>
         </div>
     );
@@ -49,6 +67,7 @@ const ChangeDetail = ({ field, from, to }) => {
 // Sub-component for displaying a single history entry
 const HistoryEntry = ({ entry, onPreview, isSelected }) => {
     const { t } = useTranslation();
+    const { selectedModel } = useModelContext();
     // The backend has transformed the data for us.
     // _id: history doc id, _v: version, _op: operation type (i,u,d), _rid: original record id
     const { _id, _v, _op, _updatedAt, _user, ...data } = entry; // ...data collects the remaining fields
@@ -83,12 +102,13 @@ const HistoryEntry = ({ entry, onPreview, isSelected }) => {
         }
         return (
             <div className="snapshot-list">
-                {snapshotEntries.map(([key, value]) => (
-                    <div className="snapshot-item" key={key}>
+                {snapshotEntries.map(([key, value]) => {
+                    const fieldObj = selectedModel?.fields?.find(f => f.name === key);
+                    return (<div className="snapshot-item" key={key}>
                         <strong className="snapshot-key" title={key}>{key}:</strong>
-                        <span className="snapshot-value">{renderSummaryValue(value)}</span>
-                    </div>
-                ))}
+                        <span className="snapshot-value">{renderSummaryValue(value, fieldObj, t)}</span>
+                    </div>);
+                })}
             </div>
         );
     };
@@ -118,6 +138,9 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
     const [previewData, setPreviewData] = useState(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [selectedVersion, setSelectedVersion] = useState(null);
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const elementsPerPage = 10;
     const { t, i18n } = useTranslation();
 
     const fetchHistory = useCallback(async () => {
@@ -125,10 +148,12 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
         setLoading(true);
         setError(null);
         try {
-            const query = await fetch(`/api/data/history/${modelName}/${recordId}`);
+            const params = new URLSearchParams({ page, limit: elementsPerPage });
+            const query = await fetch(`/api/data/history/${modelName}/${recordId}?${params.toString()}`);
             const response = await query.json();
             if (response.success) {
                 setHistory(response.data);
+                setTotalCount(response.count || 0);
             } else {
                 setError(response.error || i18n.t("history.error", "Could not load history."));
             }
@@ -138,7 +163,7 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
         } finally {
             setLoading(false);
         }
-    }, [modelName, recordId, i18n]);
+    }, [modelName, recordId, i18n, page, elementsPerPage]);
 
     useEffect(() => {
         fetchHistory();
@@ -208,7 +233,7 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
                 <div className="history-list-container">
                     {loading && <div><Trans i18nKey={"history.loading"}>Chargement de l'historique..</Trans></div>}
                     {error && <div className="error-message">{error}</div>}
-                    {!loading && !error && (
+                    {!loading && !error && (<>
                         <div className="history-list">
                             {history.length > 0 ? (
                                 history.map(entry =>
@@ -222,7 +247,15 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
                                 <div><Trans i18nKey={"history.noHistory"}>Aucun historique trouvé pour cet enregistrement.</Trans></div>
                             )}
                         </div>
-                    )}
+                        {totalCount > elementsPerPage && <Pagination
+                            totalCount={totalCount}
+                            page={page}
+                            setPage={setPage}
+                            elementsPerPage={elementsPerPage}
+                            visibleItemsCount={5}
+                            hasPreviousNext={true}
+                        />}
+                    </>)}
                 </div>
                 <div className="history-preview-container">
                     <div className="preview-header">

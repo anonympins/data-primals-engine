@@ -187,7 +187,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
 
                                 return (
                                     <li data-testid={'model_'+model.name} className={`${model.name === selectedModel?.name ? 'active' : ''}`}
-                                        key={'modelist' + model.name} onClick={() => generatedModels.some(g => g.name === model.name) ? onEditModel(model) : onModelSelect(model)}>
+                                        key={'modellist' + model.name} onClick={() => generatedModels.some(g => g.name === model.name) ? onEditModel(model) : onModelSelect(model)}>
                                         <div className="flex flex-center flex-fw">
                                             <div
                                                 className="flex flex-1 flex-no-wrap break-word gap-2">

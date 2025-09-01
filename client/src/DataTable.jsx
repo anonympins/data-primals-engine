@@ -160,7 +160,7 @@ const Header = ({
             </th>;
 
             totalCol++;
-            return <FilterField advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
+            return <FilterField key={"datatable-th-"+model.name+":"+field.name} advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
                                 model={model} field={field} active={filterActive}
                                 onChangeFilterValue={onChangeFilterValue}/>;
         })}
@@ -496,7 +496,7 @@ export function DataTable({
     };
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && !selectionMode && <div className="flex actions flex-left">
+            {advanced && !selectionMode && <div className="flex">
                 {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
                     <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
                 {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {

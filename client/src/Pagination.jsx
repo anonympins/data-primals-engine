@@ -14,9 +14,11 @@ export const Pagination = ({
   page,
   setPage,
   useParam = false,
-    showElementsPerPage=false
+    showElementsPerPage=false,
+    elementsPerPage: propElementsPerPage
 }) => {
-  const { elementsPerPage, setElementsPerPage } = useModelContext();
+  const { elementsPerPage: contextElementsPerPage, setElementsPerPage } = useModelContext();
+  const elementsPerPage = propElementsPerPage || contextElementsPerPage;
   let pageCount = Math.ceil(totalCount / elementsPerPage);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -109,7 +111,7 @@ export const Pagination = ({
                   (_, i) => page + i - parseInt(visibleItemsCount / 2, 10),
               ).map((p, i) => {
                 return p >= 1 && p <= pageCount ? (
-                    <Button disabled={p === page} onClick={() => handleChange(p)}>
+                    <Button key={"paginate-"+i} disabled={p === page} onClick={() => handleChange(p)}>
                       {p}
                     </Button>
                 ) : (

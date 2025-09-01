@@ -26,6 +26,47 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
     const { t, i18n } = tr;
     const model = models?.find(f => f.name === modelName && f._user === me?.username);
 
+    const { isLoading: isLoadingInitialData } = useQuery(
+        // Clé de requête unique pour les données initiales de cette relation
+        ['initialRelationData', modelName, Array.isArray(value) ? value.join(',') : value],
+        async () => {
+            // Détermine les IDs qu'il faut réellement aller chercher
+            const idsToFetch = (Array.isArray(value) ? value : (value ? [value] : []))
+                .filter(id =>
+                    id && // S'assurer que l'ID n'est pas nul/undefined
+                    !history.some(h => h._id === id) &&
+                    !dataByModel[modelName]?.some(d => d._id === id)
+                );
+
+            if (!model || idsToFetch.length === 0) {
+                return []; // Rien à charger
+            }
+
+            const params = new URLSearchParams();
+            params.append('model', model.name);
+            params.append('ids', idsToFetch.join(','));
+            params.append('depth', '1'); // On a besoin des données complètes
+
+            const response = await fetch(`/api/data/search?${params.toString()}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filter: {} }) // Le filtre peut être vide quand on cherche par IDs
+            });
+
+            if (!response.ok) throw new Error('Network response was not ok for initial relation data.');
+            const result = await response.json();
+            return result.data || [];
+        },
+        {
+            enabled: !!model && !!value && (Array.isArray(value) ? value.length > 0 : true),
+            onSuccess: (fetchedData) => {
+                if (fetchedData?.length > 0) {
+                    // Ajoute les données fraîchement récupérées à l'historique local pour l'affichage
+                    setHistory(current => [...current, ...fetchedData.filter(fd => !current.some(c => c._id === fd._id))]);
+                }
+            }
+        }
+    );
     // Fetch related data based on search value
     const { data: results = [], isError, refetch } = useQuery(
         // La clé de la requête inclut maintenant le filtre de relation pour une mise en cache correcte
@@ -135,7 +176,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
 
     const updateValue = () => {
         if (!field.multiple) {
-            const v = history.find(d => d._id === value);
+            const v = history.find(d => d._id === value) || dataByModel[modelName]?.find(d => d._id === value);
             if (v) {
                 setSearchValue(getDataAsString(model, v, tr, models) || '');
                 onChange({ name, value });
@@ -290,6 +331,9 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
                 <div ref={ref} tabIndex={0} className="selected-values flex flex-border flex-row flex-no-gap flex-start flex-1">
                     <Draggable items={selectedValues} renderItem={(id,i) =>{
                         const val = history.find(f => f._id === id) || dataByModel[modelName]?.find(f => f._id === id);
+                        if (isLoadingInitialData && !val) {
+                            return <div className="flex selected-value-loading" key={id}>...</div>;
+                        }
                         if (!val) {
                             return <div className="flex" key={id}>data non chargée<FaTrash onClick={() => handleRemove(id)} /></div>;
                         }
