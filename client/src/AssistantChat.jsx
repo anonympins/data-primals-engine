@@ -218,7 +218,7 @@ const AssistantChat = ({ config }) => {
     // Si le chat est fermé, on affiche juste le bouton flottant
     if (!isOpen) {
         return (
-            <button className="assistant-fab" onClick={() => setIsOpen(true)} title={t('assistant.open', "Ouvrir l'assistant Prior")}>
+            <button data-tooltip-id={"tooltipField"} data-tooltip-html={t("assistant.tooltip", "<b>Prior</b>, votre assistant en gestion des données")} className="fab assistant-fab" onClick={() => setIsOpen(true)} title={t('assistant.open', "Ouvrir l'assistant Prior")}>
                 <FaRobot />
             </button>
         );

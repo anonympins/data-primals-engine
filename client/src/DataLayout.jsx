@@ -9,8 +9,10 @@ import {Pagination} from "./Pagination.jsx";
 import {Event} from "../../src/events.js";
 
 import {
-    FaEye,
-    FaFilter, FaInfo,
+    FaBook,
+    FaBoxOpen, FaDatabase,
+    FaEye, FaFileImport,
+    FaFilter, FaInfo, FaPlus,
 } from "react-icons/fa";
 import {getDefaultForType, getUserHash, getUserId} from "../../src/data.js";
 import {Trans, useTranslation} from "react-i18next";
@@ -36,7 +38,12 @@ import CalendarView from "./CalendarView.jsx";
 import {useLocation, useParams, useSearchParams} from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import {Tooltip} from "react-tooltip";
+import PackGallery from "./PackGallery.jsx";
+import TutorialsMenu from "./TutorialsMenu.jsx";
+import {FaBookAtlas} from "react-icons/fa6";
+import {AssistantChat, NotificationList} from "../index.js";
 
+import "./DataLayout.scss"
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
     <div className="p-4 border border-dashed rounded-md mt-4 text-center bg-gray-50">
@@ -54,6 +61,7 @@ function DataLayout({refreshUI}) {
 
     const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
     const [isKanbanModalOpen, setKanbanModalOpen] = useState(false);
+    const [showPackGallery, setShowPackGallery] = useState(false);
 
     const { triggerTutorialCheck } = useTutorials();
     const { t, i18n } = useTranslation();
@@ -88,6 +96,7 @@ function DataLayout({refreshUI}) {
     const mainPartRef = useRef();
     const modelCreatorRef = useRef();
 
+    const [tutorialDialogVisible, setTutorialDialogVisible] = useState(false);
     const [importModalVisible, setImportModalVisible] = useState(false);
     const [editionMode, setEditionMode] = useState(false);
     const [showDataEditor, setDataEditorVisible] = useState(false);
@@ -243,11 +252,6 @@ function DataLayout({refreshUI}) {
                     onDuplicateData={(data) => {
                         mainPartRef.current.scrollIntoView({behavior: "smooth"});
                         handleAddData(selectedModel, data);
-                    }}
-                    onShowAPI={() => {
-                        setAPIInfoVisible(true);
-                        setDataEditorVisible(false);
-                        setEditionMode(false);
                     }}
                     onEdit={(item) => {
                         mainPartRef.current.scrollIntoView({behavior: "smooth"});
@@ -549,7 +553,7 @@ function DataLayout({refreshUI}) {
 
 
     const [currentProfile, setCurrentProfile] = useLocalStorage('profile', null);
-    const {isTourOpen, setIsTourOpen, currentTourSteps, allTourSteps, setTourStepIndex, setCurrentTourSteps, currentTour,setCurrentTour, addLaunchedTour} = useUI();
+    const {isTourOpen, setIsTourOpen, currentTourSteps, allTourSteps, setTourStepIndex, setCurrentTourSteps, currentTour,setCurrentTour, addLaunchedTour, assistantConfig, setAssistantConfig} = useUI();
 
     const startTour = () => {
         setIsTourOpen(true);
@@ -607,6 +611,9 @@ function DataLayout({refreshUI}) {
         }
     }, [selectedModel, allTourSteps]); // Ajout de allTourSteps aux dépendances pour la bonne pratique
 
+    const handleShowTutorialMenu = () => {
+        setTutorialDialogVisible(!tutorialDialogVisible);
+    }
     return (
         <>
             <Tooltip id="tooltipField" />
@@ -617,6 +624,39 @@ function DataLayout({refreshUI}) {
                 isOpen={isTourOpen}
                 onClose={closeTour}
             />)}</>
+            <div className="flex actions">
+
+                {<ViewSwitcher
+                    currentView={currentView}
+                    onViewChange={handleSwitchView}
+                    configuredViews={configuredViews}
+                    onConfigureView={handleConfigureCurrentView}
+                />}
+                <Button onClick={() => {
+                    setImportModalVisible(true);
+                }} className="btn tourStep-import-model"><FaFileImport/><Trans
+                    i18nKey="btns.importModels">Modèles</Trans></Button>
+                <Button onClick={() => {
+                    setShowPackGallery(true);
+                }} className="btn tourStep-import-pack"><FaBoxOpen/><Trans
+                    i18nKey="btns.importPacks">Packs</Trans></Button>
+                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><Trans
+                    i18nKey="btns.showTutos">Tutoriels</Trans></Button>
+
+                <DialogProvider>
+                    {tutorialDialogVisible && (
+                        <Dialog isClosable={true} isModal={true} onClose={() => setTutorialDialogVisible(false)}>
+                            <TutorialsMenu />
+                        </Dialog>
+                    )}
+                </DialogProvider>
+                <Button className="btn" onClick={() => {
+                    setAPIInfoVisible(true);
+                    setDataEditorVisible(false);
+                    setEditionMode(false);
+                }}><FaBook/> {t('btns.api', 'API')}</Button>
+            </div>
+
             <div className="datalayout flex flex-start">
                 <ModelList tourSteps={currentTourSteps}
                            onAPIInfo={(model) => {
@@ -659,6 +699,8 @@ function DataLayout({refreshUI}) {
                         content_type: "select_model",
                         content_id: model.name
                     });
+                           }} onImportPack={() => {
+                               setShowPackGallery(true);
                 }} onNewData={(model) => {
                     mainPartRef.current.scrollIntoView({behavior: 'smooth'});
                     handleAddData(model);
@@ -689,13 +731,7 @@ function DataLayout({refreshUI}) {
                 {selectedModel && showAPIInfo && <APIInfo/>}
                 {selectedModel && !showAPIInfo && !generatedModels.some(g => g.name === selectedModel?.name) && (<div className="datas">
 
-                    {<ViewSwitcher
-                        currentView={currentView}
-                        onViewChange={handleSwitchView}
-                        configuredViews={configuredViews}
-                        onConfigureView={handleConfigureCurrentView}
-                    />}
-                    <h2>{t(`model_${selectedModel?.name}`, selectedModel?.name)} <>({countByModel?.[selectedModel?.name]})</></h2>
+                    <h2 className={"field-bg p-2"}>{t(`model_${selectedModel?.name}`, selectedModel?.name)} <>({countByModel?.[selectedModel?.name]})</></h2>
 
 
                     {renderCurrentView()}
@@ -723,12 +759,27 @@ function DataLayout({refreshUI}) {
                 </div>)}
             </div>
 
+            <div className={"fabs"}>
+                <Button data-tooltip-id={"tooltipField"} data-tooltip-html={t("btns.addData", "Ajouter une donnée au modèle")} className="fab plus-fab" onClick={() => {
+                    mainPartRef.current.scrollIntoView({behavior: "smooth"});
+                    handleAddData(selectedModel);
+                }}><FaPlus/></Button>
+                {me && <AssistantChat config={assistantConfig} />}
+                <NotificationList />
+            </div>
+
             <DialogProvider>
                 {importModalVisible && (<Dialog onClose={() => {
                     setImportModalVisible(false)
                 }} isModal={true} isClosable={true}>
                     <ModelImporter onImport={onImportModels}/>
                 </Dialog>)}
+
+                {showPackGallery && (
+                    <Dialog isClosable={true} isModal={true} onClose={() => setShowPackGallery(false)}>
+                        <PackGallery />
+                    </Dialog>
+                )}
 
                 <CalendarConfigModal
                     isOpen={isCalendarModalOpen}

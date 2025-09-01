@@ -32,6 +32,7 @@ export const UIProvider = ({ children }) => {
         });
     }, [setLaunchedTours]); // setLaunchedTours from useLocalStorage is stable
 
+    const [assistantConfig, setAssistantConfig] = useState(null);
     const [isLocked, setLocked] = useState(false);
     const contextValue = useMemo(() => ({
         isLocked,
@@ -43,7 +44,8 @@ export const UIProvider = ({ children }) => {
         tourStepIndex, setTourStepIndex,
         chartToAdd, setChartToAdd,
         flexViewToAdd, setFlexViewToAdd,
-        htmlViewToAdd, setHtmlViewToAdd
+        htmlViewToAdd, setHtmlViewToAdd,
+        assistantConfig, setAssistantConfig
     }), [isLocked,
         setLocked,
         currentTourSteps, setCurrentTourSteps,
@@ -51,7 +53,8 @@ export const UIProvider = ({ children }) => {
         currentTour, setCurrentTour,
         isTourOpen, setIsTourOpen, setAllTourSteps, allTourSteps,
         tourStepIndex, setTourStepIndex, addLaunchedTour, chartToAdd, setChartToAdd,
-        flexViewToAdd, setFlexViewToAdd, htmlViewToAdd, setHtmlViewToAdd
+        flexViewToAdd, setFlexViewToAdd, htmlViewToAdd, setHtmlViewToAdd,
+        assistantConfig, setAssistantConfig
     ]);
 
     return (

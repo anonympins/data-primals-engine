@@ -50,10 +50,8 @@ import {Zoom} from "yet-another-react-lightbox/plugins";
 import Lightbox from "yet-another-react-lightbox";
 
 import "./DataTable.scss"
-import useLocalStorage from "./hooks/useLocalStorage.js";
 import TutorialsMenu from "../src/TutorialsMenu.jsx";
 import {useTutorials} from "./hooks/useTutorials.jsx";
-import PackGallery from "./PackGallery.jsx";
 import {HiddenableCell} from "./HiddenableCell.jsx";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import {pagedFilterToMongoConds} from "./filter.js";
@@ -288,20 +286,9 @@ export function DataTable({
     const isDataLoaded = true;
     const [importVisible, setImportVisible] = useState(false);
     const [filterActive, setFilterActive] = useState(false)
-
-    const [showPackGallery, setShowPackGallery] = useState(false);
     const [showExportDialog, setExportDialogVisible] = useState(false);
 
-
     const [selectedRow, setSelectedRow] = useState(null);
-
-    const [showAddPack, setAddPackVisible] = useState(false);
-    const handleAddPack = () => {
-        setAddPackVisible(!showAddPack);
-    }
-    const handleShowPacks = () => {
-        setShowPackGallery(true);
-    };
     const handleDelete = async (item) => {
         if (model && item && item._id) { // Assurez-vous d'avoir un identifiant unique pour chaque élément
             try {
@@ -467,13 +454,9 @@ export function DataTable({
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [lightboxOpened, setLightboxOpened] = useState(false);
     const [lightboxSlides, setLightboxSlides] = useState([]);
-    const [tutorialDialogVisible, setTutorialDialogVisible] = useState(false);
 
     const [newPackName, setNewPackName] = useState(''); //  pack
 
-    const handleShowTutorialMenu = () => {
-        setTutorialDialogVisible(!tutorialDialogVisible);
-    }
 
     if (!model)
         return <></>;
@@ -494,38 +477,23 @@ export function DataTable({
 
         onDuplicateData(dataToDuplicate);
     };
+
+    const desc = t(`model_description_${selectedModel.name}`, selectedModel.description);
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && !selectionMode && <div className="flex">
+            {advanced && !selectionMode && <div className="flex actions">
                 {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
                     <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
                 {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {
                     nav('/user/'+getUserHash(me)+'/dashboards');
                 }}><FaEye /> Tableaux de bord</Button> }
-                <p className="model-desc hint">{t(`model_description_${selectedModel.name}`, selectedModel.description)}</p>
-                <Button onClick={() => onAddData(model)}><FaPlus/><Trans i18nKey="btns.addData">Ajouter une
-                    donnée</Trans></Button>
+                {desc && <p className="model-desc hint">{desc}</p>}
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
                     i18nKey="btns.import">Importer</Trans></Button>
-                <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans
-                    i18nKey="btns.export">Exporter</Trans></Button>
-                <Button className="tourStep-import-datapack" onClick={handleShowPacks} title={t("btns.addPack")}><FaPlus/><Trans
-                    i18nKey="btns.addPack">Packs...</Trans></Button>
-
-                <Button className={"tourStep-tutorials " + (/^demo[0-9]{1,2}$/.test(me.username) ? "btn-primary" : "btn")} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaPlus/><Trans
-                    i18nKey="btns.showTutos">Tutoriels</Trans></Button>
+                <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans i18nKey="btns.export">Exporter</Trans></Button>
                 {!/^demo[0-9]{1,2}$/.test(me.username) && (<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
                     i18nKey="btns.backup">Backup</Trans></Button>)}
-                <DialogProvider>
-                    {tutorialDialogVisible && (
-                        <Dialog isClosable={true} isModal={true} onClose={() => setTutorialDialogVisible(false)}>
-                            <TutorialsMenu />
-                        </Dialog>
-                    )}
-                </DialogProvider>
-                <Button className="btn btn-primary" onClick={() => {
-                    onShowAPI(selectedModel);
-                }}><FaBook/> {t('btns.api', 'API')}</Button>
+
             </div>}
             <div className={"table-wrapper"}>
                 <Tooltip id={"tooltipFile"} clickable={true} />
@@ -847,11 +815,6 @@ export function DataTable({
                     }} availableModels={models} currentModel={selectedModel?.name} hasSelection={true} onExport={(data)=>{
                         exportMutation(data);
                     }} />
-                    {showPackGallery && (
-                        <Dialog isClosable={true} isModal={true} onClose={() => setShowPackGallery(false)}>
-                            <PackGallery />
-                        </Dialog>
-                    )}
                 </DialogProvider>
             </div>
         </div>

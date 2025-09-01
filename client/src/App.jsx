@@ -90,9 +90,7 @@ function Layout ({header, routes, body, footer,refreshUI}) {
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     const {models= [], setGeneratedModels } = useModelContext();
     const { me, setMe } = useAuthContext();
-    // 2. NOUVEAU : État pour stocker la configuration de l'assistant
-    const [assistantConfig, setAssistantConfig] = useState(null);
-
+    const { assistantConfig, setAssistantConfig} = useUI();
     const promotionalMessages = [
         { text: t('promo.rotation.6') },
         { text: t('promo.rotation.1') },
@@ -312,7 +310,6 @@ function Layout ({header, routes, body, footer,refreshUI}) {
     const myInputRef = useRef(null);
 
     return <div className={['ar', 'fa'].includes(lang)? 'rtl' : 'ltr'}>
-        <NotificationList />
         <><Helmet><title>
             {t('seo.title', seoTitle)}</title></Helmet></>
         <Routes>
@@ -408,7 +405,6 @@ function Layout ({header, routes, body, footer,refreshUI}) {
         <footer className="flex flex-centered">
             {footer}
         </footer>
-        {me && <AssistantChat config={assistantConfig} />}
     </div>;
 }
 
