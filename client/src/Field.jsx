@@ -1594,7 +1594,7 @@ export const FilterField = ({advanced,model, reversed, field, active, onChangeFi
         }
         return <FaPencil />
     }
-    return <th key={field.name} className={`form filter-field`} style={{backgroundColor: field.color, color: !field.color ||isLightColor(field.color) ? 'black': "white"}}>
+    return <th key={`filter_${field.name}`} className={`form filter-field`} style={{backgroundColor: field.color, color: !field.color ||isLightColor(field.color) ? 'black': "white"}}>
         <div className="flex flex-centered flex-mini-gap flex-row">
             <div className="flex flex-1 flex-mini-gap flex-no-wrap">
                 {renderIconFromType(field)}

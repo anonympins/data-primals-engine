@@ -111,7 +111,7 @@ export const Pagination = ({
                   (_, i) => page + i - parseInt(visibleItemsCount / 2, 10),
               ).map((p, i) => {
                 return p >= 1 && p <= pageCount ? (
-                    <Button disabled={p === page} onClick={() => handleChange(p)}>
+                    <Button key={"paginate-"+i} disabled={p === page} onClick={() => handleChange(p)}>
                       {p}
                     </Button>
                 ) : (

@@ -160,7 +160,7 @@ const Header = ({
             </th>;
 
             totalCol++;
-            return <FilterField advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
+            return <FilterField key={"datatable-th-"+model.name+":"+field.name} advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
                                 model={model} field={field} active={filterActive}
                                 onChangeFilterValue={onChangeFilterValue}/>;
         })}
