@@ -1,6 +1,9 @@
 // __tests__/data.integration.test.js
 import { ObjectId } from 'mongodb';
 import {vi, expect, describe, it, afterEach,beforeEach, beforeAll, afterAll} from 'vitest';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
 import { Config } from '../src/config.js';
 import {
     insertData,
@@ -17,6 +20,7 @@ import {
 import {getRandom} from "../src/core.js";
 import {generateUniqueName, initEngine} from "../src/setenv.js";
 import {purgeData} from "../src/modules/data/data.history.js";
+import {removeFile} from "../src/modules/file.js";
 
 let testModelsColInstance;
 let testDatasColInstance;
@@ -88,7 +92,7 @@ async function setupTestContext() {
             {name: 'relationSingle', type: 'relation', relation: currentRelatedModelName},
             {name: 'relationMultiple', type: 'relation', relation: currentRelatedModelName, multiple: true},
             // File (metadata validation)
-            {name: 'fileField', type: 'file', mimeTypes: ['image/png', 'application/pdf'], maxSize: 1024 * 10}, // 10KB
+            {name: 'fileField', type: 'file', mimeTypes: ['image/png', 'application/pdf', 'text/plain'], maxSize: 1024 * 10}, // 10KB
             // Color
             {name: 'colorField', type: 'color'},
             // Code
@@ -285,7 +289,7 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             // --- FILE VALIDATIONS (metadata) ---
             it('devrait rejeter un file avec un mimeType non autorisé', async () => {
                 const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await setupTestContext();
-                const mockFile = { name: 'test.txt', type: 'text/plain', size: 1024, guid: 'dummy-txt' };
+                const mockFile = { name: 'test.txt', type: 'text/csv', size: 1024, guid: 'dummy-txt' };
                 const result = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'req', fileField: mockFile }, {}, currentTestUser, false);
                 expect(result.success).toBe(false);
                 expect(result.error).toContain('image/png'); // Ou un message plus spécifique sur mimeTypes
@@ -414,6 +418,57 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
 
             await purge();
         }, 10000); // Augmenter le timeout si nécessaire
+
+        it('devrait insérer des données avec un nouveau fichier et le sauvegarder', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, purge } = await setupTestContext();
+
+            // --- Simuler un vrai fichier uploadé comme le ferait formidable/multer ---
+            const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'data-primals-test-'));
+            const filePath = path.join(tmpDir, 'test-upload.txt');
+            const fileContent = 'Ceci est un vrai test de fichier binaire.';
+            await fs.writeFile(filePath, fileContent);
+            const stats = await fs.stat(filePath);
+
+            const uploadedFile = {
+                filepath: filePath,
+                originalFilename: 'test-upload-on-insert.txt',
+                mimetype: 'text/plain',
+                size: stats.size,
+                lastModifiedDate: new Date(),
+                hash: 'test-hash' // Optionnel, mais souvent présent
+            };
+            // --- Fin de la simulation ---
+
+            const dataWithFile = {
+                stringRequired: 'DocWithNewFile',
+                stringUnique: 'UniqueFileValueForInsert',
+                passwordField: 'filePass',
+                enumField: 'gamma',
+                number: 123
+                // Le champ 'fileField' est absent ici, il sera fourni dans l'objet 'files'
+            };
+
+            const result = await insertData(comprehensiveTestModelDefinition.name, dataWithFile, { 'fileField[0]': uploadedFile }, currentTestUser, false);
+
+            expect(result.success, `L'insertion avec un nouveau fichier a échoué: ${result.error}`).toBe(true);
+            expect(result.insertedIds).toHaveLength(1);
+
+            const query = await searchData( { model: comprehensiveTestModelDefinition.name, filter: { _id: new ObjectId(result.insertedIds[0])}}, currentTestUser);
+            const insertedDoc = query.data[0];
+            expect(insertedDoc).not.toBeNull();
+            console.log(insertedDoc.fileField)
+            expect(insertedDoc.fileField).toBeInstanceOf(Object);
+            expect(insertedDoc.fileField.newFile).toBeUndefined(); // La propriété 'newFile' était une hallucination
+            expect(insertedDoc.fileField._id).toBeDefined();
+            expect(insertedDoc.fileField.name).toBe('test-upload-on-insert.txt');
+            expect(insertedDoc.fileField.guid).toBeDefined();
+
+            await removeFile(insertedDoc.fileField.guid, currentTestUser);
+
+            // Nettoyage du répertoire et fichier temporaire
+            await fs.rm(tmpDir, { recursive: true, force: true });
+            await purge();
+        });
     });
 
     describe('editData avec comprehensiveTestModel', async () => {

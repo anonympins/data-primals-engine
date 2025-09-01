@@ -50,10 +50,8 @@ import {Zoom} from "yet-another-react-lightbox/plugins";
 import Lightbox from "yet-another-react-lightbox";
 
 import "./DataTable.scss"
-import useLocalStorage from "./hooks/useLocalStorage.js";
 import TutorialsMenu from "../src/TutorialsMenu.jsx";
 import {useTutorials} from "./hooks/useTutorials.jsx";
-import PackGallery from "./PackGallery.jsx";
 import {HiddenableCell} from "./HiddenableCell.jsx";
 import ConditionBuilder from "./ConditionBuilder.jsx";
 import {pagedFilterToMongoConds} from "./filter.js";
@@ -73,7 +71,8 @@ const Header = ({
                     onChangeFilterValue,
                     setFilterValues,
                     filterValues,
-                    advanced=true
+                    advanced=true,
+                    selectionMode=false
                 }) => {
 
     const {t} = useTranslation()
@@ -111,8 +110,8 @@ const Header = ({
         {advanced && (<th className={"mini"}>
             <div className="flex flex-row">
 
-                <Button onClick={handleFilter} className={iconFilterActive ? ' active' : ''}><FaFilter/></Button>
-                {filterActive && <Button onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
+                <Button type={"button"} onClick={handleFilter} className={iconFilterActive ? ' active' : ''}><FaFilter/></Button>
+                {filterActive && <Button type={"button"} onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
                 <CheckboxField checkbox={true} checked={checkedItems?.length === data.length} onChange={e => {
                     if (checkedItems?.length === data.length) {
                         setCheckedItems([]);
@@ -132,7 +131,7 @@ const Header = ({
                                 setPagedFilters(pagedFilters => ({
                                     ...pagedFilters,
                                     [model.name]: c || pagedFilters[model.name] || {} }));
-                            }} initialValue={{ $and: pagedFilterToMongoConds(pagedFilters, model)}} models={models} model={model.name} checkedItems={checkedItems} setCheckedItems={setCheckedItems} data={data} filterActive={filterActive} onChangeFilterValue={onChangeFilterValue} setFilterValues={setFilterValues}/>
+                            }} initialValue={{ $and: pagedFilterToMongoConds(pagedFilters, model)}} models={models} model={model} checkedItems={checkedItems} setCheckedItems={setCheckedItems} data={data} filterActive={filterActive} onChangeFilterValue={onChangeFilterValue} setFilterValues={setFilterValues}/>
                             <Button onClick={() =>{
                                 setPagedFilters(pagedFilters => ({
                                     ...pagedFilters,
@@ -159,11 +158,11 @@ const Header = ({
             </th>;
 
             totalCol++;
-            return <FilterField advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
+            return <FilterField key={"datatable-th-"+model.name+":"+field.name} advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
                                 model={model} field={field} active={filterActive}
                                 onChangeFilterValue={onChangeFilterValue}/>;
         })}
-        {advanced && (<th><Trans i18nKey="actions">Actions</Trans>
+        {advanced && !selectionMode && (<th><Trans i18nKey="actions">Actions</Trans>
             {Object.keys(pagedFilters[model.name] || {})
                 .filter(f=> Object.keys(pagedFilters[model.name]?.[f] || {}).length > 0).length > 0  && <div>
                 <button onClick={() => {
@@ -261,9 +260,9 @@ export function DataTable({
                               onShowAPI,
                               filterValues,
                               setFilterValues = () => {},
-                              data: propData, // NOUVEAU: Accepter les données via les props
-                                advanced=true
-
+                              data: propData,
+                              advanced= true,
+                              selectionMode= false
                           }) {
     const {
         models,
@@ -287,20 +286,9 @@ export function DataTable({
     const isDataLoaded = true;
     const [importVisible, setImportVisible] = useState(false);
     const [filterActive, setFilterActive] = useState(false)
-
-    const [showPackGallery, setShowPackGallery] = useState(false);
     const [showExportDialog, setExportDialogVisible] = useState(false);
 
-
     const [selectedRow, setSelectedRow] = useState(null);
-
-    const [showAddPack, setAddPackVisible] = useState(false);
-    const handleAddPack = () => {
-        setAddPackVisible(!showAddPack);
-    }
-    const handleShowPacks = () => {
-        setShowPackGallery(true);
-    };
     const handleDelete = async (item) => {
         if (model && item && item._id) { // Assurez-vous d'avoir un identifiant unique pour chaque élément
             try {
@@ -466,13 +454,9 @@ export function DataTable({
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [lightboxOpened, setLightboxOpened] = useState(false);
     const [lightboxSlides, setLightboxSlides] = useState([]);
-    const [tutorialDialogVisible, setTutorialDialogVisible] = useState(false);
 
     const [newPackName, setNewPackName] = useState(''); //  pack
 
-    const handleShowTutorialMenu = () => {
-        setTutorialDialogVisible(!tutorialDialogVisible);
-    }
 
     if (!model)
         return <></>;
@@ -493,38 +477,23 @@ export function DataTable({
 
         onDuplicateData(dataToDuplicate);
     };
+
+    const desc = t(`model_description_${selectedModel.name}`, selectedModel.description);
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && <div className="flex actions flex-left">
+            {advanced && !selectionMode && <div className="flex actions">
                 {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
                     <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
                 {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {
                     nav('/user/'+getUserHash(me)+'/dashboards');
                 }}><FaEye /> Tableaux de bord</Button> }
-                <p className="model-desc hint">{t(`model_description_${selectedModel.name}`, selectedModel.description)}</p>
-                <Button onClick={() => onAddData(model)}><FaPlus/><Trans i18nKey="btns.addData">Ajouter une
-                    donnée</Trans></Button>
+                {desc && <p className="model-desc hint">{desc}</p>}
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
                     i18nKey="btns.import">Importer</Trans></Button>
-                <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans
-                    i18nKey="btns.export">Exporter</Trans></Button>
-                <Button className="tourStep-import-datapack" onClick={handleShowPacks} title={t("btns.addPack")}><FaPlus/><Trans
-                    i18nKey="btns.addPack">Packs...</Trans></Button>
-
-                <Button className={"tourStep-tutorials " + (/^demo[0-9]{1,2}$/.test(me.username) ? "btn-primary" : "btn")} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaPlus/><Trans
-                    i18nKey="btns.showTutos">Tutoriels</Trans></Button>
+                <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans i18nKey="btns.export">Exporter</Trans></Button>
                 {!/^demo[0-9]{1,2}$/.test(me.username) && (<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
                     i18nKey="btns.backup">Backup</Trans></Button>)}
-                <DialogProvider>
-                    {tutorialDialogVisible && (
-                        <Dialog isClosable={true} isModal={true} onClose={() => setTutorialDialogVisible(false)}>
-                            <TutorialsMenu />
-                        </Dialog>
-                    )}
-                </DialogProvider>
-                <Button className="btn btn-primary" onClick={() => {
-                    onShowAPI(selectedModel);
-                }}><FaBook/> {t('btns.api', 'API')}</Button>
+
             </div>}
             <div className={"table-wrapper"}>
                 <Tooltip id={"tooltipFile"} clickable={true} />
@@ -543,32 +512,29 @@ export function DataTable({
                 {isDataLoaded && (
                     <table>
                         <thead>
-                        <Header advanced={advanced} model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>
+                        <Header advanced={advanced} model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter} selectionMode={selectionMode}/>
                         </thead>
                         <tbody>
                         {(data || []).map((item) => (
                             <><DialogProvider>
                                 <tr key={item._id} onDoubleClick={() => onEdit(item)} onClick={(e) => {
-                                    const checked = (!e.target.closest('tr').querySelector('td:first-child input')?.checked);
-                                    if (checked) {
-                                        setCheckedItems(items => {
-                                            return [...items, item];
-                                        });
+                                    // Empêche le déclenchement du clic sur la ligne si on clique sur un bouton ou un lien
+                                    if (e.target.closest('button, a')) {
+                                        return;
+                                    }
+                                    const isCurrentlyChecked = checkedItems?.some(i => i?._id === item._id);
+                                    if (!isCurrentlyChecked) {
+                                        setCheckedItems([...(checkedItems || []), item]);
                                     } else {
-                                        setCheckedItems(items => items.filter(i => i._id !== item._id));
+                                        setCheckedItems((checkedItems || []).filter(i => i._id !== item._id));
                                     }
                                 }}>
                                     {advanced && (<td className={"mini"}>
                                         <CheckboxField checkbox={true} className={"input-ref"}
-                                                       checked={checkedItems?.some(i => i._id === item._id)}
-                                                       onChange={(e) => {
-                                                           if (e) {
-                                                               setCheckedItems(items => {
-                                                                   return [...items, item];
-                                                               });
-                                                           } else {
-                                                               setCheckedItems(items => items.filter(i => i._id !== item._id));
-                                                           }
+                                                       checked={checkedItems?.some(i => i?._id === item._id)}
+                                                       onChange={() => {
+                                                           // La logique est gérée par le onClick de la <tr>
+                                                           // pour permettre de cliquer n'importe où sur la ligne.
                                                        }}/></td>)}
                                     {(model?.fields ||[]).map(field => {
 
@@ -641,7 +607,6 @@ export function DataTable({
                                         }
                                         if (field.type === 'geolocation') {
                                             const geoData = item[field.name];
-                                            console.log({geoData})
                                             if (geoData && geoData.coordinates && geoData.coordinates.length === 2) {
                                                 const [lng, lat] = geoData.coordinates;
                                                 const coordinatesText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
@@ -673,14 +638,18 @@ export function DataTable({
                                                     })));
                                                     e.preventDefault();
                                                 };
-                                                t = (item[field.name] || []).map((it,i) => {
+
+                                                if( !Array.isArray(item[field.name]))
+                                                    return <td key={field.name}>
+                                                    </td>
+                                                t = (item[field.name] ||[]).map((it,i) => {
 
                                                         const r = `
                                                         <strong>filename</strong> : ${it.filename}<br />
                                                         <strong>guid</strong> : ${it.guid}<br />
                                                         <strong>type</strong> : ${it.mimeType}<br />
                                                         <strong>size</strong> : ${it.size} bytes<br />
-                                                        <strong>timestamp</strong> : ${it.timestamp ? new Date(it.timestamp).toLocaleString(lang) : ''}
+                                                        <strong>timestamp</strong> : ${it.createdAt ? new Date(it.createdAts).toLocaleString(lang) : ''}
                                                     `;
                                                     return <a key={it.guid} href={`/resources/${it.guid}`} target="_blank"
                                                               data-tooltip-id={"tooltipFile"} data-tooltip-html={r}
@@ -715,7 +684,7 @@ export function DataTable({
                                                 <strong>guid</strong> : ${item[field.name].guid}<br />
                                                 <strong>type</strong> : ${item[field.name].mimeType}<br />
                                                 <strong>size</strong> : ${item[field.name].size} bytes<br />
-                                                <strong>timestamp</strong> : ${item[field.name].timestamp.toLocaleString(lang)}
+                                                <strong>timestamp</strong> : ${new Date(item[field.name].createdAt)?.toLocaleString(lang)}
                                             `;
                                             if (['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/x-windows-bmp'].includes(item[field.name].mimeType))
                                                 return <td key={field.name}>{hiddenable(<a
@@ -789,7 +758,7 @@ export function DataTable({
                                         return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>
                                             {hiddenable(item[field.name])}</td>;
                                     })}
-                                    {advanced && (<td>
+                                    {advanced && !selectionMode && (<td>
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.edit', 'Modifier')}
                                                 onClick={() => handleEdit(item)}><FaPencil/></button>
@@ -821,7 +790,7 @@ export function DataTable({
                         <tfoot>
                         {data.length > 10 && (<Header advanced={advanced} reversed={true} model={model} setCheckedItems={setCheckedItems}
                                                       filterValues={filterValues} data={data}
-                                                      setFilterValues={setFilterValues}
+                                                      setFilterValues={setFilterValues} selectionMode={selectionMode}
                                                       onChangeFilterValue={onChangeFilterValue}
                                                       checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter}/>)}
                         </tfoot>
@@ -843,14 +812,9 @@ export function DataTable({
                     />
                     <ExportDialog isOpen={showExportDialog} onClose={() => {
                         setExportDialogVisible(false);
-                    }} availableModels={models} currentModel={selectedModel.name} hasSelection={true} onExport={(data)=>{
+                    }} availableModels={models} currentModel={selectedModel?.name} hasSelection={true} onExport={(data)=>{
                         exportMutation(data);
                     }} />
-                    {showPackGallery && (
-                        <Dialog isClosable={true} isModal={true} onClose={() => setShowPackGallery(false)}>
-                            <PackGallery />
-                        </Dialog>
-                    )}
                 </DialogProvider>
             </div>
         </div>

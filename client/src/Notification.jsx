@@ -85,25 +85,23 @@ const NotificationList = forwardRef((props, ref) => {
     const { notifications, markAsRead, removeNotification, addNotification, unreadCount } = useNotificationContext();
     const [showBubble, setShowBubble] = useState(false);
 
-
     const toggleBubble = useCallback(() => {
-        setShowBubble(!showBubble)
-    }, [showBubble]);
-
-    useEffect(() => {
-        if( unreadCount > 0 ){
-            if (!showBubble)
-                setShowBubble(true);
-        }else{
-            if (showBubble)
-                setShowBubble(false);
+        // Lorsque l'on ouvre la bulle, on marque toutes les notifications comme lues.
+        if (!showBubble) {
+            notifications.forEach(n => {
+                if (!n.isRead) {
+                    markAsRead(n.id);
+                }
+            });
         }
-    }, [unreadCount]);
+        // Ensuite, on bascule la visibilité du contenu de la bulle.
+        setShowBubble(prev => !prev);
+    }, [showBubble, notifications, markAsRead]);
 
     const readNotifications = notifications.filter(n => n.isRead) || [];
     const unreadNotifications = notifications.filter(n => !n.isRead) || [];
     return (
-        <div className="notification-container">
+        <><div className="notification-container">
             <div className="notifications-right">
                 {unreadNotifications.map(notification => (
                     <Notification
@@ -116,11 +114,13 @@ const NotificationList = forwardRef((props, ref) => {
                 ))}
                 {unreadCount > 0 && <div className={"notification-bubble-count"}>{unreadCount}</div>}
             </div>
-            <div className={`notification-bubble ${showBubble ? 'visible' : ''}`}>
-                <button onClick={toggleBubble} className="notification-bubble-btn">
+        </div>
+
+            {unreadCount > 0 && <button onClick={toggleBubble} className={`notification-bubble fab ${showBubble ? 'visible' : ''}`}>
+                <div>
                     <FaBell/>
                     {unreadCount > 0 && <span className="notification-bubble-count">{unreadCount}</span>}
-                </button>
+                </div>
                 {showBubble && <div className='notifications-bubble-content'>
                     {readNotifications.map(notification => (
                         <Notification
@@ -129,8 +129,8 @@ const NotificationList = forwardRef((props, ref) => {
                         />
                     ))}
                 </div>}
-            </div>
-        </div>
+            </button>}
+        </>
     );
 });
 NotificationList.displayName = "NotificationList";

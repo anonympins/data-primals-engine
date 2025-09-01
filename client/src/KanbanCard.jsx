@@ -14,7 +14,6 @@ const KanbanCard = ({ card, model, subItemsField }) => {
     // Logique du Drag & Drop natif pour la carte
     const lang = (tr.i18n.resolvedLanguage || tr.i18n.language).split(/[-_]/)?.[0];
 
-    console.log(subItems)
     const getfield = (model, data) => {
         const v = getDataAsString(model, data, tr, models);
         if(!v){
@@ -26,7 +25,7 @@ const KanbanCard = ({ card, model, subItemsField }) => {
                             <strong>guid</strong> : ${it.guid}<br />
                             <strong>type</strong> : ${it.mimeType}<br />
                             <strong>size</strong> : ${it.size} bytes<br />
-                            <strong>timestamp</strong> : ${it.timestamp ? new Date(it.timestamp).toLocaleString(lang) : ''}
+                            <strong>timestamp</strong> : ${it.createdAt ? new Date(it.createdAt).toLocaleString(lang) : ''}
                         `;
                             return <a key={it.guid} href={`/resources/${it.guid}`} target="_blank"
                                       data-tooltip-id={"tooltipFile"} data-tooltip-html={r}

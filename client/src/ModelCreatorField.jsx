@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import {useModelContext} from "./contexts/ModelContext.jsx";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import {isLocalUser} from "../../src/data.js";
@@ -42,6 +42,13 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
     const { t, i18n } = useTranslation();
     const [showMore, setMoreVisible] = useState(false);
     const hint = (description) => t(description, '') && <div className="hint-icon"><FaCircleInfo data-tooltip-id={`tooltipHint`} data-tooltip-content={description} /></div>
+
+    useEffect(() => {
+        // S'assure que replacement est défini si un masque existe, avec une valeur par défaut correcte.
+        // La chaîne "\\d" en JS devient "\d" dans l'objet, ce qui est correct pour new RegExp().
+        if( field.mask && !field.replacement )
+            field.replacement = { "_": "\\d" };
+    }, [field]);
 
     return (
         <div className="field-edit">
@@ -288,6 +295,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                     />
                                 </div>
                             </div>
+
                         </>
                     )}
 
@@ -577,8 +585,47 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                                 </>)}
                             </div>)}
 
+                            {["string_t", "string"].includes(field.itemsType || field.type) && (
+                                <>
 
-                            {field.type === 'number' && (
+                                    <div className={"flex flex-no-wrap field-bg"}>
+                                        {hint('modelcreator.mask.hint')}
+                                        <div className={"flex-1"}>
+                                            <TextField
+                                                disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                                label={<Trans i18nKey={"modelcreator.mask"}>Masque de saisie</Trans>}
+                                                className={"flex-1"}
+                                                value={field.mask}
+                                                placeholder={t('modelcreator.field.mask.ph', "mask_")}
+                                                onChange={(e) => {
+                                                    const newFields = [...fields];
+                                                    newFields[index].mask = e.target.value;
+                                                    setFields(newFields);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className={"flex flex-no-wrap field-bg"}>
+                                        {hint('modelcreator.replacement.hint')}
+                                        <div className={"flex-1"}>
+                                            <CodeField
+                                                name="replacement"
+                                                disabled={modelLocked || (isLocalUser(me) && field.locked)}
+                                                label={<Trans i18nKey={"modelcreator.replacement"}>Règles de remplacement (JSON)</Trans>}
+                                                language="json"
+                                                value={field.replacement ? JSON.stringify(field.replacement, null, 2) : ''}
+                                                onChange={(e) => {
+                                                    const newFields = [...fields];
+                                                    newFields[index].replacement = e.value;
+                                                    setFields(newFields);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {(field.itemsType || field.type) === 'number' && (
                                 <>
                                     <div
                                     className="flex flex-no-wrap mg-item">{hint('modelcreator.min.hint')}
@@ -685,7 +732,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
                             </div>
 
 
-                            {field.type=== 'number'&&(
+                            {(field.itemsType || field.type)=== 'number'&&(
                                 <div className="flex flex-no-wrap">
                                     {hint('modelcreator.gauge.hint')}
                                     <div className="checkbox-label flex flex-1">
@@ -736,7 +783,7 @@ const ModelCreatorField = ({model, handleRenameField, handleRemoveField, handleU
 
                                 </div>
                             )}
-                            {field.type === 'code' && (<>
+                            {(field.itemsType || field.type) === 'code' && (<>
                                 <div className="flex">
                                     {hint('modelcreator.language.hint')}
                                     <label className="checkbox-label flex flex-1">

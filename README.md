@@ -111,6 +111,26 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017
 | CERT                  | 	Path to cert file.                                                     | 	certs/cert.pem                          |
 | CERT_KEY              | Path to the key file for your certificate.                              | 	certs/key.pem                           |
 
+### Programmatic Configuration
+
+In addition to environment variables, you can programmatically override most of the application's internal constants at runtime. This is useful for fine-tuning performance, limits, or behavior without restarting the server.
+
+The engine exposes a `Config` object for this purpose. You can modify any constant defined in `src/constants.js`.
+
+To override a constant, use the `Config.Set()` method **before** initializing the engine:
+
+```javascript
+import express from "express";
+import { Engine, Config } from 'data-primals-engine';
+
+// Override default constants before engine initialization
+Config.Set("maxRequestData", 1000); // Increase max data per request
+Config.Set("maxFileSize", 50 * 1024 * 1024); // Allow larger file uploads (50MB)
+
+const app = express();
+const engine = await Engine.Create({ app });
+```
+
 ### Start the server
 ```bash
 # Development mode
@@ -406,6 +426,21 @@ await editData(
     { _id: "507f1f77bcf86cd799439011" },
     { bio: "Updated bio text" },
     null, // No files
+    currentUser
+);
+```
+
+```javascript
+await editData(
+    "resource",
+    { source: "507f1f77bcf86cd799439011" },
+    { "file[]": {
+        "path": "C:/Users/.../test-upload-on-insert.txt",
+        "name": 'test-upload-on-insert.txt',
+        "type": 'text/plain',
+        "size": 1524,
+        "lastModifiedDate": new Date(),
+    }}, // No files
     currentUser
 );
 ```

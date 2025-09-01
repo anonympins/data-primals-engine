@@ -3,7 +3,7 @@ import {Trans, useTranslation} from "react-i18next";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import {useMutation, useQueryClient} from "react-query";
 import React, {useEffect, useMemo, useState} from "react";
-import {FaBook, FaEdit, FaFileImport, FaPlus} from "react-icons/fa";
+import {FaBook, FaBoxOpen, FaEdit, FaFileImport, FaPlus} from "react-icons/fa";
 import Button from "./Button.jsx";
 import useLocalStorage from "./hooks/useLocalStorage.js";
 import {Tooltip} from "react-tooltip";
@@ -12,7 +12,7 @@ import {profiles} from "./constants.js";
 import * as FaIcons from "react-icons/fa";
 import * as Fa6Icons from "react-icons/fa6";
 
-
+// --- SUGGESTION: Extraire cette logique dans un composant dédié si elle devient plus complexe ---
 // Fonction pour obtenir le composant icône par son nom
 const getIconComponent = (iconName) => {
     if (!iconName) return null;
@@ -20,8 +20,22 @@ const getIconComponent = (iconName) => {
     return IconComponent ? <IconComponent /> : null; // Retourne l'élément React ou null
 };
 
+// --- SUGGESTION: Créer un petit composant pour la lisibilité de l'affichage du nom du modèle ---
+const ModelListItemLabel = ({ model, count, isGenerated, t }) => {
+    const modelName = t(`model_${model.name}`, model.name);
 
-export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditModel, onAPIInfo, onNewData }) {
+    let suffix = '';
+    if (isGenerated) {
+        suffix = ` (${t('models.status.tmp', 'brouillon')})`; // Utiliser i18n pour 'tmp'
+    } else if (count > 0) {
+        suffix = ` (${count})`;
+    }
+
+    return <>{modelName}{suffix}</>;
+};
+
+
+export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditModel, onAPIInfo, onNewData, onImportPack }) {
     const {allTourSteps, setIsTourOpen,setCurrentTourSteps, setTourStepIndex, currentTour, setCurrentTour} = useUI();
 
     const {models, setSelectedModel, selectedModel, countByModel, generatedModels} = useModelContext();
@@ -29,6 +43,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
     const {me} =  useAuthContext();
     const queryClient = useQueryClient()
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedTag, setSelectedTag] = useLocalStorage('modelList-selectedTag', 'all');
 
     const [currentProfile, setCurrentProfile] = useLocalStorage('profile', null);
     useEffect(() =>{
@@ -37,20 +52,38 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
         }
     }, [me])
 
+    const allTags = useMemo(() => {
+        if (!models) return [];
+        const tagsSet = new Set();
+        models
+            .filter(model => model._user === me?.username) // On ne prend que les tags des modèles de l'utilisateur
+            .forEach(model => {
+                if (model.tags && Array.isArray(model.tags)) {
+                    model.tags.forEach(tag => tagsSet.add(tag));
+                }
+            });
+        return Array.from(tagsSet).sort();
+    }, [models, me?.username]);
+
+    console.log(allTags,"t");
     const filteredModels = useMemo(() => {
         if (!models) return [];
-        if (!searchTerm.trim()) return models; // Si la recherche est vide, retourne tous les modèles
+        let results = models.filter(model => model._user === me?.username);
 
-        const lowerSearchTerm = searchTerm.toLowerCase();
-        return models.filter(model => {
-            return (model.name && t('model_' + model.name, model.name).toLowerCase().includes(lowerSearchTerm)) ||
-                (model.fields.some(f =>
-                        (model.icon && model.icon.toLowerCase().includes(lowerSearchTerm)) ||
-                        f.name?.toLowerCase().includes(lowerSearchTerm) ||
-                        f.hint?.toLowerCase().includes(lowerSearchTerm)) ||
-                (model.description && model.description.toLowerCase().includes(lowerSearchTerm)))
-            });
-    }, [models, searchTerm]);
+        // Filtrage par tag
+        if (selectedTag && selectedTag !== 'all') {
+            results = results.filter(model => model.tags?.includes(selectedTag));
+        }
+
+        // Filtrage par terme de recherche
+        if (searchTerm.trim()) {
+            const lowerSearchTerm = searchTerm.toLowerCase();
+            results = results.filter(model =>
+                (t('model_' + model.name, model.name).toLowerCase().includes(lowerSearchTerm)) ||
+                (model.description && model.description.toLowerCase().includes(lowerSearchTerm)));
+        }
+        return results;
+    }, [models, searchTerm, selectedTag, me?.username, t]);
 
     const handleSelectModel = (model) => {
         setSelectedModel(model);
@@ -95,28 +128,6 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
             console.error("Erreur critique lors de l'appel d'initialisation de la démo:", error);
         });
     };
-
-    const [mods, setMods] = useState([]);
-    useEffect(() => {
-        if( countByModel && selectedModel)
-        {
-            setMods((m) => {
-                const counts = [...m];
-                const mod = counts.find(f => f.mod === selectedModel.name);
-                if( mod ){
-                    mod.count = countByModel[selectedModel.name];
-                    return counts.map((c => {
-                        if( c.mod === mod.mod) {
-                            return {...mod};
-                        }
-                        return c;
-                    }));
-                }else{
-                    return [...m, { mod: selectedModel.name, count: countByModel[selectedModel.name]}];
-                }
-            })
-        }
-    }, [countByModel, selectedModel]);
 
     //  --- NEW: Effect to update tour steps when a profile is already selected on mount ---
     useEffect(() => {
@@ -163,9 +174,9 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                 }} />
             </div></div>}
         <div className="models">
-            <h2><Trans i18nKey="models">Modèles</Trans></h2>
+            <h2 className={"field-bg p-2"}><Trans i18nKey="models">Modèles</Trans></h2>
             <div className="model-list-container">
-                <div className="model-list-search-bar-container">
+                <div className="flex flex-no-wrap model-list-search-bar-container">
                     <input
                         type="search"
                         placeholder={t('models.searchPlaceholder', 'Rechercher un modèle...')}
@@ -173,6 +184,18 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="model-list-search-input"
                     />
+                    {allTags.length > 0 && (
+                        <div className="model-list-tag-filter">
+                            <select value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)}>
+                                <option value="all">{t('models.tags.all', 'Tous les tags')}</option>
+                                {allTags.map(tag => (
+                                    <option key={tag} value={tag}>
+                                        {t(`tags.${tag}`, tag.charAt(0).toUpperCase() + tag.slice(1))}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
                 {filteredModels.length > 0 ? (
                     <div className="model-list">
@@ -185,15 +208,23 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
 
                                 const IconComponent = getIconComponent(model.icon);
 
+                                // --- SUGGESTION: Rendre le comportement du clic prévisible ---
+                                // Le clic principal sélectionne toujours le modèle. L'édition est une action secondaire via son bouton.
+                                const handleItemClick = () => {
+                                    onModelSelect(model);
+                                };
+
                                 return (
                                     <li data-testid={'model_'+model.name} className={`${model.name === selectedModel?.name ? 'active' : ''}`}
-                                        key={'modelist' + model.name} onClick={() => generatedModels.some(g => g.name === model.name) ? onEditModel(model) : onModelSelect(model)}>
+                                        key={'modellist' + model.name} onClick={handleItemClick}>
                                         <div className="flex flex-center flex-fw">
                                             <div
                                                 className="flex flex-1 flex-no-wrap break-word gap-2">
                                                 <div className={"icon"}>{IconComponent ? IconComponent : <></>}</div>
-                                                <div>{t(`model_${model.name}`, model.name)} {generatedModels.some(f => f.name === model.name) ? '(tmp)' : (mods.some(f => f.mod === model.name) ? `(${mods.find(f => f.mod === model.name).count})` : '')}</div></div>
+                                                {/* --- SUGGESTION: Utiliser le composant pour la clarté --- */}
+                                                <div><ModelListItemLabel model={model} count={countByModel?.[model.name]} isGenerated={generatedModels.some(f => f.name === model.name)} t={t} /></div></div>
                                             <div className="btns">
+                                                {/* Le bouton "Ajouter" est conditionnel, ce qui est bien */}
                                                 {!generatedModels.some(g => g.name === model.name) && (<button data-tooltip-id="tooltipML" data-tooltip-content={t('btns.addData')} onClick={(e) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
@@ -216,21 +247,29 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                                     </li>)
                             })}
                         </ul>
-
                     </div>) : (
-                    <p className="no-models-found">
-                        {searchTerm ? t('models.noMatch', 'Aucun modèle ne correspond à votre recherche.') : t('models.noModels', 'Aucun modèle disponible.')}
-                    </p>
+                    <div className="empty-state-container">
+                        <div className="empty-state-content">
+                            <div className="empty-state-icon">
+                                {/* Une icône SVG simple pour représenter des "blocs de construction" ou des "données" */}
+                                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M14 10L14 4L20 4L20 10L14 10Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M4 20L4 14L10 14L10 20L4 20Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M4 10L4 4L10 4L10 10L4 10Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M14 20L14 14L20 14L20 20L14 20Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            </div>
+                            <h3>{t('models.empty.title', 'Commencez à structurer vos données')}</h3>
+                            <p>
+                                {searchTerm ?
+                                    t('models.noMatch', 'Aucun modèle ne correspond à votre recherche.') :
+                                    t('models.empty.description', 'Créez votre premier modèle de A à Z ou importez une structure existante pour démarrer rapidement.')
+                                }
+                            </p>
+                        </div>
+                    </div>
                 )}
-                <div className="flex actions">
-                    <Button onClick={onCreateModel} className="btn tourStep-create-model"><FaPlus/><Trans
-                        i18nKey="btns.createModel">Créer un modèle</Trans></Button>
-                    <Button onClick={onImportModel}
-                            className="btn tourStep-import-model btn-primary"><FaFileImport/><Trans
-                        i18nKey="btns.importModels">Importer un modèle</Trans></Button>
-                </div>
             </div>
         </div>
     </>
 }
-

@@ -22,9 +22,9 @@ export function DashboardsPage() {
     const { setSelectedModel, selectedModel }  = useModelContext()
     const { t } = useTranslation();
     const { me } = useAuthContext();
-    const [selectedDashboardId, setSelectedDashboardId] = useState(null);
+    const [selectedDashboardId, setSelectedDashboardId] = useState(null); // This seems to be the main state
 
-    const { chartToAdd, setChartToAdd } = useUI();
+    const { chartToAdd, setChartToAdd, flexViewToAdd, setFlexViewToAdd, htmlViewToAdd, setHtmlViewToAdd } = useUI();
     const [searchParams, setSearchParams] = useSearchParams();
     const { hash } = useParams(); // 2. Récupérer le hash de l'URL
 
@@ -38,6 +38,31 @@ export function DashboardsPage() {
     // États pour le modal de configuration des graphiques
     const [isChartModalOpen, setIsChartModalOpen] = useState(false);
     const [chartToConfigure, setChartToConfigure] = useState(null);
+
+    const { data: dashboardsData, isLoading: isLoadingDashboards, error: errorDashboards } = useQuery(
+        ['userDashboards', me?.username],
+        async () => {
+            if (!me?.username) return null;
+            const response = await fetch(
+                `/api/data/search?model=dashboard&_user=${me.username}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // body: JSON.stringify({ sort: { name: 1 } }) // Optionnel: trier
+                });
+            if (!response.ok) {
+                const res = await response.json();
+                throw new Error(res.error || t('dashboards.errorList', 'Erreur chargement des tableaux de bord'));
+            }
+            return await response.json();
+        },
+        {
+            enabled: !!me?.username
+        }
+    );
+    const selectedDashboard = useMemo(() => {
+        if (!selectedDashboardId || !dashboardsData?.data) return null;
+        return dashboardsData.data.find(db => db._id === selectedDashboardId);
+    }, [selectedDashboardId, dashboardsData]);
 
     const createDashboardMutation = useMutation(
         async (dashboardName) => {
@@ -142,26 +167,72 @@ export function DashboardsPage() {
         setIsChartModalOpen(false);
         setChartToConfigure(null);
     };
-    const { data: dashboardsData, isLoading: isLoadingDashboards, error: errorDashboards } = useQuery(
-        ['userDashboards', me?.username],
-        async () => {
-            if (!me?.username) return null;
-            const response = await fetch(
-                `/api/data/search?model=dashboard&_user=${me.username}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    // body: JSON.stringify({ sort: { name: 1 } }) // Optionnel: trier
-                });
-            if (!response.ok) {
-                const res = await response.json();
-                throw new Error(res.error || t('dashboards.errorList', 'Erreur chargement des tableaux de bord'));
-            }
-            return await response.json();
-        },
-        {
-            enabled: !!me?.username
+
+    const handleSaveFlexView = (flexViewConfig) => {
+        if (!selectedDashboard) return;
+
+        // Safely get the layout as a mutable array, creating a default section if needed.
+        const newLayout = JSON.parse(JSON.stringify(Array.isArray(selectedDashboard.layout) ? selectedDashboard.layout : []));
+
+        if (newLayout.length === 0) {
+            newLayout.push({
+                name: t('dashboards.defaultSectionName', 'Nouvelle Section'),
+                kpis: [],
+                chartConfigs: [],
+                flexViews: [],
+                htmlViews: []
+            });
         }
-    );
+
+        // Add the widget to the first section
+        const targetSection = newLayout[0];
+        if (!targetSection.flexViews) {
+            targetSection.flexViews = [];
+        }
+
+        targetSection.flexViews.push({
+            ...flexViewConfig,
+            type: 'flexView', // Add a type to distinguish from charts
+            id: new Date().getTime().toString()
+        });
+
+        updateDashboardMutation.mutate({ ...selectedDashboard, layout: newLayout });
+    };
+
+    const handleSaveHtmlView = (htmlViewConfig) => {
+        if (!selectedDashboard) return;
+
+        // Safely get the layout as a mutable array, creating a default section if needed.
+        const newLayout = JSON.parse(JSON.stringify(Array.isArray(selectedDashboard.layout) ? selectedDashboard.layout : []));
+
+        if (newLayout.length === 0) {
+            newLayout.push({
+                name: t('dashboards.defaultSectionName', 'Nouvelle Section'),
+                kpis: [],
+                chartConfigs: [],
+                flexViews: [],
+                htmlViews: []
+            });
+        }
+
+        // Add the widget to the first section
+        const targetSection = newLayout[0];
+        if (!targetSection.htmlViews) {
+            targetSection.htmlViews = [];
+        }
+
+        // We only need to save the template and data-fetching info, not the data itself.
+        const { data, ...configToSave } = htmlViewConfig;
+
+        targetSection.htmlViews.push({
+            ...configToSave,
+            type: 'htmlView', // Add a type to distinguish
+            id: `html-${Date.now()}`
+        });
+
+        updateDashboardMutation.mutate({ ...selectedDashboard, layout: newLayout });
+    };
+
     const [isLoading, setIsLoading] = useState(true);
 
     const refreshPresets = useMemo(() => [
@@ -180,7 +251,24 @@ export function DashboardsPage() {
             setIsChartModalOpen(true);
             setChartToAdd(null); // Réinitialise le contexte pour éviter de rouvrir le modal
         }
-    }, [chartToAdd, setChartToAdd]);
+    }, [chartToAdd, setChartToAdd, selectedDashboard]);
+
+    // NOUVEAU: Gérer l'ajout d'une vue flexible depuis le contexte UI
+    useEffect(() => {
+        if (flexViewToAdd && selectedDashboard) {
+            handleSaveFlexView(flexViewToAdd);
+            setFlexViewToAdd(null); // Réinitialiser le contexte
+        }
+    }, [flexViewToAdd, setFlexViewToAdd, selectedDashboard]);
+
+    // Gérer l'ajout d'une vue HTML depuis le contexte UI
+    useEffect(() => {
+        if (htmlViewToAdd && selectedDashboard) {
+            handleSaveHtmlView(htmlViewToAdd);
+            setHtmlViewToAdd(null); // Réinitialiser le contexte
+        }
+    }, [htmlViewToAdd, setHtmlViewToAdd, selectedDashboard]);
+
     useEffect(() => {
         // When a new dashboard is selected, close the editing form
         setIsEditing(false);
@@ -209,10 +297,6 @@ export function DashboardsPage() {
         }
         setIsLoading(false);
     }, [hash,dashboardsData]);
-    const selectedDashboard = useMemo(() => {
-        if (!selectedDashboardId || !dashboardsData?.data) return null;
-        return dashboardsData.data.find(db => db._id === selectedDashboardId);
-    }, [selectedDashboardId, dashboardsData]);
 
     const dashboardOptions = useMemo(() => {
         return (dashboardsData?.data || []).map(db => ({

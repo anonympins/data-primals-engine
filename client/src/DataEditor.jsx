@@ -60,6 +60,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
    model,
    onSubmit,
    refreshTime,
+   onCancel,
+   hideNewButton,
    formData,
    setFormData, record, setRecord}, ref){
 
@@ -182,6 +184,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
                             />)}</>
                         )}</div>
                 }
+
+                {console.log(formData[field.name])}
                 return <CodeField key={field.name} language={field.language} name={inputProps.name}
                                                         value={typeof (value) === 'string' ? value : JSON.stringify(value)}
                                                         onChange={handleChange}/>
@@ -189,7 +193,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
             case 'array':
                 if (field.itemsType === 'file') {
                     return <div key={field.name}><FileField name={field.name} maxSize={field.maxSize}
-                                                            mimeTypes={field.mimeTypes} value={value} onChange={(files) => {
+                                                            mimeTypes={field.mimeTypes} multiple value={value} onChange={(files) => {
                         handleChange({name: field.name, value: files});
                     }} /></div>;
                 } else {
@@ -276,6 +280,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
                          key={field.name}
                         type={getInputType(field.type)} {...inputProps}
                         value={displayValue}
+                        mask={field.mask}
+                        replacement={field.replacement}
                         onChange={(e) => handleChange({name: field.name, value: e.target.value})}  />
                 }
             case 'file':
@@ -368,8 +374,9 @@ export const DataEditor = forwardRef(function MyDataEditor({
                     ) : null; // Ne rien afficher si la condition n'est pas remplie
                 })}
                 <div className="flex flex-centered">
-                    <Button type="submit" disabled={isLoading}><Trans i18nKey="btns.save">Enregistrer</Trans></Button>
-                    <Button type="submit" onClick={handleNew}><Trans i18nKey="btns.new">Nouveau</Trans></Button>
+                    <Button type="button" onClick={handleSubmit} disabled={isLoading}><Trans i18nKey="btns.save">Enregistrer</Trans></Button>
+                    {onCancel && <Button type="button" className="btn-secondary" onClick={onCancel}><Trans i18nKey="btns.cancel">Annuler</Trans></Button>}
+                    {!hideNewButton && <Button type="button" onClick={handleNew}><Trans i18nKey="btns.new">Nouveau</Trans></Button>}
                 </div>
             </form>
         </div>

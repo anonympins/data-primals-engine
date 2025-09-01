@@ -342,7 +342,7 @@ This pack sets up an automated ecosystem for your store:
 4.  **Notify Customers:** When a shipment is ready, trigger the "Shipment Notification" workflow to inform the customer.
 5.  **Monitor:** Keep an eye on the "Business Overview" dashboard and the in-app alerts to stay on top of your business.`,
             "tags": ["e-commerce", "business", "store"],
-            "models": ["env", "taxonomy", "product", "productVariant", "brand", "currency", "order", "shipment", "review", "cart", "cartItem", "discount", "workflow", "workflowStep", "workflowAction","workflowRun", "workflowTrigger", "translation", "lang", "kpi", "dashboard", "alert", "return"],
+            "models": ["env", "taxonomy", "product", "productVariant", "brand", "currency", "order", "shipment", "review", "cart", "cartItem", "discount", "workflow", "workflowStep", "workflowAction","workflowRun", "workflowTrigger", "translation", "lang", "kpi", "dashboard", "alert", "return", "user", "permission", "userPermission", "role"],
             "data": {
                 "all": {
                     "env":envSmtp,
@@ -751,6 +751,7 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
             "tags": ["crm", "sales", "contacts"],
             "models": [
                 "contact",
+                "user",
                 {
                     "name": "deal",
                     "description": "Représente une opportunité commerciale avec un contact ou une entreprise.",
@@ -761,7 +762,8 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "name": "amount", "type": "number"},
                         { "name": "status", "type": "enum", "items": ["Nouveau", "Qualifié", "Proposition", "Gagné", "Perdu"], "default": "Nouveau" },
                         { "name": "closingDate", "type": "date" }
-                    ]
+                    ],
+                    "tags": ["crm", "sales"]
                 },
                 {
                     "name": "interaction",
@@ -773,7 +775,8 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "name": "notes", "type": "richtext" },
                         { "name": "deal", "type": "relation", "relation": "deal" },
                         { "name": "contact", "type": "relation", "relation": "contact" }
-                    ]
+                    ],
+                    "tags": ["crm", "communication"]
                 },
                 {
                     "name": "task",
@@ -785,7 +788,8 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "name": "relatedDeal", "type": "relation", "relation": "deal" },
                         { "name": "assignedTo", "type": "relation", "relation": "user" },
                         { "name": "description", "type": "richtext" }
-                    ]
+                    ],
+                    "tags": ["crm", "organization"]
                 },
                 "workflow",
                 "workflowStep",

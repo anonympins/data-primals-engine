@@ -46,6 +46,15 @@ export const zip = async (filename) => {
 export const addFile = async (file, user) => {
     if (!file) throw new Error("Le fichier est requis");
 
+    // Rendre compatible avec formidable v2 (path, name, type) et v3 (filepath, originalFilename, mimetype)
+    const filePath = file.path || file.filepath;
+    const originalName = file.name || file.originalFilename;
+    const mimeType = file.type || file.mimetype;
+
+    if (!filePath || !originalName) {
+        throw new Error("Les informations du fichier (nom, chemin) sont incomplètes.");
+    }
+
     const m = Config.Get('maxPrivateFileSize', maxPrivateFileSize);
     if (file.size > m) {
         throw new Error(`La taille du fichier dépasse la limite autorisée (${m / megabytes} Mo).`);
@@ -72,33 +81,32 @@ export const addFile = async (file, user) => {
     // Générer un GUID pour le fichier
     const guid = uuidv4();
     const s3Config = await getUserS3Config(user);
-    const extension = getFileExtension(file.name);
+    const extension = getFileExtension(originalName);
     const newFilename = `${guid}.${extension}`;
 
     const fileData = {
         guid: guid,
-        filename: file.name,
+        name: originalName, // Nom original du fichier
+        filename: newFilename, // Nom du fichier stocké (GUID + extension)
         size: file.size,
-        mimeType: file.type,
+        mimeType: mimeType,
         createdAt: new Date(),
         user: user.username,
         mainUser: user._user
     };
 
-    if (s3Config && s3Config.bucketName && s3Config.accessKeyId && s3Config.secretAccessKey) { // Correction: bucketName au lieu de bucket
+    if (s3Config && s3Config.bucketName && s3Config.accessKeyId && s3Config.secretAccessKey) {
         try {
-            // Correction: Appel manquant à la fonction de téléversement
-            await uploadToS3(s3Config, file.path, newFilename);
+            await uploadToS3(s3Config, filePath, newFilename);
 
             fileData.storage = 's3';
-            fileData.filename = newFilename; // Le nom sur S3
             logger.info(`Fichier ${newFilename} téléversé sur le bucket S3 ${s3Config.bucketName}.`);
         } catch (error) {
-            logger.info(`Le téléversement S3 a échoué pour ${file.name}: ${error.message}`, 'error');
+            logger.error(`Le téléversement S3 a échoué pour ${originalName}: ${error.message}`, error);
             throw new Error("Le téléversement S3 a échoué.");
         } finally {
             // Nettoyer le fichier temporaire uploadé par express-formidable
-            await fsPromises.unlink(file.path).catch(e => logger.info(`Échec de la suppression du fichier temporaire ${file.path}: ${e.message}`, 'error'));
+            await fsPromises.unlink(filePath).catch(e => logger.warn(`Échec de la suppression du fichier temporaire ${filePath}: ${e.message}`));
         }
     } else {
         // Sauvegarde locale
@@ -109,16 +117,17 @@ export const addFile = async (file, user) => {
         const newPath = path.join(uploadDir, newFilename);
 
         try {
-            // express-formidable place déjà le fichier dans un répertoire temporaire. Nous n'avons qu'éplacer.
-            await fsPromises.rename(file.path, newPath);
+            // Utiliser copyFile puis unlink au lieu de rename pour éviter les erreurs cross-device (EXDEV)
+            // qui peuvent survenir dans des environnements conteneurisés comme GitHub Actions.
+            await fsPromises.copyFile(filePath, newPath);
+            await fsPromises.unlink(filePath);
             fileData.storage = 'local';
-            fileData.filename = newFilename; // Le nom dans le dossier uploads
             fileData.path = newPath; // Le chemin complet pour les fichiers locaux
             logger.info(`Fichier ${newFilename} sauvegardé localement dans ${newPath}.`);
         } catch (error) {
-            logger.info(`Le déplacement du fichier local a échoué pour ${file.name}: ${error.message}`, 'error');
+            logger.error(`Le stockage du fichier local a échoué pour ${originalName}: ${error.message}`, error);
             // Essayer de nettoyer le fichier temporaire même si le renommage échoue
-            await fsPromises.unlink(file.path).catch(e => logger.info(`Échec de la suppression du fichier temporaire ${file.path}: ${e.message}`, 'error'));
+            await fsPromises.unlink(filePath).catch(e => logger.warn(`Échec de la suppression du fichier temporaire ${filePath}: ${e.message}`));
             throw new Error("Le stockage du fichier local a échoué.");
         }
     }

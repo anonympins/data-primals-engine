@@ -1,5 +1,55 @@
+/**
+ * Finds the matching {{/each}} for a {{#each ...}} tag at a given position.
+ * It correctly handles nested {{#each}} blocks.
+ * @param {string} template - The template string.
+ * @param {number} startIndex - The starting position of the opening {{#each ...}} tag.
+ * @returns {number} The position of the start of the matching {{/each}} tag, or -1 if not found.
+ */
+function findMatchingEndEach(template, startIndex) {
+    const openTag = '{{#each';
+    const closeTag = '{{/each}}';
+    let level = 1;
+    let searchPos = startIndex + openTag.length;
 
+    while (level > 0 && searchPos < template.length) {
+        const nextClose = template.indexOf(closeTag, searchPos);
+        if (nextClose === -1) {
+            return -1; // Unmatched opening tag
+        }
 
+        const nextOpen = template.indexOf(openTag, searchPos);
+
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+            level++;
+            searchPos = nextOpen + openTag.length;
+        } else {
+            level--;
+            searchPos = nextClose + closeTag.length;
+            if (level === 0) {
+                return nextClose; // Found the matching closing tag
+            }
+        }
+    }
+    return -1; // No matching closing tag found
+}
+
+/**
+ * Renders a simple HTML template by substituting placeholders.
+ * This is a robust version that correctly handles nested {{#each}} loops.
+ *
+ * @param {string} templateString The template with placeholders.
+ * @param {Array<object>|object} data The data to inject.
+ * @returns {string} The rendered HTML string.
+ */
+
+/**
+ * Renders a simple HTML template by substituting placeholders.
+ * This is a robust version that correctly handles nested {{#each}} loops.
+ *
+ * @param {string} templateString The template with placeholders.
+ * @param {Array<object>|object} data The data to inject.
+ * @returns {string} The rendered HTML string.
+ */
 export const convertInputValue = (value) => {
     if (typeof value !== 'string') return value;
 
