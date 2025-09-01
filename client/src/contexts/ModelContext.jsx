@@ -77,6 +77,15 @@ export const ModelProvider = ({ children }) => {
         }
     }, [selectedModel]);
 
+    // This effect synchronizes the selected model with the list of models to load paginated data for.
+    // It's crucial for isolated components like RelationSelectorWidget that use their own ModelProvider.
+    // When a model is selected in such a widget, this ensures the DataTable inside it will fetch and display data.
+    useEffect(() => {
+        if (selectedModel?.name) {
+            setFilteredDatasToLoad([selectedModel.name]);
+        }
+    }, [selectedModel]);
+
     let abortController = new AbortController();
 
     const [relations, setRelations] = useState([]);

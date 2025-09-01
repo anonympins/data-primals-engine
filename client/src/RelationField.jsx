@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
-import { useModelContext } from './contexts/ModelContext.jsx';
+import { ModelProvider, useModelContext } from './contexts/ModelContext.jsx';
 import { TextField } from './Field.jsx';
 import { useAuthContext } from './contexts/AuthContext.jsx';
 import { getDataAsString } from '../../src/data.js';
@@ -9,6 +9,8 @@ import Button from './Button.jsx';
 import { mainFieldsTypes } from "../../src/constants.js";
 import Draggable from "./Draggable.jsx";
 import { useTranslation } from "react-i18next";
+import { Dialog, DialogProvider } from "./Dialog.jsx";
+import RelationSelectorWidget from "./RelationSelectorWidget.jsx";
 
 const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null }) => {
     const { models, dataByModel, setOnSuccessCallbacks, relationIds, setRelationIds } = useModelContext();
@@ -17,6 +19,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
     const [selectedValues, setSelectedValues] = useState([]);
     const [showResults, setResultsVisible] = useState(false);
     const [searchValue, setSearchValue] = useState('');
+    const [isSelectorOpen, setSelectorOpen] = useState(false);
     const [history, setHistory] = useState([]);
     const { me } = useAuthContext();
     const tr = useTranslation();
@@ -104,9 +107,15 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
     },[searchValue])
 
     useEffect(() => {
-        if (results?.length > 0) {
-            setHistory([...new Set([...history, ...results])]);
-        }
+        // Add new results to history, avoiding duplicates.
+        if (results?.length > 0)
+            setHistory(currentHistory => {
+                const newItems = results.filter(
+                    resultItem => !currentHistory.some(historyItem => historyItem._id === resultItem._id)
+                );
+                if (newItems.length > 0) return [...currentHistory, ...newItems];
+                return currentHistory;
+            });
     }, [results]);
 
     useEffect(() => {
@@ -173,6 +182,33 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
         });
     };
 
+    const handleValidateSelection = (selectedItems) => {
+        // Add the newly selected full objects to our local history
+        // so we can display them immediately.
+        setHistory(currentHistory => {
+            const newItems = selectedItems.filter(
+                selectedItem => !currentHistory.some(historyItem => historyItem._id === selectedItem._id)
+            );
+            if (newItems.length > 0) return [...currentHistory, ...newItems];
+            return currentHistory;
+        });
+
+        if (field.multiple) {
+            const selectedIds = selectedItems.map(item => item._id);
+            onChange({ name, value: selectedIds });
+            setSelectedValues(selectedIds);
+        } else {
+            const selectedItem = selectedItems[0] || null;
+            onChange({ name, value: selectedItem?._id || null });
+            if (selectedItem) {
+                setSearchValue(getDataAsString(model, selectedItem, tr, models) || '');
+            } else {
+                setSearchValue('');
+            }
+        }
+        setSelectorOpen(false);
+    };
+
     const ref = useRef();
     const inputRef = useRef();
 
@@ -208,11 +244,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
                     }}
                 />
                 <Button
-                    type="button" className="btn-form btn-last" onClick={() => {
-                    setSearchValue('');
-                    onChange({ name, value: null });
-                    setResultsVisible(!showResults);
-                }}><FaEdit /></Button>
+                    type="button" className="btn-form btn-last" onClick={() => setSelectorOpen(true)}><FaEdit /></Button>
 
                 {showResults && (
                     <div className="results" onKeyDown={e => {
@@ -233,6 +265,26 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
                             })}
                     </div>
                 )}
+                <DialogProvider>
+                    {isSelectorOpen && (
+                        <Dialog
+                            title={t('relationField.select.title', 'Sélectionner {{modelName}}', { modelName: model?.name || modelName })}
+                            onClose={() => setSelectorOpen(false)}
+                            isModal={true}
+                            className="relation-selector-dialog"
+                        >
+                            <ModelProvider>
+                                <RelationSelectorWidget
+                                    modelName={field.relation}
+                                    initialSelection={field.multiple ? selectedValues : (value ? [value] : [])}
+                                    isMultiple={field.multiple}
+                                    onValidate={handleValidateSelection}
+                                    onCancel={() => setSelectorOpen(false)}
+                                />
+                            </ModelProvider>
+                        </Dialog>
+                    )}
+                </DialogProvider>
             </div>
             {field.multiple && selectedValues.length > 0 && (
                 <div ref={ref} tabIndex={0} className="selected-values flex flex-border flex-row flex-no-gap flex-start flex-1">
