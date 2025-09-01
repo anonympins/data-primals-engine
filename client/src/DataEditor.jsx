@@ -60,6 +60,8 @@ export const DataEditor = forwardRef(function MyDataEditor({
    model,
    onSubmit,
    refreshTime,
+   onCancel,
+   hideNewButton,
    formData,
    setFormData, record, setRecord}, ref){
 
@@ -372,8 +374,9 @@ export const DataEditor = forwardRef(function MyDataEditor({
                     ) : null; // Ne rien afficher si la condition n'est pas remplie
                 })}
                 <div className="flex flex-centered">
-                    <Button type="submit" disabled={isLoading}><Trans i18nKey="btns.save">Enregistrer</Trans></Button>
-                    <Button type="submit" onClick={handleNew}><Trans i18nKey="btns.new">Nouveau</Trans></Button>
+                    <Button type="button" onClick={handleSubmit} disabled={isLoading}><Trans i18nKey="btns.save">Enregistrer</Trans></Button>
+                    {onCancel && <Button type="button" className="btn-secondary" onClick={onCancel}><Trans i18nKey="btns.cancel">Annuler</Trans></Button>}
+                    {!hideNewButton && <Button type="button" onClick={handleNew}><Trans i18nKey="btns.new">Nouveau</Trans></Button>}
                 </div>
             </form>
         </div>

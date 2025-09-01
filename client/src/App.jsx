@@ -574,7 +574,7 @@ const BaseLayout=()=>{
         </div>
         <div className="flex">
             <FaQuestion data-tooltip-id="header" data-tooltip-content="Documentation" onClick={()=> {
-                window.open("https://data.primals.net/en/documentation/", "_blank");
+                window.open("/en/documentation/", "_blank");
             }} />
         </div>
     </header>} />

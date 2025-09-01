@@ -461,8 +461,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Vous avez demandé une restauration de sauvegarde. Veuillez choisir une option :</p>
 <p><strong>ATTENTION : Toute restauration écrasera vos données actuelles (modèles et/ou données).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Restauration Complète (Modèles ET Données)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restaurer UNIQUEMENT les Modèles</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=full">Restauration Complète (Modèles ET Données)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restaurer UNIQUEMENT les Modèles</a></li>
 </ul>
 <p>Ces liens expireront dans 30 minutes.</p>`,
             "btns.confirm": "Confirmer",
@@ -1574,8 +1574,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>You have requested a backup restoration. Please choose an option:</p>
 <p><strong>WARNING: Any restoration will overwrite your current data (models and/or data).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Full Restoration (Models AND Data)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restore ONLY the Models</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Full Restoration (Models AND Data)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restore ONLY the Models</a></li>
 </ul>
 <p>These links will expire in 30 minutes.</p>`,
             "btns.confirm": "Confirm",
@@ -3050,8 +3050,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Has solicitado una restauración de copia de seguridad. Por favor, elige una opción:</p>
 <p><strong>ADVERTENCIA: Cualquier restauración sobrescribirá tus datos actuales (modelos y/o datos).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Restauración completa (Modelos Y Datos)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restaurar SOLO los Modelos</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Restauración completa (Modelos Y Datos)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restaurar SOLO los Modelos</a></li>
 </ul>
 <p>Estos enlaces expirarán en 30 minutos.</p>`,
             "modelimporter.requires": "Requiere:",
@@ -4532,8 +4532,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Solicitou a restauração de uma cópia de segurança. Por favor, escolha uma opção:</p>
 <p><strong>ATENÇÃO: Qualquer restauração irá substituir os seus dados atuais (modelos e/ou dados).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Restauração Completa (Modelos E Dados)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restaurar APENAS os Modelos</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Restauração Completa (Modelos E Dados)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Restaurar APENAS os Modelos</a></li>
 </ul>
 <p>Estes links expiram em 30 minutos.</p>`,
             "modelimporter.requires": "Requer:",
@@ -5988,8 +5988,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Sie haben die Wiederherstellung eines Backups angefordert. Bitte wählen Sie eine Option:</p>
 <p><strong>ACHTUNG: Jede Wiederherstellung überschreibt Ihre aktuellen Daten (Modelle und/oder Daten).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Vollständige Wiederherstellung (Modelle UND Daten)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">NUR Modelle wiederherstellen</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Vollständige Wiederherstellung (Modelle UND Daten)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">NUR Modelle wiederherstellen</a></li>
 </ul>
 <p>Diese Links laufen in 30 Minuten ab.</p>`,
             "modelimporter.requires": "Erfordert:",
@@ -7467,8 +7467,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Hai richiesto il ripristino di un backup. Scegli un'opzione:</p>
 <p><strong>ATTENZIONE: Qualsiasi ripristino sovrascriverà i tuoi dati attuali (modelli e/o dati).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Ripristino Completo (Modelli E Dati)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Ripristina SOLO i Modelli</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Ripristino Completo (Modelli E Dati)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Ripristina SOLO i Modelli</a></li>
 </ul>
 <p>Questi link scadranno tra 30 minuti.</p>`,
             "modelimporter.requires": "Richiede:",
@@ -8941,8 +8941,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Požádali jste o obnovení ze zálohy. Vyberte prosím možnost:</p>
 <p><strong>VAROVÁNÍ: Jakákoli obnova přepíše vaše aktuální data (modely a/nebo data).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Kompletní obnova (Modely I Data)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Obnovit POUZE Modely</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Kompletní obnova (Modely I Data)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Obnovit POUZE Modely</a></li>
 </ul>
 <p>Tyto odkazy expirují za 30 minut.</p>`,
             "modelimporter.requires": "Vyžaduje:",
@@ -10413,8 +10413,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Вы запросили восстановление из резервной копии. Пожалуйста, выберите вариант:</p>
 <p><strong>ВНИМАНИЕ: Любое восстановление перезапишет ваши текущие данные (модели и/или данные).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Полное восстановление (Модели И Данные)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Восстановить ТОЛЬКО Модели</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Полное восстановление (Модели И Данные)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Восстановить ТОЛЬКО Модели</a></li>
 </ul>
 <p>Эти ссылки истекают через 30 минут.</p>`,
             "modelimporter.requires": "Требуется:",
@@ -11904,8 +11904,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>لقد طلبت استعادة نسخة احتياطية. يرجى اختيار خيار:</p>
 <p><strong>تحذير: أي عملية استعادة ستستبدل بياناتك الحالية (النماذج و/أو البيانات).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">استعادة كاملة (النماذج والبيانات)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">استعادة النماذج فقط</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">استعادة كاملة (النماذج والبيانات)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">استعادة النماذج فقط</a></li>
 </ul>
 <p>ستنتهي صلاحية هذه الروابط بعد 30 دقيقة.</p>`,
             "modelimporter.requires": "يتطلب:",
@@ -13384,8 +13384,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Du har begärt en återställning från backup. Vänligen välj ett alternativ:</p>
 <p><strong>OBS: All återställning kommer att skriva över din nuvarande data (modeller och/eller data).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Fullständig återställning (Modeller OCH Data)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Återställ ENDAST Modeller</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Fullständig återställning (Modeller OCH Data)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Återställ ENDAST Modeller</a></li>
 </ul>
 <p>Dessa länkar upphör att gälla om 30 minuter.</p>`,
             "modelimporter.requires": "Kräver:",
@@ -14858,8 +14858,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>Έχετε αιτηθεί επαναφορά από αντίγραφο ασφαλείας. Παρακαλώ επιλέξτε μια επιλογή:</p>
 <p><strong>ΠΡΟΣΟΧΗ: Οποιαδήποτε επαναφορά θα αντικαταστήσει τα τρέχοντα δεδομένα σας (μοντέλα και/ή δεδομένα).</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">Πλήρης Επαναφορά (Μοντέλα ΚΑΙ Δεδομένα)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Επαναφορά ΜΟΝΟ Μοντέλων</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Πλήρης Επαναφορά (Μοντέλα ΚΑΙ Δεδομένα)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">Επαναφορά ΜΟΝΟ Μοντέλων</a></li>
 </ul>
 <p>Οι σύνδεσμοι θα λήξουν σε 30 λεπτά.</p>`,
             "modelimporter.requires": "Απαιτείται:",
@@ -16287,8 +16287,8 @@ export const websiteTranslations = {
             "email.backup.restoreRequest.content": `<p>درخواست بازیابی نسخه پشتیبان را داده‌اید. لطفاً یک گزینه انتخاب کنید:</p>
 <p><strong>هشدار: هرگونه بازیابی، داده‌های فعلی شما (مدل‌ها و/یا داده‌ها) را بازنویسی خواهد کرد.</strong></p>
 <ul>
-    <li><a href="https://data.primals.net/backup/restore?token={{fullToken}}&username={{user}}&type=full">بازیابی کامل (هم مدل‌ها و هم داده‌ها)</a></li>
-    <li><a href="https://data.primals.net/backup/restore?token={{modelsToken}}&username={{user}}&type=models">فقط بازیابی مدل‌ها</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">بازیابی کامل (هم مدل‌ها و هم داده‌ها)</a></li>
+    <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=models">فقط بازیابی مدل‌ها</a></li>
 </ul>
 <p>این لینک‌ها پس از 30 دقیقه منقضی خواهند شد.</p>`,
             "btns.confirm": "تأیید",

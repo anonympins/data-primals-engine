@@ -5,6 +5,10 @@ import LanguageDetector from "i18next-browser-languagedetector";
 export const translations = {
     fr: {
         translation: {
+            "relationField.select.title": "Sélectionner {{modelName}}",
+            "btns.validate": "Valider",
+            "btns.create": "Créer",
+            "btns.backToSearch": "Retour à la recherche",
             "close": "Fermer",
             "loading": "Chargement...",
             "creating": "Création...",
@@ -1314,6 +1318,10 @@ export const translations = {
     },
     en: {
         translation: {
+            "relationField.select.title": "Select {{modelName}}",
+            "btns.validate": "Validate",
+            "btns.create": "Create",
+            "btns.backToSearch": "Back to Search",
             "close": "Close",
             "loading": "Loading...",
             "creating": "Creating...",
@@ -2619,6 +2627,10 @@ export const translations = {
     },
     es: {
         translation: {
+            "relationField.select.title": "Seleccionar {{modelName}}",
+            "btns.validate": "Validar",
+            "btns.create": "Crear",
+            "btns.backToSearch": "Volver a la búsqueda",
             "close": "Cerrar",
             "loading": "Cargando...",
             "creating": "Creando...",
@@ -3961,6 +3973,10 @@ export const translations = {
     },
     pt: {
         translation: {
+            "relationField.select.title": "Selecionar {{modelName}}",
+            "btns.validate": "Validar",
+            "btns.create": "Criar",
+            "btns.backToSearch": "Voltar à Pesquisa",
             "close": "Fechar",
             "loading": "Carregando...",
             "creating": "Criando...",
@@ -4109,6 +4125,10 @@ export const translations = {
     },
     de: {
         translation: {
+            "relationField.select.title": "{{modelName}} auswählen",
+            "btns.validate": "Validieren",
+            "btns.create": "Erstellen",
+            "btns.backToSearch": "Zurück zur Suche",
             "close": "Schließen",
             "loading": "Wird geladen...",
             "creating": "Wird erstellt...",
@@ -5330,6 +5350,10 @@ export const translations = {
     },
     it: {
         translation: {
+            "relationField.select.title": "Seleziona {{modelName}}",
+            "btns.validate": "Convalida",
+            "btns.create": "Crea",
+            "btns.backToSearch": "Torna alla ricerca",
             "close": "Chiudi",
             "loading": "Caricamento in corso...",
             "creating": "Creazione in corso...",
@@ -6604,6 +6628,10 @@ export const translations = {
     },
     cs: {
         translation: {
+            "relationField.select.title": "Vybrat {{modelName}}",
+            "btns.validate": "Ověřit",
+            "btns.create": "Vytvořit",
+            "btns.backToSearch": "Zpět k vyhledávání",
             "close": "Zavřít",
             "loading": "Načítání...",
             "creating": "Vytváření...",
@@ -7525,6 +7553,10 @@ export const translations = {
     },
     ru: {
         translation: {
+            "relationField.select.title": "Выбрать {{modelName}}",
+            "btns.validate": "Проверить",
+            "btns.create": "Создать",
+            "btns.backToSearch": "Вернуться к поиску",
             "close": "Закрыть",
             "loading": "Загрузка...",
             "creating": "Создание...",
@@ -8800,6 +8832,10 @@ export const translations = {
     },
     ar: {
         translation: {
+            "relationField.select.title": "اختر {{modelName}}",
+            "btns.validate": "تحقق",
+            "btns.create": "إنشاء",
+            "btns.backToSearch": "العودة إلى البحث",
             "إغلاق": "إغلاق", "تحميل": "جارٍ التحميل...", "إنشاء": "جارٍ الإنشاء...", "بيانات": "بيانات", "نموذج": "نموذج",
             "فلتر": "فلتر (JSON)",
             "خطأ. عام": "خطأ: {{message}}",
@@ -10120,7 +10156,10 @@ export const translations = {
     },
     sv: {
         translation: {
-
+            "relationField.select.title": "Välj {{modelName}}",
+            "btns.validate": "Validera",
+            "btns.create": "Skapa",
+            "btns.backToSearch": "Tillbaka till sökning",
             "close": "Stäng",
             "loading": "Laddar...",
             "creating": "Skapar...",
@@ -11344,6 +11383,10 @@ export const translations = {
     },
     el: {
         translation: {
+            "relationField.select.title": "Επιλογή {{modelName}}",
+            "btns.validate": "Επικύρωση",
+            "btns.create": "Δημιουργία",
+            "btns.backToSearch": "Πίσω στην αναζήτηση",
             "close": "Close",
             "loading": "Loading...",
             "creating": "Δημιουργία...",
@@ -12543,6 +12586,10 @@ export const translations = {
     },
     fa: {
         translation: {
+            "relationField.select.title": "{{modelName}} را انتخاب کنید",
+            "btns.validate": "اعتبارسنجی",
+            "btns.create": "ایجاد",
+            "btns.backToSearch": "بازگشت به جستجو",
             "close": "بستن",
             "loading": "در حال بارگذاری...",
             "creating": "در حال ایجاد...",
