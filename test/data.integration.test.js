@@ -20,6 +20,7 @@ import {
 import {getRandom} from "../src/core.js";
 import {generateUniqueName, initEngine} from "../src/setenv.js";
 import {purgeData} from "../src/modules/data/data.history.js";
+import {removeFile} from "../src/modules/file.js";
 
 let testModelsColInstance;
 let testDatasColInstance;
@@ -461,6 +462,8 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
             expect(insertedDoc.fileField._id).toBeDefined();
             expect(insertedDoc.fileField.name).toBe('test-upload-on-insert.txt');
             expect(insertedDoc.fileField.guid).toBeDefined();
+
+            await removeFile(insertedDoc.fileField.guid, currentTestUser);
 
             // Nettoyage du répertoire et fichier temporaire
             await fs.rm(tmpDir, { recursive: true, force: true });
