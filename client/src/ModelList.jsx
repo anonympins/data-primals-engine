@@ -35,7 +35,7 @@ const ModelListItemLabel = ({ model, count, isGenerated, t }) => {
 };
 
 
-export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditModel, onAPIInfo, onNewData, onImportPack }) {
+export function ModelList({ editionMode, onModelSelect, onCreateModel, onImportModel, onEditModel, onAPIInfo, onNewData, onImportPack }) {
     const {allTourSteps, setIsTourOpen,setCurrentTourSteps, setTourStepIndex, currentTour, setCurrentTour} = useUI();
 
     const {models, setSelectedModel, selectedModel, countByModel, generatedModels} = useModelContext();
@@ -248,7 +248,7 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                             })}
                         </ul>
                     </div>) : (
-                    <div className="empty-state-container">
+                    <div className="empty-state-container p-2">
                         <div className="empty-state-content">
                             <div className="empty-state-icon">
                                 {/* Une icône SVG simple pour représenter des "blocs de construction" ou des "données" */}
@@ -270,6 +270,11 @@ export function ModelList({ onModelSelect, onCreateModel, onImportModel, onEditM
                     </div>
                 )}
             </div>
+            {!editionMode && (<div className="flex actions">
+                <Button onClick={onCreateModel} className="btn-primary btn-large">
+                    <FaPlus /> {t('btns.addModel', 'Créer un modèle')}
+                </Button>
+            </div>)}
         </div>
     </>
 }

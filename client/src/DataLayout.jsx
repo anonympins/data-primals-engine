@@ -270,6 +270,7 @@ function DataLayout({refreshUI}) {
         setRelationFilters({});
         setCheckedItems([])
         setFilterValues({});
+        setEditionMode(false);
         if (!model) {
             setSelectedModel(null);
             return;
@@ -659,6 +660,7 @@ function DataLayout({refreshUI}) {
 
             <div className="datalayout flex flex-start">
                 <ModelList tourSteps={currentTourSteps}
+                           editionMode={editionMode}
                            onAPIInfo={(model) => {
                                setAPIInfoVisible(true);
                                setDataEditorVisible(false);

@@ -239,10 +239,12 @@ export const Engine = {
                 });
             });
 
-            app.use(sirv('client/dist', {
-                single: true,
-                dev: process.env.NODE_ENV === 'development'
-            }));
+            if( fs.existsSync('client/dist') ){
+                app.use(sirv('client/dist', {
+                    single: true,
+                    dev: process.env.NODE_ENV === 'development'
+                }));
+            }
 
             process.on('uncaughtException', function (exception) {
                 console.error(exception);
@@ -277,9 +279,9 @@ export const Engine = {
                     model.locked = true;
                     const r = await createModel(model);
                     dbModels.push({...model, _id: r.insertedId });
-                    logger.info('Model inserted (' + model.name + ')');
+                    logger.info(`Model ${model.name} inserted.`);
                 }else
-                    logger.info('Model loaded (' + model.name + ')');
+                    logger.info(`Model ${model.name} loaded`);
             }
             logger.info("All models loaded.");
             await Event.Trigger("OnModelsLoaded", "event", "system", engine, dbModels);
