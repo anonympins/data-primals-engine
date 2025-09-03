@@ -410,7 +410,7 @@ async function executeTool(action, params, user, allModels) {
  * @param {object} confirmedAction - Une action pré-approuvée par l'utilisateur.
  * @returns {Promise<object>} La réponse de l'assistant.
  */
-async function handleChatRequest(message, history, provider, context, user, confirmedAction) {
+export async function handleChatRequest(message, history, provider, context, user, confirmedAction) {
 
     const allModels = await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user.username}]}).toArray();
 
@@ -452,8 +452,8 @@ async function handleChatRequest(message, history, provider, context, user, conf
         return {success: false, message: `Erreur d'initialisation du client IA: ${initError.message}`};
     }
 
-    // --- PRÉPARATION DE L'HISTORIQUE DE CONVERSATION ---
-    const systemPrompt = createSystemPrompt([], user.lang || 'en');
+    const systemPrompt = Event.Trigger('OnSystemPrompt', 'event', 'user', user);
+
     const conversationHistory = history
         .filter(msg => msg.text && !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
         .map(msg => new (msg.from === 'user' ? HumanMessage : SystemMessage)(msg.text));
@@ -608,6 +608,10 @@ export async function onInit(engine) {
     logger = engine.getComponent(Logger);
 
     const {middlewareAuthenticator, userInitiator} = await import('../user.js');
+
+    Event.Listen('OnSystemPrompt', (user) => {
+        return createSystemPrompt([], user.lang || 'en');
+    }, 'event', 'user');
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée

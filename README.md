@@ -863,6 +863,7 @@ Event.Listen("OnDataAdded", (engine, data) => {
 | OnDataValidate   | Triggered to override validation check.                                 | System        | internal             | (value, field, data)                                                                                                                     |
 | OnDataFilter     | Triggered to override data filtering operation.                         | System        | internal             | (filteredValue, field, data)                                                                                                             |
 | OnEmailTemplate  | Triggered to override custom email templates                            | System        | internal             | (templateData, lang)                                                                                                                     |
+| OnSystemPrompt   | Triggered to override assistant system prompt                           | User          | handleChatRequest    | (user)                                                                                                                                   |
 
 ### Triggering events
 
