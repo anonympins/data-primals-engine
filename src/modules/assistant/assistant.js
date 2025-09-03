@@ -317,14 +317,10 @@ COMMANDE FINALE :
  * @returns {object} Le filtre corrigé.
  */
 function correctAIFilter(filter) {
-    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
-        return filter; // Pas un objet à corriger
-    }
+    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return filter;
 
     const keys = Object.keys(filter);
-    if (keys.length <= 1) {
-        return filter; // Rien à corriger
-    }
+    if (keys.length <= 1) return filter;
 
     // Vérifie si toutes les clés sont des opérateurs (commencent par '$')
     const allKeysAreOperators = keys.every(key => key.startsWith('$'));
@@ -335,7 +331,7 @@ function correctAIFilter(filter) {
         return { '$and': andConditions };
     }
 
-    return filter; // Aucune correction nécessaire
+    return filter;
 }
 
 /**
@@ -350,30 +346,6 @@ async function executeTool(action, params, user, allModels) {
     logger.debug(`[Assistant] Exécution de l'outil: ${action} avec les paramètres:`, params);
     try {
         switch (action) {
-        case 'search': {
-            const modelDef = allModels.find(m => m.name === params.model);
-            if (!modelDef) {
-                return `Erreur: Le modèle '${params.model}' n'a pas été trouvé. Impossible de lancer la recherche.`;
-            }
-
-            const searchResult = await searchData({
-                model: params.model,
-                filter: params.filter,
-                limit: params.limit || 10,
-                sort: params.sort
-            }, user);
-
-            if (searchResult.data.length === 0) {
-                return i18n.t('assistant.noResults', "Aucun résultat trouvé.");
-            }
-
-            const resultString = i18n.t('assistant.searchResults', "Voici les résultats :") +
-                    searchResult.data.map(item =>
-                        `\n- ${getDataAsString(modelDef, item, { i18n, t: i18n.t }, allModels, true)}`
-                    ).join('');
-
-            return resultString;
-        }
         case 'search_models': {
             const { main: foundModels, related: relatedModels } = await searchModels(params.query, user);
 
@@ -505,59 +477,6 @@ export async function handleChatRequest(message, history, provider, context, use
             params.filter = correctAIFilter(params.filter);
         }
 
-        // Action de génération de graphique, gérée par le front-end
-        if (action === 'generateChart') {
-            // On retourne directement la configuration du graphique au client.
-            return { success: true, chartConfig: params };
-        }
-
-        // Action de génération de vue HTML
-        if (action === 'generateHtmlView') {
-            const viewData = await searchData({
-                model: params.model,
-                filter: params.filter,
-                limit: params.limit || 10,
-                depth: 2 // Pour avoir accès aux relations de premier niveau dans les templates
-            }, user);
-
-            if (viewData.data.length === 0) {
-                return { success: true, displayMessage: i18n.t('assistant.htmlView.noResult', "Je n'ai trouvé aucune donnée correspondante pour cette vue.") };
-            }
-
-            // On retourne la configuration de la vue ET les données au client.
-            return { success: true, htmlViewConfig: { ...params, data: viewData.data } };
-        }
-
-        // NOUVEAU: Action de recherche à afficher, gérée par le front-end
-        if (action === 'search') {
-            const searchResult = await searchData({
-                model: params.model,
-                filter: params.filter,
-                limit: params.limit || 10,
-                sort: params.sort
-            }, user);
-            if (searchResult.data?.length > 0) {
-                return { success: true, dataResult: { model: params.model, data: searchResult.data } };
-            } else {
-                return { success: true, displayMessage: i18n.t('assistant.search.noResults', "Je n'ai trouvé aucun résultat.") };
-            }
-        }
-
-        // Actions nécessitant une confirmation de l'utilisateur
-        if (['post', 'update', 'delete'].includes(action)) {
-            const confirmationMessage = i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :");
-            return {
-                success: true,
-                displayMessage: confirmationMessage,
-                confirmationRequest: parsedResponse
-            };
-        }
-
-        // Action finale pour afficher un message
-        if (action === 'displayMessage') {
-            return { success: true, displayMessage: params.message };
-        }
-
         // Outils pour le raisonnement interne de l'IA
         if (['search_models'].includes(action)) { // On a enlevé 'search' d'ici
             const toolResult = await executeTool(action, params, user, allModels);
@@ -565,12 +484,17 @@ export async function handleChatRequest(message, history, provider, context, use
             continue; // On continue la boucle pour que l'IA puisse raisonner avec ce nouveau résultat
         }
 
-        // Si l'action n'est reconnue par aucune des logiques ci-dessus
-        logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
-        return {
-            success: true,
-            displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", { action })
-        };
+        const res = await Event.Trigger('OnChatAction', 'event', 'user', action, params, parsedResponse, user);
+
+        if( !res ) {
+            // Si l'action n'est reconnue par aucune des logiques ci-dessus
+            logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
+            return {
+                success: true,
+                displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", {action})
+            };
+        }
+        return res;
     }
 
     // Si la boucle se termine sans une action finale
@@ -603,6 +527,61 @@ async function executeConfirmedAction(action, params, user) {
     }
 }
 
+/**
+ * Gère une action finale décidée par l'IA et retourne une réponse pour le client.
+ * Cette fonction est appelée via le système d'événements 'OnChatAction'.
+ * @param {string} action - L'action à exécuter.
+ * @param {object} params - Les paramètres de l'action.
+ * @param {object} parsedResponse - La réponse JSON originale de l'IA, pour les demandes de confirmation.
+ * @param {object} user - L'objet utilisateur.
+ * @returns {Promise<object|boolean>} - L'objet de réponse final ou false si l'action n'est pas reconnue.
+ */
+async function handleFinalChatAction(action, params, parsedResponse, user) {
+    // Action de génération de graphique, gérée par le front-end
+    if (action === 'generateChart') {
+        return {success: true, chartConfig: params};
+    }
+    // Action de génération de vue HTML
+    if (action === 'generateHtmlView') {
+        const viewData = await searchData({
+            model: params.model,
+            filter: params.filter,
+            limit: params.limit || 10,
+            depth: 2 // Pour avoir accès aux relations de premier niveau dans les templates
+        }, user);
+
+        if (viewData.data.length === 0) {
+            return {
+                success: true,
+                displayMessage: i18n.t('assistant.htmlView.noResult', "Je n'ai trouvé aucune donnée correspondante pour cette vue.")
+            };
+        }
+        return {success: true, htmlViewConfig: {...params, data: viewData.data}};
+    }
+
+    // Action de recherche à afficher, gérée par le front-end
+    if (action === 'search') {
+        const searchResult = await searchData({ model: params.model, filter: params.filter, limit: params.limit || 10, sort: params.sort }, user);
+        if (searchResult.data?.length > 0) {
+            return {success: true, dataResult: {model: params.model, data: searchResult.data}};
+        } else {
+            return { success: true, displayMessage: i18n.t('assistant.search.noResults', "Je n'ai trouvé aucun résultat.") };
+        }
+    }
+
+    // Actions nécessitant une confirmation de l'utilisateur
+    if (['post', 'update', 'delete'].includes(action)) {
+        return { success: true, displayMessage: i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :"), confirmationRequest: parsedResponse };
+    }
+
+    // Action finale pour afficher un message
+    if (action === 'displayMessage') {
+        return {success: true, displayMessage: params.message};
+    }
+
+    return false; // Action non reconnue par cet écouteur
+}
+
 
 export async function onInit(engine) {
     logger = engine.getComponent(Logger);
@@ -612,6 +591,9 @@ export async function onInit(engine) {
     Event.Listen('OnSystemPrompt', (user) => {
         return createSystemPrompt([], user.lang || 'en');
     }, 'event', 'user');
+    // Enregistre le gestionnaire central pour les actions finales du chat.
+    // D'autres modules pourraient également écouter cet événement pour étendre les fonctionnalités.
+    Event.Listen('OnChatAction', handleFinalChatAction);
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée
