@@ -19,6 +19,7 @@ import {Config} from "../config.js";
 
 export const userInitiator = async (req, res, next) => {
 
+    const engine = req.app.get('engine');
     const lang = getAPILang(req.query.lang || req.headers['Accept-Language']);
 
     req.lang = lang;
