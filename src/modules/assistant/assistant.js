@@ -13,6 +13,7 @@ import {providers} from "./constants.js";
 import {ChatDeepSeek} from "@langchain/deepseek";
 import {ChatAnthropic} from "@langchain/anthropic";
 import {Config} from "../../config.js";
+import { Event } from "../../events.js";
 
 let logger = null;
 
@@ -424,7 +425,7 @@ export async function handleChatRequest(message, history, provider, context, use
         return {success: false, message: `Erreur d'initialisation du client IA: ${initError.message}`};
     }
 
-    const systemPrompt = Event.Trigger('OnSystemPrompt', 'event', 'user', user);
+    const systemPrompt = await Event.Trigger('OnSystemPrompt', 'event', 'user', user);
 
     const conversationHistory = history
         .filter(msg => msg.text && !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
@@ -593,12 +594,13 @@ export async function onInit(engine) {
     }, 'event', 'user');
     // Enregistre le gestionnaire central pour les actions finales du chat.
     // D'autres modules pourraient également écouter cet événement pour étendre les fonctionnalités.
-    Event.Listen('OnChatAction', handleFinalChatAction);
+    Event.Listen('OnChatAction', handleFinalChatAction,"event", "user");
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée
         const {message, history, provider, context, confirmedAction} = req.fields;
 
+        console.log("ok");
         // La validation ne s'applique que s'il n'y a pas d'action confirmée
         if (!confirmedAction) {
             if (typeof (message) !== 'string' || !message.trim()) {
@@ -618,6 +620,7 @@ export async function onInit(engine) {
         try {
             const result = await handleChatRequest(message, history, provider, context, req.me, confirmedAction);
             res.json(result);
+            console.log(result);
         } catch (error) {
             logger.error(`[Endpoint /api/assistant/chat] Erreur inattendue: ${error.message}`, error.stack);
             res.status(500).json({success: false, message: "Une erreur interne est survenue."});
