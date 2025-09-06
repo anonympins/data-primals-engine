@@ -1,6 +1,7 @@
 // __tests__/data.history.integration.test.js
 import { ObjectId } from 'mongodb';
 import { expect, describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import { handleGetHistoryRequest } from '../src/modules/data/data.history.js';
 import { Config } from '../src/config.js';
 import { sleep } from '../src/core.js';
 import { insertData, editData, deleteModels } from '../src/index.js';
@@ -189,5 +190,76 @@ describe('Data History Module Integration Tests', () => {
         // 4. Verify that NO new history record was created (only the 'create' record exists)
         const historyCount = await historyCollection.countDocuments({ documentId: docId });
         expect(historyCount).toBe(1);
+    });
+
+    it('should filter history records by date range', async () => {
+        // 1. Setup model
+        const modelName = generateUniqueName('productHistoryDateFilter');
+        const productModelDef = {
+            name: modelName,
+            description: "",
+            _user: testUser.username,
+            history: { enabled: true },
+            fields: [{ name: 'name', type: 'string' }]
+        };
+        await modelsCollection.insertOne(productModelDef);
+
+        // 2. Insert initial document
+        const insertResult = await insertData(modelName, { name: 'Time-traveling Widget' }, {}, testUser);
+        const docId = new ObjectId(insertResult.insertedIds[0]);
+
+        // 3. Create history entries at different times
+        // To simulate different timestamps, we'll manually insert history records
+        // as editData() would create them too close together in time.
+        await historyCollection.updateOne({ documentId: docId, version: 1 }, { $set: { timestamp: new Date('2023-01-10T10:00:00Z') } });
+
+        await historyCollection.insertOne({
+            documentId: docId, model: modelName, version: 2, operation: 'update',
+            timestamp: new Date('2023-02-15T12:00:00Z'), user: { username: testUser.username }, changes: { name: { from: 'v1', to: 'v2' } }
+        });
+        await historyCollection.insertOne({
+            documentId: docId, model: modelName, version: 3, operation: 'update',
+            timestamp: new Date('2023-02-20T14:00:00Z'), user: { username: testUser.username }, changes: { name: { from: 'v2', to: 'v3' } }
+        });
+        await historyCollection.insertOne({
+            documentId: docId, model: modelName, version: 4, operation: 'update',
+            timestamp: new Date('2023-03-05T16:00:00Z'), user: { username: testUser.username }, changes: { name: { from: 'v3', to: 'v4' } }
+        });
+
+        // Mock Express req/res objects
+        const mockReq = (query) => ({
+            params: { modelName, recordId: docId.toString() },
+            query,
+            me: testUser
+        });
+        const mockRes = () => {
+            const res = {};
+            res.status = (code) => { res.statusCode = code; return res; };
+            res.json = (data) => { res.body = data; return res; };
+            return res;
+        };
+
+        // 4. Test cases
+        // Case A: Filter for February
+        let req = mockReq({ startDate: '2023-02-01', endDate: '2023-02-28' });
+        let res = mockRes();
+        await handleGetHistoryRequest(req, res);
+        expect(res.body.success).toBe(true);
+        expect(res.body.count).toBe(2);
+        expect(res.body.data.map(d => d._v).sort()).toEqual([2, 3]);
+
+        // Case B: Filter starting from Feb 15th
+        req = mockReq({ startDate: '2023-02-15' });
+        res = mockRes();
+        await handleGetHistoryRequest(req, res);
+        expect(res.body.success).toBe(true);
+        expect(res.body.count).toBe(3); // v2, v3, v4
+
+        // Case C: Filter up to Feb 15th (inclusive)
+        req = mockReq({ endDate: '2023-02-15' });
+        res = mockRes();
+        await handleGetHistoryRequest(req, res);
+        expect(res.body.success).toBe(true);
+        expect(res.body.count).toBe(2); // v1, v2
     });
 });
