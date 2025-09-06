@@ -7,6 +7,8 @@ import {Config} from "../../config.js";
 import { Event } from "../../events.js";
 import rateLimit from "express-rate-limit";
 import {generateLimiter} from "../user.js";
+import {maxAIReflectiveSteps} from "../../constants.js";
+import i18n from "../../i18n.js";
 
 let logger = null;
 
@@ -374,16 +376,13 @@ async function executeTool(action, params, user, allModels) {
 /**
  * Gère la requête de chat, soit en exécutant une action confirmée,
  * soit en lançant la boucle de raisonnement de l'IA.
- * @param {string} message - Le message de l'utilisateur.
- * @param {Array} history - L'historique de la conversation.
- * @param {string} provider - Le fournisseur d'IA ('OpenAI' ou 'google').
- * @param {object} context - Contexte additionnel.
+ @param {object} params - La liste des paramètres envoyés par la requete
  * @param {object} user - L'objet utilisateur.
- * @param {object} confirmedAction - Une action pré-approuvée par l'utilisateur.
  * @returns {Promise<object>} La réponse de l'assistant.
  */
-export async function handleChatRequest(message, history, provider, context, user, confirmedAction) {
+export async function handleChatRequest(params, user) {
 
+    const { message, history, provider, confirmedAction } = params;
     const allModels = await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user.username}]}).toArray();
 
     // --- GESTION D'UNE ACTION CONFIRMÉE ---
@@ -471,17 +470,17 @@ export async function handleChatRequest(message, history, provider, context, use
         logger.debug(`[Assistant] Action décidée par l'IA: ${parsedResponse.action}`, parsedResponse);
         conversationHistory.push(new SystemMessage(JSON.stringify(parsedResponse)));
 
-        const { action, params } = parsedResponse;
+        const { action, params:parsedParams } = parsedResponse;
 
         // Correction automatique du filtre généré par l'IA, qui hallucine parfois
-        if (params && params.filter) {
-            logger.debug(`[Assistant] Filtre original de l'IA: ${JSON.stringify(params.filter)}`);
-            params.filter = correctAIFilter(params.filter);
+        if (parsedParams && parsedParams.filter) {
+            logger.debug(`[Assistant] Filtre original de l'IA: ${JSON.stringify(parsedParams.filter)}`);
+            parsedParams.filter = correctAIFilter(parsedParams.filter);
         }
 
         // Outils pour le raisonnement interne de l'IA
         if (['search_models'].includes(action)) { // On a enlevé 'search' d'ici
-            const toolResult = await executeTool(action, params, user, allModels);
+            const toolResult = await executeTool(action, parsedParams, user, allModels);
             conversationHistory.push(new SystemMessage(`Résultat de l'outil '${action}':\n${toolResult}`));
             continue; // On continue la boucle pour que l'IA puisse raisonner avec ce nouveau résultat
         }
@@ -618,7 +617,7 @@ export async function onInit(engine) {
         }
 
         try {
-            const result = await handleChatRequest(message, history, provider, context, req.me, confirmedAction);
+            const result = await handleChatRequest(req.fields, req.me);
             res.json(result);
         } catch (error) {
             logger.error(`[Endpoint /api/assistant/chat] Erreur inattendue: ${error.message}`, error.stack);
