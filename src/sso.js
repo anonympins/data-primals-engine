@@ -1,6 +1,6 @@
 import passport from 'passport';
 import session from 'express-session';
-import { Behaviour } from './gameObject.js';
+import {Behaviour, Logger} from './gameObject.js';
 import { cookiesSecret } from "./constants.js";
 import {UserProvider} from "./providers.js";
 import {getCollection} from "./modules/mongodb.js";
@@ -110,7 +110,7 @@ export class Sso extends Behaviour {
             throw new Error("PassportAuth component requires an ssoUserProvider to be initialized.");
         }
         this.#ssoUserProvider = ssoUserProvider;
-        this.#logger = this.gameObject.getComponent('Logger'); // Assumant que Logger est un composant
+        this.#logger = this.gameObject.getComponent(Logger); // Assumant que Logger est un composant
 
         const app = this.gameObject; // this.gameObject est l'instance de l'engine (Express app)
 

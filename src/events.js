@@ -87,6 +87,30 @@ export const Event = {
         safeAssignObject(events[system][name], layer, events[system][name][layer] || []);
         events[system][name][layer].push(callback);
     },
+    addSystem: (system) => {
+        if (typeof system !== 'string' || system.trim() === '') {
+            throw new Error('Le nom du système doit être une chaîne de caractères non vide.');
+        }
+        if (!eventLayerSystems.hasOwnProperty(system)) {
+            eventLayerSystems[system] = [];
+        } else {
+            console.warn(`[Event] Le système '${system}' existe déjà.`);
+        }
+    },
+    addLayer: (system, layer) => {
+        if (typeof system !== 'string' || system.trim() === '') {
+            throw new Error('Le nom du système doit être une chaîne de caractères non vide.');
+        }
+        if (typeof layer !== 'string' || layer.trim() === '') {
+            throw new Error('Le nom de la couche doit être une chaîne de caractères non vide.');
+        }
+        if (!eventLayerSystems.hasOwnProperty(system)) {
+            throw new Error(`Le système '${system}' n'existe pas. Veuillez l'ajouter avec addSystem('${system}').`);
+        }
+        if (!eventLayerSystems[system].includes(layer)) {
+            eventLayerSystems[system].push(layer);
+        }
+    },
     RemoveCallback: (name, callback, layer="medium", system='priority') => {
         if (!events[system] || !events[system][name] || !events[system][name][layer]) {
             return; // Si l'événement, le système ou la couche n'existent pas, on ne fait rien
