@@ -1,45 +1,44 @@
 import { getCollectionForUser, modelsCollection } from "../mongodb.js";
 import { Logger } from "../../gameObject.js";
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {searchData,  patchData, deleteData, insertData} from "../data/index.js";
-import { getDataAsString } from "../../data.js";
-import i18n from "../../i18n.js";
-import {generateLimiter} from "../user.js";
-import rateLimit from "express-rate-limit";
-import {maxAIReflectiveSteps} from "../../constants.js";
 import {providers} from "./constants.js";
-import {ChatDeepSeek} from "@langchain/deepseek";
-import {ChatAnthropic} from "@langchain/anthropic";
 import {Config} from "../../config.js";
 import { Event } from "../../events.js";
+import rateLimit from "express-rate-limit";
+import {generateLimiter} from "../user.js";
 
 let logger = null;
 
-export const getAIProvider= (aiProvider, aiModel, apiKey)=>{
-    let llm;
+export const getAIProvider= async (aiProvider, aiModel, apiKey)=>{
     try {
         switch (aiProvider) {
-        case 'OpenAI':
-            llm = new ChatOpenAI({apiKey, model: aiModel, temperature: 0.7});
-            break;
-        case 'Google':
-            llm = new ChatGoogleGenerativeAI({apiKey, model: aiModel, temperature: 0.7});
-            break;
-        case 'DeepSeek':
-            llm = new ChatDeepSeek({apiKey, model: aiModel, temperature: 0.7});
-            break;
-        case 'Anthropic':
-            llm = new ChatAnthropic({apiKey, model: aiModel, temperature: 0.7});
-            break;
+        case 'OpenAI': {
+            const { ChatOpenAI } = await import("@langchain/openai");
+            return new ChatOpenAI({apiKey, model: aiModel, temperature: 0.7});
+        }
+        case 'Google': {
+            const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
+            return new ChatGoogleGenerativeAI({apiKey, model: aiModel, temperature: 0.7});
+        }
+        case 'DeepSeek': {
+            const { ChatDeepSeek } = await import("@langchain/deepseek");
+            return new ChatDeepSeek({apiKey, model: aiModel, temperature: 0.7});
+        }
+        case 'Anthropic': {
+            const { ChatAnthropic } = await import("@langchain/anthropic");
+            return new ChatAnthropic({apiKey, model: aiModel, temperature: 0.7});
+        }
         default:
             throw new Error(`Unsupported AI provider: ${aiProvider}`);
         }
-        return llm;
-    }
-    catch (e) {
-        return null;
+    } catch (e) {
+        if (e.code === 'ERR_MODULE_NOT_FOUND') {
+            logger.error(`[Assistant] The package for the '${aiProvider}' provider is not installed. Please run 'npm install @langchain/${aiProvider.toLowerCase()}' to use this provider.`);
+            throw new Error(`The AI provider '${aiProvider}' is not installed. Please ask the administrator to install the corresponding package.`);
+        }
+        logger.error(`[Assistant] Error initializing AI provider '${aiProvider}': ${e.message}`);
+        throw e; // Re-throw other errors
     }
 }
 export const assistantGlobalLimiter = rateLimit({
@@ -408,6 +407,7 @@ export async function handleChatRequest(message, history, provider, context, use
 
     // --- INITIALISATION DE L'IA ---
     let llm;
+    let llmOptions = {  };
     try {
         const p = provider || 'OpenAI';
         const envKeyName = providers[p].key;
@@ -419,7 +419,8 @@ export async function handleChatRequest(message, history, provider, context, use
 
         if (!apiKey) return {success: false, message: `Clé API pour ${p} (${envKeyName}) non trouvée.`};
 
-        llm = getAIProvider(p, providers[p]?.defaultModel, apiKey);
+        llmOptions = { provider: p, model: providers[p]?.defaultModel, apiKey };
+        llm = await getAIProvider(llmOptions.provider, llmOptions.model, llmOptions.apiKey);
     } catch (initError) {
         logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);
         return {success: false, message: `Erreur d'initialisation du client IA: ${initError.message}`};
@@ -427,7 +428,7 @@ export async function handleChatRequest(message, history, provider, context, use
 
     const systemPrompt = await Event.Trigger('OnSystemPrompt', 'event', 'user', user);
 
-    const conversationHistory = history
+    const conversationHistory = (history || [])
         .filter(msg => msg.text && !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
         .map(msg => new (msg.from === 'user' ? HumanMessage : SystemMessage)(msg.text));
 
@@ -485,7 +486,7 @@ export async function handleChatRequest(message, history, provider, context, use
             continue; // On continue la boucle pour que l'IA puisse raisonner avec ce nouveau résultat
         }
 
-        const res = await Event.Trigger('OnChatAction', 'event', 'user', action, params, parsedResponse, user);
+        const res = await Event.Trigger('OnChatAction', 'event', 'user', action, params, parsedResponse, llmOptions, user);
 
         if( !res ) {
             // Si l'action n'est reconnue par aucune des logiques ci-dessus
@@ -600,7 +601,6 @@ export async function onInit(engine) {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée
         const {message, history, provider, context, confirmedAction} = req.fields;
 
-        console.log("ok");
         // La validation ne s'applique que s'il n'y a pas d'action confirmée
         if (!confirmedAction) {
             if (typeof (message) !== 'string' || !message.trim()) {
@@ -620,7 +620,6 @@ export async function onInit(engine) {
         try {
             const result = await handleChatRequest(message, history, provider, context, req.me, confirmedAction);
             res.json(result);
-            console.log(result);
         } catch (error) {
             logger.error(`[Endpoint /api/assistant/chat] Erreur inattendue: ${error.message}`, error.stack);
             res.status(500).json({success: false, message: "Une erreur interne est survenue."});
