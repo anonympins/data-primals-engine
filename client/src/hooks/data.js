@@ -4,7 +4,6 @@ import {getUserId} from "../../../src/data";
 import {useTranslation} from "react-i18next";
 import {useEffect, useState} from "react";
 import {useNotificationContext} from "../NotificationProvider.jsx";
-import {parseSafeJSON} from "../../../src/core";
 
 export const useData = (model, filter, options) => {
     const { me } = useAuthContext();
