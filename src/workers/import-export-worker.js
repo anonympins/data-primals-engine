@@ -1,5 +1,6 @@
 import { parentPort } from 'worker_threads';
-import { parse } from 'csv-parse/sync'; // On utilise la version synchrone, c'est ok dans un worker
+import { parse } from 'csv-parse/sync';
+import {parseSafeJSON} from "../core.js"; // On utilise la version synchrone, c'est ok dans un worker
 
 parentPort.on('message', ({ action, payload }) => {
     try {
@@ -7,7 +8,7 @@ parentPort.on('message', ({ action, payload }) => {
         switch (action) {
         case 'parse-json':
             // Tâche: Parser une chaîne/buffer JSON en objet JS
-            result = JSON.parse(payload.fileContent.toString('utf-8'));
+            result = parseSafeJSON(payload.fileContent.toString('utf-8'));
             break;
 
         case 'parse-csv':

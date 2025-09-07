@@ -2,7 +2,7 @@ import {getDefaultForType, getFieldValueHash} from "../../data.js";
 import {Event} from "../../events.js";
 import {getCollectionForUser, isObjectId} from "../mongodb.js";
 import {ObjectId} from "mongodb";
-import {isPlainObject} from "../../core.js";
+import {isPlainObject, parseSafeJSON} from "../../core.js";
 import {dataTypes, getModel, searchData} from "./data.operations.js";
 import {validateModelData} from "./data.validation.js";
 import i18n from "../../i18n.js";
@@ -82,7 +82,7 @@ export function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                         }
                     } else if (sourceType === 'json' && typeof value === 'string') {
                         try {
-                            const parsedArray = JSON.parse(value);
+                            const parsedArray = parseSafeJSON(value);
                             if (Array.isArray(parsedArray)) {
                                 convertedRecord[field.name] = parsedArray;
                                 // TODO: Potentiellement convertir les éléments de parsedArray ici si nécessaire
@@ -102,7 +102,7 @@ export function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                 case 'object':
                     if (['csv', 'excel'].includes(sourceType)) {
                         try {
-                            convertedRecord[field.name] = JSON.parse(value);
+                            convertedRecord[field.name] = parseSafeJSON(value);
                         } catch (e) {
                             logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ objet ${field.name}. Valeur: ${value}.`);
                         }
@@ -111,7 +111,7 @@ export function convertDataTypes(dataArray, modelFields, sourceType = 'csv') {
                 case 'code':
                     if (['csv', 'excel'].includes(sourceType) && typeof value === 'string') {
                         try {
-                            convertedRecord[field.name] = JSON.parse(value);
+                            convertedRecord[field.name] = parseSafeJSON(value);
                         } catch (e) {
                             logger.warn(`Import: Impossible de parser la chaîne JSON pour le champ code (json) ${field.name}. Valeur: ${value}.`);
                         }

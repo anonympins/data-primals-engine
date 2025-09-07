@@ -8,7 +8,8 @@ export const providers = {
         key:"GOOGLE_API_KEY"
     },
     "DeepSeek": {
-        key: "DEEPSEEK_API_KEY"
+        key: "DEEPSEEK_API_KEY",
+        defaultModel: 'deepseek-chat'
     },
     "Anthropic": {
         key:"ANTHROPIC_API_KEY"

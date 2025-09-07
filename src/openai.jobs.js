@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import {parseSafeJSON} from "./core.js";
 
 
 let engine = null;
@@ -132,8 +133,8 @@ export const openaiJobModel = async (lang, txt, history, existingModels = []) =>
         const aiResponse = completion.choices[0].message.content;
 
         try {
-            // JSON.parse fonctionnera que le contenu soit un objet ou un tableau
-            return JSON.parse(aiResponse); // On retourne directement le résultat parsé
+            // parseSafeJSON fonctionnera que le contenu soit un objet ou un tableau
+            return parseSafeJSON(aiResponse); // On retourne directement le résultat parsé
         } catch (e) {
             console.error("Erreur de parsing du JSON de l'IA:", e);
             throw new Error("Réponse invalide de l'IA.");

@@ -1,4 +1,13 @@
-import {getObjectHash, getRand, getRandom, isPlainObject, randomDate, safeAssignObject, setSeed} from "../../core.js";
+import {
+    getObjectHash,
+    getRand,
+    getRandom,
+    isPlainObject,
+    parseSafeJSON,
+    randomDate,
+    safeAssignObject,
+    setSeed
+} from "../../core.js";
 import {
     maxExportCount,
     maxFileSize,
@@ -114,7 +123,7 @@ export const dataTypes = {
                     return value;
                 else if (typeof (value) === 'string') {
                     try {
-                        return JSON.parse(value);
+                        return parseSafeJSON(value);
                     } catch (e) {
                         return null;
                     }

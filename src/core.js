@@ -33,10 +33,17 @@ export function escapeHtml(string){
     });
 }
 
+export const isUnsecureKey = (key) => {
+    return ["__proto__", "constructor", "prototype"].includes(key);
+}
+
+export const parseSafeJSON = (json) => JSON.parse(json, (key, value) => isUnsecureKey(key) ? undefined : value);
+
+
 export const isDate = dt => String(new Date(dt)) !== 'Invalid Date'
 
 export const safeAssignObject = (obj, key, value) => {
-    if( !["__proto__", "constructor", "prototype"].includes(key)){
+    if( !isUnsecureKey(key)){
         obj[key] = value;
     }
 }
@@ -275,7 +282,7 @@ export const tryParseJson = (jsonString) => {
     }
     try {
         // Tenter de parser la chaîne JSON
-        const parsed = JSON.parse(jsonString);
+        const parsed = parseSafeJSON(jsonString);
         // S'assurer que c'est un objet ou null (pas un simple nombre, string, etc.)
         return (typeof parsed === 'object' || parsed === null) ? parsed : null;
     } catch (e) {

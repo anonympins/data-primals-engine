@@ -4,6 +4,7 @@ import {getUserId} from "../../../src/data";
 import {useTranslation} from "react-i18next";
 import {useEffect, useState} from "react";
 import {useNotificationContext} from "../NotificationProvider.jsx";
+import {parseSafeJSON} from "../../../src/core";
 
 export const useData = (model, filter, options) => {
     const { me } = useAuthContext();
@@ -44,7 +45,7 @@ export const useAlerts = () => {
 
         eventSource.onmessage = (event) => {
             try {
-                const newAlert = JSON.parse(event.data);
+                const newAlert = parseSafeJSON(event.data);
 
                 if (newAlert.type === 'connection_established') {
                     console.log(`SSE Status: ${newAlert.message}`);

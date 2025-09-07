@@ -1,3 +1,5 @@
+import {parseSafeJSON} from "../../src/core.js";
+
 /**
  * Finds the matching {{/each}} for a {{#each ...}} tag at a given position.
  * It correctly handles nested {{#each}} blocks.
@@ -249,7 +251,7 @@ export const pagedFilterToMongoConds = (pagedFilters, model) => {
  * Gère {{userId}}.
  */
 export const processFilterPlaceholders = (filter, user) => {
-    const processedFilter = JSON.parse(JSON.stringify(filter));
+    const processedFilter = parseSafeJSON(JSON.stringify(filter));
     for (const key in processedFilter) {
         if (processedFilter[key] === '{{userId}}') {
             // Dans le système Primals, le champ utilisateur est souvent `_user`
