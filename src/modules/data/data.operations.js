@@ -1,4 +1,13 @@
-import {getObjectHash, getRand, getRandom, isPlainObject, randomDate, safeAssignObject, setSeed} from "../../core.js";
+import {
+    getObjectHash,
+    getRand,
+    getRandom,
+    isPlainObject,
+    parseSafeJSON,
+    randomDate,
+    safeAssignObject,
+    setSeed
+} from "../../core.js";
 import {
     maxExportCount,
     maxFileSize,

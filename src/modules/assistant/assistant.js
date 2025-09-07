@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import {generateLimiter} from "../user.js";
 import {maxAIReflectiveSteps} from "../../constants.js";
 import i18n from "../../i18n.js";
+import {parseSafeJSON} from "../../core.js";
 
 let logger = null;
 
@@ -408,7 +409,7 @@ export async function handleChatRequest(params, user) {
     let llm;
     let llmOptions = {  };
     try {
-        const p = provider || 'OpenAI';
+        const p =  Config.Get('assistant.provider', provider ||'OpenAI');
         const envKeyName = providers[p].key;
         if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
 
@@ -418,7 +419,8 @@ export async function handleChatRequest(params, user) {
 
         if (!apiKey) return {success: false, message: `Clé API pour ${p} (${envKeyName}) non trouvée.`};
 
-        llmOptions = { provider: p, model: providers[p]?.defaultModel, apiKey };
+        const model = Config.Get('assistant.model', providers[p]?.defaultModel);
+        llmOptions = { provider: p, model, apiKey };
         llm = await getAIProvider(llmOptions.provider, llmOptions.model, llmOptions.apiKey);
     } catch (initError) {
         logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);
@@ -452,7 +454,7 @@ export async function handleChatRequest(params, user) {
 
             if (match && match[0]) {
                 // Si un JSON est trouvé, on tente de le parser
-                parsedResponse = JSON.parse(match[0]);
+                parsedResponse = parseSafeJSON(match[0]);
             } else {
                 // Aucun JSON trouvé, c'est probablement une réponse textuelle simple.
                 return { success: true, displayMessage: llmOutput };

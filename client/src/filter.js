@@ -1,3 +1,4 @@
+
 /**
  * Finds the matching {{/each}} for a {{#each ...}} tag at a given position.
  * It correctly handles nested {{#each}} blocks.
