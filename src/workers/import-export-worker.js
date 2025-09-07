@@ -8,7 +8,7 @@ parentPort.on('message', ({ action, payload }) => {
         switch (action) {
         case 'parse-json':
             // Tâche: Parser une chaîne/buffer JSON en objet JS
-            result = parseSafeJSON(payload.fileContent.toString('utf-8'));
+            result = JSON.parse(payload.fileContent.toString('utf-8'));
             break;
 
         case 'parse-csv':
