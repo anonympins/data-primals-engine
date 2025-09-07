@@ -5,6 +5,9 @@ export { Engine } from './engine.js';
 export { GameObject, Logger, BenchmarkTool } from './gameObject.js';
 export { Config } from './config.js';
 export { event_on, event_trigger, event_off } from './core.js';
+export { Event } from './events.js';
+
+export { sendSseToUser } from './modules/data/data.routes.js';
 
 export { UserProvider } from './providers.js';
 

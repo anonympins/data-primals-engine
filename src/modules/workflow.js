@@ -19,7 +19,7 @@ import {getEnv, getSmtpConfig} from "./user.js";
 import {getHost} from "../constants.js";
 import {providers} from "./assistant/constants.js";
 import {getAIProvider} from "./assistant/assistant.js";
-import { safeAssignObject} from "../core.js";
+import {parseSafeJSON, safeAssignObject} from "../core.js";
 import {Config} from "../config.js";
 
 let logger = null;
@@ -1655,7 +1655,7 @@ async function executeGenerateAIContentAction(action, context, user) {
     }
 
     // 2. Initialize the LLM client with LangChain
-    let llm = getAIProvider(aiProvider, aiModel, apiKey);
+    let llm = await getAIProvider(aiProvider, aiModel, apiKey);
     if( !llm ) {
         const message = `Failed to initialize AI client for ${aiProvider}: ${initError.message}`;
         logger.error(`[AI Action] ${message}`);

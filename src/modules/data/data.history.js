@@ -163,7 +163,7 @@ export async function handleRevertToRevisionRequest(req, res) {
  */
 export async function handleGetHistoryRequest(req, res) {
     const { modelName, recordId } = req.params;
-    const { limit = 10, page = 1 } = req.query;
+    const { limit = 10, page = 1, startDate, endDate } = req.query;
     const user = req.me; // Le middleware d'authentification attache l'utilisateur à req.me
 
     try {
@@ -181,23 +181,47 @@ export async function handleGetHistoryRequest(req, res) {
 
         // 3. Récupération des données depuis la collection 'history'
         const historyCollection = getCollection('history');
-        const filter = {
-            documentId: new ObjectId(recordId),
-            model: modelName
-        };
+        const filterConditions = [
+            { "$eq": ["$documentId", new ObjectId(recordId)]},
+            { "$eq": ["$model", modelName]}
+        ];
+
+        // Ajout du filtre par plage de dates
+        if (startDate) {
+            try {
+                filterConditions.push({ $gte: ["$timestamp", new Date(startDate)] });
+            } catch (e) { /* ignore invalid date */ }
+        }
+        if (endDate) {
+            try {
+                const endOfDay = new Date(endDate);
+                endOfDay.setUTCHours(23, 59, 59, 999); // Inclusif pour toute la journée de fin
+                filterConditions.push({ $lte: ["$timestamp", endOfDay] });
+            } catch (e) { /* ignore invalid date */ }
+        }
+
+        const filter = { "$and": filterConditions };
 
         const limitInt = parseInt(limit, 10);
         const pageInt = parseInt(page, 10);
         const skip = (pageInt - 1) * limitInt;
 
-        const [totalCount, historyData] = await Promise.all([
-            historyCollection.countDocuments(filter),
-            historyCollection.find(filter)
+        // Utiliser une agrégation pour le comptage afin de s'assurer que le filtre $expr est correctement appliqué.
+        const countPipeline = [
+            { $match: { $expr: filter } },
+            { $count: "count" }
+        ];
+
+        const [countResult, historyData] = await Promise.all([
+            historyCollection.aggregate(countPipeline).toArray(),
+            historyCollection.aggregate([{$match: {$expr: filter}}])
                 .sort({ version: -1 })
                 .skip(skip)
                 .limit(limitInt)
                 .toArray()
         ]);
+
+        const totalCount = countResult.length > 0 ? countResult[0].count : 0;
 
         // 4. Transformation des données pour correspondre au format attendu par le composant HistoryDialog.jsx
         const opMap = {

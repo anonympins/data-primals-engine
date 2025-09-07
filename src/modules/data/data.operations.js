@@ -1,4 +1,13 @@
-import {getObjectHash, getRand, getRandom, isPlainObject, randomDate, safeAssignObject, setSeed} from "../../core.js";
+import {
+    getObjectHash,
+    getRand,
+    getRandom,
+    isPlainObject,
+    parseSafeJSON,
+    randomDate,
+    safeAssignObject,
+    setSeed
+} from "../../core.js";
 import {
     maxExportCount,
     maxFileSize,
@@ -1055,11 +1064,24 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         }
         const ids = existingDocs.map(d => new ObjectId(d._id));
         const originalHash = existingDocs[0]._hash; // Sauvegarde du hash avant modification
-
-        // 3. Préparation des données de mise à jour (inchangé)
-        const updateData = {...data};
-        delete updateData._model;
-        delete updateData._user;
+ 
+        // 3. Préparation des données de mise à jour en séparant les opérateurs
+        const updateSetData = {};
+        const updatePushData = {};
+ 
+        for (const key in data) {
+            if (key.startsWith('_')) continue;
+ 
+            if (isPlainObject(data[key]) && data[key].$push !== undefined) {
+                // C'est une opération $push
+                updatePushData[key] = data[key].$push;
+            } else {
+                // C'est une opération $set (par défaut)
+                updateSetData[key] = data[key];
+            }
+        }
+ 
+        const updateData = updateSetData; // Pour la compatibilité avec le code existant
 
         // Traitement des fichiers
         const fileFields = model.fields.filter(f => f.type === 'file' || (f.type === 'array' && f.itemsType === 'file'));
@@ -1105,13 +1127,38 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
 
         // 4. Validation adaptée pour patch ou edit
         if (!isPatch) {
-            const dataToValidate = {...existingDocs[0], ...updateData};
+            const dataToValidate = {...existingDocs[0], ...updateSetData};
             await validateModelData(dataToValidate, model, false);
         } else {
-            await validateModelData(updateData, model, true);
+            await validateModelData(updateSetData, model, true);
         }
 
-        // 5. Vérification des champs uniques
+        // 4.1 Validation pour les opérations $push
+        for (const fieldName in updatePushData) {
+            const field = model.fields.find(f => f.name === fieldName);
+            if (!field) throw new Error(`Le champ '${fieldName}' pour l'opération $push n'existe pas dans le modèle '${model.name}'.`);
+            if (field.type !== 'array') throw new Error(`L'opération $push ne peut être utilisée que sur des champs de type 'array'. Le champ '${fieldName}' est de type '${field.type}'.`);
+ 
+            const valueToPush = updatePushData[fieldName];
+            let itemsToValidate;
+
+            if (Array.isArray(valueToPush)) {
+                // Cas: { $push: { myArray: ["val1", "val2"] } }
+                itemsToValidate = valueToPush;
+            } else {
+                // Cas: { $push: { myArray: "val1" } }
+                itemsToValidate = [valueToPush];
+            }
+ 
+            for (const item of itemsToValidate) {
+                if (!dataTypes[field.itemsType]?.validate(item, { ...field, type: field.itemsType })) {
+                    throw new Error(`Valeur invalide fournie pour le tableau '${fieldName}'. L'élément ${JSON.stringify(item)} n'est pas un(e) '${field.itemsType}' valide.`);
+                }
+            }
+        }
+
+
+        // 5. Vérification des champs uniques (s'applique uniquement aux opérations $set)
         const uniqueFields = model.fields.filter(f => f.unique);
         for (const field of uniqueFields) {
             if (updateData[field.name] !== undefined) {
@@ -1130,7 +1177,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 6. Traitement des relations
+        // 6. Traitement des relations (pour $set)
         const relationFields = model.fields.filter(f => f.type === 'relation');
         for (const field of relationFields) {
             if (updateData[field.name] !== undefined) {
@@ -1154,7 +1201,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 7. Application des filtres de champ (ex: hashage de mot de passe)
+        // 7. Application des filtres de champ (pour $set)
         for (const field of model.fields) {
             // On saute les champs 'file' car ils ont déjà été traités
             if (field.type !== 'file' && field.itemsType !== 'file' && updateData[field.name] !== undefined && dataTypes[field.type]?.filter) {
@@ -1200,14 +1247,40 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 8. Calcul du nouveau hash et préparation des données finales
-        const finalStateForHash = {...existingDocs[0], ...updateData};
+        // 8. Calcul du nouveau hash en simulant l'état final
+        const finalStateForHash = { ...existingDocs[0], ...updateSetData };
+        for (const fieldName in updatePushData) {
+            let itemsToAdd;
+            const pushValue = updatePushData[fieldName];
+            if (isPlainObject(pushValue) && pushValue.$each) {
+                itemsToAdd = pushValue.$each;
+            } else if (Array.isArray(pushValue)) {
+                itemsToAdd = pushValue;
+            } else {
+                itemsToAdd = [pushValue];
+            }
+
+            // S'assure que le champ de base est un tableau avant de pousser
+            if (!Array.isArray(finalStateForHash[fieldName])) {
+                // Utilise la valeur existante si c'est un tableau, sinon initialise un tableau vide
+                finalStateForHash[fieldName] = Array.isArray(existingDocs[0]?.[fieldName]) ? [...existingDocs[0][fieldName]] : [];
+            }
+            finalStateForHash[fieldName].push(...itemsToAdd);
+        }
         const newHash = getFieldValueHash(model, finalStateForHash);
 
-        const finalDataForSet = {
-            ...updateData,
-            _hash: newHash
-        };
+        // Préparation de l'objet de mise à jour final pour MongoDB
+        const finalUpdateOperation = {};
+        if (Object.keys(updateSetData).length > 0) {
+            finalUpdateOperation.$set = { ...updateSetData, _hash: newHash };
+        }
+        if (Object.keys(updatePushData).length > 0) {
+            finalUpdateOperation.$push = updatePushData;
+            // Si on a que du $push, il faut quand même mettre à jour le hash
+            if (!finalUpdateOperation.$set) {
+                finalUpdateOperation.$set = { _hash: newHash };
+            }
+        }
 
         // 9. *** CORRECTION LOGIQUE ***
         // On ne vérifie l'unicité que si le hash a réellement changé.
@@ -1219,8 +1292,36 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 10. Exécution de la mise à jour (inchangé)
-        const bulkOps = [{updateMany: {filter: {_id: {$in: ids}}, update: {$set: finalDataForSet}}}];
+        // 10. Exécution de la mise à jour.
+        // Si une opération $push est présente, nous devons utiliser une pipeline d'agrégation
+        // pour gérer de manière robuste le cas où le champ cible est `null` ou n'existe pas.
+        let updateCommand;
+        if (Object.keys(updatePushData).length > 0) {
+            const setStage = finalUpdateOperation.$set ? [{$set: finalUpdateOperation.$set}] : [];
+            const pushStage = [{$set: {}}]; // Étape pour construire les opérations de push
+
+            for (const fieldName in finalUpdateOperation.$push) {
+                const pushValue = finalUpdateOperation.$push[fieldName];
+                let valuesToConcat;
+
+                if (isPlainObject(pushValue) && pushValue.$each) {
+                    valuesToConcat = pushValue.$each;
+                } else if (Array.isArray(pushValue)) {
+                    valuesToConcat = pushValue;
+                } else {
+                    valuesToConcat = [pushValue];
+                }
+
+                // Construit l'expression pour ajouter les éléments au tableau, en le créant s'il est null.
+                pushStage[0].$set[fieldName] = {
+                    $concatArrays: [{ $ifNull: [`$${fieldName}`, []] }, valuesToConcat]
+                };
+            }
+            updateCommand = [...setStage, ...pushStage];
+        } else {
+            updateCommand = finalUpdateOperation;
+        }
+        const bulkOps = [{ updateMany: { filter: { _id: { $in: ids } }, update: updateCommand } }];
         const bulkResult = await collection.bulkWrite(bulkOps);
         const modifiedCount = bulkResult.modifiedCount || 0;
 
@@ -1249,7 +1350,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
 
         // 11. Tâches post-mise à jour (schedules, workflows) (inchangé)
         if (["workflowTrigger", "alert"].includes(modelName)) {
-            await handleScheduledJobs(modelName, existingDocs, collection, finalDataForSet);
+            await handleScheduledJobs(modelName, existingDocs, collection, finalUpdateOperation.$set || {});
         }
 
         if (triggerWorkflow && modifiedCount > 0) {
@@ -2281,8 +2382,6 @@ const invalidateIdsCache = (model, ids) => {
             const cacheKeys = cacheRelations.get(idKey);
             cacheKeys.forEach(key => searchCache.del(key));
             cacheRelations.delete(idKey);
-
-            console.log(`Invalidated cache for ID: ${id} in model: ${model}`);
         }
     });
 

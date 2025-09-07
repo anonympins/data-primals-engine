@@ -130,7 +130,7 @@ async function setupTestContext() {
 }
 
 let engine;
-describe('Intégration des fonctions CRUD de données avec validation complète', () => {
+describe('Data integration tests (CRUD, validation...)', () => {
 
     beforeAll(async () =>{
         Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
@@ -541,6 +541,97 @@ describe('Intégration des fonctions CRUD de données avec validation complète'
         });
 
         // TODO: Ajouter plus de tests de validation pour editData, similaires à ceux de insertData
+    });
+
+    describe('$push operation using patchData', () =>{
+        describe('$push sur tableau existant', () => {
+            let docToPatchId;
+            let setupContext;
+
+            beforeEach(async () => {
+                setupContext = await setupTestContext();
+                const { currentTestUser, comprehensiveTestModelDefinition } = setupContext;
+
+                const initialData = {
+                    stringRequired: 'InitialForPush',
+                    stringUnique: 'UniqueForPush',
+                    enumField: 'alpha',
+                    passwordField: 'pushPass',
+                    arrayString: ['tag1'],
+                    arrayNumber: [100]
+                };
+                const insertResult = await insertData(comprehensiveTestModelDefinition.name, initialData, {}, currentTestUser, false);
+                docToPatchId = insertResult.insertedIds[0];
+            });
+
+            afterEach(async () => {
+                await setupContext.purge();
+            });
+
+            it('devrait ajouter une seule valeur à un tableau existant', async () => {
+                const { currentTestUser, comprehensiveTestModelDefinition } = setupContext;
+
+                const result = await patchData(comprehensiveTestModelDefinition.name, { _id: docToPatchId }, { arrayString: { $push: 'tag2' } }, {}, currentTestUser);
+
+                expect(result.success, `patchData avec $push a échoué: ${result.error}`).toBe(true);
+                expect(result.modifiedCount).toBe(1);
+
+                const patchedDoc = await testDatasColInstance.findOne({ _id: new ObjectId(docToPatchId) });
+                expect(patchedDoc.arrayString).toEqual(['tag1', 'tag2']);
+            });
+
+            it('devrait ajouter plusieurs valeurs à un tableau existant', async () => {
+                const { currentTestUser, comprehensiveTestModelDefinition } = setupContext;
+
+                const result = await patchData(comprehensiveTestModelDefinition.name, { _id: docToPatchId }, { arrayNumber: { $push: [200, 300] } }, {}, currentTestUser);
+
+                expect(result.success, `patchData avec $push multiple a échoué: ${result.error}`).toBe(true);
+                expect(result.modifiedCount).toBe(1);
+
+                const patchedDoc = await testDatasColInstance.findOne({ _id: new ObjectId(docToPatchId) });
+                expect(patchedDoc.arrayNumber).toEqual([100, 200, 300]);
+            });
+
+            it('devrait rejeter un push si la valeur est invalide', async () => {
+                const { currentTestUser, comprehensiveTestModelDefinition } = setupContext;
+
+                // Tenter de pusher un nombre dans un tableau de strings
+                const result = await patchData(comprehensiveTestModelDefinition.name, { _id: docToPatchId }, { arrayString: { $push: 12345 } }, {}, currentTestUser);
+
+                expect(result.success).toBe(false);
+                expect(result.error).toContain("Valeur invalide fournie pour le tableau 'arrayString'");
+            });
+
+            it('devrait rejeter un push si une des valeurs du tableau est invalide', async () => {
+                const { currentTestUser, comprehensiveTestModelDefinition } = setupContext;
+
+                // Tenter de pusher un tableau contenant une valeur invalide
+                const result = await patchData(comprehensiveTestModelDefinition.name, { _id: docToPatchId }, { arrayNumber: { $push: [400, 'not-a-number', 500] } }, {}, currentTestUser);
+
+                expect(result.success).toBe(false);
+                expect(result.error).toContain("Valeur invalide fournie pour le tableau 'arrayNumber'");
+            });
+
+        });
+        describe('$push sur un tableau inexistant', () => {
+            it('devrait créer le tableau et pusher les valeurs s\'il n\'existe pas', async () => {
+            // On utilise un setup de contexte complètement isolé pour ce test
+                const { currentTestUser, comprehensiveTestModelDefinition, purge } = await setupTestContext();
+
+                const initialData = { stringRequired: 'NoArrayField', stringUnique: 'UniqueForNoArrayPush', enumField: 'beta', passwordField: 'pass' };
+                const insertResult = await insertData(comprehensiveTestModelDefinition.name, initialData, {}, currentTestUser, false);
+                const newDocId = insertResult.insertedIds[0];
+
+                const result = await patchData(comprehensiveTestModelDefinition.name, { _id: newDocId }, { arrayString: { $push: ['first', 'second'] } }, {}, currentTestUser);
+
+                expect(result.success, `patchData sur un tableau inexistant a échoué: ${result.error}`).toBe(true);
+                expect(result.modifiedCount).toBe(1);
+
+                const patchedDoc = await testDatasColInstance.findOne({ _id: new ObjectId(newDocId) });
+                expect(patchedDoc.arrayString).toEqual(['first', 'second']);
+                await purge();
+            });
+        });
     });
 
     // --- Tests deleteData (repris de votre exemple, peuvent être gardés tels quels ou adaptés) ---

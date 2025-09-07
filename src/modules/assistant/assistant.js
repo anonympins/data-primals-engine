@@ -1,44 +1,47 @@
 import { getCollectionForUser, modelsCollection } from "../mongodb.js";
 import { Logger } from "../../gameObject.js";
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {searchData,  patchData, deleteData, insertData} from "../data/index.js";
-import { getDataAsString } from "../../data.js";
-import i18n from "../../i18n.js";
-import {generateLimiter} from "../user.js";
-import rateLimit from "express-rate-limit";
-import {maxAIReflectiveSteps} from "../../constants.js";
 import {providers} from "./constants.js";
-import {ChatDeepSeek} from "@langchain/deepseek";
-import {ChatAnthropic} from "@langchain/anthropic";
 import {Config} from "../../config.js";
+import { Event } from "../../events.js";
+import rateLimit from "express-rate-limit";
+import {generateLimiter} from "../user.js";
+import {maxAIReflectiveSteps} from "../../constants.js";
+import i18n from "../../i18n.js";
+import {parseSafeJSON} from "../../core.js";
 
 let logger = null;
 
-export const getAIProvider= (aiProvider, aiModel, apiKey)=>{
-    let llm;
+export const getAIProvider= async (aiProvider, aiModel, apiKey)=>{
     try {
         switch (aiProvider) {
-        case 'OpenAI':
-            llm = new ChatOpenAI({apiKey, model: aiModel, temperature: 0.7});
-            break;
-        case 'Google':
-            llm = new ChatGoogleGenerativeAI({apiKey, model: aiModel, temperature: 0.7});
-            break;
-        case 'DeepSeek':
-            llm = new ChatDeepSeek({apiKey, model: aiModel, temperature: 0.7});
-            break;
-        case 'Anthropic':
-            llm = new ChatAnthropic({apiKey, model: aiModel, temperature: 0.7});
-            break;
+        case 'OpenAI': {
+            const { ChatOpenAI } = await import("@langchain/openai");
+            return new ChatOpenAI({apiKey, model: aiModel, temperature: 0.7});
+        }
+        case 'Google': {
+            const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
+            return new ChatGoogleGenerativeAI({apiKey, model: aiModel, temperature: 0.7});
+        }
+        case 'DeepSeek': {
+            const { ChatDeepSeek } = await import("@langchain/deepseek");
+            return new ChatDeepSeek({apiKey, model: aiModel, temperature: 0.7});
+        }
+        case 'Anthropic': {
+            const { ChatAnthropic } = await import("@langchain/anthropic");
+            return new ChatAnthropic({apiKey, model: aiModel, temperature: 0.7});
+        }
         default:
             throw new Error(`Unsupported AI provider: ${aiProvider}`);
         }
-        return llm;
-    }
-    catch (e) {
-        return null;
+    } catch (e) {
+        if (e.code === 'ERR_MODULE_NOT_FOUND') {
+            logger.error(`[Assistant] The package for the '${aiProvider}' provider is not installed. Please run 'npm install @langchain/${aiProvider.toLowerCase()}' to use this provider.`);
+            throw new Error(`The AI provider '${aiProvider}' is not installed. Please ask the administrator to install the corresponding package.`);
+        }
+        logger.error(`[Assistant] Error initializing AI provider '${aiProvider}': ${e.message}`);
+        throw e; // Re-throw other errors
     }
 }
 export const assistantGlobalLimiter = rateLimit({
@@ -317,14 +320,10 @@ COMMANDE FINALE :
  * @returns {object} Le filtre corrigé.
  */
 function correctAIFilter(filter) {
-    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
-        return filter; // Pas un objet à corriger
-    }
+    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return filter;
 
     const keys = Object.keys(filter);
-    if (keys.length <= 1) {
-        return filter; // Rien à corriger
-    }
+    if (keys.length <= 1) return filter;
 
     // Vérifie si toutes les clés sont des opérateurs (commencent par '$')
     const allKeysAreOperators = keys.every(key => key.startsWith('$'));
@@ -335,7 +334,7 @@ function correctAIFilter(filter) {
         return { '$and': andConditions };
     }
 
-    return filter; // Aucune correction nécessaire
+    return filter;
 }
 
 /**
@@ -350,30 +349,6 @@ async function executeTool(action, params, user, allModels) {
     logger.debug(`[Assistant] Exécution de l'outil: ${action} avec les paramètres:`, params);
     try {
         switch (action) {
-        case 'search': {
-            const modelDef = allModels.find(m => m.name === params.model);
-            if (!modelDef) {
-                return `Erreur: Le modèle '${params.model}' n'a pas été trouvé. Impossible de lancer la recherche.`;
-            }
-
-            const searchResult = await searchData({
-                model: params.model,
-                filter: params.filter,
-                limit: params.limit || 10,
-                sort: params.sort
-            }, user);
-
-            if (searchResult.data.length === 0) {
-                return i18n.t('assistant.noResults', "Aucun résultat trouvé.");
-            }
-
-            const resultString = i18n.t('assistant.searchResults', "Voici les résultats :") +
-                    searchResult.data.map(item =>
-                        `\n- ${getDataAsString(modelDef, item, { i18n, t: i18n.t }, allModels, true)}`
-                    ).join('');
-
-            return resultString;
-        }
         case 'search_models': {
             const { main: foundModels, related: relatedModels } = await searchModels(params.query, user);
 
@@ -402,16 +377,13 @@ async function executeTool(action, params, user, allModels) {
 /**
  * Gère la requête de chat, soit en exécutant une action confirmée,
  * soit en lançant la boucle de raisonnement de l'IA.
- * @param {string} message - Le message de l'utilisateur.
- * @param {Array} history - L'historique de la conversation.
- * @param {string} provider - Le fournisseur d'IA ('OpenAI' ou 'google').
- * @param {object} context - Contexte additionnel.
+ @param {object} params - La liste des paramètres envoyés par la requete
  * @param {object} user - L'objet utilisateur.
- * @param {object} confirmedAction - Une action pré-approuvée par l'utilisateur.
  * @returns {Promise<object>} La réponse de l'assistant.
  */
-async function handleChatRequest(message, history, provider, context, user, confirmedAction) {
+export async function handleChatRequest(params, user) {
 
+    const { message, history, provider, confirmedAction } = params;
     const allModels = await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user.username}]}).toArray();
 
     // --- GESTION D'UNE ACTION CONFIRMÉE ---
@@ -435,8 +407,9 @@ async function handleChatRequest(message, history, provider, context, user, conf
 
     // --- INITIALISATION DE L'IA ---
     let llm;
+    let llmOptions = {  };
     try {
-        const p = provider || 'OpenAI';
+        const p =  Config.Get('assistant.provider', provider ||'OpenAI');
         const envKeyName = providers[p].key;
         if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
 
@@ -446,15 +419,17 @@ async function handleChatRequest(message, history, provider, context, user, conf
 
         if (!apiKey) return {success: false, message: `Clé API pour ${p} (${envKeyName}) non trouvée.`};
 
-        llm = getAIProvider(p, providers[p]?.defaultModel, apiKey);
+        const model = Config.Get('assistant.model', providers[p]?.defaultModel);
+        llmOptions = { provider: p, model, apiKey };
+        llm = await getAIProvider(llmOptions.provider, llmOptions.model, llmOptions.apiKey);
     } catch (initError) {
         logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);
         return {success: false, message: `Erreur d'initialisation du client IA: ${initError.message}`};
     }
 
-    // --- PRÉPARATION DE L'HISTORIQUE DE CONVERSATION ---
-    const systemPrompt = createSystemPrompt([], user.lang || 'en');
-    const conversationHistory = history
+    const systemPrompt = await Event.Trigger('OnSystemPrompt', 'event', 'user', user);
+
+    const conversationHistory = (history || [])
         .filter(msg => msg.text && !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
         .map(msg => new (msg.from === 'user' ? HumanMessage : SystemMessage)(msg.text));
 
@@ -479,7 +454,7 @@ async function handleChatRequest(message, history, provider, context, user, conf
 
             if (match && match[0]) {
                 // Si un JSON est trouvé, on tente de le parser
-                parsedResponse = JSON.parse(match[0]);
+                parsedResponse = parseSafeJSON(match[0]);
             } else {
                 // Aucun JSON trouvé, c'est probablement une réponse textuelle simple.
                 return { success: true, displayMessage: llmOutput };
@@ -497,80 +472,32 @@ async function handleChatRequest(message, history, provider, context, user, conf
         logger.debug(`[Assistant] Action décidée par l'IA: ${parsedResponse.action}`, parsedResponse);
         conversationHistory.push(new SystemMessage(JSON.stringify(parsedResponse)));
 
-        const { action, params } = parsedResponse;
+        const { action, params:parsedParams } = parsedResponse;
 
         // Correction automatique du filtre généré par l'IA, qui hallucine parfois
-        if (params && params.filter) {
-            logger.debug(`[Assistant] Filtre original de l'IA: ${JSON.stringify(params.filter)}`);
-            params.filter = correctAIFilter(params.filter);
-        }
-
-        // Action de génération de graphique, gérée par le front-end
-        if (action === 'generateChart') {
-            // On retourne directement la configuration du graphique au client.
-            return { success: true, chartConfig: params };
-        }
-
-        // Action de génération de vue HTML
-        if (action === 'generateHtmlView') {
-            const viewData = await searchData({
-                model: params.model,
-                filter: params.filter,
-                limit: params.limit || 10,
-                depth: 2 // Pour avoir accès aux relations de premier niveau dans les templates
-            }, user);
-
-            if (viewData.data.length === 0) {
-                return { success: true, displayMessage: i18n.t('assistant.htmlView.noResult', "Je n'ai trouvé aucune donnée correspondante pour cette vue.") };
-            }
-
-            // On retourne la configuration de la vue ET les données au client.
-            return { success: true, htmlViewConfig: { ...params, data: viewData.data } };
-        }
-
-        // NOUVEAU: Action de recherche à afficher, gérée par le front-end
-        if (action === 'search') {
-            const searchResult = await searchData({
-                model: params.model,
-                filter: params.filter,
-                limit: params.limit || 10,
-                sort: params.sort
-            }, user);
-            if (searchResult.data?.length > 0) {
-                return { success: true, dataResult: { model: params.model, data: searchResult.data } };
-            } else {
-                return { success: true, displayMessage: i18n.t('assistant.search.noResults', "Je n'ai trouvé aucun résultat.") };
-            }
-        }
-
-        // Actions nécessitant une confirmation de l'utilisateur
-        if (['post', 'update', 'delete'].includes(action)) {
-            const confirmationMessage = i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :");
-            return {
-                success: true,
-                displayMessage: confirmationMessage,
-                confirmationRequest: parsedResponse
-            };
-        }
-
-        // Action finale pour afficher un message
-        if (action === 'displayMessage') {
-            return { success: true, displayMessage: params.message };
+        if (parsedParams && parsedParams.filter) {
+            logger.debug(`[Assistant] Filtre original de l'IA: ${JSON.stringify(parsedParams.filter)}`);
+            parsedParams.filter = correctAIFilter(parsedParams.filter);
         }
 
         // Outils pour le raisonnement interne de l'IA
         if (['search_models'].includes(action)) { // On a enlevé 'search' d'ici
-            const toolResult = await executeTool(action, params, user, allModels);
+            const toolResult = await executeTool(action, parsedParams, user, allModels);
             conversationHistory.push(new SystemMessage(`Résultat de l'outil '${action}':\n${toolResult}`));
             continue; // On continue la boucle pour que l'IA puisse raisonner avec ce nouveau résultat
         }
 
-        // Si l'action n'est reconnue par aucune des logiques ci-dessus
-        logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
-        return {
-            success: true,
-            displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", { action })
-        };
+        const res = await Event.Trigger('OnChatAction', 'event', 'user', action, params, parsedResponse, llmOptions, user);
+
+        if( !res ) {
+            // Si l'action n'est reconnue par aucune des logiques ci-dessus
+            logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
+            return {
+                success: true,
+                displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", {action})
+            };
+        }
+        return res;
     }
 
     // Si la boucle se termine sans une action finale
@@ -603,11 +530,73 @@ async function executeConfirmedAction(action, params, user) {
     }
 }
 
+/**
+ * Gère une action finale décidée par l'IA et retourne une réponse pour le client.
+ * Cette fonction est appelée via le système d'événements 'OnChatAction'.
+ * @param {string} action - L'action à exécuter.
+ * @param {object} params - Les paramètres de l'action.
+ * @param {object} parsedResponse - La réponse JSON originale de l'IA, pour les demandes de confirmation.
+ * @param {object} user - L'objet utilisateur.
+ * @returns {Promise<object|boolean>} - L'objet de réponse final ou false si l'action n'est pas reconnue.
+ */
+async function handleFinalChatAction(action, params, parsedResponse, user) {
+    // Action de génération de graphique, gérée par le front-end
+    if (action === 'generateChart') {
+        return {success: true, chartConfig: params};
+    }
+    // Action de génération de vue HTML
+    if (action === 'generateHtmlView') {
+        const viewData = await searchData({
+            model: params.model,
+            filter: params.filter,
+            limit: params.limit || 10,
+            depth: 2 // Pour avoir accès aux relations de premier niveau dans les templates
+        }, user);
+
+        if (viewData.data.length === 0) {
+            return {
+                success: true,
+                displayMessage: i18n.t('assistant.htmlView.noResult', "Je n'ai trouvé aucune donnée correspondante pour cette vue.")
+            };
+        }
+        return {success: true, htmlViewConfig: {...params, data: viewData.data}};
+    }
+
+    // Action de recherche à afficher, gérée par le front-end
+    if (action === 'search') {
+        const searchResult = await searchData({ model: params.model, filter: params.filter, limit: params.limit || 10, sort: params.sort }, user);
+        if (searchResult.data?.length > 0) {
+            return {success: true, dataResult: {model: params.model, data: searchResult.data}};
+        } else {
+            return { success: true, displayMessage: i18n.t('assistant.search.noResults', "Je n'ai trouvé aucun résultat.") };
+        }
+    }
+
+    // Actions nécessitant une confirmation de l'utilisateur
+    if (['post', 'update', 'delete'].includes(action)) {
+        return { success: true, displayMessage: i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :"), confirmationRequest: parsedResponse };
+    }
+
+    // Action finale pour afficher un message
+    if (action === 'displayMessage') {
+        return {success: true, displayMessage: params.message};
+    }
+
+    return false; // Action non reconnue par cet écouteur
+}
+
 
 export async function onInit(engine) {
     logger = engine.getComponent(Logger);
 
     const {middlewareAuthenticator, userInitiator} = await import('../user.js');
+
+    Event.Listen('OnSystemPrompt', (user) => {
+        return createSystemPrompt([], user.lang || 'en');
+    }, 'event', 'user');
+    // Enregistre le gestionnaire central pour les actions finales du chat.
+    // D'autres modules pourraient également écouter cet événement pour étendre les fonctionnalités.
+    Event.Listen('OnChatAction', handleFinalChatAction,"event", "user");
 
     engine.post('/api/assistant/chat', [middlewareAuthenticator, userInitiator, assistantGlobalLimiter, generateLimiter], async (req, res) => {
         // On récupère TOUTES les propriétés du body, y compris l'action confirmée
@@ -630,7 +619,7 @@ export async function onInit(engine) {
         }
 
         try {
-            const result = await handleChatRequest(message, history, provider, context, req.me, confirmedAction);
+            const result = await handleChatRequest(req.fields, req.me);
             res.json(result);
         } catch (error) {
             logger.error(`[Endpoint /api/assistant/chat] Erreur inattendue: ${error.message}`, error.stack);

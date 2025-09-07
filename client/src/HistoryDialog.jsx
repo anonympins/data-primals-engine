@@ -140,6 +140,8 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
     const [selectedVersion, setSelectedVersion] = useState(null);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const elementsPerPage = 10;
     const { t, i18n } = useTranslation();
 
@@ -148,7 +150,9 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
         setLoading(true);
         setError(null);
         try {
-            const params = new URLSearchParams({ page, limit: elementsPerPage });
+            const params = new URLSearchParams({ page, limit: elementsPerPage, lang: i18n.language });
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
             const query = await fetch(`/api/data/history/${modelName}/${recordId}?${params.toString()}`);
             const response = await query.json();
             if (response.success) {
@@ -163,7 +167,12 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
         } finally {
             setLoading(false);
         }
-    }, [modelName, recordId, i18n, page, elementsPerPage]);
+    }, [modelName, recordId, i18n.language, page, elementsPerPage, startDate, endDate]);
+
+    // Réinitialise la page à 1 lorsque les filtres de date changent
+    useEffect(() => {
+        setPage(1);
+    }, [startDate, endDate]);
 
     useEffect(() => {
         fetchHistory();
@@ -232,6 +241,19 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
             <div className="history-dialog-content-split">
                 <div className="history-list-container">
                     {loading && <div><Trans i18nKey={"history.loading"}>Chargement de l'historique..</Trans></div>}
+                    <div className="history-filters">
+                        <div className="date-filter">
+                            <label htmlFor="startDate"><Trans i18nKey="history.startDate">From</Trans></label>
+                            <input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                        </div>
+                        <div className="date-filter">
+                            <label htmlFor="endDate"><Trans i18nKey="history.endDate">To</Trans></label>
+                            <input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                        </div>
+                        <Button className="btn-clear-filters" onClick={() => { setStartDate(''); setEndDate(''); }} title={t('history.clearDates', 'Clear date filters')}>
+                            <Trans i18nKey="history.clear">Clear</Trans>
+                        </Button>
+                    </div>
                     {error && <div className="error-message">{error}</div>}
                     {!loading && !error && (<>
                         <div className="history-list">

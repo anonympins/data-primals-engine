@@ -33,10 +33,17 @@ export function escapeHtml(string){
     });
 }
 
+export const isUnsecureKey = (key) => {
+    return ["__proto__", "constructor", "prototype"].includes(key);
+}
+
+export const parseSafeJSON = (json) => JSON.parse(json, (key, value) => isUnsecureKey(key) ? undefined : value);
+
+
 export const isDate = dt => String(new Date(dt)) !== 'Invalid Date'
 
 export const safeAssignObject = (obj, key, value) => {
-    if( !["__proto__", "constructor", "prototype"].includes(key)){
+    if( !isUnsecureKey(key)){
         obj[key] = value;
     }
 }

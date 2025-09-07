@@ -12,7 +12,7 @@ import {
     maxModelsPerUser, maxPackData, maxPackPreviewData
 } from "../../constants.js";
 import {datasCollection, getCollection, getCollectionForUser, isObjectId, modelsCollection} from "../mongodb.js";
-import {countKeys, safeAssignObject, uuidv4} from "../../core.js";
+import {countKeys, parseSafeJSON, safeAssignObject, uuidv4} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import i18n from "../../i18n.js";
@@ -1192,7 +1192,7 @@ export async function registerRoutes(defaultEngine){
                     totalCount = result.length > 0 ? result[0]['count'] : 0;
                 } catch (totalError) {
                     if (totalError instanceof SyntaxError) {
-                        console.error(`>>> ERREUR JSON.parse (totalMatchFormula) pour KPI ${id}:`, kpiDef.totalMatchFormula, totalError);
+                        console.error(`>>> ERREUR parseSafeJSON (totalMatchFormula) pour KPI ${id}:`, kpiDef.totalMatchFormula, totalError);
                     } else {
                         console.error(`>>> ERREUR Aggregate (totalCount) pour KPI ${id}:`, totalError);
                     }
@@ -1206,7 +1206,7 @@ export async function registerRoutes(defaultEngine){
                     const parsedMatch = kpiDef.matchFormula || {}; // Assurer un objet vide
                     matchFilter = { ...matchFilter, ...parsedMatch };
                 } catch (matchError) {
-                    console.error(`>>> ERREUR JSON.parse (matchFormula) pour KPI ${id}:`, kpiDef.matchFormula, matchError);
+                    console.error(`>>> ERREUR parseSafeJSON (matchFormula) pour KPI ${id}:`, kpiDef.matchFormula, matchError);
                     throw matchError; // Relancer
                 }
             }

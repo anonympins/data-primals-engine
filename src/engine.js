@@ -20,7 +20,7 @@ import sirv from "sirv";
 import * as tls from "node:tls";
 import {Event} from "./events.js";
 import path from "node:path";
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {validateModelStructure} from "./modules/data/data.validation.js";
 import { setSafeRegex } from "./filter.js";
 import safeRegexCallback from "safe-regex";
@@ -106,6 +106,9 @@ export const Engine = {
         console.log("Creating engine", Config.Get('modules'));
         const logger = engine.addComponent(Logger);
 
+        // Expose the Event bus on the engine instance for dependency injection
+        engine.Event = Event;
+
         engine.userProvider = new DefaultUserProvider(engine);
 
         engine.setUserProvider = (providerInstance) => {
@@ -157,56 +160,93 @@ export const Engine = {
             return engine._modules.find(m => m.module === module);
         };
 
-        const importModule = async (module) => {
-            const moduleA = await import(module);
-            if (moduleA.onInit){
-                await moduleA.onInit(engine);
-                return {...moduleA, module};
-            }else {
-                const mod = moduleA.default();
-                await mod?.onInit(engine);
-                return { ...mod, module};
+        const importAndPrepareModule = async (moduleEntryPoint, moduleName) => {
+            const moduleA = await import(moduleEntryPoint);
+
+            let moduleInstance = null;
+            let onInitFunction = null;
+
+            // Cas 1: `export default { onInit }`
+            if (moduleA.default && typeof moduleA.default.onInit === 'function') {
+                moduleInstance = moduleA.default;
+                onInitFunction = moduleA.default.onInit;
             }
+            // Cas 2: `export async function onInit() {}`
+            else if (typeof moduleA.onInit === 'function') {
+                moduleInstance = moduleA;
+                onInitFunction = moduleA.onInit;
+            }
+
+            if (moduleInstance) {
+                // On stocke la fonction onInit pour plus tard et on retourne l'instance
+                // avec le nom court du module.
+                return { ...moduleInstance, onInit: onInitFunction, module: moduleName };
+            }
+
+            logger.warn(`Module loaded from ${moduleEntryPoint} does not export an onInit function or a default object with onInit.`);
+            return null;
         };
 
         engine._modules = [];
-        for (const moduleIdentifier of Config.Get('modules', [])) {
+
+        // On charge uniquement les modules spécifiés dans la configuration.
+        const allModules = Config.Get('modules', []);
+        const loadedModules = []; // Liste temporaire pour la phase 1
+        for (const moduleIdentifier of allModules) {
+            let moduleEntryPoint = null;
+            const moduleName = path.basename(moduleIdentifier, '.js');
             try {
-                let moduleDir;
-                const moduleName = path.basename(moduleIdentifier);
-
-                const directPath = path.resolve(moduleIdentifier);
-                let isDir = fs.existsSync(directPath) && fs.statSync(directPath).isDirectory();
-
-                if (isDir) {
-                    moduleDir = directPath;
+                // 1. Tenter de résoudre comme un chemin (relatif au projet ou absolu)
+                const externalPath = path.resolve(process.cwd(), moduleIdentifier);
+                if (fs.existsSync(externalPath)) {
+                    const stats = fs.statSync(externalPath);
+                    if (stats.isDirectory()) {
+                        // C'est un répertoire, on cherche le point d'entrée
+                        const indexJsPath = path.join(externalPath, 'index.js');
+                        const moduleJsPath = path.join(externalPath, `${moduleName}.js`);
+                        if (fs.existsSync(indexJsPath)) moduleEntryPoint = pathToFileURL(indexJsPath).href;
+                        else if (fs.existsSync(moduleJsPath)) moduleEntryPoint = pathToFileURL(moduleJsPath).href;
+                    } else {
+                        // C'est un fichier
+                        moduleEntryPoint = pathToFileURL(externalPath).href;
+                    }
                 } else {
-                    moduleDir = path.resolve(__dirname, 'modules', moduleIdentifier);
-                }
+                    // 2. Si ce n'est pas un chemin, tenter de résoudre comme un module interne
+                    const internalDir = path.resolve(__dirname, 'modules', moduleIdentifier);
+                    const internalFile = path.resolve(__dirname, 'modules', `${moduleIdentifier}.js`);
 
-                let moduleEntryPoint;
-                const jsPath = moduleDir + '.js';
-                const indexJsPath = path.join(moduleDir, 'index.js');
-                const moduleJsPath = path.join(moduleDir, `${moduleName}.js`);
-
-                if (fs.existsSync(jsPath)) {
-                    moduleEntryPoint = 'file://' + jsPath;
-                } else if (fs.existsSync(indexJsPath)) {
-                    moduleEntryPoint = 'file://' + indexJsPath;
-                } else if (fs.existsSync(moduleJsPath)) {
-                    moduleEntryPoint = 'file://' + moduleJsPath;
+                    if (fs.existsSync(internalDir) && fs.statSync(internalDir).isDirectory()) {
+                        // C'est un répertoire de module interne
+                        const indexJsPath = path.join(internalDir, 'index.js');
+                        const moduleJsPath = path.join(internalDir, `${moduleIdentifier}.js`);
+                        if (fs.existsSync(indexJsPath)) moduleEntryPoint = pathToFileURL(indexJsPath).href;
+                        else if (fs.existsSync(moduleJsPath)) moduleEntryPoint = pathToFileURL(moduleJsPath).href;
+                    } else if (fs.existsSync(internalFile)) {
+                        // C'est un fichier de module interne
+                        moduleEntryPoint = pathToFileURL(internalFile).href;
+                    }
                 }
 
                 if (moduleEntryPoint) {
-                    const loadedModule = await importModule(moduleEntryPoint);
+                    const loadedModule = await importAndPrepareModule(moduleEntryPoint, moduleName);
                     if (loadedModule) {
-                        engine._modules.push(loadedModule);
+                        loadedModules.push(loadedModule);
                     }
                 } else {
-                    logger.warn(`Aucun point d'entrée trouvé pour le module '${moduleIdentifier}'.`);
+                    logger.warn(`Could not resolve or find an entry point for module '${moduleIdentifier}'.`);
                 }
             } catch (e) {
-                logger.error(`Could not load module '${moduleIdentifier}':`, e.stack);
+                logger.error(`Could not load module '${moduleName}' (${moduleIdentifier}):`, e.stack);
+            }
+        }
+
+        // Phase 2: Enregistrer et Initialiser tous les modules chargés
+        engine._modules = loadedModules; // On enregistre tous les modules dans le moteur
+        for (const moduleInstance of engine._modules) {
+            if (typeof moduleInstance.onInit === 'function') {
+                logger.info(`Initializing module '${moduleInstance.module}'...`);
+                await moduleInstance.onInit(engine);
+                logger.info(`Module '${moduleInstance.module}' loaded and initialized.`);
             }
         }
 
@@ -239,10 +279,12 @@ export const Engine = {
                 });
             });
 
-            app.use(sirv('client/dist', {
-                single: true,
-                dev: process.env.NODE_ENV === 'development'
-            }));
+            if( fs.existsSync('client/dist') ){
+                app.use(sirv('client/dist', {
+                    single: true,
+                    dev: process.env.NODE_ENV === 'development'
+                }));
+            }
 
             process.on('uncaughtException', function (exception) {
                 console.error(exception);
@@ -277,9 +319,9 @@ export const Engine = {
                     model.locked = true;
                     const r = await createModel(model);
                     dbModels.push({...model, _id: r.insertedId });
-                    logger.info('Model inserted (' + model.name + ')');
+                    logger.info(`Model ${model.name} inserted.`);
                 }else
-                    logger.info('Model loaded (' + model.name + ')');
+                    logger.info(`Model ${model.name} loaded`);
             }
             logger.info("All models loaded.");
             await Event.Trigger("OnModelsLoaded", "event", "system", engine, dbModels);

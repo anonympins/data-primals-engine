@@ -2,7 +2,7 @@ import {getDefaultForType, getFieldValueHash} from "../../data.js";
 import {Event} from "../../events.js";
 import {getCollectionForUser, isObjectId} from "../mongodb.js";
 import {ObjectId} from "mongodb";
-import {isPlainObject} from "../../core.js";
+import {isPlainObject, parseSafeJSON} from "../../core.js";
 import {dataTypes, getModel, searchData} from "./data.operations.js";
 import {validateModelData} from "./data.validation.js";
 import i18n from "../../i18n.js";
