@@ -258,21 +258,21 @@ export async function executeSafeJavascript(actionDef, context, user) {
         const jail = vmContext.global;
 
         const find = async (modelName, filter) => {
-            const result = await searchData({ model: modelName, filter: parseSafeJSON(filter) }, user);
+            const result = await searchData({ model: modelName, filter: JSON.parse(filter) }, user);
             return new ivm.ExternalCopy(result).copyInto();
         };
         const findOne = async (modelName, filter) => {
-            const result = await searchData({ model: modelName, filter: parseSafeJSON(filter), limit: 1 }, user);
+            const result = await searchData({ model: modelName, filter: JSON.parse(filter), limit: 1 }, user);
             return new ivm.ExternalCopy(result.data?.[0] || null).copyInto();
         };
 
         // 1. Build the sandboxed API methods
         await jail.set('_workflow_run', new ivm.Reference(async (name, contextData) => {
-            const result = await runWorkflowByName(name, parseSafeJSON(contextData), user);
+            const result = await runWorkflowByName(name, JSON.parse(contextData), user);
             return new ivm.ExternalCopy(result).copyInto();
         }));
         await jail.set('_db_create', new ivm.Reference(async (modelName, dataObject) => {
-            const result = await insertData(modelName, parseSafeJSON(dataObject), {}, user, false);
+            const result = await insertData(modelName, JSON.parse(dataObject), {}, user, false);
             if (result.success && result.insertedIds) {
                 result.insertedIds = result.insertedIds.map(id => id.toString());
             }
@@ -282,11 +282,11 @@ export async function executeSafeJavascript(actionDef, context, user) {
         await jail.set('_db_findOne', new ivm.Reference(findOne));
 
         await jail.set('_db_update', new ivm.Reference(async (modelName, filter, updateObject) => {
-            const result = await patchData(modelName, parseSafeJSON(filter), parseSafeJSON(updateObject), {}, user, false);
+            const result = await patchData(modelName, JSON.parse(filter), JSON.parse(updateObject), {}, user, false);
             return new ivm.ExternalCopy(result).copyInto();
         }));
         await jail.set('_db_delete', new ivm.Reference(async (modelName, filter) => {
-            const result = await deleteData(modelName, parseSafeJSON(filter), user, false);
+            const result = await deleteData(modelName, JSON.parse(filter), user, false);
             return new ivm.ExternalCopy(result).copyInto();
         }));
 
@@ -316,7 +316,7 @@ export async function executeSafeJavascript(actionDef, context, user) {
         }));
         await jail.set('_http_request', new ivm.Reference(async (method, url, optionsStr) => {
             try {
-                const options = optionsStr ? parseSafeJSON(optionsStr) : {};
+                const options = optionsStr ? JSON.parse(optionsStr) : {};
                 const fetchOptions = {
                     method: method.toUpperCase(),
                     headers: options.headers || {},
@@ -335,7 +335,7 @@ export async function executeSafeJavascript(actionDef, context, user) {
         }));
 
         // Contexte sécurisé
-        const safeContext = parseSafeJSON(JSON.stringify(context));
+        const safeContext = JSON.parse(JSON.stringify(context));
 
         await jail.set('context', new ivm.ExternalCopy(safeContext).copyInto());
 
@@ -475,7 +475,7 @@ async function handleHttpRequestAction(actionDef, contextData, user, dbCollectio
         // 3. Parse substituted JSON strings
         if (substitutedHeadersString) {
             try {
-                headersObject = parseSafeJSON(substitutedHeadersString);
+                headersObject = JSON.parse(substitutedHeadersString);
                 if (typeof headersObject !== 'object' || headersObject === null) {
                     throw new Error("Parsed headers is not a valid object.");
                 }
@@ -495,7 +495,7 @@ async function handleHttpRequestAction(actionDef, contextData, user, dbCollectio
         if (substitutedBodyString) {
             try {
                 // Try parsing first, maybe it's valid JSON already
-                bodyObject = parseSafeJSON(substitutedBodyString);
+                bodyObject = JSON.parse(substitutedBodyString);
             } catch (parseError) {
                 // If parsing fails, treat it as a plain string body
                 bodyObject = substitutedBodyString;
@@ -610,7 +610,7 @@ async function handleCreateDataAction(actionDef, contextData, user, dbCollection
             const substitutedDataString = await substituteVariables(dataToCreate, contextData, user);
             try {
                 // CORRECTION : Utiliser la bonne variable (substitutedDataString)
-                dataObject = parseSafeJSON(substitutedDataString);
+                dataObject = JSON.parse(substitutedDataString);
             } catch (parseError) {
                 const msg = `Failed to parse substituted JSON string: ${substitutedDataString}. Error: ${parseError.message}`;
                 logger.error(`[handleCreateDataAction] ${msg}`);
@@ -619,7 +619,7 @@ async function handleCreateDataAction(actionDef, contextData, user, dbCollection
         } else if (typeof dataToCreate === 'object') {
             // CORRECTION : Assigner le résultat de la substitution à dataObject.
             // On passe une copie pour ne pas muter le template original.
-            dataObject = await substituteVariables(parseSafeJSON(JSON.stringify(dataToCreate)), contextData, user);
+            dataObject = await substituteVariables(JSON.parse(JSON.stringify(dataToCreate)), contextData, user);
         } else {
             const msg = `[handleCreateDataAction] 'dataToCreate' has an invalid type (${typeof dataToCreate}). Expected string (JSON) or object.`;
             logger.error(msg);
@@ -712,7 +712,7 @@ async function handleUpdateDataAction(actionDef, contextData, user) {
         // 3. Parse substituted JSON strings
         if (substitutedSelectorString) {
             try {
-                selectorObject = parseSafeJSON(substitutedSelectorString);
+                selectorObject = JSON.parse(substitutedSelectorString);
                 if (typeof selectorObject !== 'object' || selectorObject === null) {
                     throw new Error("Parsed selector is not a valid object.");
                 }
@@ -724,7 +724,7 @@ async function handleUpdateDataAction(actionDef, contextData, user) {
         }
         if (substitutedUpdatesString) {
             try {
-                updatesObject = parseSafeJSON(substitutedUpdatesString);
+                updatesObject = JSON.parse(substitutedUpdatesString);
                 if (typeof updatesObject !== 'object' || updatesObject === null) {
                     throw new Error("Parsed updates is not a valid object.");
                 }
@@ -833,7 +833,7 @@ async function handleDeleteDataAction(actionDef, contextData, user, dbCollection
         // 3. Parse substituted JSON string
         if (substitutedSelectorString) {
             try {
-                selectorObject = parseSafeJSON(substitutedSelectorString);
+                selectorObject = JSON.parse(substitutedSelectorString);
                 if (typeof selectorObject !== 'object' || selectorObject === null) {
                     throw new Error("Parsed selector is not a valid object.");
                 }
@@ -1307,7 +1307,7 @@ export async function triggerWorkflows(triggerData, user, eventType) {
                     try {
                         // dataFilter is expected to be stored as an object or valid JSON string
                         if (typeof trigger.dataFilter === 'string') {
-                            dataFilterCondition = parseSafeJSON(trigger.dataFilter);
+                            dataFilterCondition = JSON.parse(trigger.dataFilter);
                         } else if (typeof trigger.dataFilter === 'object' && trigger.dataFilter !== null) {
                             dataFilterCondition = trigger.dataFilter;
                         }

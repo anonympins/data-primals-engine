@@ -45,7 +45,7 @@ export const useAlerts = () => {
 
         eventSource.onmessage = (event) => {
             try {
-                const newAlert = parseSafeJSON(event.data);
+                const newAlert = JSON.parse(event.data);
 
                 if (newAlert.type === 'connection_established') {
                     console.log(`SSE Status: ${newAlert.message}`);

@@ -112,7 +112,7 @@ const middlewareLogger = async (req, res, next) => {
 
     res.on('finish', async () => {
         try {
-            await logApiRequest(req, res, req.me, startTime, ( !req.hideApiLogs ) ? parseSafeJSON(responseBodyChunk) : { message: "The request log has been encrypted because of a clear password in the request."}, res.locals.error);
+            await logApiRequest(req, res, req.me, startTime, ( !req.hideApiLogs ) ? JSON.parse(responseBodyChunk) : { message: "The request log has been encrypted because of a clear password in the request."}, res.locals.error);
         } catch (e) {
 
         }
@@ -509,7 +509,7 @@ export async function registerRoutes(defaultEngine){
             let newData = {
                 xp: user.xp || 0,
                 achievements: [...(user.achievements || [])],
-                skills: parseSafeJSON(JSON.stringify(user.skills || [])), // Copie profonde pour éviter les mutations directes
+                skills: JSON.parse(JSON.stringify(user.skills || [])), // Copie profonde pour éviter les mutations directes
                 completedTutorials: [...(user.completedTutorials || [])]
             };
 
@@ -760,7 +760,7 @@ export async function registerRoutes(defaultEngine){
     engine.post('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(15000)], async (req, res) => {
         const body = req.files ? req.fields : req.fields;
         const modelName = body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
-        const data = body.data || (body._data && parseSafeJSON(body._data));
+        const data = body.data || (body._data && JSON.parse(body._data));
 
         try {
             const model = await getModel(modelName, req.me);
@@ -851,7 +851,7 @@ export async function registerRoutes(defaultEngine){
     engine.patch('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
-        const data = req.fields.data || (req.fields._data && parseSafeJSON(req.fields._data));
+        const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
         const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
         if (r.error) {
             res.status(400).json(r);
@@ -864,7 +864,7 @@ export async function registerRoutes(defaultEngine){
         try {
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
-            const data = req.fields.data || (req.fields._data && parseSafeJSON(req.fields._data));
+            const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
             const r = await editData(req.fields.model, filter || hash, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);
@@ -878,7 +878,7 @@ export async function registerRoutes(defaultEngine){
     engine.patch('/api/data/:id', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
-        const data = req.fields.data || (req.fields._data && parseSafeJSON(req.fields._data));
+        const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
         const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
         if (r.error) {
             res.status(400).json(r);
@@ -891,7 +891,7 @@ export async function registerRoutes(defaultEngine){
         try {
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
-            const data = req.fields.data || (req.fields._data && parseSafeJSON(req.fields._data));
+            const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
             const r = await editData(req.fields.model, filter || { "$eq": ["$_id", { "$toObjectId": hash}]}, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);

@@ -123,7 +123,7 @@ export const dataTypes = {
                     return value;
                 else if (typeof (value) === 'string') {
                     try {
-                        return parseSafeJSON(value);
+                        return JSON.parse(value);
                     } catch (e) {
                         return null;
                     }

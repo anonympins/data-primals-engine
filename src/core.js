@@ -282,7 +282,7 @@ export const tryParseJson = (jsonString) => {
     }
     try {
         // Tenter de parser la chaîne JSON
-        const parsed = parseSafeJSON(jsonString);
+        const parsed = JSON.parse(jsonString);
         // S'assurer que c'est un objet ou null (pas un simple nombre, string, etc.)
         return (typeof parsed === 'object' || parsed === null) ? parsed : null;
     } catch (e) {

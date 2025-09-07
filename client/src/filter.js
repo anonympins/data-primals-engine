@@ -251,7 +251,7 @@ export const pagedFilterToMongoConds = (pagedFilters, model) => {
  * Gère {{userId}}.
  */
 export const processFilterPlaceholders = (filter, user) => {
-    const processedFilter = parseSafeJSON(JSON.stringify(filter));
+    const processedFilter = JSON.parse(JSON.stringify(filter));
     for (const key in processedFilter) {
         if (processedFilter[key] === '{{userId}}') {
             // Dans le système Primals, le champ utilisateur est souvent `_user`
