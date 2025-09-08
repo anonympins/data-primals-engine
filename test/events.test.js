@@ -5,16 +5,9 @@ import {expect, describe, it, beforeEach} from 'vitest';
 
 describe('Event System', () => {
     beforeEach(() => {
-        // Clear all events before each test to ensure a clean state
-        for (const system in Event) {
-            if (Event.hasOwnProperty(system) && typeof Event[system] === 'object') {
-                for (const eventName in Event[system]) {
-                    if (Event[system].hasOwnProperty(eventName)) {
-                        delete Event[system][eventName];
-                    }
-                }
-            }
-        }
+        // This is a workaround to clear all events. A dedicated `Event.ClearAll()` would be better.
+        Event.RemoveSystemCallbacks('priority');
+        Event.RemoveSystemCallbacks('log');
     });
 
     it('should allow listening for and triggering an event', async() => {
@@ -89,6 +82,78 @@ describe('Event System', () => {
         expect(() => {
             Event.Listen('invalidEvent', () => {}, 'priority', 'invalidLayer');
         }).toThrowError(/Layer 'invalidLayer' does not exist/);
+    });
+
+    describe('Priority Sorting', () => {
+        it('should execute listeners in the correct priority order', async () => {
+            const eventName = 'priorityTestEvent';
+            const executionOrder = [];
+
+            const cb_afterAll = vitest.fn(() => executionOrder.push('afterAll'));
+            const cb_p50 = vitest.fn(() => executionOrder.push('p50'));
+            const cb_identity1 = vitest.fn(() => executionOrder.push('identity1'));
+            const cb_beforeAll = vitest.fn(() => executionOrder.push('beforeAll'));
+            const cb_p10 = vitest.fn(() => executionOrder.push('p10'));
+            const cb_identity2 = vitest.fn(() => executionOrder.push('identity2'));
+
+            // Register in a random order
+            Event.Listen(eventName, cb_afterAll, { priority: 'afterAll' });
+            Event.Listen(eventName, cb_p50, { priority: 50 });
+            Event.Listen(eventName, cb_identity1, { priority: 'identity' });
+            Event.Listen(eventName, cb_beforeAll, { priority: 'beforeAll' });
+            Event.Listen(eventName, cb_p10, { priority: 10 });
+            Event.Listen(eventName, cb_identity2); // 'identity' is default
+
+            await Event.Trigger(eventName);
+
+            expect(executionOrder).toEqual([
+                'beforeAll',
+                'p10',
+                'p50',
+                'identity1',
+                'identity2',
+                'afterAll'
+            ]);
+        });
+    });
+
+    describe('Dynamic Systems and Layers', () => {
+        it('should allow adding a new system and layer, then listening and triggering on it', async () => {
+            const newSystem = 'customSystem';
+            const newLayer = 'customLayer';
+            const eventName = 'customEvent';
+            const mockCallback = vitest.fn();
+
+            // Add new system and layer
+            Event.addSystem(newSystem);
+            Event.addLayer(newSystem, newLayer);
+
+            // Listen on the new system/layer
+            Event.Listen(eventName, mockCallback, { system: newSystem, layer: newLayer });
+
+            // Trigger on the new system/layer
+            await Event.Trigger(eventName, newSystem, newLayer);
+
+            expect(mockCallback).toHaveBeenCalledTimes(1);
+        });
+
+        it('should throw an error when adding a layer to a non-existent system', () => {
+            expect(() => {
+                Event.addLayer('nonExistentSystem', 'someLayer');
+            }).toThrowError(/Le système 'nonExistentSystem' n'existe pas/);
+        });
+    });
+
+    describe('Error Handling', () => {
+        it('should propagate errors from callbacks and enrich them', async () => {
+            const eventName = 'errorEvent';
+            const errorMessage = 'Something went wrong!';
+            const errorCallback = vitest.fn(() => { throw new Error(errorMessage); });
+
+            Event.Listen(eventName, errorCallback, 'log', 'error');
+
+            await expect(Event.Trigger(eventName, 'log', 'error')).rejects.toThrow(`Error in callback for event ${eventName} in system log layer error: ${errorMessage}`);
+        });
     });
 
     describe('Event.Trigger result merging', () => {

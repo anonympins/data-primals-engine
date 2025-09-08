@@ -10,6 +10,38 @@ const eventLayerSystems = {
     "custom": ["data"]
 };
 
+/**
+ * Parses a priority string/number into a structured object for sorting.
+ * @param {string|number} [priority='identity'] - The priority value.
+ *   - 'beforeAll': Executes before all others in the same layer.
+ *   - 'afterAll': Executes after all others in the same layer.
+ *   - A number (e.g., 50): A numeric weight (lower is higher priority).
+ *   - 'identity' or undefined: Default, executes in registration order after weighted listeners.
+ * @returns {{type: string, weight: number}}
+ * @private
+ */
+function _parsePriority(priority = 'identity') {
+    if (priority === 'beforeAll') {
+        return { type: 'special', weight: -Infinity };
+    }
+    if (priority === 'afterAll') {
+        return { type: 'special', weight: Infinity };
+    }
+
+    const numericWeight = parseInt(priority, 10);
+    if (!isNaN(numericWeight)) {
+        return {
+            type: 'weighted',
+            weight: numericWeight
+        };
+    }
+
+    // Default for 'identity' or any unrecognized format
+    return { type: 'identity', weight: Number.MAX_SAFE_INTEGER };
+}
+
+
+
 
 
 export const Event = {
@@ -35,24 +67,34 @@ export const Event = {
                 if (layersToProcess) {
                     for (const currentLayer of layersToProcess) {
                         if (events[currentSystem][name][currentLayer]) {
-                            for (const callback of events[currentSystem][name][currentLayer]) {
+                            // Create a copy and sort listeners based on priority before execution
+                            const sortedListeners = [...events[currentSystem][name][currentLayer]].sort((a, b) => {
+                                const weightDifference = a.priority.weight - b.priority.weight;
+                                if (weightDifference !== 0) {
+                                    return weightDifference;
+                                }
+                                // For listeners with the same weight (especially 'identity'), maintain registration order
+                                return a.originalIndex - b.originalIndex;
+                            });
+
+                            for (const listener of sortedListeners) {
                                 try {
-                                    const res = await callback(...args);
+                                    const res = await listener.callback(...args);
                                     if (typeof res === "object" && !Array.isArray(res)) {
                                         if (typeof ret !== "object") ret = {};
                                         ret = {...ret, ...res};
                                     } else if (Array.isArray(res)) {
                                         if (!ret || !Array.isArray(ret)) ret = [];
                                         ret = ret.concat(res);
-                                    } else if (typeof res === "string") {
-                                        if (typeof ret !== "string") ret = "";
-                                        ret += res;
-                                    } else if (typeof res === "number") {
-                                        if (typeof ret !== "number") ret = 0;
-                                        ret += res;
-                                    } else if (typeof res === "boolean") {
-                                        if (typeof ret !== "boolean") ret = true;
-                                        ret = res && ret;
+                                    } else if (res !== undefined && res !== null) {
+                                        // Simplified aggregation for primitive types
+                                        if (typeof res === "string") {
+                                            ret = (ret || "") + res;
+                                        } else if (typeof res === "number") {
+                                            ret = (ret || 0) + res;
+                                        } else if (typeof res === "boolean") {
+                                            ret = res && (ret === null ? true : ret);
+                                        }
                                     } else {
                                         ret = res || ret;
                                     }
@@ -71,21 +113,40 @@ export const Event = {
         }
         return ret;
     },
-    Listen: (name = "", callback, system = "priority", layer = "medium") => {
-        const validSystems = Object.keys(eventLayerSystems); // Récupération des clés pour une vérification plus performante
+    Listen: function(name = "", callback, ...args) {
+        let system = "priority";
+        let layer = "medium";
+        let priority = 'identity';
+
+        // Détecte si la nouvelle signature (avec objet) ou l'ancienne (avec arguments multiples) est utilisée.
+        if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
+            // Nouvelle signature: Listen(name, cb, { system, layer, priority })
+            ({ system = "priority", layer = "medium", priority = 'identity' } = args[0]);
+        } else if (args.length > 0) {
+            // Ancienne signature: Listen(name, cb, system, layer, priority)
+            [system = "priority", layer = "medium", priority = 'identity'] = args;
+        }
+
+        const validSystems = Object.keys(eventLayerSystems);
         if (!validSystems.includes(system)) {
-            throw new Error(`System '${system}' does not exist. Valid systems are: ${validSystems.join(', ')}`); // Message d'erreur plus informatif
+            throw new Error(`System '${system}' does not exist. Valid systems are: ${validSystems.join(', ')}`);
         }
 
-        const validLayers = eventLayerSystems[system]; // Récupération des couches valides pour le système
+        const validLayers = eventLayerSystems[system];
         if (!validLayers.includes(layer)) {
-            throw new Error(`Layer '${layer}' does not exist in system '${system}'. Valid layers are: ${validLayers.join(', ')}`); // Message d'erreur plus informatif
+            throw new Error(`Layer '${layer}' does not exist in system '${system}'. Valid layers are: ${validLayers.join(', ')}`);
         }
 
-        safeAssignObject(events, system, events[system] || {}); // Simplification de la création des objets
+        safeAssignObject(events, system, events[system] || {});
         safeAssignObject(events[system], name, events[system][name] || {});
         safeAssignObject(events[system][name], layer, events[system][name][layer] || []);
-        events[system][name][layer].push(callback);
+
+        const listener = {
+            callback,
+            priority: _parsePriority(priority),
+            originalIndex: events[system][name][layer].length
+        };
+        events[system][name][layer].push(listener);
     },
     addSystem: (system) => {
         if (typeof system !== 'string' || system.trim() === '') {
@@ -111,12 +172,23 @@ export const Event = {
             eventLayerSystems[system].push(layer);
         }
     },
-    RemoveCallback: (name, callback, layer="medium", system='priority') => {
-        if (!events[system] || !events[system][name] || !events[system][name][layer]) {
-            return; // Si l'événement, le système ou la couche n'existent pas, on ne fait rien
+    RemoveCallback: function(name, callback, ...args) {
+        let system = "priority";
+        let layer = "medium";
+
+        if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
+            // Nouvelle signature: Unlisten(name, cb, { system, layer })
+            ({ system = "priority", layer = "medium" } = args[0]);
+        } else if (args.length > 0) {
+            // Ancienne signature: Unlisten(name, cb, system, layer)
+            [system = "priority", layer = "medium"] = args;
         }
 
-        const index = events[system][name][layer].indexOf(callback);
+        if (!events[system] || !events[system][name] || !events[system][name][layer]) {
+            return;
+        }
+
+        const index = events[system][name][layer].findIndex(listener => listener.callback === callback);
         if (index > -1) {
             events[system][name][layer].splice(index, 1);
         }
