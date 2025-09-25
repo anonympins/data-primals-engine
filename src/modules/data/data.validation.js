@@ -17,7 +17,7 @@ export function onInit(defaultEngine) {
 
         const objectKeys = Object.keys(modelStructure);
 
-        if( objectKeys.find(o => !["name", "_user", "icon", "history", "locked", "_id", "description", "maxRequestData", "fields", "tags"].includes(o)) ){
+        if( objectKeys.find(o => !["name", "_user", "icon", "history", "locked", "_id", "description", "maxRequestData", "fields", "tags", "constraints"].includes(o)) ){
             throw new Error(i18n.t('api.model.invalidStructure'));
         }
 
@@ -51,7 +51,7 @@ export function onInit(defaultEngine) {
             if (!Array.isArray(modelStructure.constraints)) {
                 throw new Error('Model "constraints" property must be an array.');
             }
-            const fieldNames = new Set(modelStructure.fields.map(f => f.name));
+            const fieldNames = new Set(modelStructure.fields.map(f => f.name).concat(['_user']));
             for (const constraint of modelStructure.constraints) {
                 if (constraint.type === 'unique') {
                     if (!constraint.name || !Array.isArray(constraint.keys) || constraint.keys.length === 0) {
