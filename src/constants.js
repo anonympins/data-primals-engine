@@ -52,6 +52,10 @@ export const emailDefaultConfig = {
     pass: 'password'
 }
 
+export const assistantConfig = {
+    maxTokens: 4000
+}
+
 /**
  * Maximum number of models per user
  * @type {number}

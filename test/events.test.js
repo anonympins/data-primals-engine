@@ -46,6 +46,39 @@ describe('Event System', () => {
         expect(mockCallback2).toHaveBeenCalledTimes(1);
     });
 
+    it('should allow removing all callbacks for an event', async () => {
+        const mockCallback1 = vitest.fn();
+        const mockCallback2 = vitest.fn();
+        const eventName = 'testEventRemoveAll';
+
+        Event.Listen(eventName, mockCallback1);
+        Event.Listen(eventName, mockCallback2, { layer: 'high' }); // Different layer
+        Event.RemoveAllCallbacks(eventName);
+        await Event.Trigger(eventName); // Will trigger nothing
+        await Event.Trigger(eventName, 'priority', 'high'); // Will trigger nothing
+
+        expect(mockCallback1).not.toHaveBeenCalled();
+        expect(mockCallback2).not.toHaveBeenCalled();
+    });
+
+    it('should allow removing callbacks by priority', async () => {
+        const eventName = 'testEventRemoveByPriority';
+        const cb_p10 = vitest.fn();
+        const cb_p20 = vitest.fn();
+        const cb_p10_another = vitest.fn();
+
+        Event.Listen(eventName, cb_p10, { priority: 10 });
+        Event.Listen(eventName, cb_p20, { priority: 20 });
+        Event.Listen(eventName, cb_p10_another, { priority: 10 });
+
+        Event.RemoveCallbacksByPriority(eventName, 10);
+        await Event.Trigger(eventName);
+
+        expect(cb_p10).not.toHaveBeenCalled();
+        expect(cb_p10_another).not.toHaveBeenCalled();
+        expect(cb_p20).toHaveBeenCalledTimes(1);
+    });
+
     it('should not trigger a callback if the event is not listened to', async() => {
         const mockCallback = vitest.fn();
         const eventName = 'nonExistentEvent';

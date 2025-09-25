@@ -193,6 +193,29 @@ export const Event = {
             events[system][name][layer].splice(index, 1);
         }
     },
+
+    /**
+     * Removes all listeners from a specific event layer that match a given priority.
+     * @param {string} name - The name of the event.
+     * @param {string|number} priority - The priority to remove ('beforeAll', 'afterAll', a number, or 'identity').
+     * @param {object} [options={}] - Options to specify the system and layer.
+     * @param {string} [options.system='priority'] - The system of the event.
+     * @param {string} [options.layer='medium'] - The layer of the event.
+     */
+    RemoveCallbacksByPriority: function(name, priority, options = {}) {
+        const { system = "priority", layer = "medium" } = options;
+
+        if (!events[system] || !events[system][name] || !events[system][name][layer]) {
+            return;
+        }
+
+        const parsedPriorityToRemove = _parsePriority(priority);
+        events[system][name][layer] = events[system][name][layer].filter(listener => {
+            // Keep the listener if its priority does NOT match the one to remove
+            return listener.priority.type !== parsedPriorityToRemove.type || listener.priority.weight !== parsedPriorityToRemove.weight;
+        });
+    },
+
     // Ajout d'une méthode pour supprimer tous les callbacks d'un événement (optionnel)
     RemoveAllCallbacks: (name, system = 'priority') => {
         if (events[system] && events[system][name]) {
