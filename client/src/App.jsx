@@ -67,6 +67,7 @@ let queryClient = new QueryClient();
 export const setQueryClient = (q) => {
     queryClient = q;
 };
+import {CommandProvider} from "./contexts/CommandContext.jsx";
 
 function TopBar({header}) {
 
@@ -84,7 +85,7 @@ function TopBar({header}) {
     return <>{header}</>;
 }
 
-function Layout ({header, routes, body, footer,refreshUI}) {
+function Layout ({header, routes, body, footer,refreshUI,onResetQueryClient}) {
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const { i18n, t } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
@@ -391,7 +392,7 @@ function Layout ({header, routes, body, footer,refreshUI}) {
 
                 <Route path={"/user/:user/*"} element={<>
                     {menu}
-                    <UserPage notifs={[]} refreshUI={refreshUI} onAuthenticated={onAuthenticated} triggerSignin={triggerSignin}/>
+                    <UserPage notifs={[]} refreshUI={refreshUI} onAuthenticated={onAuthenticated} triggerSignin={triggerSignin} onResetQueryClient={onResetQueryClient}/>
                     {!me && (<></>)}
                 </>}/>
                 <Route path={"/:lang/*"} element={<>
@@ -408,7 +409,7 @@ function Layout ({header, routes, body, footer,refreshUI}) {
     </div>;
 }
 
-function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated}) {
+function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQueryClient}) {
     const {me} = useAuthContext()
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const params = useParams();
@@ -508,7 +509,7 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated}) {
     }, [isDemo, shouldStartTour]);
 
     return <>{/^demo[0-9]{1,2}$/.test(me?.username) && notifs}
-        {params.user === id && <DataLayout refreshUI={refreshUI}/>}
+        {params.user === id && <DataLayout refreshUI={refreshUI} onResetQueryClient={onResetQueryClient}/>}
         {params.user !== id &&
             <p>Veuillez vous authentifier avec cet utilisateur &quot;{params.user}&quot; pour accéder à vos
                 données</p>}</>;
@@ -518,7 +519,7 @@ const allLangs = Object.keys(langs).map(l => {
     return {value: l, label: langs[l]};
 })
 
-const BaseLayout=()=>{
+const BaseLayout=({onResetQueryClient})=>{
     const [lastLang, setLastLang] = useState(null);
     const { i18n, t} = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
@@ -560,14 +561,9 @@ const BaseLayout=()=>{
         changeLanguage(lang);
     }, [lang]);
 
-    return <Layout refreshUI={refreshUI} header={<header className={"flex"}>
+    return <Layout refreshUI={refreshUI} onResetQueryClient={onResetQueryClient} header={<header className={"flex"}>
         <Tooltip id={"header"}/>
         <h1 className="flex-1">{seoTitle}</h1>
-        <div className="center">
-            <SelectField label={<FaLanguage />} items={allLangs} onChange={(e) => {
-                changeLanguage(e.value);
-            }} />
-        </div>
         <div className="flex">
             <FaQuestion data-tooltip-id="header" data-tooltip-content="Documentation" onClick={()=> {
                 window.open("/en/documentation/", "_blank");
@@ -576,16 +572,27 @@ const BaseLayout=()=>{
     </header>} />
 }
 function App() {
+    // On gère le queryClient dans un état pour pouvoir le réinitialiser complètement.
+    const [queryClient, setQueryClient] = useState(() => new QueryClient());
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    // La fonction qui va créer une NOUVELLE instance du client.
+    const resetQueryClient = () => {
+        setQueryClient(new QueryClient());
+        setRefreshKey(key => key + 1); // On incrémente la clé pour forcer le re-montage.
+    };
 
     return (
         <QueryClientProvider client={queryClient}>
             <AuthProvider>
             <CookiesProvider>
-                        <ModelProvider>
+                        <ModelProvider key={refreshKey}>
                             <BrowserRouter>
                                 <UIProvider>
                                     <NotificationProvider>
-                                        <BaseLayout></BaseLayout>
+                                        <CommandProvider onResetQueryClient={resetQueryClient}>
+                                            <BaseLayout />
+                                        </CommandProvider>
                                     </NotificationProvider>
                                 </UIProvider>
                             </BrowserRouter>

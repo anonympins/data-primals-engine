@@ -22,4 +22,3 @@ export { default as MessageRotator } from './src/MessageRotator';
 export { default as DocumentationPageLayout } from './src/DocumentationPageLayout';
 export { default as ContentView } from './src/ContentView';
 export { default as AssistantChat } from './src/AssistantChat';
-export { setQueryClient } from './src/App.jsx';

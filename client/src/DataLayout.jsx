@@ -1,5 +1,6 @@
 import React, {forwardRef, useCallback, useEffect, useMemo, useReducer, useRef, useState} from 'react';
 
+import { FaUndo, FaRedo } from 'react-icons/fa';
 import "./App.scss";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import ModelCreator from "./ModelCreator.jsx";
@@ -42,6 +43,7 @@ import PackGallery from "./PackGallery.jsx";
 import TutorialsMenu from "./TutorialsMenu.jsx";
 import {FaBookAtlas} from "react-icons/fa6";
 import {AssistantChat, NotificationList} from "../index.js";
+import { useCommand } from './contexts/CommandContext.jsx';
 
 import "./DataLayout.scss"
 
@@ -62,9 +64,19 @@ function DataLayout({refreshUI}) {
     const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
     const [isKanbanModalOpen, setKanbanModalOpen] = useState(false);
     const [showPackGallery, setShowPackGallery] = useState(false);
+    const [checkedItems, setCheckedItems] = useState([])
 
+    const { execute, undo, redo, canUndo, canRedo, InsertCommand, UpdateCommand, DeleteCommand, setManagerContext } = useCommand();
     const { triggerTutorialCheck } = useTutorials();
-    const { t, i18n } = useTranslation();
+    const { t, i18n } = useTranslation(); 
+
+    // Informe le CommandManager de la fonction setCheckedItems actuelle.
+    useEffect(() => {
+        if (setManagerContext) {
+            setManagerContext({ setCheckedItems });
+        }
+    }, [setManagerContext, setCheckedItems]);
+
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
 
     // Stocke la vue sélectionnée pour chaque modèle. Ex: { "contacts": "calendar", "tasks": "kanban" }
@@ -87,7 +99,6 @@ function DataLayout({refreshUI}) {
     const queryClient = useQueryClient();
 
     const isDataLoaded = true;
-    const [checkedItems, setCheckedItems] = useState([])
 
     const [refreshTime, setRefreshTime] = useState(0);
     const [formData, setFormData] = useState({});
@@ -259,10 +270,10 @@ function DataLayout({refreshUI}) {
                         setFormData(item);
                         setDataEditorVisible(true);
                     }}
-                    onDelete={(item) => {
-                        queryClient.invalidateQueries(['api/data', selectedModel.name, 'page', page, elementsPerPage, pagedFilters[selectedModel.name], pagedSort[selectedModel.name]]);
-                    }}
-                />;
+                    deleteApiCall={deleteApiCall}
+                    queryClient={queryClient}
+                />
+                ;
         }
     };
 
@@ -343,7 +354,7 @@ function DataLayout({refreshUI}) {
 
     const { addNotification } = useNotificationContext();
 
-    const { mutate: insertOrUpdateMutation, isLoading} = useMutation(({formData,record}) => {
+    const insertOrUpdateApiCall = useCallback(({formData, record}) => {
         const method = record ? 'PUT' : 'POST'; // Determine method based on record
         const url = record ? `/api/data/${record._id}` : `/api/data`; // Determine URL
 
@@ -370,60 +381,24 @@ function DataLayout({refreshUI}) {
                 method,
                 body: fd
             }).then(e => e.json());
-
         } catch (error) {
             console.error('Erreur lors de l\'enregistrement des données:', error);
-            // Handle error, e.g., display error message to the user
+            throw error; // Propage l'erreur pour que le CommandManager la gère
         }
-    }, {
-        onError: (err)=>{
-            const notificationData = {
-                title: 'Erreur lors de l\'enregistrement des données',
-                status: 'error'
-            };
-            addNotification(notificationData);
-        },
-        onSuccess: async (data) => {
+    }, [lang, me, selectedModel]);
 
-            console.log('Données enregistrées:', data, selectedModel);
+    const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall);
 
-            await Event.Trigger(recordToEdit ? 'API_ADD_DATA' : 'API_ADD_DATA', "custom", "data", {
-                model: selectedModel.name,
-            });
-
-            gtag("event", "select_content", {
-                content_type: "edit_data",
-                content_id: selectedModel.name
-            });
-
-            const notificationData = {
-                title: data.success ? t('dataimporter.success', 'Données enregistrées') : t(data.error, data.error),
-                icon: data.success ? <FaInfo /> : undefined,
-                status: data.success ? 'completed': 'error'
-            };
-            addNotification(notificationData);
-
-            updateRelationIds(selectedModel, formData);
-            setDatasToLoad([...datasToLoad, selectedModel.name]);
-            queryClient.invalidateQueries(['api/data', selectedModel.name, 'page', page, elementsPerPage, pagedFilters[selectedModel.name], pagedSort[selectedModel.name]]);
-
-            if(data.inserted) {
-                const t = [...selectedModel.fields].reduce((acc, field, index) => {
-                    if (field.type === "relation") {
-                        acc[field.name] = field.multiple ? [] : null;
-                    } else {
-                        acc[field.name] = getDefaultForType(field);
-                    }
-                    return acc;
-                }, {});
-                setFormData(t)
-            }
-
-            setRelations({});
-
-        }})
     const handleFormSubmit = async (formData, record) => { // Add record parameter
-        insertOrUpdateMutation({formData, record})
+        let command;
+        if (record) {
+            // C'est une mise à jour
+            command = new UpdateCommand(insertOrUpdateApiCall, selectedModel.name, record, formData);
+        } else {
+            // C'est une insertion
+            command = new InsertCommand(insertOrUpdateApiCall, selectedModel.name, formData);
+        }
+        await execute(command);
     };
 
     const updateRelationIds = (model, data) => {
@@ -457,35 +432,21 @@ function DataLayout({refreshUI}) {
         queryClient.invalidateQueries(['api/data', model.name, r]);
     }
 
-    const deleteMutation = useMutation((selectedModels) => {
-        return fetch('/api/data/'+checkedItems.map(m => m._id).join(',')+'?lang='+lang+'&_user='+encodeURIComponent(getUserId(me)), {
+    const deleteApiCall = useCallback((itemsToDelete) => {
+        const ids = (Array.isArray(itemsToDelete) ? itemsToDelete : [itemsToDelete]).map(m => m._id).join(',');
+        return fetch(`/api/data/${ids}?lang=${lang}&_user=${encodeURIComponent(getUserId(me))}`, {
             method: 'DELETE', headers: {
                 'Content-Type': 'application/json'
             }
         }).then(e => e.json());
-    }, { onSuccess: (data) => {
-        if( data.success ){
-            queryClient.invalidateQueries(['api/data', selectedModel?.name, 'page', page, elementsPerPage, pagedFilters[selectedModel?.name], pagedSort[selectedModel?.name]]);
-        }
+    }, [lang, me]);
 
-        const notificationData = {
-            id: 'dataimporter.success',
-            title: t('dataimporter.success', 'Données supprimées'),
-            icon: <FaInfo />,
-            status: 'completed'
-        };
-        addNotification(notificationData);
-        }, onError:(err)=>{
-            const notificationData = {
-                id: 'dataimporter.error',
-                title: err.message,
-                status: 'error'
-            };
-            addNotification(notificationData);
-        }});
+    // Cette mutation n'est plus directement utilisée, mais on la garde pour l'instant.
+    const { mutateAsync: deleteMutation } = useMutation(deleteApiCall);
+
     const handleDeletion = () => {
-        deleteMutation.mutate();
-        setCheckedItems([]);
+        const command = new DeleteCommand(deleteApiCall, selectedModel.name, checkedItems);
+        execute(command);
     }
     const importModelsMutation = useMutation((selectedModels) => {
        return fetch('/api/models/import', { method: 'POST', headers: {
@@ -620,11 +581,11 @@ function DataLayout({refreshUI}) {
             <Tooltip id="tooltipField" />
             <>{/^demo[0-9]{1,2}$/.test(me.username) && (
                 <TourSpotlight
-                name={"tour_"+getObjectHash({steps:currentTourSteps})}
-                steps={currentTourSteps}
-                isOpen={isTourOpen}
-                onClose={closeTour}
-            />)}</>
+                    name={"tour_"+getObjectHash({steps:currentTourSteps})}
+                    steps={currentTourSteps}
+                    isOpen={isTourOpen}
+                    onClose={closeTour}
+                />)}</>
             <div className="flex actions">
 
                 {<ViewSwitcher
@@ -633,6 +594,14 @@ function DataLayout({refreshUI}) {
                     configuredViews={configuredViews}
                     onConfigureView={handleConfigureCurrentView}
                 />}
+                <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-md">
+                    <Button onClick={undo} disabled={!canUndo} title={t('btns.undo', 'Annuler')}>
+                        <FaUndo />
+                    </Button>
+                    <Button onClick={redo} disabled={!canRedo} title={t('btns.redo', 'Rétablir')}>
+                        <FaRedo />
+                    </Button>
+                </div>
                 <Button onClick={() => {
                     setImportModalVisible(true);
                 }} className="btn tourStep-import-model"><FaFileImport/><Trans
@@ -740,13 +709,15 @@ function DataLayout({refreshUI}) {
 
                     {isDataLoaded && currentView === 'table'  && (<>
                         {selectedModel && (<Pagination showElementsPerPage={true} onChange={page => {
+                            // C'est maintenant le seul endroit qui met à jour la page.
                             setPage(page);
                             setCheckedItems([]);
                             gtag("event", "select_content", {
                                 content_type: "change_page",
                                 content_id: page
                             });
-                            queryClient.invalidateQueries(['api/data', selectedModel.name, 'page', page, pagedFilters[selectedModel.name], pagedSort[selectedModel.name]]);
+                            // On utilise refetchQueries pour forcer le rafraîchissement immédiatement.
+                            queryClient.refetchQueries(['api/data', selectedModel.name, 'page']);
                         }} page={page} setPage={setPage} totalCount={countByModel[selectedModel.name]}
                                                        hasPreviousNext={true} visibleItemsCount={5}
                                                        elementsPerPage={elementsPerPage}/>)}
@@ -805,4 +776,4 @@ function DataLayout({refreshUI}) {
 }
 
 
-export default DataLayout;
+export default forwardRef(DataLayout);

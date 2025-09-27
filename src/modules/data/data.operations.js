@@ -123,7 +123,7 @@ export const dataTypes = {
                     return value;
                 else if (typeof (value) === 'string') {
                     try {
-                        return JSON.parse(value);
+                        return JSON.parse   (value);
                     } catch (e) {
                         return null;
                     }
@@ -797,7 +797,11 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
         await Event.Trigger("OnDataAdded", "event", "user", userPayload);
 
         // Return valid result
-        return {success: true, insertedIds: insertedIds.map(id => id.toString())}; // Convertir les IDs en string pour la réponse
+        // --- CORRECTION ---
+        // On renvoie l'objet complet du premier document inséré (cas le plus courant pour l'undo)
+        // et la liste complète des IDs pour les cas de bulk insert.
+        const firstInsertedDoc = insertedDocs.length > 0 ? insertedDocs[0] : null;
+        return {success: true, data: firstInsertedDoc, insertedIds: insertedIds.map(id => id.toString())};
 
     } catch (error) { // Attrape les erreurs de permission ou de pushDataUnsecure
         logger.error(`[insertData] Main error during insertion process for model ${modelName}: ${error.message}`, error.stack);
@@ -1417,6 +1421,12 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
             return ({success: true, deletedCount: 0, message: "No documents found to delete."});
         }
 
+        // --- AMÉLIORATION ---
+        // On détermine le nom du modèle à partir du premier document trouvé.
+        // C'est crucial car la fonction peut être appelée sans `modelName` explicite (ex: via /api/data/:ids).
+        // On suppose que toutes les suppressions dans un même appel concernent le même modèle.
+        const modelNameToInvalidate = modelName || documentsToDelete[0]?._model;
+
         const finalIdsToDelete = []; // IDs des documents qui seront effectivement supprimés
         const idsToInvalidate = [];  // *** AJOUT: IDs à invalider dans le cache ***
 
@@ -1572,9 +1582,19 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
                 _id: {$in: finalIdsToDelete}
                 // Le filtre _user est déjà implicite car on a fetch les documents de l'utilisateur
             });
-            invalidateIdsCache(modelName, idsToInvalidate);
-            console.log(`Invalidated cache for ${idsToInvalidate.length} deleted documents in model: ${modelName}`);
 
+            // SOLUTION RADICALE : On invalide TOUT le cache pour ce modèle.
+            // C'est crucial car la suppression affecte les comptes, la pagination, etc.
+            // --- AMÉLIORATION : Invalider aussi les modèles liés ---
+            // Si on supprime un document, toutes les recherches sur les modèles qui le référençaient
+            // deviennent invalides.
+            const relatedModels = await findRelatedModels(modelNameToInvalidate, user);
+            for (const relatedModel of relatedModels) {
+                invalidateModelCache(relatedModel.name);
+                logger.info(`[Cache Invalidation] Also invalidated cache for related model: ${relatedModel.name}`);
+            }
+
+            if (modelNameToInvalidate) invalidateModelCache(modelNameToInvalidate);
             deletedCount = result.deletedCount;
             logger.info(`[deleteData] Successfully deleted ${deletedCount} documents for user ${user?.username}.`);
         } else {
