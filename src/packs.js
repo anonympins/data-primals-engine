@@ -348,8 +348,8 @@ This pack sets up an automated ecosystem for your store:
                     "env":envSmtp,
                     "taxonomy": [
                         { "name": "E-commerce", "type": "category" },
-                        { "name": "Clothes", "type": "category", "parent": { "$find": { "name": "E-commerce" } } },
-                        { "name": "Electronics", "type": "category", "parent": { "$find": { "name": "E-commerce" } } }
+                        { "name": "Clothes", "type": "category", "parent": { "$link": { "name": "E-commerce" } } },
+                        { "name": "Electronics", "type": "category", "parent": { "$link": { "name": "E-commerce" } } }
                     ],
                     "brand": [
                         { "name": "Brand A" },

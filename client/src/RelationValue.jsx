@@ -52,7 +52,8 @@ const RelationValue = ({ field, data, align }) => {
                 });
         },
         { enabled: !!model && !!value, onSettled: (data) => {
-
+            if( !data)
+                return;
                 const dt = {...relations};
                 dt['api/data'+model.name+getObjectHash({ids})] = { count: data.length, data };
                 setRelations(dt);
