@@ -46,6 +46,8 @@ import {AssistantChat, NotificationList} from "../index.js";
 import { useCommand } from './contexts/CommandContext.jsx';
 
 import "./DataLayout.scss"
+import {SheetsView} from "./SheetsView.jsx";
+import DataView from "./DataView.jsx";
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
     <div className="p-4 border border-dashed rounded-md mt-4 text-center bg-gray-50">
@@ -153,6 +155,10 @@ function DataLayout({refreshUI}) {
 
     // --- MODIFICATION : Logique de changement de vue mise à jour ---
     const handleSwitchView = (viewName) => {
+        if (viewName === 'sheets') {
+            setCurrentView('sheets');
+            return;
+        }
         if (viewName === 'table') {
             setCurrentView('table');
             return;
@@ -233,49 +239,6 @@ function DataLayout({refreshUI}) {
             kanban: !!modelSettings.kanban?.groupByField,
         };
     }, [viewSettings, selectedModel]);
-
-    // --- AJOUT : Logique de rendu de la vue courante ---
-    const renderCurrentView = () => {
-        if (!selectedModel) return null;
-
-        switch (currentView) {
-            case 'calendar':
-                return configuredViews.calendar
-                    ? <CalendarView settings={currentModelViewSettings.calendar} onEditData={(model, data) => handleAddData(model,data)} model={selectedModel} />
-                    : <NotConfiguredPlaceholder type="calendar" onConfigure={() => setCalendarModalOpen(true)} />;
-            case 'kanban':
-                return configuredViews.kanban
-                    ? <KanbanView settings={currentModelViewSettings.kanban} model={selectedModel} />
-                    : <NotConfiguredPlaceholder type="kanban" onConfigure={() => setKanbanModalOpen(true)} />;
-            case 'table':
-            default:
-                // Le DataTable existant est retourné par défaut
-                return <DataTable
-                    checkedItems={checkedItems}
-                    setCheckedItems={setCheckedItems}
-                    filterValues={filterValues}
-                    setFilterValues={setFilterValues}
-                    model={selectedModel}
-                    onAddData={(model) => {
-                        mainPartRef.current.scrollIntoView({behavior: "smooth"});
-                        handleAddData(model);
-                    }}
-                    onDuplicateData={(data) => {
-                        mainPartRef.current.scrollIntoView({behavior: "smooth"});
-                        handleAddData(selectedModel, data);
-                    }}
-                    onEdit={(item) => {
-                        mainPartRef.current.scrollIntoView({behavior: "smooth"});
-                        setRecordToEdit(item);
-                        setFormData(item);
-                        setDataEditorVisible(true);
-                    }}
-                    deleteApiCall={deleteApiCall}
-                    queryClient={queryClient}
-                />
-                ;
-        }
-    };
 
     const handleModelSelect = (model) => {
         setRelationFilters({});
@@ -386,6 +349,27 @@ function DataLayout({refreshUI}) {
             throw error; // Propage l'erreur pour que le CommandManager la gère
         }
     }, [lang, me, selectedModel]);
+    const patchApiCall = useCallback((id, data) => {
+        if (!id) {
+            return Promise.reject(new Error("Record ID is required for a PATCH request."));
+        }
+        const url = `/api/data/${id}`;
+
+        try {
+            const fd = new FormData();
+            fd.append("_data", JSON.stringify(data));
+            fd.append('model', selectedModel.name);
+
+            return fetch(`${url}?lang=${lang}&_user=${encodeURIComponent(getUserId(me))}`, {
+                method: 'PATCH',
+                body: fd
+            }).then(e => e.json());
+        } catch (error) {
+            console.error('Erreur lors du patch des données:', error);
+            throw error;
+        }
+    }, [lang, me, selectedModel]);
+
 
     const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall);
 
@@ -705,7 +689,29 @@ function DataLayout({refreshUI}) {
                     <h2 className={"field-bg p-2"}>{t(`model_${selectedModel?.name}`, selectedModel?.name)} <>({countByModel?.[selectedModel?.name]})</></h2>
 
 
-                    {renderCurrentView()}
+                    <DataView // This is the component import
+                        currentView={currentView}
+                        selectedModel={selectedModel}
+                        configuredViews={configuredViews}
+                        currentModelViewSettings={currentModelViewSettings}
+                        setCalendarModalOpen={setCalendarModalOpen}
+                        setKanbanModalOpen={setKanbanModalOpen}
+                        onAddData={(model, data) => {
+                            mainPartRef.current.scrollIntoView({ behavior: "smooth" });
+                            handleAddData(model, data);
+                        }}
+                        onEdit={(item) => {
+                            mainPartRef.current.scrollIntoView({ behavior: "smooth" });
+                            setRecordToEdit(item);
+                            setFormData(item);
+                            setDataEditorVisible(true);
+                        }}
+                        onDuplicateData={(data) => {
+                            mainPartRef.current.scrollIntoView({ behavior: "smooth" });
+                            handleAddData(selectedModel, data);
+                        }}
+                        {...{ checkedItems, setCheckedItems, filterValues, setFilterValues, deleteApiCall, queryClient, insertOrUpdateApiCall, patchApiCall }}
+                    />
 
                     {isDataLoaded && currentView === 'table'  && (<>
                         {selectedModel && (<Pagination showElementsPerPage={true} onChange={page => {

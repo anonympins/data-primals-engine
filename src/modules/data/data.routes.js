@@ -876,10 +876,11 @@ export async function registerRoutes(defaultEngine){
     });
 
     engine.patch('/api/data/:id', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
-        const filter = req.fields.filter;
-        const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
+        const id = req.params.id; // Récupérer l'identifiant de la ressource à modifier
         const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
-        const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
+        // --- CORRECTION ---
+        // On passe l'ID en dernier argument et le filtre à null, car l'ID est prioritaire.
+        const r = await patchData(req.fields.model, null, data, req.files, req.me, true, false, id);
         if (r.error) {
             res.status(400).json(r);
         } else {
@@ -889,10 +890,11 @@ export async function registerRoutes(defaultEngine){
 
     engine.put('/api/data/:id', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger], async (req, res) => {
         try {
-            const filter = req.fields.filter;
-            const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
+            const id = req.params.id; // Récupérer l'identifiant de la ressource à modifier
             const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
-            const r = await editData(req.fields.model, filter || { "$eq": ["$_id", { "$toObjectId": hash}]}, data, req.files, req.me)
+            // --- CORRECTION ---
+            // On passe l'ID en dernier argument et le filtre à null.
+            const r = await editData(req.fields.model, null, data, req.files, req.me, true, false, id);
             if (r.error)
                 res.status(400).json(r);
             else

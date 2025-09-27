@@ -1,14 +1,15 @@
 // client/src/ViewSwitcher.jsx
 
 import React from 'react';
-import { Trans, useTranslation } from 'react-i18next';
-import { FaTable, FaRegCalendarAlt, FaColumns, FaCog } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
+import { FaTable, FaRegCalendarAlt, FaColumns, FaCog, FaTh } from 'react-icons/fa';
 import Button from './Button.jsx';
 import { Tooltip } from 'react-tooltip';
 
 import "./ViewSwitcher.scss"
 const viewOptions = [
     { id: 'table', icon: <FaTable />, labelKey: 'views.table', defaultLabel: 'Tableau' },
+    { id: 'sheets', icon: <FaTh />, labelKey: 'views.sheets', defaultLabel: 'Feuille' },
     { id: 'kanban', icon: <FaColumns />, labelKey: 'views.kanban', defaultLabel: 'Kanban' },
     { id: 'calendar', icon: <FaRegCalendarAlt />, labelKey: 'views.calendar', defaultLabel: 'Calendrier' },
 ];

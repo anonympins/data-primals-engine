@@ -171,11 +171,7 @@ const TextField = forwardRef(function TextField(
         return !errs.length && fieldValidationState.status !== 'invalid';
     };
 
-    useImperativeHandle(ref, () => ({
-        ref: inputRef.current,
-        validate,
-        getValue: () => value,
-    }));
+    useImperativeHandle(ref, () => inputRef.current);
 
     const handleMaskedChange = (e) => {
         const inputValue = e.target.value;
@@ -438,11 +434,7 @@ const EmailField = forwardRef(
     const hasErrors = combinedErrors.length > 0;
     const errorsHtml = hasErrors ? `<ul>${combinedErrors.map(e => `<li>${String(e).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')}</ul>` : '';
 
-    useImperativeHandle(ref, () => ({
-      ref: inputRef.current,
-      validate,
-      getValue: () => value,
-    }));
+    useImperativeHandle(ref, () => inputRef.current);
 
     const handleChange = (e) => {
       if (onChange) {
@@ -598,11 +590,7 @@ const NumberField = forwardRef(
     const hasErrors = combinedErrors.length > 0;
     const errorsHtml = hasErrors ? `<ul>${combinedErrors.map(e => `<li>${String(e).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')}</ul>` : '';
 
-    useImperativeHandle(ref, () => ({
-      ref: inputRef.current,
-      validate,
-      getValue: () => value,
-    }));
+    useImperativeHandle(ref, () => inputRef.current);
 
     const handleChange = (e) => {
       if (onChange) {
@@ -900,6 +888,7 @@ const SelectField = forwardRef(
     ref,
   ) => {
       const [values, setValues] = useState([]);
+    const selectRef = useRef(null); // 1. Créer une ref pour l'élément select
     const id = "selectfield-" + uniqid();
     const [errors, setErrors] = useState([]);
     const [_value, setValue] = useState(value);
@@ -926,11 +915,7 @@ const SelectField = forwardRef(
     useEffect(() => {
       if (_value !== null) validate();
     }, [_value]);
-    useImperativeHandle(ref, () => ({
-      validate,
-      getValue: () => _value,
-      setValue,
-    }));
+    useImperativeHandle(ref, () => selectRef.current); // 2. Exposer la ref du DOM
     const handleChange = (e) => {
       setValue(e.target.value);
       if (onChange) {
@@ -971,6 +956,7 @@ const SelectField = forwardRef(
             </label>
           )}
           <select
+            ref={selectRef} // 3. Attacher la ref à l'élément select
             aria-required={required}
             aria-readonly={readOnly}
             value={(_value)}

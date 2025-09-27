@@ -146,6 +146,30 @@ export class UpdateCommand {
     }
 }
 
+export class PatchCommand {
+    constructor(apiCall, modelName, recordId, fieldName, oldValue, newValue) {
+        this.apiCall = apiCall;
+        this.modelName = modelName;
+        this.recordId = recordId;
+        this.fieldName = fieldName;
+        this.oldValue = oldValue;
+        this.newValue = newValue;
+        this.successMessage = "Donnée mise à jour";
+    }
+
+    async execute() {
+        const patchData = { [this.fieldName]: this.newValue };
+        const response = await this.apiCall(this.recordId, patchData);
+        if (!response.success) throw new Error(response.error || 'Patch failed');
+    }
+
+    async undo() {
+        // Pour annuler, on ré-applique la valeur originale du champ
+        const patchData = { [this.fieldName]: this.oldValue };
+        await this.apiCall(this.recordId, patchData);
+    }
+}
+
 export class DeleteCommand {
     constructor(apiCall, modelName, itemsToDelete) { // queryClient a été retiré
         this.apiCall = apiCall;
@@ -232,7 +256,7 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         updateUndoRedoState();
     };
 
-    const value = { execute, undo, redo, canUndo, canRedo, InsertCommand, UpdateCommand, DeleteCommand };
+    const value = { execute, undo, redo, canUndo, canRedo, InsertCommand, UpdateCommand, DeleteCommand, PatchCommand };
 
     // On expose une méthode pour mettre à jour le contexte interne du manager
     // C'est une "échappatoire" nécessaire car le manager est créé une seule fois.

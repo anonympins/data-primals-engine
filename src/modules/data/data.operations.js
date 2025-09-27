@@ -1040,13 +1040,13 @@ async function findRelatedModels(modelName, user) {
         return [];
     }
 }
-export const patchData = async (modelName, filter, data, files, user, triggerWorkflow = true, waitForWorkflow = false) => {
-    return await internalEditOrPatchData(modelName, filter, data, files, user, true, triggerWorkflow, waitForWorkflow);
+export const patchData = async (modelName, filter, data, files, user, triggerWorkflow = true, waitForWorkflow = false, id = null) => {
+    return await internalEditOrPatchData(modelName, filter, data, files, user, true, triggerWorkflow, waitForWorkflow, id);
 };
-export const editData = async (modelName, filter, data, files, user, triggerWorkflow = true, waitForWorkflow = false) => {
-    return await internalEditOrPatchData(modelName, filter, data, files, user, false, triggerWorkflow, waitForWorkflow);
+export const editData = async (modelName, filter, data, files, user, triggerWorkflow = true, waitForWorkflow = false, id = null) => {
+    return await internalEditOrPatchData(modelName, filter, data, files, user, false, triggerWorkflow, waitForWorkflow, id);
 };
-const internalEditOrPatchData = async (modelName, filter, data, files, user, isPatch, triggerWorkflow = true, waitForWorkflow = false) => {
+const internalEditOrPatchData = async (modelName, filter, data, files, user, isPatch, triggerWorkflow = true, waitForWorkflow = false, id = null) => {
     try {
         // 1. Vérification des permissions
         if (user.username !== 'demo' && isLocalUser(user) && (
@@ -1061,8 +1061,17 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             throw new Error(i18n.t("api.model.notFound", {model: modelName}));
         }
 
+        // --- CORRECTION CRITIQUE ---
+        // Construire le filtre de recherche. Si un ID est passé, il est prioritaire.
+        // Sinon, on utilise le filtre fourni.
+        const searchFilter = {};
+        if (id) { // Cas d'une requête PATCH/PUT sur /api/data/:id
+            searchFilter["$eq"] = [{"$toString": "$_id"}, id];
+        } else if (filter) { // Cas d'une requête avec un filtre complexe dans le body
+            Object.assign(searchFilter, filter);
+        }
         // 2. Récupération des documents existants et de leur hash original
-        const existingDocs = (await searchData({model: modelName, filter}, user))?.data;
+        const existingDocs = (await searchData({model: modelName, filter: searchFilter}, user))?.data;
         if (!existingDocs || existingDocs.length === 0) {
             return {success: false, error: i18n.t("api.data.notFound")};
         }

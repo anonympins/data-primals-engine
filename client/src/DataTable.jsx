@@ -61,7 +61,7 @@ import {HistoryDialog} from "./HistoryDialog.jsx";
 import { useCommand } from './contexts/CommandContext.jsx';
 import {Config} from "../../src/config.js";
 
-const Header = ({
+export const Header = ({
                     reversed = false,
                     handleFilter,
     model,
