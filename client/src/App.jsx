@@ -591,7 +591,7 @@ function App() {
                             <UIProvider>
                                 <NotificationProvider>
                                     <CommandProvider onResetQueryClient={resetQueryClient}>
-                                        <BaseLayout />
+                                        <BaseLayout onResetQueryClient={resetQueryClient} />
                                     </CommandProvider>
                                 </NotificationProvider>
                             </UIProvider>
