@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useState, useCallback, useRef, useEffect} from 'react';
+import React, {createContext, useContext, useState, useCallback, useRef, useEffect, useMemo} from 'react';
 import { useQueryClient } from 'react-query';
 import { useNotificationContext } from '../NotificationProvider.jsx';
 import { useTranslation } from 'react-i18next';
@@ -232,13 +232,22 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         updateUndoRedoState();
     };
 
-    const value = { execute, undo, redo, canUndo, canRedo, InsertCommand, UpdateCommand, DeleteCommand };
-
-    // On expose une méthode pour mettre à jour le contexte interne du manager
-    // C'est une "échappatoire" nécessaire car le manager est créé une seule fois.
-    value.setManagerContext = (context) => {
-        commandManagerRef.current.context = context;
-    };
+    // --- CORRECTION ---
+    // On inclut `setManagerContext` directement dans la valeur du contexte
+    // et on mémorise l'objet avec `useMemo` pour la stabilité.
+    const value = useMemo(() => ({
+        execute,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
+        InsertCommand,
+        UpdateCommand,
+        DeleteCommand,
+        setManagerContext: (context) => {
+            commandManagerRef.current.context = context;
+        }
+    }), [canUndo, canRedo]); // Dépendances pour la mémorisation
 
     return (
         <CommandContext.Provider value={value}>{children}</CommandContext.Provider>
