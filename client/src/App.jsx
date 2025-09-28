@@ -410,8 +410,6 @@ function Layout ({header, routes, body, footer,refreshUI,onResetQueryClient}) {
 }
 
 function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQueryClient}) {
-    // --- CORRECTION --- On importe le Provider ici pour l'utiliser localement.
-    const {me} = useAuthContext()
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const params = useParams();
     const [started, setStarted] = useState(false);
@@ -510,11 +508,7 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQuery
     }, [isDemo, shouldStartTour]);
 
     return <>{/^demo[0-9]{1,2}$/.test(me?.username) && notifs}
-        {/* --- CORRECTION ---
-            On enveloppe DataLayout avec le CommandProvider ici pour garantir l'accès au contexte,
-            ce qui est plus robuste, surtout pour les builds de production.
-        */}
-        {params.user === id && <CommandProvider onResetQueryClient={onResetQueryClient}><DataLayout refreshUI={refreshUI}/></CommandProvider>}
+        {params.user === id && <DataLayout refreshUI={refreshUI} onResetQueryClient={onResetQueryClient}/>}
         {params.user !== id &&
             <p>Veuillez vous authentifier avec cet utilisateur &quot;{params.user}&quot; pour accéder à vos
                 données</p>}</>;
@@ -590,18 +584,20 @@ function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <AuthProvider key={refreshKey}>
-                <CookiesProvider>
-                    <ModelProvider key={refreshKey}>
-                        <BrowserRouter>
-                            <UIProvider>
-                                <NotificationProvider>
-                                    {/* Le CommandProvider a été déplacé dans UserPage, on peut le retirer d'ici. */}
-                                    <BaseLayout onResetQueryClient={resetQueryClient} />
-                                </NotificationProvider>
-                            </UIProvider>
-                        </BrowserRouter>
-                    </ModelProvider>
-                </CookiesProvider>
+                <CommandProvider>
+                    <CookiesProvider>
+                        <ModelProvider key={refreshKey}>
+                            <BrowserRouter>
+                                <UIProvider>
+                                    <NotificationProvider>
+                                        {/* Le CommandProvider a été déplacé dans UserPage, on peut le retirer d'ici. */}
+                                        <BaseLayout onResetQueryClient={resetQueryClient} />
+                                    </NotificationProvider>
+                                </UIProvider>
+                            </BrowserRouter>
+                        </ModelProvider>
+                    </CookiesProvider>
+                </CommandProvider>
             </AuthProvider>
         </QueryClientProvider>
     );
