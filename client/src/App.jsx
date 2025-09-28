@@ -85,7 +85,42 @@ function TopBar({header}) {
     return <>{header}</>;
 }
 
-function Layout ({header, routes, body, footer,refreshUI,onResetQueryClient}) {
+// --- CORRECTION ARCHITECTURALE ---
+// BaseLayout est maintenant une fonction de composant stable, définie en dehors de App.
+const BaseLayout=({onResetQueryClient, refreshUI})=>{
+    const { i18n } = useTranslation();
+    const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
+
+    const changeLanguage = (newLang) => {
+        if (typeof(newLang) === 'string' && newLang) {
+            i18n.changeLanguage(newLang, (err)=>{
+                if (err) return console.error('something went wrong loading', err);
+                i18next.removeResourceBundle(lang, "dataEngineTranslations");
+                const trs = {...websiteTranslations[newLang]?.['translation']} || {};
+                i18next.addResourceBundle(newLang, 'dataEngineTranslations', trs);
+                gtag("event", "change_language "+newLang);
+            });
+        }
+    };
+
+    useEffect(() => {
+        changeLanguage(lang);
+    }, [lang]);
+
+    return <Layout refreshUI={refreshUI} onResetQueryClient={onResetQueryClient} header={<header className={"flex"}>
+        <Tooltip id={"header"}/>
+        <h1 className="flex-1">{seoTitle}</h1>
+        <div className="flex">
+            <FaQuestion data-tooltip-id="header" data-tooltip-content="Documentation" onClick={()=> {
+                window.open("/en/documentation/", "_blank");
+            }} />
+        </div>
+    </header>} />
+}
+
+// --- CORRECTION ARCHITECTURALE ---
+// Layout est maintenant une fonction de composant stable, définie en dehors de App.
+function Layout({ header, routes, body, footer, refreshUI, onResetQueryClient }) {
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const { i18n, t } = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
@@ -416,77 +451,7 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQuery
     const {t } = useTranslation()
 
     const [prompt, setPrompt] = useLocalStorage("ai_model_prompt", null);
-    const allTourSteps = {
-        demo: [
-            {
-                selector: '.tourStep-create-model', // Sélecteur CSS de l'élément
-                content: t('tourpoint.createModel'),
-                position: 'top', // Position de l'info-bulle par rapport à l'élément
-            },
-            {
-                selector: '.tourStep-import-model',
-                content: t('tourpoint.importModel'),
-                position: 'top',
-            },
-            {
-                selector: '.tourStep-profile',
-                content: t('tourpoint.profile'),
-                position: 'bottom',
-            },
-        ],
-        guides: [
-            {
-                selector: '.tourStep-tutorials',
-                content: t('tourpoint.tutorials'),
-                position: 'bottom'
-            },
-            {
-                selector: '.tourStep-import-datapack',
-                content: t('tourpoint.importDatapack'),
-                position: 'bottom'
-            }
-        ],
-        personal: [
-            {
-                selector: '.model-list [data-testid=model_budget]', // Example target, adjust as needed
-                content: t('tourpoint.model-list-budget', 'Gérez votre budget et votre portefeuille avec précision !'),
-                placement: 'bottom',
-            },
-            {
-                selector: '.model-list [data-testid=model_contact]', // Example target, adjust as needed
-                content: t('tourpoint.model-list-contact', 'Ne perdez plus les coordonnées de vos contacts !'),
-                placement: 'bottom',
-            },
-            {
-                selector: '.model-list [data-testid=model_imageGallery]', // Example target, adjust as needed
-                content: t('tourpoint.model-list-imageGallery', 'Classez vos images, photos, illustrations...'),
-                placement: 'bottom',
-            },
-        ],
-        developer: [
-            {
-                selector: '.btn[data-testid=btn-documentation]',
-                content: t('tourpoint.doc', 'Prenez connaissance de la documentation, pour vous aider à utiliser l\'API ou le mode bac à sable.'),
-                placement: 'bottom',
-            },
-        ],
-        company: [
-            {
-                selector: '.btn[data-testid=btn-dashboards]',
-                content: t('tourpoint.dashboards', 'Vos dashboards vous permettent de construire et suivre votre activité en temps réel.'),
-                placement: 'bottom',
-            },
-        ],
-        engineer: [
-            // ... steps specific to the engineer profile, focusing on workflow ...
-            {
-                selector: '.model-list-search-bar-container', // Example target, adjust as needed
-                content: t('tourpoint.workflows', 'Tapez "workflow" dans la barre de recherche pour obtenir les modèles d\'automatisation, ou tout autre mot-clé.'),
-                placement: 'bottom',
-            },
-            // ... more steps about workflow configuration ...
-        ],
-    };
+    const { me } = useAuthContext();
     const id = getUserHash(me)+'';
 
     // NOUVEAU : On récupère l'état de la navigation
@@ -500,6 +465,33 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQuery
             onAuthenticated({username: cookies.username}, true);
         }
     }, [cookies.username]);
+
+    const allTourSteps = {
+        demo: [
+            { selector: '.tourStep-create-model', content: t('tourpoint.createModel'), position: 'top' },
+            { selector: '.tourStep-import-model', content: t('tourpoint.importModel'), position: 'top' },
+            { selector: '.tourStep-profile', content: t('tourpoint.profile'), position: 'bottom' },
+        ],
+        guides: [
+            { selector: '.tourStep-tutorials', content: t('tourpoint.tutorials'), position: 'bottom' },
+            { selector: '.tourStep-import-datapack', content: t('tourpoint.importDatapack'), position: 'bottom' }
+        ],
+        personal: [
+            { selector: '.model-list [data-testid=model_budget]', content: t('tourpoint.model-list-budget', 'Gérez votre budget et votre portefeuille avec précision !'), placement: 'bottom' },
+            { selector: '.model-list [data-testid=model_contact]', content: t('tourpoint.model-list-contact', 'Ne perdez plus les coordonnées de vos contacts !'), placement: 'bottom' },
+            { selector: '.model-list [data-testid=model_imageGallery]', content: t('tourpoint.model-list-imageGallery', 'Classez vos images, photos, illustrations...'), placement: 'bottom' },
+        ],
+        developer: [
+            { selector: '.btn[data-testid=btn-documentation]', content: t('tourpoint.doc', 'Prenez connaissance de la documentation, pour vous aider à utiliser l\'API ou le mode bac à sable.'), placement: 'bottom' },
+        ],
+        company: [
+            { selector: '.btn[data-testid=btn-dashboards]', content: t('tourpoint.dashboards', 'Vos dashboards vous permettent de construire et suivre votre activité en temps réel.'), placement: 'bottom' },
+        ],
+        engineer: [
+            { selector: '.model-list-search-bar-container', content: t('tourpoint.workflows', 'Tapez "workflow" dans la barre de recherche pour obtenir les modèles d\'automatisation, ou tout autre mot-clé.'), placement: 'bottom' },
+        ],
+    };
+
     useEffect(() => {
         if( isDemo && shouldStartTour){
             setCurrentTourSteps(allTourSteps.demo);
@@ -509,67 +501,9 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQuery
 
     return <>{/^demo[0-9]{1,2}$/.test(me?.username) && notifs}
         {params.user === id && <DataLayout refreshUI={refreshUI} onResetQueryClient={onResetQueryClient}/>}
-        {params.user !== id &&
-            <p>Veuillez vous authentifier avec cet utilisateur &quot;{params.user}&quot; pour accéder à vos
-                données</p>}</>;
+        {params.user !== id && <p>Veuillez vous authentifier avec cet utilisateur &quot;{params.user}&quot; pour accéder à vos données</p>}</>;
 }
 
-const allLangs = Object.keys(langs).map(l => {
-    return {value: l, label: langs[l]};
-})
-
-const BaseLayout=({onResetQueryClient})=>{
-    const [lastLang, setLastLang] = useState(null);
-    const { i18n, t} = useTranslation();
-    const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
-    const { me, setMe } = useAuthContext();
-    const [translations, setTranslations] = useState([]);
-
-    const [refreshReducer, refreshUI]= useReducer((n) => n+1, 0,() => 0);
-
-    useEffect(() => {
-        if (Array.isArray(translations)) {
-            var trs= {};
-            translations.forEach(tr =>{
-                trs[tr.key] = tr.value;
-            });
-            trs= { ...allTranslations[lang]['translation'], ...trs};
-
-            if( lastLang && lang !== lastLang) {
-                i18n.removeResourceBundle(lastLang, 'translation');
-            }
-            i18n.addResourceBundle(lang, 'translation', trs);
-        }
-    }, [translations]);
-
-    const changeLanguage = (newLang) => {
-        if (typeof(newLang) === 'string' && newLang) {
-
-            i18n.changeLanguage(newLang, (err)=>{
-
-                i18next.removeResourceBundle(lang, "dataEngineTranslations");
-                const trs = {...websiteTranslations[newLang]?.['translation']} || {};
-                i18next.addResourceBundle(newLang, 'dataEngineTranslations', trs);
-
-                gtag("event", "change_language "+newLang);
-            });
-        }
-    };
-
-    useEffect(() => {
-        changeLanguage(lang);
-    }, [lang]);
-
-    return <Layout refreshUI={refreshUI} onResetQueryClient={onResetQueryClient} header={<header className={"flex"}>
-        <Tooltip id={"header"}/>
-        <h1 className="flex-1">{seoTitle}</h1>
-        <div className="flex">
-            <FaQuestion data-tooltip-id="header" data-tooltip-content="Documentation" onClick={()=> {
-                window.open("/en/documentation/", "_blank");
-            }} />
-        </div>
-    </header>} />
-}
 function App() {
     // On gère le queryClient dans un état pour pouvoir le réinitialiser complètement.
     const [queryClient, setQueryClient] = useState(() => new QueryClient());
@@ -581,23 +515,24 @@ function App() {
         setRefreshKey(key => key + 1); // On incrémente la clé pour forcer le re-montage.
     };
 
+    const [refreshReducer, refreshUI]= useReducer((n) => n+1, 0,() => 0);
+
     return (
         <QueryClientProvider client={queryClient}>
             <AuthProvider key={refreshKey}>
-                <CommandProvider>
-                    <CookiesProvider>
-                        <ModelProvider key={refreshKey}>
-                            <BrowserRouter>
-                                <UIProvider>
-                                    <NotificationProvider>
-                                        {/* Le CommandProvider a été déplacé dans UserPage, on peut le retirer d'ici. */}
-                                        <BaseLayout onResetQueryClient={resetQueryClient} />
-                                    </NotificationProvider>
-                                </UIProvider>
-                            </BrowserRouter>
-                        </ModelProvider>
-                    </CookiesProvider>
-                </CommandProvider>
+                <CookiesProvider>
+                    <ModelProvider key={refreshKey}>
+                        <BrowserRouter>
+                            <UIProvider>
+                                <NotificationProvider>
+                                    <CommandProvider onResetQueryClient={resetQueryClient}>
+                                        <BaseLayout onResetQueryClient={resetQueryClient} refreshUI={refreshUI} />
+                                    </CommandProvider>
+                                </NotificationProvider>
+                            </UIProvider>
+                        </BrowserRouter>
+                    </ModelProvider>
+                </CookiesProvider>
             </AuthProvider>
         </QueryClientProvider>
     );
