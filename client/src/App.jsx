@@ -392,7 +392,7 @@ function Layout ({header, routes, body, footer,refreshUI,onResetQueryClient}) {
 
                 <Route path={"/user/:user/*"} element={<>
                     {menu}
-                    <UserPage notifs={[]} refreshUI={refreshUI} onAuthenticated={onAuthenticated} triggerSignin={triggerSignin} onResetQueryClient={onResetQueryClient}/>
+                    <UserPage notifs={[]} refreshUI={refreshUI} onAuthenticated={onAuthenticated} triggerSignin={triggerSignin} onResetQueryClient={onResetQueryClient} />
                     {!me && (<></>)}
                 </>}/>
                 <Route path={"/:lang/*"} element={<>
@@ -410,6 +410,7 @@ function Layout ({header, routes, body, footer,refreshUI,onResetQueryClient}) {
 }
 
 function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQueryClient}) {
+    // --- CORRECTION --- On importe le Provider ici pour l'utiliser localement.
     const {me} = useAuthContext()
     const [cookies, setCookie, removeCookie] = useCookies(['username']);
     const params = useParams();
@@ -509,7 +510,11 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQuery
     }, [isDemo, shouldStartTour]);
 
     return <>{/^demo[0-9]{1,2}$/.test(me?.username) && notifs}
-        {params.user === id && <DataLayout refreshUI={refreshUI} onResetQueryClient={onResetQueryClient}/>}
+        {/* --- CORRECTION ---
+            On enveloppe DataLayout avec le CommandProvider ici pour garantir l'accès au contexte,
+            ce qui est plus robuste, surtout pour les builds de production.
+        */}
+        {params.user === id && <CommandProvider onResetQueryClient={onResetQueryClient}><DataLayout refreshUI={refreshUI}/></CommandProvider>}
         {params.user !== id &&
             <p>Veuillez vous authentifier avec cet utilisateur &quot;{params.user}&quot; pour accéder à vos
                 données</p>}</>;
@@ -590,9 +595,8 @@ function App() {
                         <BrowserRouter>
                             <UIProvider>
                                 <NotificationProvider>
-                                    <CommandProvider onResetQueryClient={resetQueryClient}>
-                                        <BaseLayout onResetQueryClient={resetQueryClient} />
-                                    </CommandProvider>
+                                    {/* Le CommandProvider a été déplacé dans UserPage, on peut le retirer d'ici. */}
+                                    <BaseLayout onResetQueryClient={resetQueryClient} />
                                 </NotificationProvider>
                             </UIProvider>
                         </BrowserRouter>
