@@ -584,21 +584,21 @@ function App() {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-            <CookiesProvider>
-                        <ModelProvider key={refreshKey}>
-                            <BrowserRouter>
-                                <UIProvider>
-                                    <NotificationProvider>
-                                        <CommandProvider onResetQueryClient={resetQueryClient}>
-                                            <BaseLayout />
-                                        </CommandProvider>
-                                    </NotificationProvider>
-                                </UIProvider>
-                            </BrowserRouter>
-                        </ModelProvider>
-                    </CookiesProvider>
-                </AuthProvider>
+            <AuthProvider key={refreshKey}>
+                <CookiesProvider>
+                    <ModelProvider key={refreshKey}>
+                        <BrowserRouter>
+                            <UIProvider>
+                                <NotificationProvider>
+                                    <CommandProvider onResetQueryClient={resetQueryClient}>
+                                        <BaseLayout />
+                                    </CommandProvider>
+                                </NotificationProvider>
+                            </UIProvider>
+                        </BrowserRouter>
+                    </ModelProvider>
+                </CookiesProvider>
+            </AuthProvider>
         </QueryClientProvider>
     );
 }
