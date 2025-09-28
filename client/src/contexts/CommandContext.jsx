@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {elementsPerPage} from "../../../src/constants.js";
 import {useModelContext} from "./ModelContext.jsx";
 
-const CommandContext = createContext();
+const CommandContext = createContext({});
 
 export const useCommand = () => useContext(CommandContext);
 
