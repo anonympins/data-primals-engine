@@ -18,12 +18,14 @@ class CommandManager {
         this.addNotification = () => {};
         this.t = (key) => key;
         this.onResetQueryClient = () => {};
+        this.queryClient = null; // Ajout pour stocker le queryClient
     }
 
-    updateDependencies(addNotification, t, onResetQueryClient) {
+    updateDependencies(addNotification, t, onResetQueryClient, queryClient) {
         this.addNotification = addNotification;
         this.t = t;
         this.onResetQueryClient = onResetQueryClient;
+        this.queryClient = queryClient; // Injection du client
     }
 
     async execute(command) {
@@ -84,10 +86,12 @@ class CommandManager {
     }
 
     async invalidateQueries(modelName, commandType) {
-        // SOLUTION RADICALE N°2 : ON NE TOUCHE PLUS À REACT-QUERY.
-        // On force un re-rendu complet de l'interface.
-        // On détruit et recrée le QueryClient pour garantir un cache 100% vierge.
-        this.onResetQueryClient();
+        // Solution plus fine : on invalide seulement les requêtes concernées.
+        // React Query s'occupera de rafraîchir les données de manière optimisée.
+        if (this.queryClient && modelName) {
+            // Invalide toutes les requêtes liées à ce modèle (listes, paginations, etc.)
+            await this.queryClient.invalidateQueries(['api/data', modelName]);
+        }
     }
 }
 
@@ -200,14 +204,15 @@ const commandManagerInstance = new CommandManager();
 export const CommandProvider = ({ children, onResetQueryClient }) => {
     const { addNotification } = useNotificationContext();
     const { t, i18n } = useTranslation();
+    const queryClient = useQueryClient(); // On récupère le client ici
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     
     // On utilise l'instance unique et on met à jour ses dépendances via useEffect
     // pour s'assurer qu'elle a toujours les dernières fonctions (qui sont recréées à chaque rendu).
     const commandManagerRef = useRef(commandManagerInstance);
     useEffect(() => {
-        commandManagerInstance.updateDependencies(addNotification, t, onResetQueryClient);
-    }, [addNotification, t, onResetQueryClient]);
+        commandManagerInstance.updateDependencies(addNotification, t, onResetQueryClient, queryClient);
+    }, [addNotification, t, onResetQueryClient, queryClient]);
     
     const [canUndo, setCanUndo] = useState(commandManagerRef.current.canUndo());
     const [canRedo, setCanRedo] = useState(commandManagerRef.current.canRedo());

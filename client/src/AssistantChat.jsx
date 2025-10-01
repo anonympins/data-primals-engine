@@ -14,7 +14,6 @@ import HtmlViewCard from "./HtmlViewCard.jsx";
 import {useUI} from "./contexts/UIContext.jsx";
 import Button from "./Button.jsx";
 import {getUserHash, getUserId} from "../../src/data.js";
-import {useNavigation} from "react-router";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import {useNavigate} from "react-router-dom";
 import {DataTable} from "./DataTable.jsx";
