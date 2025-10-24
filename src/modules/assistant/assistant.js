@@ -481,6 +481,17 @@ export async function handleChatRequest(params, user, sendEvent = null) {
         .filter(msg => msg.text && !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
         .map(msg => new (msg.from === 'user' ? HumanMessage : SystemMessage)(msg.text));
 
+    // Si c'est le début de la conversation, ajoutons un message de bienvenue proactif
+    if (conversationHistory.length === 0) {
+        let welcomeMessage = i18n.t('assistant.welcome', "Bonjour ! Je suis Prior. Comment puis-je vous aider avec vos données ?");
+        // On utilise les nouvelles clés de traduction pour être plus concret
+        welcomeMessage += "\n\n" + i18n.t('assistant.welcome.suggestions.title', "Voici quelques exemples de ce que vous pouvez me demander :");
+        welcomeMessage += "\n- \"" + i18n.t('assistant.welcome.suggestions.example1', "Crée un graphique en barres des commandes par mois.") + "\"";
+        welcomeMessage += "\n- \"" + i18n.t('assistant.welcome.suggestions.example2', "Affiche la liste des tâches à faire pour aujourd'hui.") + "\"";
+        welcomeMessage += "\n- \"" + i18n.t('assistant.welcome.suggestions.example3', "Montre-moi un tableau de bord de mes contacts avec leur nom, email et entreprise.") + "\"";
+        conversationHistory.push(new SystemMessage(welcomeMessage));
+    }
+
     conversationHistory.unshift(new SystemMessage(systemPrompt));
     conversationHistory.push(new HumanMessage(message));
 
