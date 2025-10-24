@@ -524,11 +524,11 @@ function App() {
                     <ModelProvider key={refreshKey}>
                         <BrowserRouter>
                             <UIProvider>
+                                <NotificationProvider>
                                     <CommandProvider onResetQueryClient={resetQueryClient}>
-                                        <NotificationProvider>
-                                            <BaseLayout onResetQueryClient={resetQueryClient} refreshUI={refreshUI} />
-                                        </NotificationProvider>
+                                        <BaseLayout onResetQueryClient={resetQueryClient} refreshUI={refreshUI} />
                                     </CommandProvider>
+                                </NotificationProvider>
                             </UIProvider>
                         </BrowserRouter>
                     </ModelProvider>
