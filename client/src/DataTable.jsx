@@ -58,6 +58,7 @@ import {pagedFilterToMongoConds} from "./filter.js";
 import {isConditionMet} from "../../src/filter";
 import {DataImporter} from "./DataImporter.jsx";
 import {HistoryDialog} from "./HistoryDialog.jsx";
+import { useCommand } from './contexts/CommandContext.jsx';
 import {Config} from "../../src/config.js";
 
 const Header = ({
@@ -257,12 +258,10 @@ export function DataTable({
                               onAddData,
                               onDuplicateData,
                               onDelete,
-                              onShowAPI,
                               filterValues,
                               setFilterValues = () => {},
                               data: propData,
-                              advanced= true,
-                              selectionMode= false
+                              advanced= true, selectionMode= false, deleteApiCall, queryClient
                           }) {
     const {
         models,
@@ -277,11 +276,19 @@ export function DataTable({
     } = useModelContext();
     const {t, i18n} = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
-    const queryClient = useQueryClient();
     const {me} = useAuthContext();
+    const { execute, DeleteCommand } = useCommand();
 
     // Si des données sont passées en props, on les utilise, sinon on prend celles du contexte.
     const data = propData || paginatedDataByModel[model?.name] || [];
+
+    const handleDelete = async (item) => {
+        // On utilise le système de commandes pour la suppression afin de gérer l'historique (undo/redo)
+        // Le queryClient n'est plus passé ici, le CommandManager s'en occupe.
+        const command = new DeleteCommand(deleteApiCall, model.name, item);
+        // On attend que la commande et le rafraîchissement soient terminés.
+        await execute(command);
+    };
 
     const isDataLoaded = true;
     const [importVisible, setImportVisible] = useState(false);
@@ -289,53 +296,6 @@ export function DataTable({
     const [showExportDialog, setExportDialogVisible] = useState(false);
 
     const [selectedRow, setSelectedRow] = useState(null);
-    const handleDelete = async (item) => {
-        if (model && item && item._id) { // Assurez-vous d'avoir un identifiant unique pour chaque élément
-            try {
-                const response = await fetch(`/api/data/${item._id}?_user=${encodeURIComponent(getUserId(me))}`, { // Assurez-vous que l'URL est correcte
-                    method: 'DELETE',
-                });
-
-                if (response.ok) {
-                    const res = await response.json();
-
-                    if (res.success) {
-                        onDelete?.(item);
-                        const notificationData = {
-                            id: 'datatable.deleteData.success',
-                            title: t('datatable.deleteData.success', 'Données supprimées avec succès'),
-                            icon: <FaInfo/>,
-                            status: 'completed'
-                        };
-                        addNotification(notificationData);
-                    } else {
-                        const notificationData = {
-                            title: res.message,
-                            status: 'error'
-                        };
-                        addNotification(notificationData);
-                        console.log('Données non trouvées');
-                    }
-
-                    await Event.Trigger('API_DELETE_DATA', "custom", "data",{ model: item._model, id: item._id });
-                    queryClient.invalidateQueries(['api/data', item._model, 'page', page, elementsPerPage, pagedFilters[item._model], pagedSort[item._model]]);
-
-                } else {
-                    console.error('Erreur lors de la suppression des données');
-                    // Gérer les erreurs (afficher un message à l'utilisateur, etc.)
-                }
-            } catch (error) {
-                const notificationData = {
-                    title: error.message,
-                    status: 'error'
-                };
-                addNotification(notificationData);
-                console.error('Erreur lors de la suppression des données:', error);
-            }
-        } else {
-            console.warn("Impossible de supprimer, l'élément ne possède pas d'ID");
-        }
-    };
 
     const handleEdit = (item) => {
         onEdit(item); // Call onEdit with the item to edit

@@ -102,7 +102,10 @@ export const ModelProvider = ({ children }) => {
             params.append("_user", getUserId(me));
             params.append("depth", '1')
 
-            let ids = [...new Set(rels.map(r => r._id || r))].join(',');
+            // SOLUTION : On trie les IDs pour garantir une queryKey stable,
+            // peu importe l'ordre dans lequel les relations ont été chargées.
+            let ids = [...new Set(rels.map(r => r._id || r))].sort().join(',');
+
             if (rels && rels.length > 0) {
                 // Cas des relations : requête par IDs, sans pagination
                 params.append('ids', ids);

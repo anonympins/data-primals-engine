@@ -169,7 +169,7 @@ export class DefaultUserProvider extends UserProvider {
             }
         }
 
-        // Priorité 2: PasF de session, mais on vérifie la présence d'un cookie "username" pour la démo.
+        // Priorité 2: Pas de session, mais on vérifie la présence d'un cookie "username" pour la démo.
         const demoUsername = req.cookies?.username;
         if (demoUsername && typeof demoUsername === 'string' && this.isDemoUser(demoUsername)) {
             // On a trouvé un cookie de démo. On crée l'objet utilisateur correspondant.
@@ -180,7 +180,7 @@ export class DefaultUserProvider extends UserProvider {
             }
         }
 
-        // Priorité 2: PasF de session, mais on vérifie la présence d'un cookie "username" pour la démo.
+        // Priorité 2: PasF de session, mais on vérifie la présence d'un user dans la requete
         const user = req.query._user;
         if (user && typeof user === 'string' && this.isDemoUser(user)) {
             const demoUser = await this.findUserByUsername(user);
