@@ -1204,4 +1204,79 @@ describe('Data integration tests (CRUD, validation...)', () => {
         });
     });
 
+    describe('searchData avec filtre _env', () => {
+        let user, testModel, noEnvDocId;
+
+        beforeAll(async () => {
+            // Setup
+            const context = await setupTestContext();
+            user = context.currentTestUser;
+            testModel = {
+                name: generateUniqueName('envTestModel'),
+                description: '',
+                _user: user.username,
+                fields: [{ name: 'title', type: 'string' }]
+            };
+            await createModel(testModel);
+
+            // Insert test data
+            await insertData(testModel.name, { title: 'Prod Data', _env: 'prod' }, {}, user, false);
+            await insertData(testModel.name, { title: 'Staging Data', _env: 'staging' }, {}, user, false);
+            const noEnvResult = await insertData(testModel.name, { title: 'No Env Data' }, {}, user, false);
+            noEnvDocId = noEnvResult.insertedIds[0];
+        });
+
+        afterAll(async () => {
+            // Cleanup
+            await deleteModels({ name: testModel.name, _user: user.username });
+            await deleteData(testModel.name, {}, user);
+        });
+
+        it('devrait trouver uniquement les données avec _env="prod"', async () => {
+            const { data, count } = await searchData({
+                model: testModel.name,
+                env: 'prod'
+            }, user);
+            expect(count).toBe(1);
+            expect(data).toHaveLength(1);
+            expect(data[0].title).toBe('Prod Data');
+        });
+
+        it('devrait trouver uniquement les données avec _env="staging"', async () => {
+            const { data, count } = await searchData({
+                model: testModel.name,
+                env: 'staging'
+            }, user);
+            expect(count).toBe(1);
+            expect(data).toHaveLength(1);
+            expect(data[0].title).toBe('Staging Data');
+        });
+
+        it('devrait trouver uniquement les données SANS _env spécifié', async () => {
+            const { data, count } = await searchData({
+                model: testModel.name
+                // _env est omis intentionnellement
+            }, user);
+            expect(count).toBe(1);
+            expect(data).toHaveLength(1);
+            expect(data[0].title).toBe('No Env Data');
+        });
+
+        it('ne devrait trouver aucune donnée pour un _env inexistant', async () => {
+            const { data, count } = await searchData({
+                model: testModel.name,
+                env: 'nonexistent'
+            }, user);
+            expect(count).toBe(0);
+            expect(data).toHaveLength(0);
+        });
+
+        it('devrait permettre de modifier le champ _env via editData', async () => {
+            const result = await editData(testModel.name, { _id: noEnvDocId }, { _env: 'newly_assigned' }, {}, user);
+            expect(result.success).toBe(true);
+            const { data, count } = await searchData({ model: testModel.name, env: 'newly_assigned' }, user);
+            expect(count).toBe(1);
+            expect(data[0]._id.toString()).toBe(noEnvDocId.toString());
+        });
+    });
 });
