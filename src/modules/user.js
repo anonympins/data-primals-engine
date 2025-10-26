@@ -108,7 +108,7 @@ export async function onInit(defaultEngine) {
  * @returns {Promise<Set<string>>} Un Set contenant les noms de toutes les permissions actives.
  * @private
  */
-export async function getUserActivePermissions(user) {
+export async function getUserActivePermissions(user, env = null) {
     const datasCollection = await getCollectionForUser(user);
     const now = new Date();
     const activePermissions = new Set();
@@ -139,12 +139,17 @@ export async function getUserActivePermissions(user) {
     // --- ÉTAPE 2: Appliquer les exceptions de permission ---
     const exceptions = await datasCollection.aggregate([
         {
-            $match: {
+            $match: { // Filtre de base pour les exceptions de l'utilisateur
                 _model: "userPermission",
-                user: user._id, // Pas besoin de convertir en ObjectId si c'est déjà une string
-                $or: [
-                    { expiresAt: { $exists: false } },
-                    { expiresAt: { $gt: now } }
+                user: user._id,
+                $and: [ // Filtre sur l'environnement et l'expiration
+                    {
+                        $or: [ // La permission est soit globale, soit spécifique à l'environnement demandé
+                            { env: { $exists: false } },
+                            { env: env }
+                        ]
+                    },
+                    { $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: now } }] }
                 ]
             }
         },
@@ -193,7 +198,7 @@ export async function getUserActivePermissions(user) {
  * @param {object} user - L'objet utilisateur authentifié.
  * @returns {Promise<boolean>} - True si l'utilisateur a la permission, sinon false.
  */
-export async function hasPermission(permissionNames, user) {
+export async function hasPermission(permissionNames, user, env = null) {
     // Garde la compatibilité pour les utilisateurs non-locaux (ex: système)
     if (!isLocalUser(user)) {
         const userRoles = new Set(user.roles || []);
@@ -209,10 +214,10 @@ export async function hasPermission(permissionNames, user) {
         }
 
         // 1. Obtenir l'ensemble final et à jour des permissions de l'utilisateur
-        const activePermissions = await getUserActivePermissions(user);
+        const activePermissions = await getUserActivePermissions(user, env);
 
         // 2. Vérifier si au moins une des permissions requises est dans l'ensemble des permissions actives
-        return requiredPermissions.some(pName => activePermissions.has(pName));
+        return requiredPermissions.some(pName => activePermissions.has(pName)) || false;
 
     } catch (e) {
         logger.error("Erreur lors de la vérification des permissions :", e);
