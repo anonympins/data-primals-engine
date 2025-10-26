@@ -1074,7 +1074,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         const updatePushData = {};
  
         for (const key in data) {
-            if (key.startsWith('_')) continue;
+            if (key.startsWith('_') && !['_env', '_pack'].includes(key)) continue;
  
             if (isPlainObject(data[key]) && data[key].$push !== undefined) {
                 // C'est une opération $push
@@ -1694,7 +1694,8 @@ const generateCacheKey = (query, user) => {
             filter: query.filter,
             depth: query.depth,
             autoExpand: query.autoExpand,
-            pack: query.pack
+            pack: query.pack,
+            _env: query._env
         },
         user: user.username
     };
@@ -1710,7 +1711,7 @@ const searchCache = new NodeCache({
 });
 
 export const searchData = async (query, user) => {
-    const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack} = query;
+    const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack, _env} = query;
 
     if (user && user.username !== 'demo' && isLocalUser(user) && (
         !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_" + model], user) ||
@@ -2164,6 +2165,7 @@ export const searchData = async (query, user) => {
 
         return pipelines.concat(
             [
+                {$match: {'_env': _env ? _env : {$exists: false}}},
                 {$match: {'_pack': pack ? pack : {$exists: false}}},
                 {$match: {$expr: dataNoRelation}}
             ],
@@ -3128,6 +3130,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
             delete docForInsert._temp_pack_id;
 
             if (user) docForInsert._user = username;
+            
             docForInsert._model = modelName;
             docForInsert._hash = getFieldValueHash(modelDefForHash, docForInsert);
 
@@ -3136,6 +3139,8 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
                 _hash: docForInsert._hash,
                 _model: modelName
             };
+
+            if (docForInsert._env) existingQuery._env = docForInsert._env;
             if (user) existingQuery._user = username;
 
             const existingDoc = await collection.findOne(existingQuery, {projection: {_id: 1}});
