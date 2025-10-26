@@ -412,10 +412,11 @@ console.log(`Successfully authenticated as ${currentUser.username}`);
 ### insertData(modelName, data, files, user)
 
 > Inserts one or more documents, intelligently handling nested relationships.
-
+_env is used to define the target environment, production ready by default.
+> 
 ```javascript
 // Uses the `currentUser` object defined above
-const newProduct = { name: 'Super Widget', price: 99.99, status: 'available' };
+const newProduct = { name: 'Super Widget', price: 99.99, status: 'available', _env: 'development' };
 const result = await insertData('product', newProduct, {}, currentUser);
 
 if (result.success) {
@@ -461,10 +462,21 @@ await editData(
 Example:
 
 ```javascript
+
+// Edit user settings (dark theme mode)
 await patchData(
     "settings",
     { userId: "507f1f77bcf86cd799439011" },
     { theme: "dark" },
+    null,
+    currentUser
+);
+
+// Transfers data to the 'development' environement
+await patchData(
+    "product",
+    { _id: "507f1f77bcf86cd799439012" },
+    { _env: "development" },
     null,
     currentUser
 );
@@ -490,11 +502,13 @@ Powerful search with relation expansion and filtering.
 
 Query Options:
 
-- model: Model name to search
-- filter: MongoDB-style filter
-- depth: Relation expansion depth (default: 1)
-- limit/page: Pagination
-- sort: Sorting criteria
+- **model**: Model name to search
+- **env**: Filter data by environment (development, staging, production, ...)
+- **filter**: MongoDB-style filter
+- **depth**: Relation expansion depth (default: 1)
+- **limit**: Number of results
+- **page**: Current page for pagination (default: 1)
+- **sort**: Sorting criteria
 
 Example:
 ```javascript

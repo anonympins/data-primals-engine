@@ -1695,7 +1695,7 @@ const generateCacheKey = (query, user) => {
             depth: query.depth,
             autoExpand: query.autoExpand,
             pack: query.pack,
-            _env: query._env
+            env: query.env
         },
         user: user.username
     };
@@ -1711,7 +1711,7 @@ const searchCache = new NodeCache({
 });
 
 export const searchData = async (query, user) => {
-    const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack, _env} = query;
+    const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack, env} = query;
 
     if (user && user.username !== 'demo' && isLocalUser(user) && (
         !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_" + model], user) ||
@@ -2164,10 +2164,10 @@ export const searchData = async (query, user) => {
         }
 
         let envMatchStage;
-        if (_env === 'production') {
+        if (env === 'production') {
             envMatchStage = {$match: {$or: [{'_env': 'production'}, {'_env': {$exists: false}}]}};
-        } else if (_env) {
-            envMatchStage = {$match: {'_env': _env}};
+        } else if (env) {
+            envMatchStage = {$match: {'_env': env}};
         } else {
             envMatchStage = {$match: {'_env': {$exists: false}}};
         }

@@ -1235,7 +1235,7 @@ describe('Data integration tests (CRUD, validation...)', () => {
         it('devrait trouver uniquement les données avec _env="prod"', async () => {
             const { data, count } = await searchData({
                 model: testModel.name,
-                _env: 'prod'
+                env: 'prod'
             }, user);
             expect(count).toBe(1);
             expect(data).toHaveLength(1);
@@ -1245,7 +1245,7 @@ describe('Data integration tests (CRUD, validation...)', () => {
         it('devrait trouver uniquement les données avec _env="staging"', async () => {
             const { data, count } = await searchData({
                 model: testModel.name,
-                _env: 'staging'
+                env: 'staging'
             }, user);
             expect(count).toBe(1);
             expect(data).toHaveLength(1);
@@ -1265,7 +1265,7 @@ describe('Data integration tests (CRUD, validation...)', () => {
         it('ne devrait trouver aucune donnée pour un _env inexistant', async () => {
             const { data, count } = await searchData({
                 model: testModel.name,
-                _env: 'nonexistent'
+                env: 'nonexistent'
             }, user);
             expect(count).toBe(0);
             expect(data).toHaveLength(0);
@@ -1274,7 +1274,7 @@ describe('Data integration tests (CRUD, validation...)', () => {
         it('devrait permettre de modifier le champ _env via editData', async () => {
             const result = await editData(testModel.name, { _id: noEnvDocId }, { _env: 'newly_assigned' }, {}, user);
             expect(result.success).toBe(true);
-            const { data, count } = await searchData({ model: testModel.name, _env: 'newly_assigned' }, user);
+            const { data, count } = await searchData({ model: testModel.name, env: 'newly_assigned' }, user);
             expect(count).toBe(1);
             expect(data[0]._id.toString()).toBe(noEnvDocId.toString());
         });
