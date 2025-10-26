@@ -2163,9 +2163,18 @@ export const searchData = async (query, user) => {
             }
         }
 
+        let envMatchStage;
+        if (_env === 'production') {
+            envMatchStage = {$match: {$or: [{'_env': 'production'}, {'_env': {$exists: false}}]}};
+        } else if (_env) {
+            envMatchStage = {$match: {'_env': _env}};
+        } else {
+            envMatchStage = {$match: {'_env': {$exists: false}}};
+        }
+
         return pipelines.concat(
             [
-                {$match: {'_env': _env ? _env : {$exists: false}}},
+                envMatchStage,
                 {$match: {'_pack': pack ? pack : {$exists: false}}},
                 {$match: {$expr: dataNoRelation}}
             ],
