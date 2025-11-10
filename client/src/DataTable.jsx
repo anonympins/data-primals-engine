@@ -438,7 +438,7 @@ export function DataTable({
         onDuplicateData(dataToDuplicate);
     };
 
-    const desc = t(`model_description_${selectedModel.name}`, selectedModel.description);
+    const desc = t(`model_description_${selectedModel?.name}`, selectedModel?.description || '');
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
             {advanced && !selectionMode && <div className="flex actions">

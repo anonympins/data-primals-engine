@@ -94,6 +94,9 @@ const ModelImporterItem = ({ model, onUnselect, onSelect, selected }) => {
     useEffect(() => {
         setSelected(selected);
     }, [selected]);
+
+    if( !model )
+        return;
     const deps = [...new Set((model.fields || []).filter(f=> f.type === 'relation' && f.relation !== model?.name).map(f=> t(`model_${f.relation}`, f.relation)))];
     return <div className={`model-importer-item ${selected ? 'active' : ''}`} onClick={() => {
         setSelected(!selected);
