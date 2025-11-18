@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import { useModelContext } from './contexts/ModelContext.jsx';
 import { useAuthContext } from './contexts/AuthContext.jsx';
-import {Trans, useTranslation} from 'react-i18next';
+import {Trans, useTranslation} from '../../src/i18n.js';
 import {FaArrowDown, FaInfo} from 'react-icons/fa';
 import { CheckboxField } from './Field.jsx';
 import Button from './Button.jsx';
