@@ -459,6 +459,12 @@ export const dataTypes = {
     }
 };
 
+const userStorageCache = new NodeCache({
+    stdTTL: 600, // 10 minutes
+    checkperiod: 120,
+    useClones: false
+});
+
 
 
 let engine, logger;
@@ -466,6 +472,29 @@ export function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
+    // Précalculer périodiquement l'utilisation du stockage pour chaque utilisateur
+    const updateUserStorageUsage = async () => {
+        logger.debug('[Storage] Starting periodic user storage calculation...');
+        try {
+            const usersCollection = getCollection('users');
+            const users = await usersCollection.find({}, { projection: { username: 1 } }).toArray();
+
+            for (const user of users) {
+                try {
+                    const usage = await calculateTotalUserStorageUsage(user);
+                    userStorageCache.set(user.username, usage);
+                } catch (userError) {
+                    logger.error(`[Storage] Failed to calculate storage for user ${user.username}:`, userError);
+                }
+            }
+            logger.debug(`[Storage] User storage calculation finished for ${users.length} users.`);
+        } catch (e) {
+            logger.error('[Storage] Error during periodic user storage calculation:', e);
+        }
+    };
+
+    setInterval(updateUserStorageUsage, 300000); // Toutes les 5 minutes
+    updateUserStorageUsage(); // Lancer une première fois au démarrage
     // Nettoyer périodiquement les relations obsolètes
     setInterval(() => {
         // Nettoyer les relations pour les clés qui n'existent plus
@@ -990,8 +1019,11 @@ async function checkLimits(datas, model, collection, me) {
     const userStorageLimit = await engine.userProvider.getUserStorageLimit(me);
 
     // Vérification des limites utilisateur
-    const currentStorageUsage = await calculateTotalUserStorageUsage(me);
-    if (currentStorageUsage + incomingDataSize > userStorageLimit) {
+    let currentStorageUsage = userStorageCache.get(me.username);
+    if (currentStorageUsage === undefined) {
+        currentStorageUsage = await calculateTotalUserStorageUsage(me); // Fallback si le cache est vide
+    }
+    if ((currentStorageUsage || 0) + incomingDataSize > userStorageLimit) {
         throw new Error(i18n.t("api.data.storageLimitExceeded", {
             limit: Math.round(userStorageLimit / megabytes)
         }));
@@ -1248,6 +1280,43 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
                         )
                     );
                 }
+            }
+        }
+
+        // 8. Vérification des limites de stockage avant la mise à jour
+        const originalDocsSize = calculateDataSize(existingDocs);
+        const finalStateForSize = existingDocs.map(doc => {
+            const updatedDoc = { ...doc, ...updateSetData };
+            for (const fieldName in updatePushData) {
+                let itemsToAdd;
+                const pushValue = updatePushData[fieldName];
+                if (isPlainObject(pushValue) && pushValue.$each) {
+                    itemsToAdd = pushValue.$each;
+                } else if (Array.isArray(pushValue)) {
+                    itemsToAdd = pushValue;
+                } else {
+                    itemsToAdd = [pushValue];
+                }
+                if (!Array.isArray(updatedDoc[fieldName])) {
+                    updatedDoc[fieldName] = [];
+                }
+                updatedDoc[fieldName].push(...itemsToAdd);
+            }
+            return updatedDoc;
+        });
+
+        const finalDocsSize = calculateDataSize(finalStateForSize);
+        const sizeDelta = finalDocsSize - originalDocsSize;
+
+        if (sizeDelta > 0) {
+            const userStorageLimit = await engine.userProvider.getUserStorageLimit(user);
+            const currentStorageUsage = await calculateTotalUserStorageUsage(user);
+            if (currentStorageUsage + sizeDelta > userStorageLimit) {
+                throw new Error(i18n.t("api.data.storageLimitExceeded", { limit: Math.round(userStorageLimit / megabytes) }));
+            }
+            const serverCapacity = await checkServerCapacity(sizeDelta);
+            if (!serverCapacity.isSufficient) {
+                throw new Error(i18n.t("api.data.serverStorageFull"));
             }
         }
 
