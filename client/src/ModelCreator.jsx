@@ -63,7 +63,6 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             setModelDescription('');
             setFields([]);
             setUseAI(true); // On active l'IA par défaut
-            setModelVisible(false);
             setModelHistory(false);
             setModelIcon(null);
         }
@@ -363,7 +362,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
     }
 
     const [useAI, setUseAI] = useState(true);
-    const [showModel, setModelVisible] = useState(true);
+    const [showModel, setModelVisible] = useState(false);
     const [prompt, setPrompt] = useState('');
 
     const [homePrompt, setHomePrompt] = useLocalStorage("ai_model_prompt", null);
@@ -517,7 +516,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 )}
 
                 {/* Layout principal pour afficher la liste et le formulaire côte à côte APRES génération */}
-                {showModel && useAI && (
+                {useAI && showModel && !initialModel && (
                     <div className="flex model-generation-layout">
                         {/* Colonne de gauche: Liste des modèles générés */}
                         {generatedModels.some(g => models.find(f => f.name === g.name && f._user === g._user)) && (
@@ -558,15 +557,13 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                                     <div className="field">
                                         <div className="checkbox-label flex flex-1">
                                             <CheckboxField
-                                                label={<Trans i18nKey={"history.title"}>Historique</Trans>}
-                                                disabled={modelLocked || (isLocalUser(me) && field.locked)}
-                                                checked={field.required}
+                                                label={<Trans i18nKey={"history"}>Historique</Trans>}
+                                                help={t('modelcreator.field.history', '')}
+                                                disabled={modelLocked}
+                                                checked={!!modelHistory}
                                                 onChange={(e) => {
-                                                    const newFields = [...fields];
-                                                    newFields[index].history = e ? { enabled: true } : undefined;
-                                                    setFields(newFields);
+                                                    setModelHistory(e? { enabled: true }: false);
                                                 }}
-                                                help={field.required && t('modelcreator.history.hint')}
                                             />
                                         </div>
                                     </div>
@@ -587,7 +584,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                 )}
 
                 {/* Affichage du formulaire en mode manuel ou édition */}
-                {(!useAI || initialModel) && (
+                {(!useAI || !!initialModel) && (
                     <div className="model-form-container">
                         <div className="flex field-bg">
                             <label htmlFor="modelName"><Trans i18nKey={"modelcreator.name"}>Nom:</Trans></label>

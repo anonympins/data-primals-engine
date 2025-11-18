@@ -1,4 +1,4 @@
-import { expect, describe, it, beforeEach, beforeAll, afterAll } from 'vitest';
+import { expect, describe, it, afterEach, beforeAll, afterAll } from 'vitest';
 import { hasPermission, getUserActivePermissions } from '../src/modules/user.js';
 import {initEngine} from "../src/setenv";
 import {generateUniqueName} from "../src/setenv.js";
@@ -205,6 +205,111 @@ describe('User Permission Logic', () => {
             const result = await hasPermission(['user:manage', 'post:delete'], testUser);
             expect(result).to.be.false;
             await coll.drop();
+        });
+    });
+
+    describe('hasPermission() with environment context', () => {
+        let user, coll;
+        let permRead, permWrite;
+        let envProdId, envStagingId;
+
+        beforeAll(async () => {
+            // --- Setup ---
+            coll = await setupTestContext();
+            user = currentTestUser; // Récupère l'utilisateur du contexte
+
+            // 1. Créer les permissions
+            const perms = await coll.insertMany([
+                { _model: 'permission', name: 'env:read', _user: user.username },
+                { _model: 'permission', name: 'env:write', _user: user.username }
+            ]);
+            permRead = perms.insertedIds[0];
+            permWrite = perms.insertedIds[1];
+
+            // 2. Créer les environnements
+            const envs = await coll.insertMany([
+                { _model: 'env', name: 'prod', _user: user.username },
+                { _model: 'env', name: 'staging', _user: user.username }
+            ]);
+            envProdId = envs.insertedIds[0].toString();
+            envStagingId = envs.insertedIds[1].toString();
+
+            // 3. Créer un rôle de base et l'assigner à l'utilisateur
+            const role = await coll.insertOne({
+                _model: 'role',
+                name: 'EnvTester',
+                permissions: [permRead.toString()],
+                _user: user.username
+            });
+            await coll.updateOne(
+                { _id: user._id },
+                { $set: { roles: [role.insertedId.toString()] } }
+            );
+            // Mettre à jour l'objet utilisateur en mémoire
+            user.roles = [role.insertedId.toString()];
+            user.permissions = ['env:read'];
+        });
+
+        afterAll(async () => {
+            await coll.drop();
+        });
+
+        afterEach(async () => {
+            // Nettoyer les exceptions de permission après chaque test
+            await coll.deleteMany({ _model: 'userPermission', user: user._id });
+        });
+
+        it('should grant permission if exception is global (no env)', async () => {
+            await coll.insertOne({
+                _model: 'userPermission', user: user._id, permission: permWrite, isGranted: true
+            });
+            // L'utilisateur doit avoir la permission dans n'importe quel environnement
+            expect(await hasPermission(['env:write'], user, envProdId)).toBe(true);
+            expect(await hasPermission(['env:write'], user, envStagingId)).toBe(true);
+            expect(await hasPermission(['env:write'], user, null)).toBe(true); // Environnement par défaut
+        });
+
+        it('should grant permission only in the specified environment', async () => {
+            await coll.insertOne({
+                _model: 'userPermission', user: user._id, permission: permWrite, isGranted: true, env: envProdId
+            });
+            // L'utilisateur ne doit avoir la permission qu'en 'prod'
+            expect(await hasPermission(['env:write'], user, envProdId)).toBe(true);
+            expect(await hasPermission(['env:write'], user, envStagingId)).toBe(false);
+            expect(await hasPermission(['env:write'], user, null)).toBe(false);
+        });
+
+        it('should revoke a base permission globally if exception has no env', async () => {
+            await coll.insertOne({
+                _model: 'userPermission', user: user._id, permission: permRead, isGranted: false
+            });
+            // La permission de lecture (du rôle) doit être révoquée partout
+            expect(await hasPermission(['env:read'], user, envProdId)).toBe(false);
+            expect(await hasPermission(['env:read'], user, envStagingId)).toBe(false);
+            expect(await hasPermission(['env:read'], user, null)).toBe(false);
+        });
+
+        it('should revoke a base permission only in the specified environment', async () => {
+            await coll.insertOne({
+                _model: 'userPermission', user: user._id, permission: permRead, isGranted: false, env: envStagingId
+            });
+            // La permission de lecture ne doit être révoquée qu'en 'staging'
+            expect(await hasPermission(['env:read'], user, envProdId)).toBe(true);
+            expect(await hasPermission(['env:read'], user, envStagingId)).toBe(false);
+            expect(await hasPermission(['env:read'], user, null)).toBe(true);
+        });
+
+        it('should prioritize specific env revocation over a global grant', async () => {
+            await coll.insertMany([
+                // On accorde 'env:write' partout
+                { _model: 'userPermission', user: user._id, permission: permWrite, isGranted: true },
+                // Mais on le révoque spécifiquement pour 'staging'
+                { _model: 'userPermission', user: user._id, permission: permWrite, isGranted: false, env: envStagingId }
+            ]);
+
+            expect(await hasPermission(['env:write'], user, envProdId)).toBe(true);
+            expect(await hasPermission(['env:write'], user, envStagingId)).toBe(false);
+            expect(await hasPermission(['env:write'], user, null)).toBe(true);
         });
     });
 });

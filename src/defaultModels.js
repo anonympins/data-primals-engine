@@ -84,6 +84,13 @@ export const defaultModels = {
                 "required": false,
                 "index": true,
                 "hint": "Si défini, l'exception (l'octroi ou la révocation) est temporaire."
+            },
+            {
+                "name": "env",
+                "type": "relation",
+                "relation": "env",
+                "required": false,
+                "hint": "Si défini, la permission ne s'applique qu'à cet environnement. Sinon, elle est globale."
             }
         ]
     },
