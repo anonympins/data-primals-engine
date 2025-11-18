@@ -200,7 +200,7 @@ Models are the way to handle structured data. They organize data and they can be
 | modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
 
 ### Other model features
-- Handles up to 2,000 direct relations by default (can be customized). For larger datasets, use intermediate collections
+- Handles up to 1500 direct relations per document by default (can be customized). For larger datasets, use intermediate collections or maxRelationsPerData constant.
 - Anonymizable fields (encrypted for API users)
 - **Dynamic Index Management**: The engine features a sophisticated system for managing database indexes directly from the model editor UI. This eliminates the need for manual database administration or migration scripts for indexing, significantly speeding up development and reducing errors. Indexes are created, updated, and removed automatically when you save a model's structure. All created indexes are **partial indexes**, meaning they only include documents for the specific model and user, which optimizes storage and performance.
 
@@ -231,33 +231,63 @@ You can enable indexing on any field by checking the `index` box in the model ed
 
 ## 🏗️ Use Case Examples
 
-### 🛒 E-Commerce Backoffice
-- Install ecommerce-starter pack
-- Add products via API/UI
-- Customize order workflows
+### 🛒 E-Commerce Backoffice 
+> “Sell in 15 min, not 15 days”
+> 
+**Pain**: You're struggling to sync your catalog, inventory, orders, refunds…
+ 
+**Promise**: Install the "E-commerce Starter Kit" to get all the models you need for products, orders, and payments, plus a pre-configured workflow to process new orders.
+ 
+**Proof**: After installing the pack, a single API call creates the order, which can then automatically trigger the "Order Fulfillment" workflow to update its status and create a shipment record.
+ 
+```bash
+curl -X POST "http://localhost:7633/api/data?_user=demo" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "model": "order",
+           "data": { "orderId": "ORDER-12345", "totalAmount": 99.98, "status": "pending" }
+         }'
+```
+ 
+### 🎫 Support Ticket System 
+> "Transform Gmail into Zendesk in 10 minutes"
+ 
+**Pain**: Tickets flood a shared inbox → delayed responses, broken SLAs.
+ 
+**Promise**: Create a `ticket` model (with statuses, priority, etc.). Then, build a workflow that triggers on new high-priority tickets. This workflow can use the built-in **`HttpRequest`** action to send a message to a Discord or Slack webhook URL, and the **`SendEmail`** action to alert a manager.
+ 
+**Proof**: A single API call to create a ticket instantly triggers the notification workflow. The following `curl` command demonstrates how to create a new high-priority ticket, which would immediately fire the pre-configured alerts.
 
-### 🎫 Support Ticket System
-- Create ticket model with [open, pending, resolved] statuses
-- Configure notification workflows
-- Add custom endpoints or dashboards/kpi for analytics
+```bash
+curl -X POST "http://localhost:7633/api/data?_user=demo" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "model": "ticket",
+           "data": {
+             "subject": "Critical: Payment Gateway Down",
+             "priority": "high",
+             "description": "No payments have been processed in the last hour."
+           }
+         }'
+```
+ 
+### 🤖 AI Chatbot
+> "Adds an assistant that answers instead of support."
 
-### 🤖 AI Chatbot 
-- Define your model
-- Set up workflow: "When new entry → generate AI content"
+**Pain**: 70% of questions are "Where is my order?" → overloaded team.
+
+**Promise**: One line in the workflow `OnDataAdded/ticket`: `GenerateAIContent(prompt="Summarize the order {triggerData.orderId} and provide the tracking link").`
+
+**Proof**: The ticket is created, the AI ​​responds in 3 seconds, the status changes to "automatically resolved" → saves 30 hours/month of support.
 
 ### 📧 Email Campaign Management
-The "Marketing & Campaigning" starter pack provides a powerful solution for sending large-scale email campaigns without overloading your server.
+> “Send 10,000 emails without crashing your VPS”
 
-- **Install the Pack**: A single command installs the necessary models (`campaign`, `audience`) and a sophisticated workflow.
-- **Dynamic Audiences**: Create target audiences with MongoDB filters. For example, select all contacts with the "newsletter" tag or located in a specific country.
-- **Personalized Content**: Use variables like `{recipient.firstName}` in the subject and body of your emails for a personal touch.
-- **Automated & Scalable Sending**: When you schedule a campaign, a pre-configured workflow takes over:
-    - It processes your audience in small batches (e.g., 10 recipients at a time).
-    - It sends emails to each batch and waits before processing the next, ensuring stability.
-    - It tracks processed recipients to avoid duplicates and allow the campaign to be safely paused and resumed.
-    - Once all emails are sent, the campaign is automatically marked as "completed".
+**Pain**: for loop + SMTP = blacklist + 100% CPU usage.
 
-This use case demonstrates how starter packs and workflows can automate complex, performance-critical business logic right out of the box.
+**Promise**: Install the "Marketing & Campaigning" pack, configure your SMTP credentials in the 'env' model, create a campaign: the workflow sends emails in efficient batches of 10.
+
+**Proof**: Simply edit a campaign and set its status to "scheduled". A background workflow is immediately triggered, processing your entire mailing list in small, manageable batches. This offloads your server and allows you to continue working while the campaign runs securely in the background.
 
 ---
 
