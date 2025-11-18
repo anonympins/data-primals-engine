@@ -558,15 +558,13 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                                     <div className="field">
                                         <div className="checkbox-label flex flex-1">
                                             <CheckboxField
-                                                label={<Trans i18nKey={"history.title"}>Historique</Trans>}
-                                                disabled={modelLocked || (isLocalUser(me) && field.locked)}
-                                                checked={field.required}
+                                                label={<Trans i18nKey={"history"}>Historique</Trans>}
+                                                help={t('modelcreator.field.history', '')}
+                                                disabled={modelLocked}
+                                                checked={!!modelHistory}
                                                 onChange={(e) => {
-                                                    const newFields = [...fields];
-                                                    newFields[index].history = e ? { enabled: true } : undefined;
-                                                    setFields(newFields);
+                                                    setModelHistory(e? { enabled: true }: false);
                                                 }}
-                                                help={field.required && t('modelcreator.history.hint')}
                                             />
                                         </div>
                                     </div>
