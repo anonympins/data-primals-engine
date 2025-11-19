@@ -348,8 +348,8 @@ This pack sets up an automated ecosystem for your store:
                     "env":envSmtp,
                     "taxonomy": [
                         { "name": "E-commerce", "type": "category" },
-                        { "name": "Clothes", "type": "category", "parent": { "$link": { "name": "E-commerce" } } },
-                        { "name": "Electronics", "type": "category", "parent": { "$link": { "name": "E-commerce" } } }
+                        { "name": "Clothes", "type": "category", "parent": { "$link": { "name": "E-commerce", "_model": "taxonomy"} } },
+                        { "name": "Electronics", "type": "category", "parent": { "$link": { "name": "E-commerce", "_model": "taxonomy"} } }
                     ],
                     "brand": [
                         { "name": "Brand A" },
@@ -636,7 +636,170 @@ This pack sets up an automated ecosystem for your store:
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "Data purging", "value": "Purge des données" },
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "Daily data purge", "value": "Purge des données quotidienne" },
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "Purge execution", "value": "Exécution de la purge des données" }
-                    ]
+                    ,
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_product", "value": "Produits" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_productVariant", "value": "Variantes de produit" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_brand", "value": "Marques" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_order", "value": "Commandes" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_shipment", "value": "Expéditions" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_review", "value": "Avis" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_cart", "value": "Paniers" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_cartItem", "value": "Articles de panier" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_discount", "value": "Réductions" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_return", "value": "Retours" }
+],
+                },
+                "en": {
+                    "lang": [{"name": "English", "code": "en"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Send Shipping Confirmation" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "Organic Cotton T-Shirt - Comfort and Style" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Discover our 100% organic cotton unisex t-shirt. Ideal for a casual and sustainable style." },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Order Fulfillment" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "New order created", "value": "New order created" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Validate Order", "value": "Validate Order" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Prepare Shipment" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Ship Order", "value": "Ship Order" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Update order status to 'processing'" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Create Shipment Record" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Update order status to 'shipped'" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Total Revenue", "value": "Total Revenue" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Total Orders", "value": "Total Orders" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Average Order Value", "value": "Average Order Value" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Low Stock Warning" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "New Negative Review", "value": "New Negative Review" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "High-Value Order Alert" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "New Return Request", "value": "New Return Request" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Delete queries older than 30 days" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Data purging", "value": "Data purging" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Daily data purge", "value": "Daily data purge" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Purge execution", "value": "Purge execution" }
+                    ,
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_product", "value": "Products" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_productVariant", "value": "Product Variants" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_brand", "value": "Brands" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_order", "value": "Orders" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_shipment", "value": "Shipments" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_review", "value": "Reviews" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_cart", "value": "Carts" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_cartItem", "value": "Cart Items" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_discount", "value": "Discounts" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_return", "value": "Returns" }
+]
+                },
+                "es": {
+                    "lang": [{"name": "Español", "code": "es"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Enviar confirmación de envío" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "Camiseta de Algodón Orgánico - Comodidad y Estilo" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Descubre nuestra camiseta unisex 100% algodón orgánico. Ideal para un estilo casual y sostenible." },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Procesamiento de Pedidos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "New order created", "value": "Nuevo pedido creado" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Validate Order", "value": "Validar Pedido" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Preparar Envío" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Ship Order", "value": "Enviar Pedido" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Actualizar estado del pedido a 'en proceso'" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Crear registro de envío" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Actualizar estado del pedido a 'enviado'" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Total Revenue", "value": "Ingresos Totales" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Total Orders", "value": "Pedidos Totales" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Average Order Value", "value": "Valor Promedio del Pedido" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Alerta de Stock Bajo" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "New Negative Review", "value": "Nueva Reseña Negativa" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "Alerta de Pedido de Alto Valor" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "New Return Request", "value": "Nueva Solicitud de Devolución" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Eliminar consultas de más de 30 días" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Data purging", "value": "Purga de datos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Daily data purge", "value": "Purga de datos diaria" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Purge execution", "value": "Ejecución de purga" }
+                    ,
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_product", "value": "Productos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_productVariant", "value": "Variantes de producto" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_brand", "value": "Marcas" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_order", "value": "Pedidos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_shipment", "value": "Envíos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_review", "value": "Reseñas" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_cart", "value": "Carritos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_cartItem", "value": "Artículos del carrito" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_discount", "value": "Descuentos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_return", "value": "Devoluciones" }
+]
+                },
+                "de": {
+                    "lang": [{"name": "Deutsch", "code": "de"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Versandbestätigung senden" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "Bio-Baumwoll-T-Shirt - Komfort und Stil" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Entdecken Sie unser Unisex-T-Shirt aus 100 % Bio-Baumwolle. Ideal für einen lässigen und nachhaltigen Stil." },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Bestellabwicklung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "New order created", "value": "Neue Bestellung erstellt" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Validate Order", "value": "Bestellung validieren" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Versand vorbereiten" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Ship Order", "value": "Bestellung versenden" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Bestellstatus auf 'in Bearbeitung' aktualisieren" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Versanddatensatz erstellen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Bestellstatus auf 'versandt' aktualisieren" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Total Revenue", "value": "Gesamtumsatz" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Total Orders", "value": "Anzahl der Bestellungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Average Order Value", "value": "Durchschnittlicher Bestellwert" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Warnung bei niedrigem Lagerbestand" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "New Negative Review", "value": "Neue negative Bewertung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "Warnung bei hochwertiger Bestellung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "New Return Request", "value": "Neue Rücksendeanfrage" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Anfragen löschen, die älter als 30 Tage sind" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Data purging", "value": "Datenbereinigung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Daily data purge", "value": "Tägliche Datenbereinigung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Purge execution", "value": "Bereinigung durchführen" }
+                    ,
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_product", "value": "Produkte" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_productVariant", "value": "Produktvarianten" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_brand", "value": "Marken" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_order", "value": "Bestellungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_shipment", "value": "Sendungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_review", "value": "Bewertungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_cart", "value": "Warenkörbe" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_cartItem", "value": "Warenkorbartikel" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_discount", "value": "Rabatte" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_return", "value": "Rücksendungen" }
+]
+                },
+                "it": {
+                    "lang": [{"name": "Italiano", "code": "it"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Invia conferma di spedizione" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "T-shirt in Cotone Biologico - Comfort e Stile" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Scopri la nostra t-shirt unisex in 100% cotone biologico. Ideale per uno stile casual e sostenibile." },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Evasione Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "New order created", "value": "Nuovo ordine creato" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Validate Order", "value": "Convalida Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Prepara Spedizione" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Ship Order", "value": "Spedisci Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Aggiorna stato ordine a 'in elaborazione'" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Crea record di spedizione" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Aggiorna stato ordine a 'spedito'" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Total Revenue", "value": "Entrate Totali" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Total Orders", "value": "Ordini Totali" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Average Order Value", "value": "Valore Medio Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Avviso Scorte Basse" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "New Negative Review", "value": "Nuova Recensione Negativa" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "Avviso Ordine di Alto Valore" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "New Return Request", "value": "Nuova Richiesta di Reso" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Elimina query più vecchie di 30 giorni" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Data purging", "value": "Pulizia dati" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Daily data purge", "value": "Pulizia dati giornaliera" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Purge execution", "value": "Esecuzione pulizia" }
+                    ,
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_product", "value": "Prodotti" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_productVariant", "value": "Varianti di prodotto" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_brand", "value": "Marche" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_order", "value": "Ordini" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_shipment", "value": "Spedizioni" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_review", "value": "Recensioni" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_cart", "value": "Carrelli" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_cartItem", "value": "Articoli del carrello" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_discount", "value": "Sconti" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_return", "value": "Resi" }
+]
                 }
             }
         },
@@ -683,8 +846,9 @@ This pack doesn't provide a full-fledged website out of the box. Instead, it lay
                             name: c,
                             type: 'category',
                             parent: {
-                                "$find": {
-                                    "name": "Website"
+                                "$link": {
+                                    "name": "Website",
+                                    "_model": "taxonomy"
                                 }
                             }
                         })), ...tags.map(t =>({
@@ -717,9 +881,23 @@ This pack doesn't provide a full-fledged website out of the box. Instead, it lay
                     "lang": [{
                         "name": "Français",
                         "code": "fr"
-                    }],
+                    }]
+                },
+                "en": {
+                    "lang": [{"name": "English", "code": "en"}],
                     "translation": [
-                        { "lang": { "$link": { "$eq": ["$code", "fr"]}, "_model": "lang"}, "key": "Visitor alerts", "value": "Alertes visiteurs" }
+                        { "lang": { "$link": { "$eq": ["$code", "fr"]}, "_model": "lang"}, "key": "Visitor alerts", "value": "Alertes visiteurs" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_content", "value": "Content" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_webpage", "value": "Web Pages" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_message", "value": "Messages" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_channel", "value": "Channels" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_taxonomy", "value": "Taxonomy" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_lang", "value": "Languages" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_user", "value": "Users" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_role", "value": "Roles" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_permission", "value": "Permissions" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_kpi", "value": "KPIs" }
+
                     ]
                 }
             }
@@ -1390,7 +1568,15 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_deal", "value": "فرصت‌ها" },
                         { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_description_deal", "value": "نمایانگر یک فرصت تجاری با یک مخاطب یا شرکت است." },
                         { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_interaction", "value": "تعاملات" },
-                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_description_interaction", "value": "نمایانگر یک تعامل (تماس، ایمیل، جلسه) با یک مخاطب یا شرکت است." }
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_description_interaction", "value": "نمایانگر یک تعامل (تماس، ایمیل، جلسه) با یک مخاطب یا شرکت است." },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeCustomer", "value": "مشتریان استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeSubscription", "value": "اشتراک‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripePlan", "value": "طرح‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripePayment", "value": "پرداخت‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeInvoice", "value": "فاکتورهای استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeRefund", "value": "بازپرداخت‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripePrice", "value": "قیمت‌های استرایپ" }
+
                     ]
                 }
             }
@@ -1474,7 +1660,15 @@ The magic happens automatically in the background:
                     }],
                     "env": Object.values(providers).map(m => ({
                         name: m.key,
-                        value: "demo"
+                        value: "demo",
+                        "data": {
+                            "fr": {
+                                "translation": [
+                                    { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_workflow", "value": "Workflows" },
+                                    { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_workflowAction", "value": "Actions de workflow" }
+                                ]
+                            }
+                        }
                     }))
                 }
             }
@@ -2520,7 +2714,7 @@ This pack provides the raw data and structure for internationalization (i18n). I
                         {"lang": { "$link": { "code": "sv", "_model": "lang" } }, "key": "Norrǿna", "value": "Fornnordiska"},
                         {"lang": { "$link": { "code": "sv", "_model": "lang" } }, "key": "Esperanto", "value": "Esperanto"}
                     ]
-
+                    
                 }
             }
         },

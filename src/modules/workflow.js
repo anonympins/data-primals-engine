@@ -1380,10 +1380,7 @@ export async function triggerWorkflows(triggerData, user, eventType) {
         }
     }
 
-    return new Promise((resolve) => setTimeout(async () => {
-        await trigger(triggerData, user, eventType);
-        resolve();
-    }, 0));
+    return trigger(triggerData, user, eventType);
 }
 /**
  * Processes a workflowRun instance step-by-step.
