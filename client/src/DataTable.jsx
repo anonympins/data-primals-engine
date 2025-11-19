@@ -4,7 +4,7 @@ import {Trans, useTranslation} from "react-i18next";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import React, {useEffect, useMemo, useRef, useState} from "react";
-import {getUserId} from "../../src/data.js";
+import {getUserHash, getUserId} from "../../src/data.js";
 import cronstrue from 'cronstrue/i18n';
 import {Event} from "../../src/events.js";
 
@@ -60,6 +60,7 @@ import {DataImporter} from "./DataImporter.jsx";
 import {HistoryDialog} from "./HistoryDialog.jsx";
 import { useCommand } from './contexts/CommandContext.jsx';
 import {Config} from "../../src/config.js";
+import {useNavigate} from "react-router-dom";
 
 const Header = ({
                     reversed = false,
@@ -438,15 +439,12 @@ export function DataTable({
         onDuplicateData(dataToDuplicate);
     };
 
+    const nav = useNavigate();
+
     const desc = t(`model_description_${selectedModel?.name}`, selectedModel?.description || '');
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && !selectionMode && <div className="flex actions">
-                {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
-                    <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
-                {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {
-                    nav('/user/'+getUserHash(me)+'/dashboards');
-                }}><FaEye /> Tableaux de bord</Button> }
+            {advanced && !selectionMode && <div className="flex">
                 {desc && <p className="model-desc hint">{desc}</p>}
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
                     i18nKey="btns.import">Importer</Trans></Button>

@@ -30,7 +30,7 @@ const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureV
                             title={t(view.labelKey, view.defaultLabel)}
                         >
                             {view.icon}
-                            <span className="hidden md:inline-block ml-2">{t(view.labelKey, view.defaultLabel)}</span>
+                            {/*<span className="hidden md:inline-block ml-2">{t(view.labelKey, view.defaultLabel)}</span>*/}
                         </Button>
                         {/* AJOUT : Bouton de configuration pour la vue active */}
                         {isActive && view.id !== 'table' && (

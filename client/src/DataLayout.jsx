@@ -586,7 +586,7 @@ function DataLayout({refreshUI}) {
                     isOpen={isTourOpen}
                     onClose={closeTour}
                 />)}</>
-            <div className="flex actions">
+            <div className="flex mg-1">
 
                 {<ViewSwitcher
                     currentView={currentView}
@@ -604,14 +604,14 @@ function DataLayout({refreshUI}) {
                 </div>
                 <Button onClick={() => {
                     setImportModalVisible(true);
-                }} className="btn tourStep-import-model"><FaFileImport/><Trans
-                    i18nKey="btns.importModels">Modèles</Trans></Button>
+                }} className="btn tourStep-import-model"><FaFileImport/><span className={"no-mobile-text"}> <Trans
+                    i18nKey="btns.importModels">Modèles</Trans></span></Button>
                 <Button onClick={() => {
                     setShowPackGallery(true);
-                }} className="btn tourStep-import-pack"><FaBoxOpen/><Trans
-                    i18nKey="btns.importPacks">Packs</Trans></Button>
-                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><Trans
-                    i18nKey="btns.showTutos">Tutoriels</Trans></Button>
+                }} className="btn tourStep-import-pack"><FaBoxOpen/><span className={"no-mobile-text"}><Trans
+                    i18nKey="btns.importPacks">Packs</Trans></span></Button>
+                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><span className={"no-mobile-text"}><Trans
+                    i18nKey="btns.showTutos">Tutoriels</Trans></span></Button>
 
                 <DialogProvider>
                     {tutorialDialogVisible && (
@@ -624,7 +624,7 @@ function DataLayout({refreshUI}) {
                     setAPIInfoVisible(true);
                     setDataEditorVisible(false);
                     setEditionMode(false);
-                }}><FaBook/> {t('btns.api', 'API')}</Button>
+                }}><FaBook/><span className={"no-mobile-text"}>{t('btns.api', 'API')}</span></Button>
             </div>
 
             <div className="datalayout flex flex-start">
