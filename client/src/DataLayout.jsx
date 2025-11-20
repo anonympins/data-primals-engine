@@ -129,13 +129,6 @@ function DataLayout({refreshUI}) {
         setEditionMode(true);
     }, []);
 
-    useEffect(() =>{
-        const m = models.find(f => f.name === mod);
-        setSelectedModel(m);
-        setEditionMode(!m);
-    }, [mod, models, searchParams])
-
-
     // La vue courante est dérivée du modèle sélectionné et des préférences stockées.
     const currentView = useMemo(() => {
         if (!selectedModel) return 'table';
@@ -281,7 +274,6 @@ function DataLayout({refreshUI}) {
         setRelationFilters({});
         setCheckedItems([])
         setFilterValues({});
-        setEditionMode(false);
         if (!model) {
             setSelectedModel(null);
             return;
@@ -655,6 +647,7 @@ function DataLayout({refreshUI}) {
                     setDataEditorVisible(false);
                     setAPIInfoVisible(false);
                     setEditionMode(true);
+
                     mainPartRef.current.scrollIntoView({behavior: 'smooth'});
                     gtag("event", "select_content", {
                         content_type: "edit_model",
