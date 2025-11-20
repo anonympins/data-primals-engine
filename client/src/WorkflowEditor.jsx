@@ -258,10 +258,16 @@ const WorkflowEditor = ({ workflowId }) => {
                             )}
                             {selectedNode.data.targetSelector&& (
                                 <p>
-                                    <strong><Trans i18nKey="filter">Filtre :</Trans></strong>
+                                    <strong><Trans i18nKey="filter">Filtre sur :</Trans></strong>
                                     <br/><CodeField language="javascript" value={JSON.stringify(selectedNode.data.targetSelector)} readOnly={true} />
                                 </p>
-                                )}
+                            )}
+                            {(selectedNode.data.dataToCreate || selectedNode.data.fieldsToUpdate) && (
+                                <p>
+                                    <strong><Trans i18nKey="filter">Code déclenché :</Trans></strong>
+                                    <br/><CodeField language="javascript" value={JSON.stringify(selectedNode.data.dataToCreate || selectedNode.data.fieldsToUpdate)} readOnly={true} />
+                                </p>
+                            )}
                         </div>
                     )}
                     {/* Affiche le script pour une action ExecuteScript */}
