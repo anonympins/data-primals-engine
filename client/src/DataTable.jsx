@@ -262,7 +262,7 @@ export function DataTable({
                               filterValues,
                               setFilterValues = () => {},
                               data: propData,
-                              advanced= true, selectionMode= false, deleteApiCall, queryClient
+                              advanced= true, selectionMode= false, deleteApiCall
                           }) {
     const {
         models,
@@ -280,6 +280,7 @@ export function DataTable({
     const {me} = useAuthContext();
     const { execute, DeleteCommand } = useCommand();
 
+    const queryClient = useQueryClient();
     // Si des données sont passées en props, on les utilise, sinon on prend celles du contexte.
     const data = propData || paginatedDataByModel[model?.name] || [];
 
