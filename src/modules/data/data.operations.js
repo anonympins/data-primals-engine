@@ -3242,6 +3242,9 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
                 const result = await collection.insertMany(finalDocsToInsert, {ordered: false});
                 summary.datas.inserted += result.insertedCount;
 
+                // Invalider le cache pour le modèle qui vient d'être modifié
+                invalidateModelCache(modelName);
+
                 docsToInsert.forEach((doc, index) => {
                     if (result.insertedIds[index]) {
                         tempIdToNewIdMap[doc._temp_pack_id_for_mapping] = result.insertedIds[index];

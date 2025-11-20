@@ -69,7 +69,7 @@ const WorkflowSelectorModal = ({ onClose, onSelectWorkflow }) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'workflow',
-                sort: 'name:asc'
+                sort: 'name:asc',limit: 5
             })
         }).then(res => res.json()),
         {

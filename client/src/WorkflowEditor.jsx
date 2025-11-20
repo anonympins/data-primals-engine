@@ -11,8 +11,10 @@ import 'reactflow/dist/style.css';
 import { useModelContext } from './contexts/ModelContext';
 import { useAuthContext } from './contexts/AuthContext';
 import { Trans, useTranslation } from 'react-i18next';
+import { CodeField } from "./Field.jsx";
 import { useQuery } from 'react-query';
 
+import "./WorkflowEditor.scss"
 // --- Custom Node Types (à créer) ---
 // import TriggerNode from './nodes/TriggerNode';
 // import StepNode from './nodes/StepNode';
@@ -102,7 +104,10 @@ const WorkflowEditor = ({ workflowId }) => {
                 type: 'input',
                 position: { x: 250, y: 5 },
                 data: { 
-                    label: `Début: ${typeof mainWorkflowData.name === 'object' ? mainWorkflowData.name.value : mainWorkflowData.name}`
+                    label: `Début: ${typeof mainWorkflowData.name === 'object' ? mainWorkflowData.name.value : mainWorkflowData.name}`,
+                    // --- CORRECTION ---
+                    // On inclut toutes les données du workflow pour la cohérence
+                    ...mainWorkflowData
                 },
             });
 
@@ -125,9 +130,11 @@ const WorkflowEditor = ({ workflowId }) => {
                 initialNodes.push({
                     id: step._id,
                     type: 'default',
+                    className: 'workflow-step-node',
                     position: nodePosition,
                     data: {
-                        label: (step?.name && typeof step.name === 'object' ? step.name.value : step.name) || `Étape ${step._id}`, ...step
+                        label: (step?.name && typeof step.name === 'object' ? step.name.value : step.name) || `Étape ${step._id}`,
+                        ...step // --- CORRECTION --- On inclut l'objet step complet
                     },
                 });
                 initialEdges.push({ id: `e-${parentNodeId}-${step._id}`, source: parentNodeId, target: step._id, type: 'smoothstep' });
@@ -147,8 +154,12 @@ const WorkflowEditor = ({ workflowId }) => {
                     initialNodes.push({
                         id: action._id,
                         type: 'default',
+                        className: 'workflow-action-node',
                         position: actionNodePosition,
-                        data: { label: action.name || `Action ${action._id}`, ...action },
+                        data: {
+                            label: action.name.value || `Action ${action._id}`,
+                            ...action // --- CORRECTION --- On inclut l'objet action complet
+                        },
                     });
                     initialEdges.push({ id: `e-${lastActionId}-${action._id}`, source: lastActionId, target: action._id, type: 'smoothstep' });
                     lastActionId = action._id;
@@ -227,10 +238,38 @@ const WorkflowEditor = ({ workflowId }) => {
                 <div className="properties-panel" style={{ width: '300px', padding: '10px', borderLeft: '1px solid #ccc' }}>
                     <h3><Trans i18nKey="properties">Propriétés</Trans></h3>
                     <p><strong>ID:</strong> {selectedNode.id}</p>
-                    <p><strong>Type:</strong> {selectedNode.type}</p>
-                    <pre>{JSON.stringify(selectedNode.data, null, 2)}</pre>
-                    {/* TODO: Intégrer ici le formulaire d'édition approprié en fonction de selectedNode.type */}
-                    {/* Ex: if (selectedNode.type === 'step') return <StepEditor data={selectedNode.data} /> */}
+
+                    {/* Affiche les conditions pour un workflowStep */}
+                    {selectedNode.data.conditions && (
+                        <div className="mt-2">
+                            <strong><Trans i18nKey="conditions">Conditions:</Trans></strong>
+                            <CodeField language="json" value={JSON.stringify(selectedNode.data.conditions, null, 2)} readOnly={true} />
+                        </div>
+                    )}
+
+                    {/* Affiche le script pour une action ExecuteScript */}
+                    {selectedNode.data.type && (
+                        <div className="mt-2">
+                            <strong><Trans i18nKey="action">Action :</Trans></strong> {selectedNode.data.type}
+                            {selectedNode.data.targetModel&& (
+                                <p>
+                                    <strong><Trans i18nKey="action">Modèle cible : </Trans></strong>{selectedNode.data.targetModel}
+                                </p>
+                            )}
+                            {selectedNode.data.targetSelector&& (
+                                <p>
+                                    <strong><Trans i18nKey="filter">Filtre :</Trans></strong>
+                                    <br/><CodeField language="javascript" value={JSON.stringify(selectedNode.data.targetSelector)} readOnly={true} />
+                                </p>
+                                )}
+                        </div>
+                    )}
+                    {/* Affiche le script pour une action ExecuteScript */}
+                    {selectedNode.data.type === 'ExecuteScript' && selectedNode.data.script && (
+                        <div className="mt-2">
+                            <CodeField language="javascript" value={selectedNode.data.script} readOnly={true} />
+                        </div>
+                    )}
                 </div>
             )}
         </div>
