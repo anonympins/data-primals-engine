@@ -140,6 +140,7 @@ The core of this pack is a smart workflow that avoids overloading your server. I
                         },
                         {
                             "name": "Get Next Recipient Chunk",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
                             "type": "ExecuteScript",
                             "script": `
 const chunkSize = 10; // Process 10 recipients per run

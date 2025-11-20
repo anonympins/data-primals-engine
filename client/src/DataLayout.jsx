@@ -324,6 +324,7 @@ function DataLayout({refreshUI}) {
         setRelationFilters({});
         setCheckedItems([])
         setFilterValues({});
+
         if (!model) {
             setSelectedModel(null);
             return;
@@ -331,7 +332,9 @@ function DataLayout({refreshUI}) {
 
         // Maintient la vue actuelle si elle est configurée pour le nouveau modèle, sinon revient à la vue "table"
         const modelSettings = viewSettings[model.name] || {};
-        if (currentView === 'calendar' && (!modelSettings.calendar?.titleField || !modelSettings.calendar?.startField || !modelSettings.calendar?.endField)) {
+        if( currentView === 'workflow') {
+            setCurrentView('table')
+        }else if (currentView === 'calendar' && (!modelSettings.calendar?.titleField || !modelSettings.calendar?.startField || !modelSettings.calendar?.endField)) {
             setCurrentView('table');
         } else if (currentView === 'kanban' && !modelSettings.kanban?.groupByField) {
             setCurrentView('table');
