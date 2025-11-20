@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, {
     MiniMap,
     Controls,
@@ -32,6 +32,34 @@ const WorkflowEditor = ({ workflowId }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState(null);
+    const [panelWidth, setPanelWidth] = useState(300);
+    const resizeData = useRef({ isResizing: false, initialX: 0, initialWidth: 0 });
+
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        resizeData.current = {
+            isResizing: true,
+            initialX: e.clientX,
+            initialWidth: panelWidth
+        };
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleMouseMove = useCallback((e) => {
+        if (!resizeData.current.isResizing) return; // Utilise la référence qui ne change pas
+        const dx = e.clientX - resizeData.current.initialX; // Calcule le delta depuis le clic initial
+        const newWidth = resizeData.current.initialWidth - dx; // Applique le delta à la largeur initiale
+        setPanelWidth(Math.max(200, Math.min(newWidth, 800))); // Applique les limites
+    }, []); // Plus besoin de dépendances, la logique est entièrement contenue dans la ref
+
+
+    const handleMouseUp = () => {
+        resizeData.current.isResizing = false;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
+
 
     // Query 1: Fetch the main workflow document
     const { data: mainWorkflowData, isLoading: isLoadingMainWorkflow, error: errorMainWorkflow } = useQuery(
@@ -235,7 +263,11 @@ const WorkflowEditor = ({ workflowId }) => {
 
             {/* Panneau latéral pour l'édition des propriétés */}
             {selectedNode && (
-                <div className="properties-panel" style={{ width: '300px', padding: '10px', borderLeft: '1px solid #ccc' }}>
+                <div className="properties-panel" style={{ width: `${panelWidth}px`, padding: '10px', borderLeft: '1px solid #ccc' }}>
+                    <div
+                        className="resizer"
+                        onMouseDown={handleMouseDown}
+                    />
                     <h3><Trans i18nKey="properties">Propriétés</Trans></h3>
                     <p><strong>ID:</strong> {selectedNode.id}</p>
 

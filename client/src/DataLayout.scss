@@ -25,3 +25,16 @@
     }
   }
 }
+
+.properties-panel {
+  position: relative; /* Nécessaire pour positionner le resizer */
+}
+
+.resizer {
+  width: 5px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: col-resize;
+}
