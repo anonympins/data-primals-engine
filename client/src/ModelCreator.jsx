@@ -57,6 +57,9 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             setFields([...(initialModel.fields || []).map(m => ({...m}))]);
             setModelHistory(initialModel.history);
             setModelIcon(initialModel.icon);
+            setUseAI(false);
+            setPrompt(null);
+            setHomePrompt(null);
         } else {
             // Mode création : on réinitialise tout pour une nouvelle génération
             setModelName('');
@@ -470,7 +473,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
                          return c && (
                          <><p className="ws-pre-line">{c}</p></>)
                      }} />
-            <h2>
+            <h2 className={"field-bg p-2"}>
                 {!initialModel && <Trans i18nKey={"btns.createModel"}>Créer un modèle</Trans>}
                 {!!initialModel && <><Trans i18nKey={"btns.editModel"}>Editer le modèle</Trans> &#34;{t(`model_${modelName}`, modelName)}&#34;</>}
             </h2>

@@ -1,0 +1,16 @@
+
+.workflow-step-node {
+  background-color: #e0e7ff; /* Un bleu clair pour les étapes */
+  border-color: #a5b4fc;
+  border-width: 2px;
+  font-weight: bold;
+}
+
+.workflow-action-node {
+  background-color: #f0f9ff; /* Un bleu très clair pour les actions */
+  border-color: #bae6fd;
+  border-width: 1px;
+  border-style: dashed;
+  width: auto;
+  min-width: 150px;
+}

@@ -1,6 +1,6 @@
 import React, {forwardRef, useCallback, useEffect, useMemo, useReducer, useRef, useState} from 'react';
 
-import { FaUndo, FaRedo } from 'react-icons/fa';
+import {FaUndo, FaRedo, FaSitemap} from 'react-icons/fa';
 import "./App.scss";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import ModelCreator from "./ModelCreator.jsx";
@@ -11,7 +11,7 @@ import {Event} from "../../src/events.js";
 
 import {
     FaBook,
-    FaBoxOpen, FaDatabase,
+    FaBoxOpen, FaDatabase, FaProjectDiagram,
     FaEye, FaFileImport,
     FaFilter, FaInfo, FaPlus,
 } from "react-icons/fa";
@@ -46,6 +46,7 @@ import {AssistantChat, NotificationList} from "../index.js";
 import { useCommand } from './contexts/CommandContext.jsx';
 
 import "./DataLayout.scss"
+import WorkflowEditor from "./WorkflowEditor.jsx";
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
     <div className="p-4 border border-dashed rounded-md mt-4 text-center bg-gray-50">
@@ -57,12 +58,52 @@ const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
     </div>
 );
 
+const WorkflowSelectorModal = ({ onClose, onSelectWorkflow }) => {
+    const { t } = useTranslation();
+    const { searchData } = useModelContext();
+    const { me } = useAuthContext();
+    const { data: activeWorkflows, isLoading } = useQuery(
+        'activeWorkflowsList',
+        () => fetch('/api/data/search?_user='+me.username, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'workflow',
+                sort: 'name:asc',limit: 5
+            })
+        }).then(res => res.json()),
+        {
+            select: (data) => data?.data || []
+        }
+    );
+
+    return (
+        <Dialog title={t('workflow.select.title', 'Sélectionner un workflow')} isClosable={true} onClose={onClose}>
+            {isLoading && <p>{t('loading', 'Chargement...')}</p>}
+            {!isLoading && (!activeWorkflows || activeWorkflows.length === 0) && (
+                <p>{t('workflow.select.noActive', 'Aucun workflow actif trouvé.')}</p>
+            )}
+            <ul className="workflow-selector-list">
+                {activeWorkflows?.map(wf => (
+                    <li key={wf._id} onClick={() => onSelectWorkflow(wf._id)}>
+                        <FaSitemap />
+                        <span className="font-bold">{wf.name.value}</span>
+                        <span className="text-sm text-gray-500 ml-2">{wf.description}</span>
+                    </li>
+                ))}
+            </ul>
+        </Dialog>
+    );
+};
+
 function DataLayout({refreshUI}) {
     const [ searchParams, setSearchParams ] = useSearchParams();
     const [viewSettings, setViewSettings] = useLocalStorage('viewSettings', {});
 
     const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
     const [isKanbanModalOpen, setKanbanModalOpen] = useState(false);
+    const [isWorkflowListModalOpen, setWorkflowListModalOpen] = useState(false);
+
     const [showPackGallery, setShowPackGallery] = useState(false);
     const [checkedItems, setCheckedItems] = useState([])
 
@@ -115,6 +156,11 @@ function DataLayout({refreshUI}) {
     const nav = useNavigate();
     const mod = searchParams.get('model');
     const loc = useLocation();
+
+
+    // --- AJOUT : Récupérer le paramètre de l'URL pour l'édition de workflow ---
+    const workflowToEditId = searchParams.get('edit-workflow');
+
     useEffect(() =>{
         if (selectedModel?.name) {
             nav('/user/' + getUserHash(me) + '/?model=' + selectedModel?.name);
@@ -128,13 +174,6 @@ function DataLayout({refreshUI}) {
         setAPIInfoVisible(false);
         setEditionMode(true);
     }, []);
-
-    useEffect(() =>{
-        const m = models.find(f => f.name === mod);
-        setSelectedModel(m);
-        setEditionMode(!m);
-    }, [mod, models, searchParams])
-
 
     // La vue courante est dérivée du modèle sélectionné et des préférences stockées.
     const currentView = useMemo(() => {
@@ -247,6 +286,10 @@ function DataLayout({refreshUI}) {
                 return configuredViews.kanban
                     ? <KanbanView settings={currentModelViewSettings.kanban} model={selectedModel} />
                     : <NotConfiguredPlaceholder type="kanban" onConfigure={() => setKanbanModalOpen(true)} />;
+            case 'workflow':
+                return workflowToEditId
+                    ? <WorkflowEditor workflowId={workflowToEditId} />
+                    : <NotConfiguredPlaceholder type="kanban" onConfigure={() => setKanbanModalOpen(true)} />;
             case 'table':
             default:
                 // Le DataTable existant est retourné par défaut
@@ -281,7 +324,7 @@ function DataLayout({refreshUI}) {
         setRelationFilters({});
         setCheckedItems([])
         setFilterValues({});
-        setEditionMode(false);
+
         if (!model) {
             setSelectedModel(null);
             return;
@@ -289,7 +332,9 @@ function DataLayout({refreshUI}) {
 
         // Maintient la vue actuelle si elle est configurée pour le nouveau modèle, sinon revient à la vue "table"
         const modelSettings = viewSettings[model.name] || {};
-        if (currentView === 'calendar' && (!modelSettings.calendar?.titleField || !modelSettings.calendar?.startField || !modelSettings.calendar?.endField)) {
+        if( currentView === 'workflow') {
+            setCurrentView('table')
+        }else if (currentView === 'calendar' && (!modelSettings.calendar?.titleField || !modelSettings.calendar?.startField || !modelSettings.calendar?.endField)) {
             setCurrentView('table');
         } else if (currentView === 'kanban' && !modelSettings.kanban?.groupByField) {
             setCurrentView('table');
@@ -586,7 +631,7 @@ function DataLayout({refreshUI}) {
                     isOpen={isTourOpen}
                     onClose={closeTour}
                 />)}</>
-            <div className="flex actions">
+            <div className="flex mg-1">
 
                 {<ViewSwitcher
                     currentView={currentView}
@@ -594,6 +639,9 @@ function DataLayout({refreshUI}) {
                     configuredViews={configuredViews}
                     onConfigureView={handleConfigureCurrentView}
                 />}
+                <Button onClick={() => setWorkflowListModalOpen(true)} className={currentView === 'workflow' ? 'active' : ''} title={t('views.workflow', 'Workflow')}>
+                    <FaProjectDiagram />
+                </Button>
                 <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-md">
                     <Button onClick={undo} disabled={!canUndo} title={t('btns.undo', 'Annuler')}>
                         <FaUndo />
@@ -604,14 +652,14 @@ function DataLayout({refreshUI}) {
                 </div>
                 <Button onClick={() => {
                     setImportModalVisible(true);
-                }} className="btn tourStep-import-model"><FaFileImport/><Trans
-                    i18nKey="btns.importModels">Modèles</Trans></Button>
+                }} className="btn tourStep-import-model"><FaFileImport/><span className={"no-mobile-text"}> <Trans
+                    i18nKey="btns.importModels">Modèles</Trans></span></Button>
                 <Button onClick={() => {
                     setShowPackGallery(true);
-                }} className="btn tourStep-import-pack"><FaBoxOpen/><Trans
-                    i18nKey="btns.importPacks">Packs</Trans></Button>
-                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><Trans
-                    i18nKey="btns.showTutos">Tutoriels</Trans></Button>
+                }} className="btn tourStep-import-pack"><FaBoxOpen/><span className={"no-mobile-text"}><Trans
+                    i18nKey="btns.importPacks">Packs</Trans></span></Button>
+                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><span className={"no-mobile-text"}><Trans
+                    i18nKey="btns.showTutos">Tutoriels</Trans></span></Button>
 
                 <DialogProvider>
                     {tutorialDialogVisible && (
@@ -619,12 +667,24 @@ function DataLayout({refreshUI}) {
                             <TutorialsMenu />
                         </Dialog>
                     )}
+                    {isWorkflowListModalOpen && (
+                        <WorkflowSelectorModal
+                            onClose={() => setWorkflowListModalOpen(false)}
+                            onSelectWorkflow={(id) => {
+                                nav(`?edit-workflow=${id}`);
+                                setEditionMode(false)
+                                mainPartRef.current.scrollIntoView();
+                                setCurrentView('workflow'); // Ajout pour forcer le changement de vue
+                                setWorkflowListModalOpen(false);
+                            }}
+                        />
+                    )}
                 </DialogProvider>
                 <Button className="btn" onClick={() => {
                     setAPIInfoVisible(true);
                     setDataEditorVisible(false);
                     setEditionMode(false);
-                }}><FaBook/> {t('btns.api', 'API')}</Button>
+                }}><FaBook/><span className={"no-mobile-text"}>{t('btns.api', 'API')}</span></Button>
             </div>
 
             <div className="datalayout flex flex-start">
@@ -655,6 +715,7 @@ function DataLayout({refreshUI}) {
                     setDataEditorVisible(false);
                     setAPIInfoVisible(false);
                     setEditionMode(true);
+
                     mainPartRef.current.scrollIntoView({behavior: 'smooth'});
                     gtag("event", "select_content", {
                         content_type: "edit_model",
@@ -684,6 +745,10 @@ function DataLayout({refreshUI}) {
                         handleModelSelect(model);
                     }}/>)}
 
+                {/* --- AJOUT : Affichage conditionnel de l'éditeur de workflow --- */}
+                {workflowToEditId && (
+                    <WorkflowEditor workflowId={workflowToEditId} />
+                )}
             <div className="hidden-anchor" ref={mainPartRef}></div>
 
                 {showDataEditor && (<DataEditor
@@ -700,7 +765,7 @@ function DataLayout({refreshUI}) {
 
 
                 {selectedModel && showAPIInfo && <APIInfo/>}
-                {selectedModel && !showAPIInfo && !generatedModels.some(g => g.name === selectedModel?.name) && (<div className="datas">
+                {selectedModel && !showAPIInfo && !workflowToEditId && !generatedModels.find(g => g.name === selectedModel?.name) && (<div className="datas">
 
                     <h2 className={"field-bg p-2"}>{t(`model_${selectedModel?.name}`, selectedModel?.name)} <>({countByModel?.[selectedModel?.name]})</></h2>
 

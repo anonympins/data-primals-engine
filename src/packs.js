@@ -132,6 +132,7 @@ The core of this pack is a smart workflow that avoids overloading your server. I
                     "workflowAction": [
                         {
                             "name": "Set Campaign to 'in_progress'",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
                             "type": "UpdateData",
                             "targetModel": "campaign",
                             "targetSelector": { "_id": "{triggerData._id}" },
@@ -139,6 +140,7 @@ The core of this pack is a smart workflow that avoids overloading your server. I
                         },
                         {
                             "name": "Get Next Recipient Chunk",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
                             "type": "ExecuteScript",
                             "script": `
 const chunkSize = 10; // Process 10 recipients per run
@@ -174,7 +176,8 @@ return { chunk }; // This chunk is passed to the next action via context.result
                             "type": "SendEmail",
                             "emailRecipients": ["{context.result.chunk}"],
                             "emailSubject": "{triggerData.subject}",
-                            "emailContent": "{triggerData.content}"
+                            "emailContent": "{triggerData.content}",
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } }
                         },
                         {
                             "name": "Update Processed Recipients",
@@ -201,14 +204,16 @@ await db.update(
 
 // Return the original chunk for the condition check step
 return { processedChunk: context.result.chunk };
-`
+`,
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } }
                         },
                         {
                             "name": "Set Campaign to 'finished'",
                             "type": "UpdateData",
                             "targetModel": "campaign",
                             "targetSelector": { "_id": "{triggerData._id}" },
-                            "fieldsToUpdate": { "status": "finished" }
+                            "fieldsToUpdate": { "status": "finished" },
+                            "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } }
                         }
                     ],
                     "workflowStep": [
@@ -348,8 +353,8 @@ This pack sets up an automated ecosystem for your store:
                     "env":envSmtp,
                     "taxonomy": [
                         { "name": "E-commerce", "type": "category" },
-                        { "name": "Clothes", "type": "category", "parent": { "$link": { "name": "E-commerce" } } },
-                        { "name": "Electronics", "type": "category", "parent": { "$link": { "name": "E-commerce" } } }
+                        { "name": "Clothes", "type": "category", "parent": { "$link": { "name": "E-commerce", "_model": "taxonomy"} } },
+                        { "name": "Electronics", "type": "category", "parent": { "$link": { "name": "E-commerce", "_model": "taxonomy"} } }
                     ],
                     "brand": [
                         { "name": "Brand A" },
@@ -531,13 +536,14 @@ This pack sets up an automated ecosystem for your store:
                         "startStep": { "$link": { "name": "Send Shipment Email Step", "_model": "workflowStep" } }
                     }],
                     "workflowAction": [
-                        { "name": "Update order status to 'processing'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": { $toObjectId: "{triggerData._id}" }}, "fieldsToUpdate": { "status": "processing" } },
-                        { "name": "Create Shipment Record", "type": "CreateData",
+                        { "name": "Update order status to 'processing'", "workflow": { "$link": { "name": "Order Fulfillment", "_model": "workflow" } }, "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": { $toObjectId: "{triggerData._id}" }}, "fieldsToUpdate": { "status": "processing" } },
+                        { "name": "Create Shipment Record", "workflow": { "$link": { "name": "Order Fulfillment", "_model": "workflow" } }, "type": "CreateData",
                             "targetModel": "shipment",
                             "dataToCreate": { "order": "{triggerData._id}", "status": "preparing" } },
-                        { "name": "Update order status to 'shipped'", "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": { $toObjectId: "{triggerData._id}" }}, "fieldsToUpdate": { "status": "shipped" } },
+                        { "name": "Update order status to 'shipped'", "workflow": { "$link": { "name": "Order Fulfillment", "_model": "workflow" } }, "type": "UpdateData", "targetModel": "order", "targetSelector": { "_id": { $toObjectId: "{triggerData._id}" }}, "fieldsToUpdate": { "status": "shipped" } },
                         {
                             name: 'Delete queries older than 30 days',
+                            "workflow": { "$link": { "name": "Data purging", "_model": "workflow" } },
                             type: 'DeleteData',
                             targetModel: 'request',
                             targetSelector: {
@@ -546,6 +552,7 @@ This pack sets up an automated ecosystem for your store:
                         },
                         {
                             "name": "Send Shipping Notification Email",
+                            "workflow": { "$link": { "name": "Shipment Notification", "_model": "workflow" } },
                             "type": "SendEmail",
                             // C'est ici que la magie opère !
                             "emailRecipients": ["{triggerData.order.customer.contact.email}"],
@@ -636,7 +643,170 @@ This pack sets up an automated ecosystem for your store:
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "Data purging", "value": "Purge des données" },
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "Daily data purge", "value": "Purge des données quotidienne" },
                         { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "Purge execution", "value": "Exécution de la purge des données" }
-                    ]
+                    ,
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_product", "value": "Produits" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_productVariant", "value": "Variantes de produit" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_brand", "value": "Marques" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_order", "value": "Commandes" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_shipment", "value": "Expéditions" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_review", "value": "Avis" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_cart", "value": "Paniers" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_cartItem", "value": "Articles de panier" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_discount", "value": "Réductions" },
+                        { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_return", "value": "Retours" }
+],
+                },
+                "en": {
+                    "lang": [{"name": "English", "code": "en"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Send Shipping Confirmation" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "Organic Cotton T-Shirt - Comfort and Style" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Discover our 100% organic cotton unisex t-shirt. Ideal for a casual and sustainable style." },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Order Fulfillment" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "New order created", "value": "New order created" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Validate Order", "value": "Validate Order" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Prepare Shipment" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Ship Order", "value": "Ship Order" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Update order status to 'processing'" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Create Shipment Record" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Update order status to 'shipped'" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Total Revenue", "value": "Total Revenue" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Total Orders", "value": "Total Orders" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Average Order Value", "value": "Average Order Value" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Low Stock Warning" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "New Negative Review", "value": "New Negative Review" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "High-Value Order Alert" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "New Return Request", "value": "New Return Request" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Delete queries older than 30 days" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Data purging", "value": "Data purging" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Daily data purge", "value": "Daily data purge" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "Purge execution", "value": "Purge execution" }
+                    ,
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_product", "value": "Products" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_productVariant", "value": "Product Variants" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_brand", "value": "Brands" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_order", "value": "Orders" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_shipment", "value": "Shipments" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_review", "value": "Reviews" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_cart", "value": "Carts" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_cartItem", "value": "Cart Items" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_discount", "value": "Discounts" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_return", "value": "Returns" }
+]
+                },
+                "es": {
+                    "lang": [{"name": "Español", "code": "es"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Enviar confirmación de envío" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "Camiseta de Algodón Orgánico - Comodidad y Estilo" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Descubre nuestra camiseta unisex 100% algodón orgánico. Ideal para un estilo casual y sostenible." },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Procesamiento de Pedidos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "New order created", "value": "Nuevo pedido creado" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Validate Order", "value": "Validar Pedido" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Preparar Envío" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Ship Order", "value": "Enviar Pedido" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Actualizar estado del pedido a 'en proceso'" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Crear registro de envío" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Actualizar estado del pedido a 'enviado'" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Total Revenue", "value": "Ingresos Totales" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Total Orders", "value": "Pedidos Totales" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Average Order Value", "value": "Valor Promedio del Pedido" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Alerta de Stock Bajo" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "New Negative Review", "value": "Nueva Reseña Negativa" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "Alerta de Pedido de Alto Valor" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "New Return Request", "value": "Nueva Solicitud de Devolución" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Eliminar consultas de más de 30 días" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Data purging", "value": "Purga de datos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Daily data purge", "value": "Purga de datos diaria" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "Purge execution", "value": "Ejecución de purga" }
+                    ,
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_product", "value": "Productos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_productVariant", "value": "Variantes de producto" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_brand", "value": "Marcas" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_order", "value": "Pedidos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_shipment", "value": "Envíos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_review", "value": "Reseñas" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_cart", "value": "Carritos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_cartItem", "value": "Artículos del carrito" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_discount", "value": "Descuentos" },
+                        { "lang": { "$link": { "code": "es", "_model": "lang" } }, "key": "model_return", "value": "Devoluciones" }
+]
+                },
+                "de": {
+                    "lang": [{"name": "Deutsch", "code": "de"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Versandbestätigung senden" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "Bio-Baumwoll-T-Shirt - Komfort und Stil" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Entdecken Sie unser Unisex-T-Shirt aus 100 % Bio-Baumwolle. Ideal für einen lässigen und nachhaltigen Stil." },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Bestellabwicklung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "New order created", "value": "Neue Bestellung erstellt" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Validate Order", "value": "Bestellung validieren" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Versand vorbereiten" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Ship Order", "value": "Bestellung versenden" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Bestellstatus auf 'in Bearbeitung' aktualisieren" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Versanddatensatz erstellen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Bestellstatus auf 'versandt' aktualisieren" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Total Revenue", "value": "Gesamtumsatz" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Total Orders", "value": "Anzahl der Bestellungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Average Order Value", "value": "Durchschnittlicher Bestellwert" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Warnung bei niedrigem Lagerbestand" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "New Negative Review", "value": "Neue negative Bewertung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "Warnung bei hochwertiger Bestellung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "New Return Request", "value": "Neue Rücksendeanfrage" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Anfragen löschen, die älter als 30 Tage sind" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Data purging", "value": "Datenbereinigung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Daily data purge", "value": "Tägliche Datenbereinigung" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "Purge execution", "value": "Bereinigung durchführen" }
+                    ,
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_product", "value": "Produkte" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_productVariant", "value": "Produktvarianten" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_brand", "value": "Marken" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_order", "value": "Bestellungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_shipment", "value": "Sendungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_review", "value": "Bewertungen" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_cart", "value": "Warenkörbe" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_cartItem", "value": "Warenkorbartikel" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_discount", "value": "Rabatte" },
+                        { "lang": { "$link": { "code": "de", "_model": "lang" } }, "key": "model_return", "value": "Rücksendungen" }
+]
+                },
+                "it": {
+                    "lang": [{"name": "Italiano", "code": "it"}],
+                    "translation": [
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Send Shipping Confirmation", "value": "Invia conferma di spedizione" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_TITLE", "value": "T-shirt in Cotone Biologico - Comfort e Stile" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "ORGANIC_COTTON_TSHIRT_DESC", "value": "Scopri la nostra t-shirt unisex in 100% cotone biologico. Ideale per uno stile casual e sostenibile." },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Order Fulfillment", "value": "Evasione Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "New order created", "value": "Nuovo ordine creato" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Validate Order", "value": "Convalida Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Prepare Shipment", "value": "Prepara Spedizione" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Ship Order", "value": "Spedisci Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Update order status to 'processing'", "value": "Aggiorna stato ordine a 'in elaborazione'" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Create Shipment Record", "value": "Crea record di spedizione" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Update order status to 'shipped'", "value": "Aggiorna stato ordine a 'spedito'" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Total Revenue", "value": "Entrate Totali" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Total Orders", "value": "Ordini Totali" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Average Order Value", "value": "Valore Medio Ordine" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Low Stock Warning", "value": "Avviso Scorte Basse" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "New Negative Review", "value": "Nuova Recensione Negativa" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "High-Value Order Alert", "value": "Avviso Ordine di Alto Valore" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "New Return Request", "value": "Nuova Richiesta di Reso" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Delete queries older than 30 days", "value": "Elimina query più vecchie di 30 giorni" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Data purging", "value": "Pulizia dati" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Daily data purge", "value": "Pulizia dati giornaliera" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "Purge execution", "value": "Esecuzione pulizia" }
+                    ,
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_product", "value": "Prodotti" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_productVariant", "value": "Varianti di prodotto" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_brand", "value": "Marche" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_order", "value": "Ordini" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_shipment", "value": "Spedizioni" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_review", "value": "Recensioni" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_cart", "value": "Carrelli" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_cartItem", "value": "Articoli del carrello" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_discount", "value": "Sconti" },
+                        { "lang": { "$link": { "code": "it", "_model": "lang" } }, "key": "model_return", "value": "Resi" }
+]
                 }
             }
         },
@@ -683,8 +853,9 @@ This pack doesn't provide a full-fledged website out of the box. Instead, it lay
                             name: c,
                             type: 'category',
                             parent: {
-                                "$find": {
-                                    "name": "Website"
+                                "$link": {
+                                    "name": "Website",
+                                    "_model": "taxonomy"
                                 }
                             }
                         })), ...tags.map(t =>({
@@ -717,9 +888,23 @@ This pack doesn't provide a full-fledged website out of the box. Instead, it lay
                     "lang": [{
                         "name": "Français",
                         "code": "fr"
-                    }],
+                    }]
+                },
+                "en": {
+                    "lang": [{"name": "English", "code": "en"}],
                     "translation": [
-                        { "lang": { "$link": { "$eq": ["$code", "fr"]}, "_model": "lang"}, "key": "Visitor alerts", "value": "Alertes visiteurs" }
+                        { "lang": { "$link": { "$eq": ["$code", "fr"]}, "_model": "lang"}, "key": "Visitor alerts", "value": "Alertes visiteurs" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_content", "value": "Content" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_webpage", "value": "Web Pages" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_message", "value": "Messages" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_channel", "value": "Channels" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_taxonomy", "value": "Taxonomy" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_lang", "value": "Languages" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_user", "value": "Users" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_role", "value": "Roles" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_permission", "value": "Permissions" },
+                        { "lang": { "$link": { "code": "en", "_model": "lang" } }, "key": "model_kpi", "value": "KPIs" }
+
                     ]
                 }
             }
@@ -834,8 +1019,8 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                             { "name": "Pipeline des ventes", "chartConfigs": [ { "title": "Opportunités par étape", "model": "deal", "type": "bar", "xAxis": "status", "yAxis": { "field": "_id", "aggregation": "count" } } ] }
                         ]
                     }],
-                    "workflow": [{ "name": "Suivi post-rendez-vous", "startStep": { "$link": { "name": "Création de la tâche", "_model": "workflowStep" } }}],
-                    "workflowAction": [{ "name": "Créer une tâche de suivi", "type": "CreateData", "targetModel": "task", "dataToCreate": { "title": "Faire le suivi du rendez-vous: {triggerData.subject}", "dueDate": "{$add: [\"$$NOW\", 2 * 24 * 60 * 60 * 1000]}", "status": "À faire", "relatedDeal": "{triggerData.deal}" } }],
+                    "workflow": [{ "name": "Suivi post-rendez-vous", "startStep": { "$link": { "name": "Création de la tâche", "_model": "workflowStep" } } }],
+                    "workflowAction": [{ "name": "Créer une tâche de suivi", "workflow": { "$link": { "name": "Suivi post-rendez-vous", "_model": "workflow" } }, "type": "CreateData", "targetModel": "task", "dataToCreate": { "title": "Faire le suivi du rendez-vous: {triggerData.subject}", "dueDate": "{$add: [\"$$NOW\", 2 * 24 * 60 * 60 * 1000]}", "status": "À faire", "relatedDeal": "{triggerData.deal}" } }],
                     "workflowStep": [{ "name": "Création de la tâche", "workflow": { "$link": { "name": "Suivi post-rendez-vous", "_model": "workflow" } }, "actions": { "$link": { "name": "Créer une tâche de suivi", "_model":"workflowAction" } }, "isTerminal": true }],
                     "workflowTrigger": [{ "name": "Après un rendez-vous client", "type": "manual", "workflow": { "$link": { "name": "Suivi post-rendez-vous", "_model": "workflow" } }, "onEvent": "DataAdded", "targetModel": "interaction", "dataFilter": { "$eq": ["$type", "Rendez-vous"] }, "isActive": true }]
                 },
@@ -1390,7 +1575,15 @@ The CRM pack connects your contacts, deals, and interactions in one place. By lo
                         { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_deal", "value": "فرصت‌ها" },
                         { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_description_deal", "value": "نمایانگر یک فرصت تجاری با یک مخاطب یا شرکت است." },
                         { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_interaction", "value": "تعاملات" },
-                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_description_interaction", "value": "نمایانگر یک تعامل (تماس، ایمیل، جلسه) با یک مخاطب یا شرکت است." }
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_description_interaction", "value": "نمایانگر یک تعامل (تماس، ایمیل، جلسه) با یک مخاطب یا شرکت است." },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeCustomer", "value": "مشتریان استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeSubscription", "value": "اشتراک‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripePlan", "value": "طرح‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripePayment", "value": "پرداخت‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeInvoice", "value": "فاکتورهای استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripeRefund", "value": "بازپرداخت‌های استرایپ" },
+                        { "lang": { "$link": { "code": "fa", "_model": "lang" } }, "key": "model_StripePrice", "value": "قیمت‌های استرایپ" }
+
                     ]
                 }
             }
@@ -1428,6 +1621,7 @@ The magic happens automatically in the background:
                     "workflowAction": [
                         {
                             "name": "Generate SEO Description from Product (OpenAI API)",
+                            "workflow": { "$link": { "name": "Generate product description", "_model": "workflow" } },
                             "type": "GenerateAIContent",
                             "aiProvider": "OpenAI",
                             "aiModel": "gpt-4o-mini",
@@ -1435,6 +1629,7 @@ The magic happens automatically in the background:
                         },
                         {
                             "name": "Generate SEO Description from Product (Google API)",
+                            "workflow": { "$link": { "name": "Generate product description", "_model": "workflow" }},
                             "type": "GenerateAIContent",
                             "aiProvider": "Google",
                             "aiModel": "gemini-2.0-flash",
@@ -1442,6 +1637,7 @@ The magic happens automatically in the background:
                         },
                         {
                             "name": "Update Product with AI Description",
+                            "workflow": { "$link": { "name": "Generate product description", "_model": "workflow" } },
                             "type": "UpdateData",
                             "targetModel": "product",
                             "targetSelector": {"$eq": ["$name", "{triggerData.name}"]},
@@ -1474,7 +1670,15 @@ The magic happens automatically in the background:
                     }],
                     "env": Object.values(providers).map(m => ({
                         name: m.key,
-                        value: "demo"
+                        value: "demo",
+                        "data": {
+                            "fr": {
+                                "translation": [
+                                    { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_workflow", "value": "Workflows" },
+                                    { "lang": { "$link": { "code": "fr", "_model": "lang" } }, "key": "model_workflowAction", "value": "Actions de workflow" }
+                                ]
+                            }
+                        }
                     }))
                 }
             }
@@ -4487,7 +4691,8 @@ return { status: 200, body: { message: "Workflow started", runId: result.runId }
     Update Payment Method
 </a>
 <p>If you believe this is an error, please contact our support team.</p>
-`
+`,
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } }
                         },
                         {
                             "name": "Send Subscription Welcome",
@@ -4504,7 +4709,8 @@ return { status: 200, body: { message: "Workflow started", runId: result.runId }
     <li>Next billing date: {context.subscription.currentPeriodEnd}</li>
 </ul>
 <p>If you have any questions, please don't hesitate to contact our support team.</p>
-`
+`,
+                        "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } }
                         },
                         {
                             "name": "Process Invoice Payment",
@@ -4561,11 +4767,14 @@ if (invoice.status === 'paid') {
 }
 
 return { success: true };
-`
+`,
+                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } }
+
                         },
                         {
                             "name": "Send Invoice Email",
                             "description": "Envoie la facture par email au client.",
+                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } },
                             "type": "SendEmail",
                             "emailRecipients": ["{triggerData.customer_email}"],
                             "emailSubject": "Your invoice is ready",
@@ -4580,6 +4789,7 @@ return { success: true };
                         {
                             "name": "Stripe: Create Customer",
                             "description": "Creates a new customer in Stripe. Expects 'email' and 'name' in the triggerData.",
+                            "workflow": { "$link": { "name": "Subscription Lifecycle Management", "_model": "workflow" } },
                             "type": "HttpRequest",
                             "method": "POST",
                             "url": "https://api.stripe.com/v1/customers",
@@ -4592,7 +4802,8 @@ return { success: true };
                             "type": "HttpRequest",
                             "method": "GET",
                             "url": "https://api.stripe.com/v1/payment_intents/{triggerData.event.id}",
-                            "headers": { "Authorization": "Bearer {env.STRIPE_SECRET_KEY}" }
+                            "headers": { "Authorization": "Bearer {env.STRIPE_SECRET_KEY}" },
+                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } }
                         },
                         {
                             "name": "Stripe Service: Verify Webhook",
@@ -4600,7 +4811,8 @@ return { success: true };
                             "type": "ExecuteServiceFunction",
                             "serviceName": "stripe",
                             "functionName": "verifyWebhookSignature",
-                            "args": ["{triggerData.request.headers}", "{triggerData.request.rawBody}"]
+                            "args": ["{triggerData.request.headers}", "{triggerData.request.rawBody}"],
+                            "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } }
                         },
                         {
                             "name": "Stripe: Create Checkout Session (Payment)",
@@ -4623,7 +4835,7 @@ return { success: true };
                                 "success_url": "{triggerData.successUrl}",
                                 "cancel_url": "{triggerData.cancelUrl}",
                                 "customer_email": "{triggerData.customerEmail}",
-                                "metadata": "{triggerData.metadata}"
+                                "metadata": "{triggerData.metadata}",
                             }
                         },
                         {
@@ -4648,6 +4860,7 @@ return { success: true };
                             "type": "SendEmail",
                             "emailRecipients": ["{context.httpResponse.receipt_email}"],
                             "emailSubject": "Your Payment Receipt",
+                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } },
                             "emailContent": `
 <h1>Thank you for your payment!</h1>
 <p>We've received your payment of {context.httpResponse.amount / 100} {context.httpResponse.currency.toUpperCase()}.</p>
@@ -4658,6 +4871,7 @@ return { success: true };
                         },
                         {
                             "name": "Process Refund",
+                            "workflow": { "$link": { "name": "Payment Reconciliation", "_model": "workflow" } },
                             "description": "Handles refund creation and updates order status.",
                             "type": "ExecuteScript",
                             "script": `
@@ -4703,7 +4917,8 @@ return { success: true };
                             "script": `
  logger.warn('Unhandled Stripe Event Received: Type=' + context.triggerData.event.type + ', ID=' + context.triggerData.event.id);
  return { success: true, message: 'Event logged as unhandled.' };
- `
+ `,
+                           "workflow": { "$link": { "name": "Process Stripe Webhook Events", "_model": "workflow" } }
                         },
                         {
                             "name": "Stripe: Create Customer Portal Session",

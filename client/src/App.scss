@@ -178,6 +178,12 @@ h2 {
   }
 }
 
+.btn .no-mobile-text {
+  @media only screen and (max-width: 768px){
+    display: none;
+  }
+  display: block;
+}
 .model-list {
   max-height: 30vh;
 
@@ -348,8 +354,14 @@ input[type=color] {
   min-width: 80px;
   height: 30px;
 }
-.models {
+
+
+
+#content .models {
   width: 100%;
+  h2 {
+    margin-bottom: 0;
+  }
   @media only screen and (min-width: 1024px){
     max-width: 320px;
   }
@@ -557,6 +569,7 @@ label + .field, label + input, label + select {
     margin: 2px;
   }
 }
+
 .languages {
   display: none;
   gap: 8px;

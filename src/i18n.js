@@ -5,6 +5,10 @@ import LanguageDetector from "i18next-browser-languagedetector";
 export const translations = {
     fr: {
         translation: {
+
+            "model_audience": "Audiences",
+            "model_deal": "Opportunités",
+
             "relationField.select.title": "Sélectionner {{modelName}}",
             "btns.validate": "Valider",
             "btns.create": "Créer",
@@ -1318,6 +1322,8 @@ export const translations = {
     },
     en: {
         translation: {
+            "model_audience": "Audiences",
+            "model_deal": "Opportunities",
             "relationField.select.title": "Select {{modelName}}",
             "btns.validate": "Validate",
             "btns.create": "Create",
@@ -2627,6 +2633,8 @@ export const translations = {
     },
     es: {
         translation: {
+            "model_audience": "Audiencias",
+            "model_deal": "Oportunidades",
             "relationField.select.title": "Seleccionar {{modelName}}",
             "btns.validate": "Validar",
             "btns.create": "Crear",
@@ -3973,6 +3981,10 @@ export const translations = {
     },
     pt: {
         translation: {
+
+            "model_audience": "Públicos",
+            "model_campaign": "Campanhas de marketing",
+            "model_deal": "Oportunidades",
             "relationField.select.title": "Selecionar {{modelName}}",
             "btns.validate": "Validar",
             "btns.create": "Criar",
@@ -4125,6 +4137,8 @@ export const translations = {
     },
     de: {
         translation: {
+            "model_audience": "Zielgruppen",
+            "model_deal": "Möglichkeiten",
             "relationField.select.title": "{{modelName}} auswählen",
             "btns.validate": "Validieren",
             "btns.create": "Erstellen",
@@ -5424,7 +5438,6 @@ export const translations = {
             "field_endpoint_isPublic_hint": "Se selezionato, questo endpoint sarà accessibile senza autenticazione. Lo script verrà eseguito con i permessi del proprietario dell'endpoint.",
             "field_endpoint_code": "Codice da eseguire",
             "field_endpoint_code_hint": "Lo script da eseguire. Deve restituire un valore o un oggetto che sarà la risposta JSON.",
-            "model_env": "Variabili d'Ambiente (env)",
             "datatable.advancedFilter.title": "Filtro avanzato (MongoDB)",
             "datatable.advancedFilter.desc": "Crea i tuoi filtri avanzati da zero, utilizzando gli operatori di aggregazione di MongoDB disponibili qui.",
             "editData": "Modifica in {{0}}",
@@ -5696,6 +5709,10 @@ export const translations = {
             "model_channel": "Canali di notifica",
             "model_message": "Messaggi",
             "model_kpi": "Indicatori KPI",
+            "model_env": "Variabili d'Ambiente (env)",
+            "model_audience": "Pubblici",
+            "model_deal": "Opportunità",
+
             "field_permission_name": "Nome",
             "field_permission_description": "Descrizione",
 
@@ -6628,6 +6645,9 @@ export const translations = {
     },
     cs: {
         translation: {
+            "model_audience": "Publika",
+            "model_campaign": "Marketingové kampaně",
+            "model_deal": "Příležitosti",
             "relationField.select.title": "Vybrat {{modelName}}",
             "btns.validate": "Ověřit",
             "btns.create": "Vytvořit",
@@ -7553,6 +7573,8 @@ export const translations = {
     },
     ru: {
         translation: {
+            "model_audience": "Аудитории",
+            "model_deal": "Возможности",
             "relationField.select.title": "Выбрать {{modelName}}",
             "btns.validate": "Проверить",
             "btns.create": "Создать",
@@ -8832,6 +8854,8 @@ export const translations = {
     },
     ar: {
         translation: {
+            "model_audience": "الجماهير",
+            "model_deal": "الفرص",
             "relationField.select.title": "اختر {{modelName}}",
             "btns.validate": "تحقق",
             "btns.create": "إنشاء",
@@ -8901,7 +8925,7 @@ export const translations = {
             "field_endpoint_code": "الكود المنفذ",
             "field_endpoint_code_hint": "السكريبت الذي سيتم تنفيذه. يجب أن يعيد قيمة أو كائنًا سيكون استجابة JSON.",
             "model_env": "متغيرات البيئة (env)",
-            
+
             "datatable.advancedFilter.title": "مرشح متقدم (MongoDB)",
             "datatable.advancedFilter.desc": "أنشئ مرشحاتك المتقدمة من الصفر، باستخدام عوامل تجميع MongoDB المتوفرة هنا",
             "editData": "تعديل في {{0}}",
@@ -10156,6 +10180,8 @@ export const translations = {
     },
     sv: {
         translation: {
+            "model_audience": "Målgrupper",
+            "model_deal": "Möjligheter",
             "relationField.select.title": "Välj {{modelName}}",
             "btns.validate": "Validera",
             "btns.create": "Skapa",
@@ -11316,7 +11342,7 @@ export const translations = {
             "no": "Nej",
             "true": "Sant",
             "false": "Falskt",
-            
+
 
             "assistant.type": "Skriv ditt meddelande...",
             "assistant.welcome": "Hej! Hur kan jag hjälpa dig med din data?",
@@ -11383,6 +11409,10 @@ export const translations = {
     },
     el: {
         translation: {
+            "model_audience": "Κοινά",
+            "model_deal": "Ευκαιρίες",
+            "model_endpoint": "Τελικά σημεία",
+            "model_env": "Μεταβλητές Περιβάλλοντος",
             "relationField.select.title": "Επιλογή {{modelName}}",
             "btns.validate": "Επικύρωση",
             "btns.create": "Δημιουργία",
@@ -12586,6 +12616,8 @@ export const translations = {
     },
     fa: {
         translation: {
+            "model_audience": "مخاطبان",
+            "model_deal": "فرصت‌ها",
             "relationField.select.title": "{{modelName}} را انتخاب کنید",
             "btns.validate": "اعتبارسنجی",
             "btns.create": "ایجاد",

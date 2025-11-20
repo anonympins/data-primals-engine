@@ -3,8 +3,8 @@ import {useModelContext} from "./contexts/ModelContext.jsx";
 import {Trans, useTranslation} from "react-i18next";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
-import React, {useEffect, useMemo, useRef, useState} from "react";
-import {getUserId} from "../../src/data.js";
+import React, {useEffect, useMemo, useRef, useState} from "react"; 
+import {getUserHash, getUserId} from "../../src/data.js";
 import cronstrue from 'cronstrue/i18n';
 import {Event} from "../../src/events.js";
 
@@ -43,7 +43,7 @@ import RelationValue from "./RelationValue.jsx";
 import {FaGear, FaPencil, FaTriangleExclamation} from "react-icons/fa6";
 import RestoreConfirmationModal from "./RestoreConfirmationModal.jsx";
 import {event_trigger, isLightColor} from "../../src/core.js";
-import {Tooltip} from "react-tooltip";
+import {Tooltip} from "react-tooltip"; 
 import ExportDialog from "./ExportDialog.jsx";
 import Captions from "yet-another-react-lightbox/plugins/captions";
 import {Zoom} from "yet-another-react-lightbox/plugins";
@@ -59,7 +59,9 @@ import {isConditionMet} from "../../src/filter";
 import {DataImporter} from "./DataImporter.jsx";
 import {HistoryDialog} from "./HistoryDialog.jsx";
 import { useCommand } from './contexts/CommandContext.jsx';
-import {Config} from "../../src/config.js";
+import {Config} from "../../src/config.js"; 
+import {useNavigate} from "react-router-dom";
+import {NavLink} from "react-router";
 
 const Header = ({
                     reversed = false,
@@ -261,7 +263,7 @@ export function DataTable({
                               filterValues,
                               setFilterValues = () => {},
                               data: propData,
-                              advanced= true, selectionMode= false, deleteApiCall, queryClient
+                              advanced= true, selectionMode= false, deleteApiCall
                           }) {
     const {
         models,
@@ -279,6 +281,7 @@ export function DataTable({
     const {me} = useAuthContext();
     const { execute, DeleteCommand } = useCommand();
 
+    const queryClient = useQueryClient();
     // Si des données sont passées en props, on les utilise, sinon on prend celles du contexte.
     const data = propData || paginatedDataByModel[model?.name] || [];
 
@@ -438,15 +441,12 @@ export function DataTable({
         onDuplicateData(dataToDuplicate);
     };
 
+    const nav = useNavigate();
+
     const desc = t(`model_description_${selectedModel?.name}`, selectedModel?.description || '');
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && !selectionMode && <div className="flex actions">
-                {t(`model_${selectedModel?.name}`, selectedModel?.name) !== selectedModel?.name && (
-                    <span className="badge"><strong>model</strong> : {selectedModel?.name}</span>)}
-                {selectedModel.name === 'dashboard' && <Button className={"btn"} onClick={() => {
-                    nav('/user/'+getUserHash(me)+'/dashboards');
-                }}><FaEye /> Tableaux de bord</Button> }
+            {advanced && !selectionMode && <div className="flex">
                 {desc && <p className="model-desc hint">{desc}</p>}
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
                     i18nKey="btns.import">Importer</Trans></Button>
@@ -736,6 +736,13 @@ export function DataTable({
                                         >
                                             <FaHistory />
                                         </button>)}
+                                        {/* AJOUT : Bouton pour ouvrir l'éditeur de workflow */}
+                                        {model.name === 'workflow' && (
+                                            <NavLink to={`?edit-workflow=${item._id}`} className="datatable-action-btn workflow-edit"
+                                                     data-tooltip-id="tooltipActions" data-tooltip-content={t('workflow.editor.title', "Éditeur de Workflow")}>
+                                                <FaGear />
+                                            </NavLink>
+                                        )}
 
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.delete', 'Supprimer')}
