@@ -918,7 +918,8 @@ export const defaultModels = {
         "tags": ["system", "automation"],
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Unique name for the workflow (e.g., 'Order Validation', 'Low Stock Notification')." },
-            { name: 'description', type: 'richtext', hint: "Detailed explanation of the workflow's purpose." },
+            { name: 'description', type: 'richtext', hint: "Detailed explanation of the workflow's purpose." 
+            },
             { name: 'startStep', type: 'relation', relation: 'workflowStep', required: false, hint: "The first step to execute when the workflow starts." }
         ]
     },
@@ -982,7 +983,8 @@ export const defaultModels = {
         "tags": ["system", "automation"],
         fields: [
             { name: 'workflow', type: 'relation', relation: 'workflow', required: true, hint: "The workflow this step belongs to." },
-            { name: 'name', type: 'string_t', hint: "Optional descriptive name for the step (e.g., 'Check Inventory', 'Send Confirmation Email')." },
+            { name: 'name', type: 'string_t', hint: "Optional descriptive name for the step (e.g., 'Check Inventory', 'Send Confirmation Email')." 
+            },
             { name: 'conditions', type: 'code', language: 'json', conditionBuilder: true, hint: "Optional conditions checked before executing the step's action." },
             { name: 'actions', type: 'relation', relation: 'workflowAction', multiple: true, required: true, hint: "The main actions performed by this step." },
             { name: 'onSuccessStep', type: 'relation', relation: 'workflowStep', hint: "Optional: The next step if this step's action succeeds." },
@@ -997,6 +999,7 @@ export const defaultModels = {
         "tags": ["system", "automation"],
         fields: [
             { name: 'name', type: 'string_t', required: true, hint: "Name of the action (e.g., 'Update Order Status', 'Send Email', 'Call Payment API')." },
+            { name: 'workflow', type: 'relation', relation: 'workflow', required: false },
             {
                 name: 'type',
                 type: 'enum',
