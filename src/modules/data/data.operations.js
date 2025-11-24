@@ -817,7 +817,7 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
         }
 
         // System specific event
-        const eventPayload = {modelName, insertedIds, user};
+        const eventPayload = {modelName, insertedDocs, user};
         await Event.Trigger("OnDataAdded", "event", "system", engine, eventPayload);
 
         // User specific event
