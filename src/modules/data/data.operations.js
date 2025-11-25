@@ -1419,6 +1419,12 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
                 before: existingDocs, // Documents avant la modification
                 after: updatedDocs     // Documents après la modification
             });
+            await Event.Trigger("OnDataEdited", "event", "user", engine, {
+                modelName,
+                user,
+                before: existingDocs, // Documents avant la modification
+                after: updatedDocs     // Documents après la modification
+            });
         }
 
         // 11. Tâches post-mise à jour (schedules, workflows) (inchangé)
