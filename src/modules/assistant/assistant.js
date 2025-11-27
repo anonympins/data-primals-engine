@@ -101,7 +101,7 @@ const createSystemPrompt = (modelDefs, lang) => {
 
     const date = new Date();
     const dt = date.toISOString();
-    return `
+    return Config.Get('systemPrompt', `
 Tu es "Prior", un assistant expert en analyse de données pour le moteur data-primals-engine..
 Ta mission est d'aider l'utilisateur en répondant à ses questions sur ses données.
 
@@ -333,7 +333,7 @@ Ma question: Bonjour, je voudrais les requêtes effectuées aujourd'hui sur le m
 Ta réponse: [
   { "action" : "search_models", "params": { "query": "request" } },
   { "action" : "search", "params" : { "model": "request", "filter": { "$and": [{"$gte": ["$createdAt", "${dt}"]}, {"$regexMatch": { "input": "$url", "regex": "content"}}] }, "limit" : 10, "sort" : "_id:DESC" } }
-]`;
+]`);
 }
 
 /**
@@ -559,11 +559,12 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             return result;
         }
         
-        let hasContinued = false;
+        const toolResults = [];
+        let finalActionResult = null;
+
         for (const command of commands) {
             logger.debug(`[Assistant] Action décidée par l'IA: ${command.action}`, command);
             if (sendEvent) sendEvent('action', { action: command.action, params: command.params });
-            conversationHistory.push(new SystemMessage(JSON.stringify(command)));
 
             const { action, params: parsedParams } = command;
 
@@ -576,39 +577,51 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             // Outils pour le raisonnement interne de l'IA
             if (['search_models'].includes(action)) {
                 const toolResult = await executeTool(action, parsedParams, user, allModels);
-                if (sendEvent) sendEvent('tool_result', { action, result: toolResult });
-                conversationHistory.push(new SystemMessage(`Résultat de l'outil '${action}':\n${toolResult}`));
-                hasContinued = true; // On indique qu'on doit continuer la boucle principale
-                continue; // On passe à la commande suivante dans la liste de l'IA
+                toolResults.push({ action, result: toolResult });
+                continue;
             }
 
             // Actions finales
-            const res = await Event.Trigger('OnChatAction', 'event', 'user', action, params, command, llmOptions, user);
+            const res = await Event.Trigger('OnChatAction', 'event', 'user', action, parsedParams, command, llmOptions, user, params);
 
-            if (!res) {
+            if (res) {
+                // On a trouvé une action finale. On la stocke et on arrête de chercher.
+                finalActionResult = res;
+                break; // Sort de la boucle des commandes
+            } else {
                 // Si l'action n'est reconnue par aucune des logiques ci-dessus
                 logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
-                const result = {
+                finalActionResult = {
                     success: true,
                     displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", { action })
                 };
-                if (sendEvent) {
-                    sendEvent('final_result', result);
-                    return;
-                }
-                return result;
+                break; // Sortir de la boucle des commandes
             }
-            // Une action finale a été trouvée, on retourne son résultat et on arrête le traitement.
-            if (sendEvent) {
-                sendEvent('final_result', res);
-                return;
-            }
-            return res;
         }
 
-        // Si on a traité des outils de raisonnement, on relance la boucle de l'IA
-        if (hasContinued) {
+        // Si une action finale a été exécutée, on retourne son résultat.
+        if (finalActionResult) {
+            if (sendEvent) {
+                sendEvent('final_result', finalActionResult);
+                return;
+            }
+            return finalActionResult;
+        }
+
+        // Si on a uniquement des résultats d'outils, on les ajoute à l'historique et on continue la boucle.
+        if (toolResults.length > 0) {
+            let toolResponse = "";
+            for (const tool of toolResults) {
+                if (sendEvent) sendEvent('tool_result', { action: tool.action, result: tool.result });
+                toolResponse += `Résultat de l'outil '${tool.action}':\n${tool.result}\n\n`;
+            }
+            conversationHistory.push(new SystemMessage(toolResponse));
             continue;
+        }
+
+        // Si l'IA ne retourne ni outil ni action finale reconnue, on arrête.
+        if (commands.length > 0) {
+             logger.warn(`[Assistant] L'IA a retourné des commandes mais aucune n'était un outil ou une action finale reconnue. Commandes:`, commands);
         }
     }
 
@@ -656,7 +669,7 @@ async function executeConfirmedAction(action, params, user) {
  * @param {object} user - L'objet utilisateur.
  * @returns {Promise<object|boolean>} - L'objet de réponse final ou false si l'action n'est pas reconnue.
  */
-async function handleFinalChatAction(action, params, parsedResponse, user) {
+async function handleFinalChatAction(action, params, parsedResponse, user, llmOptions) {
     // Action de génération de graphique, gérée par le front-end
     if (action === 'generateChart') {
         return {success: true, chartConfig: params};
