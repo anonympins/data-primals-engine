@@ -52,6 +52,7 @@
   },
   "exports": {
     ".": "./src/index.js",
+    "./client-only": "./src/client.js",
     "./modules/*.js": "./src/modules/*.js",
     "./modules/*": "./src/modules/*/index.js",
     "./client": "./client/index.js",
