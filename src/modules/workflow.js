@@ -17,8 +17,8 @@ import {isConditionMet} from "../filter.js";
 import { services } from '../services/index.js';
 import {getEnv, getSmtpConfig} from "./user.js";
 import {getHost} from "../constants.js";
-import {providers} from "./assistant/constants.js";
-import {getAIProvider} from "./assistant/assistant.js";
+import { providers } from "./assistant/constants.js";
+import { getAIProvider } from "./assistant/providers.js";
 import {parseSafeJSON, safeAssignObject} from "../core.js";
 import {Config} from "../config.js";
 

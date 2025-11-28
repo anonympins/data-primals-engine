@@ -88,7 +88,7 @@ describe('Data History Module Integration Tests', () => {
         };
         const insertResult = await insertData(modelName, initialData, {}, testUser);
         expect(insertResult.success).toBe(true);
-        const docId = new ObjectId(insertResult.insertedIds[0]);
+        const docId = new ObjectId(insertResult.data._id);
 
         // 3. Verify the history record
         const historyRecord = await historyCollection.findOne({ documentId: new ObjectId(docId) });
@@ -136,7 +136,7 @@ describe('Data History Module Integration Tests', () => {
         // 2. Insert the initial document
         const initialData = { name: 'Selective Widget', price: 50, stock: 200, description: 'Initial description.' };
         const insertResult = await insertData(modelName, initialData, {}, testUser);
-        const docId = new ObjectId(insertResult.insertedIds[0]);
+        const docId = new ObjectId(insertResult.data._id);
 
         // 3. Edit the document: change one historized field and one non-historized field
         const updateData = { price: 55.5, description: 'Updated description.' };
@@ -179,7 +179,7 @@ describe('Data History Module Integration Tests', () => {
         // 2. Insert initial document
         const initialData = { name: 'No-Op Widget', price: 10, description: 'Initial.' };
         const insertResult = await insertData(modelName, initialData, {}, testUser);
-        const docId = new ObjectId(insertResult.insertedIds[0]);
+        const docId = new ObjectId(insertResult.data._id);
 
         // 3. Edit ONLY a non-historized field
         const updateData = { description: 'This change should not be recorded.' };
@@ -206,7 +206,7 @@ describe('Data History Module Integration Tests', () => {
 
         // 2. Insert initial document
         const insertResult = await insertData(modelName, { name: 'Time-traveling Widget' }, {}, testUser);
-        const docId = new ObjectId(insertResult.insertedIds[0]);
+        const docId = new ObjectId(insertResult.data._id);
 
         // 3. Create history entries at different times
         // To simulate different timestamps, we'll manually insert history records
