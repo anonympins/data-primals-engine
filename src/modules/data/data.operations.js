@@ -829,7 +829,10 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
         // --- CORRECTION ---
         // On renvoie l'objet complet du premier document inséré (cas le plus courant pour l'undo)
         // et la liste complète des IDs pour les cas de bulk insert.
-        const firstInsertedDoc = insertedDocs.length > 0 ? insertedDocs[0] : null;
+        let firstInsertedDoc = insertedDocs.length > 0 ? { ...insertedDocs[0] } : null;
+        if (firstInsertedDoc?._id) {
+            firstInsertedDoc._id = firstInsertedDoc._id.toString();
+        }
         return {success: true, data: firstInsertedDoc, insertedIds: insertedIds.map(id => id.toString())};
 
     } catch (error) { // Attrape les erreurs de permission ou de pushDataUnsecure

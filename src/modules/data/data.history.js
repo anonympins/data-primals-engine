@@ -323,17 +323,14 @@ export function onInit(defaultEngine) {
     engine.post('/api/data/history/:modelName/:recordId/revert/:version', [middlewareAuthenticator, userInitiator], handleRevertToRevisionRequest);
 
     // --- Écouteur pour la CRÉATION de données (Version 1 - Snapshot) ---
-    Event.Listen("OnDataAdded", async (engine, { modelName, insertedIds, user }) => {
+    Event.Listen("OnDataAdded", async (engine, { modelName, insertedDocs, user }) => {
         try {
             const model = await getModel(modelName, user);
             if (!model?.history?.enabled) return;
 
-            const dataCollection = await getCollectionForUser(user);
             const historyCollection = getCollection('history');
 
-            const newDocs = await dataCollection.find({ _id: { $in: insertedIds.map(id => new ObjectId(id)) } }).toArray();
-
-            for (const doc of newDocs) {
+            for (const doc of insertedDocs) {
                 await historyCollection.insertOne({
                     documentId: doc._id,
                     model: modelName,
