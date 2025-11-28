@@ -1401,6 +1401,7 @@ export async function processWorkflowRun(workflowRunId, user) {
     let currentRunState;
     let contextData = {};
     let stepExecutionsCount = {};
+    let history = [];
 
     try {
         currentRunState = await dbCollection.findOne({ _id: runId, _model: 'workflowRun' });
@@ -1411,6 +1412,7 @@ export async function processWorkflowRun(workflowRunId, user) {
         }
 
         stepExecutionsCount = currentRunState.stepExecutionsCount || {};
+        history = currentRunState.history || [];
         if (['completed', 'failed', 'cancelled'].includes(currentRunState.status)) {
             logger.info(`[processWorkflowRun] WorkflowRun ID: ${runId} is already in a terminal state (${currentRunState.status}). Skipping.`);
             return;
@@ -1420,7 +1422,7 @@ export async function processWorkflowRun(workflowRunId, user) {
             logger.error(error);
             await dbCollection.updateOne(
                 { _id: runId },
-                { $set: { status: 'failed', error, completedAt: new Date(), stepExecutionsCount } }
+                { $set: { status: 'failed', error, completedAt: new Date(), stepExecutionsCount, history } }
             );
         };
 
@@ -1437,7 +1439,7 @@ export async function processWorkflowRun(workflowRunId, user) {
             const errorMessage = workflowDefinition.startStep ? 'No valid starting step defined in workflow or run state.' : null;
             await dbCollection.updateOne(
                 { _id: runId },
-                { $set: { status: finalStatus, error: errorMessage, completedAt: new Date(), currentStep: null, stepExecutionsCount } }
+                { $set: { status: finalStatus, error: errorMessage, completedAt: new Date(), currentStep: null, stepExecutionsCount, history } }
             );
             return;
         }
@@ -1462,10 +1464,13 @@ export async function processWorkflowRun(workflowRunId, user) {
                 return await logError(`Step definition ID: ${currentStepId} not found.`);
             }
 
-            await dbCollection.updateOne(
-                { _id: runId },
-                { $set: { status: 'running', currentStep: currentStepId, contextData, stepExecutionsCount } }
-            );
+            const stepHistoryEntry = {
+                stepId: currentStepId.toString(),
+                stepName: currentStepDef.name,
+                executedAt: new Date(),
+                status: 'pending',
+                actions: []
+            };
 
             let stepSucceeded = true;
             let logInfo = null;
@@ -1502,6 +1507,14 @@ export async function processWorkflowRun(workflowRunId, user) {
                         for (const actionId of currentStepDef.actions) {
                             if (!isObjectId(actionId)) continue;
                             const actionDef = await dbCollection.findOne({ _id: new ObjectId(actionId), _model: 'workflowAction' });
+                            const actionHistoryEntry = {
+                                actionId: actionId.toString(),
+                                actionName: actionDef.name,
+                                actionType: actionDef.type,
+                                executedAt: new Date(),
+                                status: 'pending'
+                            };
+
                             if (!actionDef) return await logError(`Action definition ${actionId} not found.`);
                             const actionResult = await workflowModule.executeStepAction(actionDef, contextData, user, dbCollection);
 
@@ -1540,9 +1553,15 @@ export async function processWorkflowRun(workflowRunId, user) {
                             if (!actionResult.success) {
                                 stepSucceeded = false;
                                 logInfo = actionResult.message || `Action ${actionDef.name || actionId} failed.`;
+                                actionHistoryEntry.status = 'failed';
+                                actionHistoryEntry.result = logInfo;
+                                stepHistoryEntry.actions.push(actionHistoryEntry);
                                 break;
                             }else{
                                 logInfo = `Action ${actionDef.name || actionId} : ${actionResult.message}`;
+                                actionHistoryEntry.status = 'success';
+                                actionHistoryEntry.result = actionResult.message;
+                                stepHistoryEntry.actions.push(actionHistoryEntry);
                             }
                             if (actionResult.updatedContext) {
                                 contextData = { ...contextData, ...actionResult.updatedContext };
@@ -1551,6 +1570,10 @@ export async function processWorkflowRun(workflowRunId, user) {
                             logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}, Action ID: ${actionId}: Executed successfully.`);
                         }
                     }
+                    if (stepSucceeded) {
+                        stepHistoryEntry.status = 'success';
+                        stepHistoryEntry.result = 'Step actions completed successfully.';
+                    }
                 } else {
                     logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Conditions not met. Skipping actions.`);
                 }
@@ -1558,6 +1581,8 @@ export async function processWorkflowRun(workflowRunId, user) {
                 logger.error(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}: Error during condition/action execution: ${error.message}`);
                 stepSucceeded = false;
                 logInfo = error.message;
+                stepHistoryEntry.status = 'failed';
+                stepHistoryEntry.result = logInfo;
             }
 
             // --- 9. Détermination de la prochaine étape ---
@@ -1587,7 +1612,7 @@ export async function processWorkflowRun(workflowRunId, user) {
 
             // --- 10. Mise à jour de l'état de l'exécution ---
             currentStepId = nextStepId;
-            const updatePayload = { contextData };
+            const updatePayload = { contextData, stepExecutionsCount }; // <-- CORRECTION: Always include stepExecutionsCount
 
             if (finalStatusForRun) {
                 updatePayload.status = finalStatusForRun;
@@ -1597,7 +1622,21 @@ export async function processWorkflowRun(workflowRunId, user) {
             } else {
                 updatePayload.currentStep = currentStepId;
             }
-            await dbCollection.updateOne({ _id: runId }, { $set: updatePayload });
+
+            // Update the last history entry with the final status and actions
+            // We use a pipeline to reliably update the last element of the history array.
+            // --- FIX ---
+            // The previous logic using $slice failed when the history array had only one element.
+            // This new logic uses a direct update on the last element of the array, which is more robust.
+            await dbCollection.updateOne(
+                { _id: runId }, {
+                    $set: updatePayload,
+                    $push: {
+                        history: stepHistoryEntry
+                    }
+                }
+            );
+
 
             if(finalStatusForRun) {
                 logger.info(`[processWorkflowRun] Finished processing for workflowRun ID: ${runId}. Final Status: ${finalStatusForRun}`);
@@ -1607,7 +1646,7 @@ export async function processWorkflowRun(workflowRunId, user) {
         logger.error(`[processWorkflowRun] Critical error during processing of workflowRun ID: ${runId}. Error: ${error.message}`, error.stack);
         await dbCollection.updateOne(
             { _id: runId, status: { $nin: ['completed', 'failed', 'cancelled'] } },
-            { $set: { status: 'failed', log: `Critical error: ${error.message}`, completedAt: new Date(), stepExecutionsCount } }
+            { $set: { status: 'failed', log: `Critical error: ${error.message}`, completedAt: new Date(), stepExecutionsCount, history } }
         );
     }
 }

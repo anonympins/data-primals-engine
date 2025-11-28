@@ -207,6 +207,14 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
         expect(workflowRun.contextData.triggerData._id.toString()).toBe(insertResult.insertedIds[0].toString());
         expect(workflowRun.contextData.triggerData.projectName).toBe('New Corp Website');
 
+        // --- Vérification du champ 'history' ---
+        expect(workflowRun.history).toBeDefined();
+        expect(Array.isArray(workflowRun.history)).toBe(true);
+        expect(workflowRun.history.length).toBeGreaterThan(0);
+        const firstStepHistory = workflowRun.history[0];
+        expect(firstStepHistory.stepId).toBe(testStep._id.toString());
+        expect(firstStepHistory.status).toBe('success');
+
     });
 
     it('ne devrait PAS créer de workflowRun si le trigger est inactif', async () => {
