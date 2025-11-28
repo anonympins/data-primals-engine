@@ -12,6 +12,7 @@ import { useModelContext } from './contexts/ModelContext';
 import { useAuthContext } from './contexts/AuthContext';
 import { Trans, useTranslation } from 'react-i18next';
 import { CodeField } from "./Field.jsx";
+import { useData } from './hooks/data.js';
 import { useQuery } from 'react-query';
 
 import "./WorkflowEditor.scss"
@@ -32,6 +33,22 @@ const WorkflowEditor = ({ workflowId }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState(null);
+    const [workflowRuns, setWorkflowRuns] = useState([]);
+    const [selectedRun, setSelectedRun] = useState(null);
+
+    // --- CORRECTION ---
+    // On utilise le hook `useData` comme prévu, en lui passant directement les paramètres de la requête.
+    // Cela corrige l'erreur "Cannot read properties of undefined (reading 'queryKey')".
+    const { data: runsData, refetch: refetchRuns } = useData(
+        'workflowRun', // queryKey
+        { model: 'workflowRun', filter: { workflow: workflowId }, sort: 'startedAt:DESC', limit: 10 }, // queryParams
+        {
+            queryKey: ['workflowRuns', workflowId],
+            enabled: !!workflowId,
+            // --- CORRECTION ---
+            // Le hook `useData` retourne déjà le tableau de données. On utilise donc `data` directement.
+            onSuccess: (data) => setWorkflowRuns(data || [])
+        });
     const [panelWidth, setPanelWidth] = useState(300);
     const resizeData = useRef({ isResizing: false, initialX: 0, initialWidth: 0 });
 
@@ -264,12 +281,37 @@ const WorkflowEditor = ({ workflowId }) => {
             {/* Panneau latéral pour l'édition des propriétés */}
             {selectedNode && (
                 <div className="properties-panel" style={{ width: `${panelWidth}px`, padding: '10px', borderLeft: '1px solid #ccc' }}>
+                    <select onChange={(e) => setSelectedRun(workflowRuns.find(r => r._id === e.target.value))} value={selectedRun?._id || ''}>
+                        <option value="">{t('select_a_run', 'Select a run to debug')}</option>
+                        {workflowRuns.map(run => <option key={run._id} value={run._id}>{new Date(run.startedAt).toLocaleString()} - {run.status}</option>)}
+                    </select>
+                    <button onClick={() => refetchRuns()}>{t('refresh', 'Refresh')}</button>
                     <div
                         className="resizer"
                         onMouseDown={handleMouseDown}
                     />
                     <h3><Trans i18nKey="properties">Propriétés</Trans></h3>
                     <p><strong>ID:</strong> {selectedNode.id}</p>
+
+                    {/* --- NOUVELLE SECTION POUR L'HISTORIQUE --- */}
+                    {selectedRun && selectedRun.history && selectedRun.history.find(h => h.stepId === selectedNode.id) && (
+                        <div className="mt-2 p-2 border rounded bg-gray-50">
+                            <strong><Trans i18nKey="run_history">Run History</Trans> ({selectedRun.status})</strong>
+                            {selectedRun.history.filter(h => h.stepId === selectedNode.id).map((historyEntry, index) => (
+                                <div key={index} className="mt-1 text-sm">
+                                    <p><strong><Trans i18nKey="executed_at">Executed at:</Trans></strong> {new Date(historyEntry.executedAt).toLocaleTimeString()}</p>
+                                    <p><strong><Trans i18nKey="status">Status:</Trans></strong> {historyEntry.status}</p>
+                                    {historyEntry.actions?.length > 0 && (
+                                        <ul className="pl-4 list-disc">
+                                            {historyEntry.actions.map((actionHist, aIndex) => (
+                                                <li key={aIndex}>{actionHist.actionName}: {actionHist.status} ({actionHist.result})</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Affiche les conditions pour un workflowStep */}
                     {selectedNode.data.conditions && (
