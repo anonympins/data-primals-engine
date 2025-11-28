@@ -1,7 +1,8 @@
 import { getCollectionForUser, modelsCollection } from "../mongodb.js";
 import { Logger } from "../../gameObject.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import {searchData,  patchData, deleteData, insertData} from "../data/index.js";
+import { searchData, patchData, deleteData, insertData } from "../data/index.js";
+import { getAIProvider } from "./providers.js";
 import {providers} from "./constants.js";
 import {Config} from "../../config.js";
 import { Event } from "../../events.js";
@@ -13,38 +14,6 @@ import {parseSafeJSON} from "../../core.js";
 
 let logger = null;
 
-export const getAIProvider= async (aiProvider, aiModel, apiKey)=>{
-    const maxTokens = Config.Get('assistant.maxTokens', assistantConfig.maxTokens);
-    try {
-        switch (aiProvider) {
-        case 'OpenAI': {
-            const { ChatOpenAI } = await import("@langchain/openai");
-            return new ChatOpenAI({apiKey, model: aiModel, temperature: 0.7, maxTokens});
-        }
-        case 'Google': {
-            const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
-            return new ChatGoogleGenerativeAI({apiKey, model: aiModel, temperature: 0.7, maxTokens});
-        }
-        case 'DeepSeek': {
-            const { ChatDeepSeek } = await import("@langchain/deepseek");
-            return new ChatDeepSeek({apiKey, model: aiModel, temperature: 0.7, maxTokens});
-        }
-        case 'Anthropic': {
-            const { ChatAnthropic } = await import("@langchain/anthropic");
-            return new ChatAnthropic({apiKey, model: aiModel, temperature: 0.7, maxTokens});
-        }
-        default:
-            throw new Error(`Unsupported AI provider: ${aiProvider}`);
-        }
-    } catch (e) {
-        if (e.code === 'ERR_MODULE_NOT_FOUND') {
-            logger.error(`[Assistant] The package for the '${aiProvider}' provider is not installed. Please run 'npm install @langchain/${aiProvider.toLowerCase()}' to use this provider.`);
-            throw new Error(`The AI provider '${aiProvider}' is not installed. Please ask the administrator to install the corresponding package.`);
-        }
-        logger.error(`[Assistant] Error initializing AI provider '${aiProvider}': ${e.message}`);
-        throw e; // Re-throw other errors
-    }
-}
 export const assistantGlobalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // Fenêtre de 15 minutes
     max: 100, // Limite à 100 requêtes globales pour l'assistant pendant la fenêtre (vous pouvez ajuster cette valeur)
@@ -475,7 +444,7 @@ export async function handleChatRequest(params, user, sendEvent = null) {
         return errorResult;
     }
 
-    const systemPrompt = await Event.Trigger('OnSystemPrompt', 'event', 'user', user);
+    const systemPrompt = (await Event.Trigger('OnSystemPrompt', 'event', 'user', user)) || createSystemPrompt([], user.lang || 'en');
 
     const conversationHistory = (history || [])
         .filter(msg => msg.text && !(msg.from === 'bot' && msg.text.startsWith(i18n.t('assistant.welcome'))))
@@ -578,7 +547,7 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             if (['search_models'].includes(action)) {
                 const toolResult = await executeTool(action, parsedParams, user, allModels);
                 toolResults.push({ action, result: toolResult });
-                continue;
+                continue; // Passe à la commande suivante sans vérifier si c'est une action finale
             }
 
             // Actions finales
@@ -621,7 +590,7 @@ export async function handleChatRequest(params, user, sendEvent = null) {
 
         // Si l'IA ne retourne ni outil ni action finale reconnue, on arrête.
         if (commands.length > 0) {
-             logger.warn(`[Assistant] L'IA a retourné des commandes mais aucune n'était un outil ou une action finale reconnue. Commandes:`, commands);
+            logger.warn(`[Assistant] L'IA a retourné des commandes mais aucune n'était un outil ou une action finale reconnue. Commandes:`, commands);
         }
     }
 
@@ -669,7 +638,7 @@ async function executeConfirmedAction(action, params, user) {
  * @param {object} user - L'objet utilisateur.
  * @returns {Promise<object|boolean>} - L'objet de réponse final ou false si l'action n'est pas reconnue.
  */
-async function handleFinalChatAction(action, params, parsedResponse, user, llmOptions) {
+async function handleFinalChatAction(action, params, parsedResponse, llmOptions, user) {
     // Action de génération de graphique, gérée par le front-end
     if (action === 'generateChart') {
         return {success: true, chartConfig: params};
