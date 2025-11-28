@@ -1611,8 +1611,8 @@ export async function processWorkflowRun(workflowRunId, user) {
             }
 
             // --- 10. Mise à jour de l'état de l'exécution ---
-            currentStepId = nextStepId; // This is correct, but we need to update the history array in the DB
-            const updatePayload = { contextData };
+            currentStepId = nextStepId;
+            const updatePayload = { contextData, stepExecutionsCount }; // <-- CORRECTION: Always include stepExecutionsCount
 
             if (finalStatusForRun) {
                 updatePayload.status = finalStatusForRun;
