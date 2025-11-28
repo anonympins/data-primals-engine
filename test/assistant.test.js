@@ -82,11 +82,9 @@ describe('Assistant Module Unit Tests', () => {
     });
 
     it('should handle a search action', async () => {
-        // Add some data to search for
-        const insertedData = await insertData(modelName, { name: 'Test Widget', price: 100 }, {}, testUser);
 
         // Configure le retour du mock pour ce test spécifique
-        const searchDataSpy = vi.spyOn(dataOperations, 'searchData').mockResolvedValue({ data: [], count: 0 });
+        const searchDataSpy = vi.spyOn(dataOperations, 'searchData').mockResolvedValue({ data: [{ name: 'Test Widget', price: 100 }], count: 1 });
 
         const aiResponse = JSON.stringify([
             { action: 'search_models', params: { query: modelName } },
