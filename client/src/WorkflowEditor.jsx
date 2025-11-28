@@ -33,6 +33,7 @@ const WorkflowEditor = ({ workflowId }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState(null);
+    const [highlightedElements, setHighlightedElements] = useState({ nodes: new Set(), edges: new Set() });
     const [workflowRuns, setWorkflowRuns] = useState([]);
     const [selectedRun, setSelectedRun] = useState(null);
 
@@ -174,6 +175,7 @@ const WorkflowEditor = ({ workflowId }) => {
                 const nodePosition = { x: parentPosition.x, y: parentPosition.y + 120 };
                 initialNodes.push({
                     id: step._id,
+                    // --- NOUVEAU --- Ajout d'une classe de base pour le styling
                     type: 'default',
                     className: 'workflow-step-node',
                     position: nodePosition,
@@ -199,6 +201,7 @@ const WorkflowEditor = ({ workflowId }) => {
                     initialNodes.push({
                         id: action._id,
                         type: 'default',
+                        // --- NOUVEAU --- Ajout d'une classe de base pour le styling
                         className: 'workflow-action-node',
                         position: actionNodePosition,
                         data: {
@@ -236,6 +239,62 @@ const WorkflowEditor = ({ workflowId }) => {
             setEdges(initialEdges);
         }
     }, [mainWorkflowData, workflowStepsData, workflowActionsData, setNodes, setEdges, t]);
+
+    // --- NOUVEAU ---
+    // Ce `useEffect` est le cœur de la nouvelle fonctionnalité.
+    // Il s'exécute chaque fois que l'utilisateur sélectionne un `workflowRun` différent.
+    useEffect(() => {
+        if (!selectedRun) {
+            // Si aucun run n'est sélectionné, on réinitialise tous les styles.
+            setNodes((nds) =>
+                nds.map((node) => ({
+                    ...node,
+                    className: node.className?.split(' ')[0] // Garde seulement la classe de base (ex: 'workflow-step-node')
+                }))
+            );
+            setEdges((eds) =>
+                eds.map((edge) => ({
+                    ...edge,
+                    animated: false,
+                    className: ''
+                }))
+            );
+            return;
+        }
+
+        // 1. Identifier tous les IDs des nœuds (étapes et actions) qui ont été exécutés.
+        const executedStepIds = new Set(selectedRun.history.map(h => h.stepId));
+        const executedActionIds = new Set(selectedRun.history.flatMap(h => h.actions?.map(a => a.actionId) || []));
+        const allExecutedNodeIds = new Set([
+            `workflow-start-${mainWorkflowData._id}`, // Toujours inclure le nœud de départ
+            ...executedStepIds,
+            ...executedActionIds
+        ]);
+
+        // 2. Mettre à jour les nœuds pour ajouter une classe 'executed'.
+        setNodes((nds) =>
+            nds.map((node) => {
+                const baseClass = node.className?.split(' ')[0] || '';
+                if (allExecutedNodeIds.has(node.id)) {
+                    return { ...node, className: `${baseClass} executed` };
+                }
+                return { ...node, className: baseClass }; // Rétablir la classe de base si non exécuté
+            })
+        );
+
+        // 3. Mettre à jour les arêtes pour les animer si elles connectent deux nœuds exécutés.
+        setEdges((eds) =>
+            eds.map((edge) => {
+                const isExecuted = allExecutedNodeIds.has(edge.source) && allExecutedNodeIds.has(edge.target);
+                return {
+                    ...edge,
+                    animated: isExecuted,
+                    className: isExecuted ? 'executed' : ''
+                };
+            })
+        );
+
+    }, [selectedRun, setNodes, setEdges, mainWorkflowData]);
 
     const onConnect = useCallback(
         (params) => setEdges((eds) => addEdge(params, eds)),
