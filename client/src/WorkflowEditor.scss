@@ -1,16 +1,41 @@
 
 .workflow-step-node {
-  background-color: #e0e7ff; /* Un bleu clair pour les étapes */
-  border-color: #a5b4fc;
+  background-color: #f3f4f6; /* Gris clair par défaut */
+  border-color: #d1d5db;
   border-width: 2px;
   font-weight: bold;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .workflow-action-node {
-  background-color: #f0f9ff; /* Un bleu très clair pour les actions */
-  border-color: #bae6fd;
+  background-color: #f9fafb; /* Gris très clair par défaut */
+  border-color: #e5e7eb;
   border-width: 1px;
   border-style: dashed;
   width: auto;
   min-width: 150px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* --- NOUVEAU : Styles pour les éléments exécutés --- */
+
+/* Style pour les nœuds (étapes et actions) qui ont été exécutés */
+.react-flow__node.executed {
+  background-color: #dcfce7; /* Vert clair */
+  border-color: #4ade80; /* Vert plus prononcé */
+}
+
+/* Style pour les arêtes qui font partie du chemin d'exécution */
+.react-flow__edge.executed .react-flow__edge-path {
+  stroke: #2563eb; /* Bleu vif */
+  stroke-width: 2.5;
+}
+
+/* Style pour l'animation sur les arêtes exécutées */
+.react-flow__edge.executed.animated .react-flow__edge-path {
+  animation-duration: 1s;
+}
+
+.react-flow__edge-textbg {
+  fill: #f9fafb;
 }

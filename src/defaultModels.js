@@ -1111,6 +1111,12 @@ export const defaultModels = {
                 hint: "The current status of the workflow execution."
             },
             { name: 'stepExecutionsCount', type: 'object' },
+            {
+                name: 'history',
+                type: 'array',
+                itemsType: 'object',
+                hint: "Stores the detailed execution history of each step and action."
+            },
             { name: 'currentStep', type: 'relation', relation: 'workflowStep', hint: "The step currently being executed or waited on." },
             { name: 'owner', type: 'relation', relation: 'user', required: false },
             { name: 'startedAt', type: 'datetime', required: true, hint: "Timestamp when the workflow run began." },

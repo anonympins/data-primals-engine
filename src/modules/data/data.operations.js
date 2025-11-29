@@ -1679,9 +1679,15 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
             logger.info(`[deleteData] No documents to delete for user ${user?.username} after permission checks or matching criteria.`);
         }
 
-        const res = {success: true, deletedCount}
-        const plugin = await Event.Trigger("OnDataDeleted", "event", "system", engine, {model: modelName, filter});
-        await Event.Trigger("OnDataDeleted", "event", "user", {model: modelName, filter});
+        const res = { success: true, deletedCount };
+
+        // --- CORRECTION ---
+        // The event payload must match what the history listener expects: { modelName, user, before }.
+        // 'documentsToDelete' contains the full documents before they were deleted.
+        const eventPayload = { modelName: modelNameToInvalidate, user, before: documentsToDelete };
+        const plugin = await Event.Trigger("OnDataDeleted", "event", "system", engine, eventPayload);
+        await Event.Trigger("OnDataDeleted", "event", "user", eventPayload);
+
         return plugin || res;
 
     } catch (error) {
