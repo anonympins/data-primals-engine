@@ -95,13 +95,21 @@ export const DataEditor = forwardRef(function MyDataEditor({
                 return <ModelField fields={true} value={value} onChange={handleChange} model={model} field={field} formData={formData} />;
             case 'datetime':
             case 'date':
-                if( field.min )
-                    inputProps["min"] = field.min;
-                if( field.max)
-                    inputProps["max"] = field.max;
+                {
+                    if (field.min) inputProps["min"] = field.min;
+                    if (field.max) inputProps["max"] = field.max;
 
-                // Utilisation d'un wrapper div pour appliquer la clé unique même si le champ est conditionnel
-                return <input key={field.name} type={getInputType(field.type)} {...inputProps} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />;
+                    // Formater la valeur pour qu'elle soit compatible avec l'input
+                    let formattedValue = '';
+                    if (value) {
+                        const d = new Date(value);
+                        if (!isNaN(d)) {
+                            // Coupe la chaîne ISO (YYYY-MM-DDTHH:mm:ss.sssZ) pour ne garder que la partie nécessaire.
+                            formattedValue = d.toISOString().slice(0, field.type === 'date' ? 10 : 16);
+                        }
+                    }
+                    return <input key={field.name} type={getInputType(field.type)} {...inputProps} value={formattedValue} onChange={(e) => handleChange({name: field.name, value: e.target.value})} />;
+                }
             case 'textarea':
                 return <textarea key={field.name} {...inputProps} />
             case 'richtext':

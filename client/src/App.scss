@@ -122,6 +122,26 @@ h2 {
 .p-4 {
   padding: 32px;
 }
+
+
+label {
+  display: inline-block;
+  min-width: 50%;
+}
+select {
+  padding: 4px;
+  margin: 8px 0;
+  height: 110px;
+  option {
+    padding: 2px;
+  }
+}
+input[type=number]{
+  border: 1px solid lightgray;
+  padding: 4px 8px;
+}
+
+
 .prior {
   position: relative;
   text-align: center;
@@ -180,6 +200,12 @@ h2 {
 
 .btn .no-mobile-text {
   @media only screen and (max-width: 768px){
+    display: none;
+  }
+  display: block;
+}
+.btn .no-tablet-text {
+  @media only screen and (max-width: 1024px){
     display: none;
   }
   display: block;
@@ -482,11 +508,11 @@ form .field-checkbox {
 label + .field, label + input, label + select {
   margin-bottom: 12px;
 }
-.flex {
+/*.flex {
   > label + .field, label + input, label + select {
     margin-bottom: 0;
   }
-}
+}*/
 
 .field-relation {
   position: relative;

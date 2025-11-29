@@ -1,6 +1,6 @@
 import React, {forwardRef, useCallback, useEffect, useMemo, useReducer, useRef, useState} from 'react';
 
-import {FaUndo, FaRedo, FaSitemap} from 'react-icons/fa';
+import {FaUndo, FaRedo, FaSitemap, FaChevronRight, FaChevronLeft} from 'react-icons/fa';
 import "./App.scss";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import ModelCreator from "./ModelCreator.jsx";
@@ -154,6 +154,8 @@ function DataLayout({refreshUI}) {
     const [showDataEditor, setDataEditorVisible] = useState(false);
     const [showAPIInfo, setAPIInfoVisible] = useState(false);
     const nav = useNavigate();
+    const [isModelListCollapsed, setIsModelListCollapsed] = useLocalStorage('isModelListCollapsed', false);
+
     const mod = searchParams.get('model');
     const loc = useLocation();
 
@@ -652,13 +654,13 @@ function DataLayout({refreshUI}) {
                 </div>
                 <Button onClick={() => {
                     setImportModalVisible(true);
-                }} className="btn tourStep-import-model"><FaFileImport/><span className={"no-mobile-text"}> <Trans
+                }} className="btn tourStep-import-model"><FaFileImport/><span className={"no-tablet-text"}> <Trans
                     i18nKey="btns.importModels">Modèles</Trans></span></Button>
                 <Button onClick={() => {
                     setShowPackGallery(true);
-                }} className="btn tourStep-import-pack"><FaBoxOpen/><span className={"no-mobile-text"}><Trans
+                }} className="btn tourStep-import-pack"><FaBoxOpen/><span className={"no-tablet-text"}><Trans
                     i18nKey="btns.importPacks">Packs</Trans></span></Button>
-                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><span className={"no-mobile-text"}><Trans
+                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><span className={"no-tablet-text"}><Trans
                     i18nKey="btns.showTutos">Tutoriels</Trans></span></Button>
 
                 <DialogProvider>
@@ -684,10 +686,18 @@ function DataLayout({refreshUI}) {
                     setAPIInfoVisible(true);
                     setDataEditorVisible(false);
                     setEditionMode(false);
-                }}><FaBook/><span className={"no-mobile-text"}>{t('btns.api', 'API')}</span></Button>
+                }}><FaBook/><span className={"no-tablet-text"}>{t('btns.api', 'API')}</span></Button>
             </div>
+            <div className={`datalayout flex flex-start ${isModelListCollapsed ? 'modellist-collapsed' : ''}`}>
+                <button
+                    className="modellist-toggle-btn"
+                    onClick={() => setIsModelListCollapsed(!isModelListCollapsed)}
+                    title={isModelListCollapsed ? t('models.expand', 'Expand model list') : t('models.collapse', 'Collapse model list')}
+                >
+                    {isModelListCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+                </button>
 
-            <div className="datalayout flex flex-start">
+                <div className="modellist-wrapper">
                 <ModelList tourSteps={currentTourSteps}
                            editionMode={editionMode}
                            onAPIInfo={(model) => {
@@ -736,7 +746,9 @@ function DataLayout({refreshUI}) {
                 }} onNewData={(model) => {
                     mainPartRef.current.scrollIntoView({behavior: 'smooth'});
                     handleAddData(model);
-                }}/>
+
+                }} />
+                </div>
                 {(editionMode) && (
                     <ModelCreator ref={modelCreatorRef} onModelGenerated={() =>{
                         modelCreatorRef.current.scrollIntoView({behavior: 'smooth'});

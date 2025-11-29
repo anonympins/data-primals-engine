@@ -1377,14 +1377,18 @@ export const FilterDateField = ({model, field, filterValues, onChangeFilterValue
         <label htmlFor={"minDate"+model.name+field.name}>
             Min:
             <input id={"minDate"+model.name+field.name} type={"datetime-local"} value={minDate} onChange={e => {
-                setMinDate(e.target.value);
+                const localDate = new Date(e.target.value);
+                const isoString = localDate.toISOString();
+                setMinDate(isoString);
                 onChange?.(e.target.value, maxDate);
             }} />
         </label>
         <label htmlFor={"maxDate"+model.name+field.name}>
             Max:
             <input id={"maxDate"+model.name+field.name} type={"datetime-local"} value={maxDate} onChange={e => {
-                setMaxDate(e.target.value);
+                const localDate = new Date(e.target.value);
+                const isoString = localDate.toISOString();
+                setMaxDate(isoString);
                 onChange?.(minDate, e.target.value);
             }} />
         </label>
@@ -1500,10 +1504,13 @@ export const FilterStringField = ({ field, onChangeFilterValue, filterValues, se
         </>
     );
 };
-export const FilterField = ({advanced,model, reversed, field, active, onChangeFilterValue, filterValues, setFilterValues}) => {
+export const FilterField = ({advanced,model, reversed, field, active, onChangeFilterValue, filterValues, setFilterValues, canBeLocked}) => {
     const { elementsPerPage, pagedSort, setPagedSort, setPage, page, pagedFilters, lockedColumns, setLockedColumns } = useModelContext();
     const {t} = useTranslation();
-    const [locked, setLocked] = useState(lockedColumns.includes(field.name));
+    // --- CORRECTION ---
+    // La logique de verrouillage est maintenant gérée par un état interne `isLocked`
+    // qui est synchronisé avec le contexte.
+    const [isLocked, setIsLocked] = useState(lockedColumns.includes(field.name));
     const queryClient = useQueryClient()
 
     useEffect(() => {
@@ -1513,16 +1520,23 @@ export const FilterField = ({advanced,model, reversed, field, active, onChangeFi
         }
     }, [field]);
 
+    // --- AJOUT ---
+    // Synchronise l'état local du verrouillage avec le contexte global.
+    useEffect(() => {
+        setIsLocked(lockedColumns.includes(field.name));
+    }, [lockedColumns, field.name]);
+
     const handleToggleLock = () => {
-        if( locked ) {
-            if (lockedColumns.includes(field.name))
-                setLockedColumns(cols => [...cols].filter(f => f !== field.name));
-        }else{
-            if (!lockedColumns.includes(field.name))
-                setLockedColumns(cols => [...cols, field.name]);
-        }
-        setLocked(!locked);
-    }
+        // --- AMÉLIORATION ---
+        // La logique de mise à jour du contexte est simplifiée.
+        setLockedColumns(prev =>
+            isLocked
+                ? prev.filter(col => col !== field.name)
+                : [...prev, field.name]
+        );
+        // L'état local est mis à jour immédiatement pour un retour visuel instantané.
+        setIsLocked(!isLocked);
+    };
 
     const [reset, setReset] = useState(false);
     const handleChangeSort = (up) => {
@@ -1613,8 +1627,14 @@ export const FilterField = ({advanced,model, reversed, field, active, onChangeFi
                                 <FaArrowDown/></button>}
                     </>
                 )}
-                {!field.unique && (
-                    <button onClick={() => handleToggleLock()} className={locked ? 'active' : ''}><FaLock/></button>)}
+                {/* --- MODIFICATION --- */}
+                {/* L'icône de verrouillage ne s'affiche que si la colonne peut être verrouillée (canBeLocked > 2) */}
+                {/* et si le champ n'est pas déjà unique (un champ unique est implicitement "verrouillé" en termes de tri). */}
+                {canBeLocked && !field.unique && (
+                    <button onClick={handleToggleLock} className={isLocked ? 'active' : ''}>
+                        <FaLock />
+                    </button>
+                )}
             </div>)}
             {active && !['date','datetime','enum', 'boolean', 'number', 'password'].includes(field.type) && <div className="filter flex flex-no-wrap flex-mini-gap">
                 <FilterStringField setFilterValues={setFilterValues} filterValues={filterValues} field={field} onChangeFilterValue={onChangeFilterValue} />

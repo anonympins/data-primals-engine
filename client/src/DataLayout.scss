@@ -1,8 +1,41 @@
 
 
 /* website*/
-.datalayout {
+.datalayout { 
   padding: 0;
+  position: relative;
+  transition: padding-left 0.3s ease-in-out;
+
+  .modellist-wrapper {
+    position: relative;
+    transition: width 0.3s ease-in-out;
+    width: 280px; /* Largeur par défaut de la liste */
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modellist-toggle-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    color:black;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  &.modellist-collapsed .modellist-wrapper {
+    width: 0;
+  }
 
 }
 

@@ -90,6 +90,11 @@ const Header = ({
     } = useModelContext();
     let totalCol = 0;
 
+    // --- AJOUT ---
+    // On calcule le nombre total de colonnes visibles pour ce modèle.
+    // Cela nous permettra de décider si on doit afficher l'icône de verrouillage.
+    const visibleColumnCount = model?.fields?.filter(f => f.type !== 'password').length || 0;
+
     const [advancedFilterVisible, setAdvancedFilterVisible] = useState(false);
 
     const handleAdvancedFilter = () => {
@@ -163,6 +168,7 @@ const Header = ({
             totalCol++;
             return <FilterField key={"datatable-th-"+model.name+":"+field.name} advanced={advanced} reversed={reversed} filterValues={filterValues} setFilterValues={setFilterValues}
                                 model={model} field={field} active={filterActive}
+                                canBeLocked={visibleColumnCount > 2}
                                 onChangeFilterValue={onChangeFilterValue}/>;
         })}
         {advanced && !selectionMode && (<th><Trans i18nKey="actions">Actions</Trans>
@@ -446,8 +452,10 @@ export function DataTable({
     const desc = t(`model_description_${selectedModel?.name}`, selectedModel?.description || '');
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && !selectionMode && <div className="flex">
+            {advanced && !selectionMode && <div className="flex actions">
                 {desc && <p className="model-desc hint">{desc}</p>}
+                <Button onClick={() => onAddData(model)} title={t("btns.add")}><FaPlus/><Trans
+                    i18nKey="btns.add">Ajouter</Trans></Button>
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
                     i18nKey="btns.import">Importer</Trans></Button>
                 <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans i18nKey="btns.export">Exporter</Trans></Button>

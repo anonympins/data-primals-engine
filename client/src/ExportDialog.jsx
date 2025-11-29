@@ -7,6 +7,7 @@ import { FaInfoCircle } from 'react-icons/fa';
 import { Tooltip } from 'react-tooltip';
 import {useAuthContext} from "./contexts/AuthContext.jsx"; // Utilisation de react-tooltip comme dans App.jsx
 
+import "./ExportDialog.scss"
 /**
  * ExportDialog Component
  *
@@ -91,9 +92,7 @@ function ExportDialog({ isOpen, onClose, onExport, currentModel, availableModels
     }));
 
     return isOpen && (
-        <Dialog onClose={onClose} title={t('exportDialog.title', "Options d'exportation")}>
-            <div className="dialog-content flex flex-row flex-start">
-
+        <Dialog className="dialog dialog-export" onClose={onClose} title={t('exportDialog.title', "Options d'exportation")}>
                 {/* 1. Export de la sélection */}
                 <CheckboxField
                     name="exportSelection"
@@ -156,8 +155,7 @@ function ExportDialog({ isOpen, onClose, onExport, currentModel, availableModels
                 <Tooltip id="depth-tooltip" place="top" effect="solid" />
 
 
-            </div>
-            <div className="dialog-actions actions">
+            <div className="flex actions">
                 <Button className="btn-secondary" onClick={onClose}>
                     {t('btns.cancel', "Annuler")}
                 </Button>
