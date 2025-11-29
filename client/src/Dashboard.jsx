@@ -1,6 +1,6 @@
 import React, {useState, useMemo, useEffect} from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import {FaPlus, FaSpinner, FaCog} from "react-icons/fa"; // Ajout FaTrash
+import {FaPlus, FaSpinner, FaCog, FaEye} from "react-icons/fa"; // Ajout FaTrash
 
 import "./Dashboard.scss"
 import {useMutation, useQuery, useQueryClient} from "react-query";
