@@ -9,7 +9,7 @@ import {
     insertData,
     editData,
     deleteData,
-    searchData, installPack, deleteModels, createModel, patchData
+    searchData, installPack, deleteModels, createModel, patchData, datasCollection
 } from '../src/index.js';
 
 import {
@@ -17,7 +17,8 @@ import {
     getCollection,
     getCollectionForUser as getAppUserCollection, getCollectionForUser
 } from '../src/modules/mongodb.js';
-import {getRandom} from "../src/core.js";
+import { isConditionMet } from '../src/filter.js';
+import {getRandom, isPlainObject} from "../src/core.js";
 import {generateUniqueName, initEngine} from "../src/setenv.js";
 import {purgeData} from "../src/modules/data/data.history.js";
 import {removeFile} from "../src/modules/file.js";
@@ -1277,6 +1278,140 @@ describe('Data integration tests (CRUD, validation...)', () => {
             const { data, count } = await searchData({ model: testModel.name, env: 'newly_assigned' }, user);
             expect(count).toBe(1);
             expect(data[0]._id.toString()).toBe(noEnvDocId.toString());
+        });
+    });
+
+    describe('Data operations with permission filters', () => {
+        let testUser, testSystemUser, permissionAdd, permissionEdit, permissionDelete, role;
+        let orderModelDef, pendingOrderId, shippedOrderId, otherUserOrderId;
+
+        beforeEach(async () => {
+            // Création d'un utilisateur de test isolé
+            const username = generateUniqueName('perm_filter_user');
+            testUser = { _id: new ObjectId(), username: username, _user: 'testSystemUser', _model: 'user', roles: [] };
+            testSystemUser = { _id: new ObjectId(), username: 'testSystemUser', roles: ['API_ADMIN'] }; // L'utilisateur système a tous les droits
+            const collection = await getCollectionForUser(testUser);
+
+            // 1. Créer les modèles nécessaires
+            await createModel({ name: 'permission', description:'t', _user: testSystemUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'filter', type: 'code', language: 'json' }, { name: 'description', type: 'string' }] });
+            await createModel({ name: 'role',description:'t', _user: testSystemUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'permissions', type: 'relation', relation: 'permission', multiple: true }] });
+            // Le modèle 'orderTest' doit exister pour les deux utilisateurs : testUser (pour les opérations de test) et testSystemUser (pour le setup)
+            orderModelDef = { name: 'orderTest',description:'t', _user: testSystemUser.username, fields: [{ name: 'status', type: 'string' }, { name: 'amount', type: 'number' }, { name: 'customer', type: 'string' }] };
+            const t = await createModel(orderModelDef);
+
+            // 2. Créer les permissions avec filtres pour les tests
+            const permissionsToCreate = [
+                // On a besoin de ces permissions pour que testUser puisse créer le rôle et les permissions
+                { name: 'API_ADD_DATA_permission', _user: testSystemUser.username },
+                { name: 'API_ADD_DATA_role', _user: testSystemUser.username },
+                // Permissions de l'application
+                { name: 'API_SEARCH_DATA_orderTest' }, // <-- AJOUTER CETTE LIGNE
+                { name: 'API_ADD_DATA_orderTest', filter: { "$lt" : ["$amount", 1000] }, description: "Filter for adding orders" },
+                { name: 'API_EDIT_DATA_orderTest', filter: { status: 'pending' } },
+                { name: 'API_DELETE_DATA_orderTest', filter: { customer: testUser._id.toString() } }
+            ];
+            // On insère les permissions pour les deux utilisateurs pour que le rôle soit valide pour testUser
+            let permResult = await insertData('permission', permissionsToCreate, {}, testSystemUser, false, false, false); // Pour le setup
+            expect(permResult.success, `La création des permissions a échoué: ${permResult.error}`).toBe(true);
+
+            // 3. Récupérer les IDs des permissions et créer le rôle
+            // On se base sur les permissions de l'utilisateur de test pour créer son rôle
+            const allPerms = await (await getCollectionForUser(testSystemUser)).find({ _model: 'permission' }).toArray();
+            const permIds = allPerms.map(p => p._id.toString());
+
+            // On insère le rôle pour les deux utilisateurs
+            let roleRes = await insertData('role', { name: 'OrderManager', permissions: permIds }, {}, testSystemUser, false, false, false);
+            expect(roleRes.success, `La création du rôle a échoué: ${roleRes.error}`).toBe(true);
+            role = roleRes.insertedIds[0];
+
+            // 4. Assigner le rôle à l'utilisateur de test
+            testUser.roles = [role.toString()];
+
+            // 5. Créer les données de test avec l'utilisateur de test lui-même.
+            // Pour cela, on lui donne temporairement les droits d'admin pour le setup.
+            const originalRoles = testUser.roles;
+            testUser.roles = ['API_ADMIN']; // Droits temporaires pour créer les données
+            const pendingOrder = await insertData('orderTest', { status: 'pending', amount: 100, customer: testUser._id.toString() }, {}, testUser, false, false, false);
+            pendingOrderId = pendingOrder.insertedIds[0];
+            const shippedOrder = await insertData('orderTest', { status: 'shipped', amount: 200, customer: testUser._id.toString() }, {}, testUser, false, false, false);
+            shippedOrderId = shippedOrder.insertedIds[0];
+            const otherOrder = await insertData('orderTest', { status: 'pending', amount: 300, customer: 'other_user_id' }, {}, testUser, false, false, false);
+            otherUserOrderId = otherOrder.insertedIds[0];
+            testUser.roles = originalRoles; // Restaurer les vrais rôles pour le test
+        });
+
+        afterEach(async () => {
+            await (await getCollectionForUser(testUser)).deleteMany({ _user: testUser.username });
+            await (await getCollectionForUser(testSystemUser)).deleteMany({ _user: testSystemUser.username });
+            await deleteModels({ _user: testUser.username });
+            await deleteModels({ _user: testSystemUser.username });
+        });
+
+        afterAll(async () =>{
+            await purgeData(testUser);
+            await purgeData(testSystemUser);
+            await datasCollection.drop();
+        })
+
+        // --- TEST POUR insertData ---
+        it('should REJECT inserting data that violates the permission filter', async () => {
+            // This should fail because the amount (1500) is not < 1000
+            const result = await insertData('orderTest', { status: 'new', amount: 1500, customer: 'new_customer' }, {}, testUser, false, false);
+            
+            expect(result.success).toBe(false);
+            
+        });
+
+        it('should ALLOW inserting data that respects the permission filter', async () => {
+            // This should succeed because the amount (500) is < 1000            
+            const result = await insertData('orderTest', { status: 'new', amount: 500, customer: 'new_customer' }, {}, testUser, false, false);
+
+            expect(result.success, `L'insertion aurait dû réussir: ${result.error}`).toBe(true);
+            expect(result.insertedIds).toHaveLength(1);
+        });
+
+        // --- TESTS POUR editData ---
+        it('should ALLOW editing a document that matches the permission filter', async () => {
+            // Le filtre de permission est { status: 'pending' }
+            const result = await editData('orderTest', { _id: pendingOrderId }, { amount: 150 }, {}, testUser, false, false);
+
+            expect(result.success, `editData failed with error: ${result.error}`).toBe(true);
+            expect(result.modifiedCount).toBeGreaterThanOrEqual(0); // Peut être 0 si le hash ne change pas
+
+            const coll = await getCollectionForUser(testUser);
+            const doc = await coll.findOne({ _id: new ObjectId(pendingOrderId)});
+            expect(doc.amount).toBe(150);
+        });
+
+        it('should REJECT editing a document that does NOT match the permission filter', async () => {
+            // On tente de modifier la commande 'shipped', mais la permission ne l'autorise que pour 'pending'
+            const result = await editData('orderTest', { $eq: ['$_id', new ObjectId(shippedOrderId)] }, { amount: 250 }, {}, testUser, false, false);
+
+            expect(result.success).toBe(false);
+        });
+
+        // --- TESTS POUR deleteData ---
+        it('should ALLOW deleting a document that matches the permission filter', async () => {
+            // La permission autorise la suppression des commandes où `customer` est l'ID de l'utilisateur
+            const result = await deleteData('orderTest', { _id: new ObjectId(pendingOrderId) }, testUser, false, false);
+
+            expect(result.success, `deleteData failed with error: ${result.error}`).toBe(true);
+            expect(result.deletedCount).toBe(1);
+
+            const doc = await (await getCollectionForUser(testUser)).findOne({ _id: new ObjectId(pendingOrderId) });
+            expect(doc).toBeNull();
+        });
+
+        it('should REJECT deleting a document that does NOT match the permission filter', async () => {
+            // On tente de supprimer une commande qui n'appartient pas à l'utilisateur
+            const result = await deleteData('orderTest', { _id: otherUserOrderId }, testUser, false, false);
+
+            // La fonction va trouver 0 document à supprimer après application du filtre de permission
+            expect(result.success).toBe(true); // La fonction réussit, mais ne supprime rien
+            expect(result.deletedCount).toBe(0);
+
+            const doc = await (await getCollectionForUser(testSystemUser)).findOne({ _id: new ObjectId(otherUserOrderId) });
+            expect(doc).not.toBeNull(); // Le document existe toujours
         });
     });
 });

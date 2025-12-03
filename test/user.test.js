@@ -16,34 +16,39 @@ describe('User Permission System with Filters', () => {
     let permNoFilter, permWithSimpleFilter, permWithUserFilter, permWithReqFilter, permOrderEditForManager;
     let roleWithPerms;
 
+    // Le parent qui possède les définitions de rôles et permissions
+    const parentUser = { username: generateUniqueName('perm_parent_user') };
+
     beforeAll(async () => {
         Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow", "user", "assistant"]);
         engine = await initEngine();
         logger = engine.getComponent(Logger);
         await onInit(engine);
+        // La collection est celle du parent, car c'est lui qui stocke les définitions
+        collection = await getCollectionForUser(parentUser);
     });
 
     beforeEach(async () => {
         // Utiliser un utilisateur unique pour l'isolation des tests
         const username = generateUniqueName('perm_test_user');
-        testUser = { _id: new ObjectId(), username: username, _user: username, roles: [], _model: 'user' };
-        testUserWithRole = { _id: new ObjectId(), username: username, _user: username, roles: [], _model: 'user' }; // roles sera ajouté après la création du rôle
+        // L'utilisateur de test est un "enfant" de parentUser
+        testUser = { _id: new ObjectId(), username: username, _user: parentUser.username, roles: [], _model: 'user' };
+        testUserWithRole = { _id: new ObjectId(), username: username, _user: parentUser.username, roles: [], _model: 'user' };
         systemUser = { roles: ['admin', 'product.view'] };
 
-        collection = await getCollectionForUser(testUser);
-        await collection.deleteMany({ _user: username });
+        await collection.deleteMany({ _user: parentUser.username });
 
         // --- Création des données de test ---
         // Créer les modèles nécessaires pour les permissions et les rôles
-        await createModel({ name: 'permission', _user: username, fields: [{ name: 'name', type: 'string' }, { name: 'filter', type: 'code' }] });
-        await createModel({ name: 'role', _user: username, fields: [{ name: 'name', type: 'string' }, { name: 'permissions', type: 'relation', relation: 'permission', multiple: true }] });
-        await createModel({ name: 'userPermission', _user: username, fields: [{ name: 'user', type: 'relation', relation: 'user' }, { name: 'permission', type: 'relation', relation: 'permission' }, { name: 'isGranted', type: 'boolean' }, { name: 'filter', type: 'code' }] });
+        await createModel({ name: 'permission', _user: parentUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'filter', type: 'code' }] });
+        await createModel({ name: 'role', _user: parentUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'permissions', type: 'relation', relation: 'permission', multiple: true }] });
+        await createModel({ name: 'userPermission', _user: parentUser.username, fields: [{ name: 'user', type: 'relation', relation: 'user' }, { name: 'permission', type 'relation', relation: 'permission' }, { name: 'isGranted', type: 'boolean' }, { name: 'filter', type: 'code' }] });
 
         const permResult = await collection.insertMany([
-            { _model: 'permission', name: 'product.view', _user: username },
-            { _model: 'permission', name: 'order.edit', filter: { status: 'pending' }, _user: username },
-            { _model: 'permission', name: 'document.edit', filter: { createdBy: '{user._id}' }, _user: username },
-            { _model: 'permission', name: 'login.attempt', filter: { "ip": "{req.ip}" }, _user: username }
+            { _model: 'permission', name: 'product.view', _user: parentUser.username },
+            { _model: 'permission', name: 'order.edit', filter: { status: 'pending' }, _user: parentUser.username },
+            { _model: 'permission', name: 'document.edit', filter: { createdBy: '{user._id}' }, _user: parentUser.username },
+            { _model: 'permission', name: 'login.attempt', filter: { "ip": "{req.ip}" }, _user: parentUser.username }
         ]);
         permNoFilter = permResult.insertedIds[0];
         permWithSimpleFilter = permResult.insertedIds[1];
@@ -54,7 +59,7 @@ describe('User Permission System with Filters', () => {
             _model: 'role',
             name: 'Editor',
             permissions: [permNoFilter.toString(), permWithSimpleFilter.toString()],
-            _user: username
+            _user: parentUser.username
         });
         roleWithPerms = roleResult.insertedId;
 
@@ -65,9 +70,9 @@ describe('User Permission System with Filters', () => {
     afterEach(async () => {
         // Nettoyer les données créées
         if (collection) {
-            await collection.deleteMany({ _user: testUser.username });
+            await collection.deleteMany({ _user: parentUser.username });
         }
-        await deleteModels({ _user: testUser.username });
+        await deleteModels({ _user: parentUser.username });
     });
 
     it('should return true for a permission without filter granted by a role', async () => {
@@ -91,7 +96,7 @@ describe('User Permission System with Filters', () => {
             user: testUser._id.toString(),
             permission: permWithUserFilter.toString(),
             isGranted: true,
-            _user: testUser.username
+            _user: parentUser.username
         });
 
         const result = await hasPermission('document.edit', testUser);
@@ -104,7 +109,7 @@ describe('User Permission System with Filters', () => {
             user: testUserWithRole._id.toString(),
             permission: permWithUserFilter.toString(),
             isGranted: true,
-            _user: testUser.username
+            _user: parentUser.username
         });
 
         const result = await hasPermission('document.edit', testUserWithRole);
@@ -117,7 +122,7 @@ describe('User Permission System with Filters', () => {
             user: testUser._id.toString(),
             permission: permWithReqFilter.toString(),
             isGranted: true,
-            _user: testUser.username
+            _user: parentUser.username
         });
 
         const mockReq = {
@@ -140,7 +145,7 @@ describe('User Permission System with Filters', () => {
             user: testUserWithRole._id.toString(),
             permission: permWithSimpleFilter.toString(),
             isGranted: false,
-            _user: testUser.username
+            _user: parentUser.username
         });
 
         result = await hasPermission('order.edit', testUserWithRole);
@@ -152,7 +157,7 @@ describe('User Permission System with Filters', () => {
             _model: 'permission',
             name: 'order.edit',
             filter: { manager_id: '{user._id}' },
-            _user: testUser.username
+            _user: parentUser.username
         });
         permOrderEditForManager = permResult.insertedId;
 
@@ -161,7 +166,7 @@ describe('User Permission System with Filters', () => {
             user: testUserWithRole._id.toString(),
             permission: permOrderEditForManager.toString(),
             isGranted: true,
-            _user: testUser.username
+            _user: parentUser.username
         });
 
         const result = await hasPermission('order.edit', testUserWithRole);
@@ -181,7 +186,7 @@ describe('User Permission System with Filters', () => {
             permission: permWithSimpleFilter.toString(), // La permission 'order.edit'
             isGranted: true,
             filter: { "assignedTo": "{user._id}" }, // Le nouveau filtre
-            _user: testUser.username
+            _user: parentUser.username
         });
 
         // La fonction doit maintenant retourner le filtre de l'exception
@@ -198,7 +203,7 @@ describe('User Permission System with Filters', () => {
             permission: permWithUserFilter.toString(), // La permission 'document.edit'
             isGranted: true,
             // Pas de champ 'filter' ici
-            _user: testUser.username
+            _user: parentUser.username
         });
 
         // La fonction doit retourner le filtre de la permission de base.
