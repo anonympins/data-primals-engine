@@ -37,7 +37,7 @@ import {
 } from "../mongodb.js";
 import i18n from "../../i18n.js";
 import tinycolor from 'tinycolor2';
-import {Config} from "../../config.js";
+import { Config } from "../../config.js";
 import {calculateTotalUserStorageUsage, hasPermission} from "../user.js";
 import {BSON, ObjectId} from "mongodb";
 import {runScheduledJobWithDbLock, triggerWorkflows} from "../workflow.js";
@@ -45,7 +45,7 @@ import schedule from "node-schedule";
 import {sendSseToUser} from "./data.routes.js";
 import {applyCronMask, handleScheduledJobs, runStatefulAlertJob} from "./data.scheduling.js";
 import {Event} from "../../events.js";
-import {getAllPacks} from "../../packs.js";
+import { getAllPacks } from "../../packs.js";
 import {validateModelData, validateModelStructure} from "./data.validation.js";
 import {addFile, removeFile} from "../file.js";
 import NodeCache from "node-cache";
@@ -61,7 +61,8 @@ import {
     processDocuments
 } from "./data.relations.js";
 import crypto from 'crypto';
-import cronstrue from 'cronstrue/i18n.js';
+import cronstrue from 'cronstrue/i18n.js'
+import { isConditionMet } from '../../filter.js';
 import util from "node:util";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
@@ -693,14 +694,27 @@ export const getModel = async (modelName, user) => {
 export const getModels = async () => {
     return await getCollection('models')?.find({'$or': [{_user: {$exists: false}}]}).toArray() || [];
 }
-export const insertData = async (modelName, data, files, user, triggerWorkflow = true, waitForWorkflow = true) => {
+export const insertData = async (modelName, data, files, user, triggerWorkflow = true, waitForWorkflow = true, checkPermissions = true) => {
 
-    // --- Vérification des permissions (inchangée) ---
-    if (!(isDemoUser(user) && Config.Get("useDemoAccounts")) && isLocalUser(user) && (
-        !await hasPermission(["API_ADMIN", "API_ADD_DATA", "API_ADD_DATA_" + modelName], user) ||
-        await hasPermission(["API_ADD_DATA_NOT_" + modelName], user))) {
-        // Renvoyer une structure d'erreur cohérente
-        return {success: false, error: i18n.t('api.permission.addData'), statusCode: 403};
+    if (checkPermissions) {
+        // --- Vérification des permissions ---
+        const permissionFilter = await hasPermission(["API_ADMIN", "API_ADD_DATA", "API_ADD_DATA_" + modelName], user);
+        const hasDeniedPermission = await hasPermission(["API_ADD_DATA_NOT_" + modelName], user);
+
+        if (!(isDemoUser(user) && Config.Get("useDemoAccounts")) && isLocalUser(user) && (!permissionFilter || hasDeniedPermission)) {
+            return { success: false, error: i18n.t('api.permission.addData', "You do not have permission to add this data."), statusCode: 403 };
+        }
+
+        // Si un filtre de permission existe, valider les données entrantes
+        if (typeof permissionFilter === 'object' && Object.keys(permissionFilter).length > 0) {
+            const dataArray = Array.isArray(data) ? data : [data];
+            const model = await getModel(modelName, user);
+            for (const doc of dataArray) {
+                if (!isConditionMet(model, permissionFilter, doc, [], user)) {
+                    return { success: false, error: i18n.t('api.permission.addData.filterViolation', "The data you are trying to add does not meet the required permission criteria."), statusCode: 403 };
+                }
+            }
+        }
     }
 
     const collection = await getCollectionForUser(user);
@@ -1084,27 +1098,40 @@ export const editData = async (modelName, filter, data, files, user, triggerWork
 const internalEditOrPatchData = async (modelName, filter, data, files, user, isPatch, triggerWorkflow = true, waitForWorkflow = false) => {
     try {
         // 1. Vérification des permissions
-        if (user.username !== 'demo' && isLocalUser(user) && (
-            !await hasPermission(["API_ADMIN", "API_EDIT_DATA", "API_EDIT_DATA_" + modelName], user) ||
-            await hasPermission(["API_EDIT_DATA_NOT_" + modelName], user))) {
-            throw new Error(i18n.t("api.permission.editData"));
+        const permissionResult = await hasPermission(["API_ADMIN", "API_EDIT_DATA", "API_EDIT_DATA_" + modelName], user);
+        const hasDeniedPermission = await hasPermission(["API_EDIT_DATA_NOT_" + modelName], user);
+
+        if (user.username !== 'demo' && isLocalUser(user) && (!permissionResult || hasDeniedPermission)) {
+            throw new Error(i18n.t("api.permission.editData", "You do not have permission to edit this data."));
         }
 
+
         const collection = await getCollectionForUser(user);
-        const model = await modelsCollection.findOne({name: modelName, _user: user.username});
+        const model = await modelsCollection.findOne({$and : [{name: modelName}, {$or: [{_user: user._user}, {_user:user.username}]}]});
         if (!model) {
             throw new Error(i18n.t("api.model.notFound", {model: modelName}));
         }
 
-        // 2. Récupération des documents existants et de leur hash original
-        const existingDocs = (await searchData({model: modelName, filter}, user))?.data;
-        if (!existingDocs || existingDocs.length === 0) {
-            return {success: false, error: i18n.t("api.data.notFound")};
+        // 2. Combinaison du filtre de la requête et du filtre de permission
+        let combinedFilter = filter;
+        if (permissionResult && typeof permissionResult === 'object' && Object.keys(permissionResult).length > 0) {
+            combinedFilter = {
+                $and: [filter, permissionResult]
+            };
         }
+
+        // 3. Récupération des documents à modifier en utilisant le filtre combiné
+        const docsToEditQuery = await searchData({model: modelName, filter: combinedFilter}, user);
+        let existingDocs = docsToEditQuery.data;
+
+        if (!existingDocs || existingDocs.length === 0) {
+            throw new Error(i18n.t("api.data.notFound"));
+        }
+
         const ids = existingDocs.map(d => new ObjectId(d._id));
         const originalHash = existingDocs[0]._hash; // Sauvegarde du hash avant modification
  
-        // 3. Préparation des données de mise à jour en séparant les opérateurs
+        // 4. Préparation des données de mise à jour en séparant les opérateurs
         const updateSetData = {};
         const updatePushData = {};
  
@@ -1164,15 +1191,10 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 4. Validation adaptée pour patch ou edit
-        if (!isPatch) {
-            const dataToValidate = {...existingDocs[0], ...updateSetData};
-            await validateModelData(dataToValidate, model, false);
-        } else {
-            await validateModelData(updateSetData, model, true);
-        }
+        // 5. Validation adaptée pour patch ou edit
+        await validateModelData(isPatch ? updateSetData : { ...existingDocs[0], ...updateSetData }, model, isPatch);
 
-        // 4.1 Validation pour les opérations $push
+        // 5.1 Validation pour les opérations $push
         for (const fieldName in updatePushData) {
             const field = model.fields.find(f => f.name === fieldName);
             if (!field) throw new Error(`Le champ '${fieldName}' pour l'opération $push n'existe pas dans le modèle '${model.name}'.`);
@@ -1197,7 +1219,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         }
 
 
-        // 5. Vérification des champs uniques (s'applique uniquement aux opérations $set)
+        // 6. Vérification des champs uniques (s'applique uniquement aux opérations $set)
         const uniqueFields = model.fields.filter(f => f.unique);
         for (const field of uniqueFields) {
             if (updateData[field.name] !== undefined) {
@@ -1216,7 +1238,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 6. Traitement des relations (pour $set)
+        // 7. Traitement des relations (pour $set)
         const relationFields = model.fields.filter(f => f.type === 'relation');
         for (const field of relationFields) {
             if (updateData[field.name] !== undefined) {
@@ -1240,7 +1262,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 7. Application des filtres de champ (pour $set)
+        // 8. Application des filtres de champ (pour $set)
         for (const field of model.fields) {
             // On saute les champs 'file' car ils ont déjà été traités
             if (field.type !== 'file' && field.itemsType !== 'file' && updateData[field.name] !== undefined && dataTypes[field.type]?.filter) {
@@ -1286,7 +1308,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 8. Vérification des limites de stockage avant la mise à jour
+        // 9. Vérification des limites de stockage avant la mise à jour
         const originalDocsSize = calculateDataSize(existingDocs);
         const finalStateForSize = existingDocs.map(doc => {
             const updatedDoc = { ...doc, ...updateSetData };
@@ -1323,7 +1345,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 8. Calcul du nouveau hash en simulant l'état final
+        // 10. Calcul du nouveau hash en simulant l'état final
         const finalStateForHash = { ...existingDocs[0], ...updateSetData };
         for (const fieldName in updatePushData) {
             let itemsToAdd;
@@ -1358,7 +1380,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 9. *** CORRECTION LOGIQUE ***
+        // 11. *** CORRECTION LOGIQUE ***
         // On ne vérifie l'unicité que si le hash a réellement changé.
         if (newHash !== originalHash) {
             const hashCheck = await checkHash(user, model, newHash, existingDocs[0]._id.toString());
@@ -1368,7 +1390,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             }
         }
 
-        // 10. Exécution de la mise à jour.
+        // 12. Exécution de la mise à jour.
         // Si une opération $push est présente, nous devons utiliser une pipeline d'agrégation
         // pour gérer de manière robuste le cas où le champ cible est `null` ou n'existe pas.
         let updateCommand;
@@ -1430,7 +1452,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             });
         }
 
-        // 11. Tâches post-mise à jour (schedules, workflows) (inchangé)
+        // 13. Tâches post-mise à jour (schedules, workflows) (inchangé)
         if (["workflowTrigger", "alert"].includes(modelName)) {
             await handleScheduledJobs(modelName, existingDocs, collection, finalUpdateOperation.$set || {});
         }
@@ -1459,40 +1481,65 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
 export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, waitForWorkflow = false) => {
 
     try {
+        const permissionFilter = await hasPermission(["API_ADMIN", "API_DELETE_DATA", "API_DELETE_DATA_" + modelName], user);
+        const hasDeniedPermission = await hasPermission(["API_DELETE_DATA_NOT_" + modelName], user);
+
+        if (user?.username !== 'demo' && isLocalUser(user) && (!permissionFilter || hasDeniedPermission)) {
+            // Si l'utilisateur n'a pas la permission de base, on arrête tout de suite.
+            return { success: false, error: i18n.t("api.permission.deleteData", "You do not have permission to delete this data."), deletedCount: 0 };
+        }
+
         const collection = await getCollectionForUser(user);
 
-        // --- Début de la logique de suppression ---
+        // 1. Construire le filtre de recherche.
+        // Nous allons utiliser un seul objet $match avec un $and global pour combiner toutes les conditions.
+        const matchConditions = [];
 
-        // 1. Construire le filtre de base pour trouver les documents à supprimer
-        let findFilter = [];
-        if (user)
-            findFilter.push({
-                '$eq': ["$_user", user.username]
-            });
-
-        // Ajouter le filtre par IDs si fourni
-        if (Array.isArray(filter) && filter.length > 0) {
-            findFilter.push({"$in": ["$_id", filter.map(m => new ObjectId(m))]});
+        // Conditions de base (modèle et utilisateur)
+        if (user) {
+            matchConditions.push({ $expr: { '$eq': ["$_user", user.username] } });
+        }
+        if (modelName) {
+            matchConditions.push({ _model: modelName });
         }
 
-        // Ajouter le filtre par nom de modèle si fourni (utile si 'filter' est utilisé seul)
-        if (modelName)
-            findFilter.push({
-                '$eq': ["$_model", modelName]
-            });
-
-        // Ajouter le filtre supplémentaire si fourni
-        if (filter && typeof filter === 'object' && Object.keys(filter).length > 0) {
-            // Fusionner prudemment le filtre supplémentaire
-            // Attention: Si 'filter' contient des clés comme _id ou _user,
-            // cela pourrait entrer en conflit. Une fusion plus robuste pourrait re nécessaire.
-            findFilter.push(filter);
-        } else {
-
+        // Filtre de la requête (par ID ou autre)
+        if (Array.isArray(filter) && filter.length > 0 && isObjectId(filter[0])) {
+            // Filtre par tableau d'IDs
+            matchConditions.push({ _id: { "$in": filter.map(m => new ObjectId(m)) } });
+        } else if (filter && typeof filter === 'object' && Object.keys(filter).length > 0) {
+            const firstKey = Object.keys(filter)[0];
+            // Si le filtre est une expression d'agrégation (commence par $), on l'encapsule dans $expr
+            if (firstKey.startsWith('$')) {
+                matchConditions.push({ $expr: filter });
+            } else {
+                // Sinon, on le traite comme un filtre de document standard
+                const processedFilter = {};
+                for (const key in filter) {
+                    if (key === '_id' && !isObjectId(filter[key])) {
+                        // S'assurer que la conversion ne se fait que si la chaîne est un ID valide
+                        if (ObjectId.isValid(filter[key])) {
+                            processedFilter[key] = new ObjectId(filter[key]);
+                        } else {
+                            processedFilter[key] = filter[key]; // Garder la valeur originale si non valide
+                        }
+                    } else {
+                        processedFilter[key] = filter[key];
+                    }
+                }
+                matchConditions.push(processedFilter);
+            }
         }
+
+        // Filtre de permission
+        if (permissionFilter && typeof permissionFilter === 'object') {
+            matchConditions.push(permissionFilter);
+        }
+
+        const findFilter = matchConditions.length > 0 ? { $and: matchConditions } : {};
 
         // 2. Récupérer les documents à supprimer pour vérifier leur type et annuler les schedules
-        const documentsToDelete = await collection.aggregate([{$match: {$expr: {"$and": findFilter}}}]).toArray();
+        const documentsToDelete = await collection.aggregate([{ $match: findFilter }]).toArray();
 
         if (documentsToDelete.length === 0) {
             logger.info(`[deleteData] No documents found matching the criteria for user ${user?.username}.`);
@@ -1529,15 +1576,6 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
             }
             if (deletePromises.length > 0) {
                 await Promise.allSettled(deletePromises);
-            }
-
-            // Vérification des permissions (pour chaque document trouvé)
-            if (user?.username !== 'demo' && isLocalUser(user) && (
-                !await hasPermission(["API_ADMIN", "API_DELETE_DATA", "API_DELETE_DATA_" + docToDelete._model], user) ||
-                await hasPermission(["API_DELETE_DATA_NOT_" + docToDelete._model], user))) {
-                // Si l'utilisateur n'a pas la permission pour CE document spécifique, on l'ignore
-                logger.warn(`[deleteData] User ${user.username} lacks permission to delete document ${docToDelete._id} of model ${docToDelete._model}. Skipping.`);
-                continue; // Passe au document suivant
             }
 
             // *** Ajout de l'annulation du schedule pour workflowTrigger ***
