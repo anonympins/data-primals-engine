@@ -87,6 +87,14 @@ export const defaultModels = {
                 "hint": "True pour accorder la permission, False pour la révoquer explicitement."
             },
             {
+                "name": "filter",
+                "type": "code",
+                "language": "json",
+                "conditionBuilder": true,
+                "required": false,
+                "hint": "Optionnel. Si défini, ce filtre surcharge celui de la permission de base pour cette exception spécifique."
+            },
+            {
                 "name": "expiresAt",
                 "type": "datetime",
                 "required": false,

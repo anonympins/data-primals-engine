@@ -153,6 +153,46 @@ The engine includes a pluggable system for user management. For development and 
 
 For production environments, you should use SSO providers as seen in the page below, or extend the base `UserProvider` class to connect to your actual user database (e.g., another MongoDB collection, a SQL database, or an external authentication service). This allows you to implement your own logic for finding and creating users.
 
+### Permission System
+
+The engine features a powerful dual-mode permission system, providing both granular, database-driven control and a lightweight, simplified approach.
+
+#### 1. The Complete System (for Local Users)
+
+This is the full-featured Role-Based Access Control (RBAC) system designed for application users. It relies on three core models:
+
+-   **`permission`**: Defines a single action (e.g., `API_EDIT_DATA_product`) and can include a JSON-based **filter** to restrict its scope (e.g., only edit products where `status` is `'draft'`).
+-   **`role`**: A group of permissions (e.g., an "Editor" role that includes `API_EDIT_DATA_product` and `API_SEARCH_DATA_product`).
+-   **`userPermission`**: Manages exceptions for individual users, allowing you to grant or revoke specific permissions, or even override a permission's filter for a single user.
+
+When `hasPermission()` is called for a "local user" (a standard user stored in the database), the engine performs a detailed aggregation to compute the final set of active permissions and their corresponding filters.
+
+#### 2. The Simplified System (for System/Non-Local Users)
+
+For internal processes, system users, or temporary "demo" users, the full database-driven permission system can be overkill. The engine offers an "extremely simplified" mode for these cases.
+
+**How it works:**
+
+If a user object is not a "local user" (i.e., it does not have `_model: 'user'`), the permission check becomes a simple string comparison. The `hasPermission()` function will just check if the permission name you are testing exists directly in the user's `roles` array.
+
+**Use Case:** This is perfect for system-level scripts or internal services that need specific, hard-coded permissions without the overhead of database lookups.
+
+**Example:**
+
+Consider a system user defined directly in your code:
+
+```javascript
+const systemUser = {
+  username: 'internal-service',
+  roles: ['API_SEARCH_DATA_product', 'API_ADD_DATA_order']
+};
+
+await hasPermission('API_SEARCH_DATA_product', systemUser); // Returns true
+await hasPermission('API_DELETE_DATA_product', systemUser); // Returns false
+```
+
+This dual approach gives you the flexibility to use a robust, granular system for your end-users while maintaining a simple, performant mechanism for internal and system-level tasks.
+
 ### Model generation
 Models are the way to handle structured data. They organize data and they can be declared in JSON.
 

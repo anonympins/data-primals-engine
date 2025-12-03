@@ -391,7 +391,11 @@ export function onInit(defaultEngine) {
                 }
 
                 // If this is the first history record for this document, add a snapshot of the 'before' state.
-                if (!lastVersionDoc) {
+                // --- FIX ---
+                // The check should be based on the calculated version number, not on the existence of lastVersionDoc,
+                // which could be affected by race conditions in a busy environment. If we are creating version 1,
+                // it means no prior history exists for this document, so we must add the snapshot.
+                if (newVersion === 1) {
                     historyEntry.snapshot = beforeDoc;
                     logger.debug(`History v${newVersion} (update with initial snapshot) created for ${modelName} document ${afterDoc._id}`);
                 } else {
