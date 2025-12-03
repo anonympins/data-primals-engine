@@ -14,7 +14,7 @@ import i18n from "../../i18n.js";
 import checkDiskSpace from "check-disk-space";
 import {removeFile} from "../file.js";
 import {hasPermission} from "../user.js";
-import {profiles} from "../../../client/src/constants.js";
+import { onInit as userInit } from '../user.js';
 import {registerRoutes} from "./data.routes.js";
 import {mongoDBWhitelist} from "./data.core.js";
 import {onInit as relationsInit} from "./data.relations.js";
@@ -139,6 +139,7 @@ export async function onInit(defaultEngine) {
     validationInit(defaultEngine);
     relationsInit(defaultEngine);
     scheduleInit(defaultEngine);
+    userInit(defaultEngine);
     operationsInit(defaultEngine);
 
 

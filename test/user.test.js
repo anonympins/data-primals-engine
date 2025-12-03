@@ -40,9 +40,9 @@ describe('User Permission System with Filters', () => {
 
         // --- Création des données de test ---
         // Créer les modèles nécessaires pour les permissions et les rôles
-        await createModel({ name: 'permission', _user: parentUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'filter', type: 'code' }] });
-        await createModel({ name: 'role', _user: parentUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'permissions', type: 'relation', relation: 'permission', multiple: true }] });
-        await createModel({ name: 'userPermission', _user: parentUser.username, fields: [{ name: 'user', type: 'relation', relation: 'user' }, { name: 'permission', type 'relation', relation: 'permission' }, { name: 'isGranted', type: 'boolean' }, { name: 'filter', type: 'code' }] });
+        await createModel({ name: 'permission', description: '', _user: parentUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'filter', type: 'code' }] });
+        await createModel({ name: 'role', description: '', _user: parentUser.username, fields: [{ name: 'name', type: 'string' }, { name: 'permissions', type: 'relation', relation: 'permission', multiple: true }] });
+        await createModel({ name: 'userPermission', description: '', _user: parentUser.username, fields: [{ name: 'user', type: 'relation', relation: 'user' }, { name: 'permission', type: 'relation', relation: 'permission' }, { name: 'isGranted', type: 'boolean' }, { name: 'filter', type: 'code',language:'json' }] });
 
         const permResult = await collection.insertMany([
             { _model: 'permission', name: 'product.view', _user: parentUser.username },
@@ -139,14 +139,14 @@ describe('User Permission System with Filters', () => {
     it('should revoke a permission from a role via userPermission exception', async () => {
         let result = await hasPermission('order.edit', testUserWithRole);
         expect(result).toEqual({ status: 'pending' });
-
-        await collection.insertOne({
-            _model: 'userPermission',
+ 
+        // Utiliser insertData pour déclencher l'invalidation du cache
+        await insertData('userPermission', {
             user: testUserWithRole._id.toString(),
             permission: permWithSimpleFilter.toString(),
             isGranted: false,
-            _user: parentUser.username
-        });
+        }, {}, parentUser, true, true, false // le dernier false pour bypasser la vérification de permission pour le test
+        );
 
         result = await hasPermission('order.edit', testUserWithRole);
         expect(result).toBe(false);
@@ -180,14 +180,13 @@ describe('User Permission System with Filters', () => {
         expect(result).toEqual({ status: 'pending' });
 
         // On ajoute une exception qui accorde la même permission mais avec un filtre différent
-        await collection.insertOne({
-            _model: 'userPermission',
+        // Utiliser insertData pour s'assurer que le cache est invalidé
+        await insertData('userPermission', {
             user: testUserWithRole._id.toString(),
             permission: permWithSimpleFilter.toString(), // La permission 'order.edit'
             isGranted: true,
             filter: { "assignedTo": "{user._id}" }, // Le nouveau filtre
-            _user: parentUser.username
-        });
+        }, {}, parentUser, true, true, false);
 
         // La fonction doit maintenant retourner le filtre de l'exception
         result = await hasPermission('order.edit', testUserWithRole);

@@ -102,20 +102,20 @@ export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
-    const invalidatePermissionsCache = (payload) => {
+    const invalidatePermissionsCache = (engine, {modelName, insertedDocs, user}) => {
         const modelsToWatch = ['role', 'permission', 'userPermission'];
 
         // Le payload contient le nom du modèle qui a été modifié.
-        if (payload && modelsToWatch.includes(payload.modelName)) {
-            logger.info(`[Permissions] Invalidating permissions cache due to change in '${payload.modelName}'.`);
+        if (modelName && modelsToWatch.includes(modelName)) {
+            logger.info(`[Permissions] Invalidating permissions cache due to change in '${modelName}'.`);
             permissionsCache.flushAll();
         }
     };
 
     // On attache notre fonction d'invalidation aux événements système.
-    Event.Listen("OnDataAdded", invalidatePermissionsCache);
-    Event.Listen("OnDataEdited", invalidatePermissionsCache);
-    Event.Listen("OnDataDeleted", invalidatePermissionsCache);
+    Event.Listen("OnDataAdded", invalidatePermissionsCache, "event", "system");
+    Event.Listen("OnDataEdited", invalidatePermissionsCache, "event", "system");
+    Event.Listen("OnDataDeleted", invalidatePermissionsCache, "event", "system");
 }
 /**
  * Cache pour les permissions des utilisateurs.
@@ -134,7 +134,7 @@ const permissionsCache = new NodeCache({ stdTTL: 600, checkperiod: 120, useClone
  */
 export async function getUserActivePermissions(user, env = null) {
     // Clé de cache unique pour l'utilisateur et l'environnement
-    const cacheKey = `${user._id.toString()}:${env || 'global'}`;
+    const cacheKey = `${user._user || user.username}:${user._id.toString()}:${env || 'global'}`;
     const cachedPermissions = permissionsCache.get(cacheKey);
     if (cachedPermissions) {
         logger.debug(`[Permissions] Cache hit for user ${user.username}`);
@@ -166,10 +166,27 @@ export async function getUserActivePermissions(user, env = null) {
         ).toArray();
 
         rolePermissions.forEach(p => {
-            if(p.name)
-                activePermissions.set(p.name, p.filter ?? null)
+            if (p.name) {
+                // On stocke l'objet permission complet pour un accès ultérieur
+                activePermissions.set(p.name, { filter: p.filter ?? null, details: p });
+            }
         });
     }
+
+    // --- NOUVELLE ÉTAPE : Pré-charger les détails de toutes les permissions d'exception ---
+    // Cela garantit que nous avons les noms de permission même pour les révocations.
+    const exceptionPermissionIds = (await datasCollection.distinct("permission", {
+        _model: "userPermission",
+        user: user._id.toString(),
+        _user: user._user || user.username
+    })).map(id => new ObjectId(id));
+
+    const exceptionPermsDetails = await datasCollection.find(
+        { _id: { $in: exceptionPermissionIds }, _model: "permission" },
+        { projection: { name: 1, filter: 1 } }
+    ).toArray();
+
+    const allPermDetailsMap = new Map(exceptionPermsDetails.map(p => [p._id.toString(), p]));
 
     // --- ÉTAPE 2: Appliquer les exceptions de permission ---
     const exceptionsQuery = {
@@ -183,27 +200,21 @@ export async function getUserActivePermissions(user, env = null) {
     };
 
     const exceptions = await datasCollection.find(exceptionsQuery, {
-        projection: { permission: 1, isGranted: 1, filter: 1 }
+        projection: { permission: 1, isGranted: 1, filter: 1 } // Le filtre sur l'exception
     }).toArray();
 
     if (exceptions.length > 0) {
-        const exceptionPermIds = exceptions.map(ex => new ObjectId(ex.permission));
-        const exceptionPermsDetails = await datasCollection.find(
-            { _id: { $in: exceptionPermIds }, _model: "permission", _user: user._user || user.username },
-            { projection: { name: 1, filter: 1 } }
-        ).toArray();
-
-        const permDetailsMap = new Map(exceptionPermsDetails.map(p => [p._id.toString(), p]));
-
         for (const exception of exceptions) {
-            const permDetails = permDetailsMap.get(exception.permission);
+            // Utiliser la map pré-chargée qui contient toutes les permissions d'exception
+            const permDetails = allPermDetailsMap.get(exception.permission);
             if (!permDetails?.name) continue;
 
             if (exception.isGranted) {
                 // Priorité 1: Le filtre défini sur l'exception elle-même.
                 // Priorité 2: Le filtre défini sur la permission de base.
                 const finalFilter = exception.filter ?? permDetails.filter ?? null;
-                activePermissions.set(permDetails.name, finalFilter);
+                // On met à jour l'entrée existante ou on en crée une nouvelle
+                activePermissions.set(permDetails.name, { filter: finalFilter, details: permDetails });
             } else {
                 activePermissions.delete(permDetails.name);
             }
@@ -211,8 +222,13 @@ export async function getUserActivePermissions(user, env = null) {
     }
 
     // Mettre le résultat en cache avant de le retourner
-    permissionsCache.set(cacheKey, activePermissions);
-    return activePermissions;
+    // On ne stocke que le nom et le filtre, pas l'objet 'details' complet
+    const finalPermissionsToCache = new Map();
+    for (const [name, permData] of activePermissions.entries()) {
+        finalPermissionsToCache.set(name, permData.filter);
+    }
+    permissionsCache.set(cacheKey, finalPermissionsToCache);
+    return finalPermissionsToCache;
 }
 
 /**
