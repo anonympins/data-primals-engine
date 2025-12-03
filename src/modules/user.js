@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 import ivm from "isolated-vm";
 import {emailDefaultConfig} from "../constants.js";
 import {safeAssignObject} from "../core.js";
+import {substituteVariables} from "../filter.js";
 import {Config} from "../config.js";
 
 export const userInitiator = async (req, res, next) => {
@@ -105,35 +106,38 @@ export async function onInit(defaultEngine) {
  * 1. Elle récupère toutes les permissions de base issues des rôles de l'utilisateur.
  * 2. Elle applique ensuite les "exceptions" (ajouts ou retraits de permissions) qui sont valides (non expirées).
  * @param {object} user - L'objet utilisateur pour lequel calculer les permissions.
- * @returns {Promise<Set<string>>} Un Set contenant les noms de toutes les permissions actives.
+ * @returns {Promise<Map<string, object|null>>} Une Map contenant les noms des permissions actives et leur filtre associé.
  * @private
  */
 export async function getUserActivePermissions(user, env = null) {
     const datasCollection = await getCollectionForUser(user);
     const now = new Date();
-    const activePermissions = new Set();
+    const activePermissions = new Map();
 
     // --- ÉTAPE 1: Récupérer les permissions de base des rôles ---
     if (user.roles && user.roles.length > 0) {
         const roleIds = user.roles.map(id => new ObjectId(id));
-
+ 
         const rolePermissions = await datasCollection.aggregate([
-            { $match: { _id: { $in: roleIds }, _model: "role" } },
+            { $match: { _id: { $in: roleIds }, _model: "role", _user: user.username } },
             { $unwind: "$permissions" },
-            { $addFields: { "permissionId": { "$toObjectId": "$permissions" } } },
             {
                 $lookup: {
                     from: datasCollection.collectionName, // Utiliser la même collection
-                    localField: "permissionId",
-                    foreignField: "_id",
+                    let: { permissionIdStr: "$permissions" }, // La permission est un string
+                    pipeline: [
+                        { $match: {
+                            $expr: { $eq: [ { $toString: "$_id" }, "$$permissionIdStr" ] }
+                        }}
+                    ],
                     as: "permissionDoc"
                 }
             },
             { $unwind: "$permissionDoc" },
-            { $group: { _id: "$permissionDoc.name" } }
+            { $project: { name: "$permissionDoc.name", filter: "$permissionDoc.filter" } }
         ]).toArray();
 
-        rolePermissions.forEach(p => p._id && activePermissions.add(p._id));
+        rolePermissions.forEach(p => p.name && activePermissions.set(p.name, p.filter ?? null));
     }
 
     // --- ÉTAPE 2: Appliquer les exceptions de permission ---
@@ -141,7 +145,7 @@ export async function getUserActivePermissions(user, env = null) {
         {
             $match: { // Filtre de base pour les exceptions de l'utilisateur
                 _model: "userPermission",
-                user: user._id,
+                user: user._id.toString(),
                 $and: [ // Filtre sur l'environnement et l'expiration
                     {
                         $or: [ // La permission est soit globale, soit spécifique à l'environnement demandé
@@ -160,20 +164,22 @@ export async function getUserActivePermissions(user, env = null) {
                 pipeline: [
                     {
                         $match: {
-                            $expr: {
-                                $eq: [
-                                    "$_id",
-                                    { $toObjectId: "$$permissionId" } // Conversion ici
-                                ]
-                            }
+                            $expr: { $eq: [ { $toString: "$_id" }, "$$permissionId" ] }
                         }
                     },
-                    { $project: { name: 1 } }
+                    { $project: { name: 1, filter: 1 } }
                 ],
                 as: 'permissionDoc'
             }
         },
-        { $unwind: '$permissionDoc' }
+        { $unwind: '$permissionDoc' },
+        {
+            $project: { // On sélectionne les champs dont on a besoin
+                isGranted: 1,
+                filter: 1, // On ajoute le filtre de l'exception
+                permissionDoc: 1
+            }
+        }
     ]).toArray();
 
     // Appliquer les exceptions
@@ -182,7 +188,11 @@ export async function getUserActivePermissions(user, env = null) {
         if (!permissionName) continue;
 
         if (exception.isGranted) {
-            activePermissions.add(permissionName);
+            // Priorité 1: Le filtre défini sur l'exception elle-même.
+            // Priorité 2: Le filtre défini sur la permission de base.
+            // Priorité 3: null s'il n'y a aucun filtre.
+            const finalFilter = exception.filter ?? exception.permissionDoc.filter ?? null;
+            activePermissions.set(permissionName, finalFilter);
         } else {
             activePermissions.delete(permissionName);
         }
@@ -195,15 +205,19 @@ export async function getUserActivePermissions(user, env = null) {
  * Vérifie si un utilisateur possède au moins une des permissions spécifiées.
  * Cette fonction utilise la nouvelle logique basée sur les rôles et les exceptions de permission.
  * @param {string|string[]} permissionNames - Le nom de la permission ou un tableau de noms.
- * @param {object} user - L'objet utilisateur authentifié.
- * @returns {Promise<boolean>} - True si l'utilisateur a la permission, sinon false.
+ * @param {object} user - L'objet utilisateur.
+ * @param {string|null} env - L'environnement de la permission.
+ * @param {object|null} req - L'objet requête Express optionnel.
+ * @returns {Promise<boolean|object>} - `false` si aucune permission n'est trouvée. Sinon, retourne le filtre de la première permission trouvée (ou `true` si aucun filtre n'est défini).
  */
-export async function hasPermission(permissionNames, user, env = null) {
+export async function hasPermission(permissionNames, user, env = null, req = null) {
     // Garde la compatibilité pour les utilisateurs non-locaux (ex: système)
     if (!isLocalUser(user)) {
         const userRoles = new Set(user.roles || []);
         const requiredPermissions = Array.isArray(permissionNames) ? permissionNames : [permissionNames];
-        return requiredPermissions.some(p => userRoles.has(p));
+        const hasPerm = requiredPermissions.some(p => userRoles.has(p));
+        // Pour les non-locaux, on ne gère pas les filtres complexes, on retourne juste true/false.
+        return hasPerm ? true : false;
     }
 
     try {
@@ -216,9 +230,27 @@ export async function hasPermission(permissionNames, user, env = null) {
         // 1. Obtenir l'ensemble final et à jour des permissions de l'utilisateur
         const activePermissions = await getUserActivePermissions(user, env);
 
-        // 2. Vérifier si au moins une des permissions requises est dans l'ensemble des permissions actives
-        return requiredPermissions.some(pName => activePermissions.has(pName)) || false;
+        // 2. Chercher la première permission correspondante
+        for (const pName of requiredPermissions) {
+            if (activePermissions.has(pName)) {
+                const filter = activePermissions.get(pName);
+                // Si un filtre existe, on substitue les variables
+                if (filter && typeof filter === 'object' && Object.keys(filter).length > 0) {
+                    // Le contexte de substitution est enrichi avec des données pertinentes
+                    const context = {
+                        user,
+                        permissionName: pName,
+                        env,
+                        now: new Date(),
+                        req: req ? { query: req.query, body: req.body, params: req.params, ip: req.ip } : null
+                    };
+                    return await substituteVariables(filter, context, user);
+                }
+                return true; // Pas de filtre ou filtre vide, on autorise sans condition supplémentaire
+            }
+        }
 
+        return false; // Aucune permission trouvée
     } catch (e) {
         logger.error("Erreur lors de la vérification des permissions :", e);
         return false;

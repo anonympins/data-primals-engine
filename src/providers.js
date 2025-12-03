@@ -104,7 +104,7 @@ export class UserProvider {
     }
 
     async hasFeature(user, feature) {
-        return this.plans[user?.userPlan]?.features.some(f => f === feature);
+        return this.plans[user?.userPlan ?? 'free']?.features.some(f => f === feature);
     }
 
     // Ajoutez ici d'autres méthodes nécessaires : findUserById, createUser, etc.

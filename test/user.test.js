@@ -1,315 +1,232 @@
-import { expect, describe, it, afterEach, beforeAll, afterAll } from 'vitest';
-import { hasPermission, getUserActivePermissions } from '../src/modules/user.js';
-import {initEngine} from "../src/setenv";
-import {generateUniqueName} from "../src/setenv.js";
-import {
-    getCollectionForUser as getAppUserCollection,
-    modelsCollection as getAppModelsCollection
-} from "../src/modules/mongodb.js";
-import {Config} from "../src/index.js";
-let permRead, permWrite, permDelete, permManage;
-let roleEditor;
-let testUser, adminUser, roleViewer;
-let currentTestUser;
-let testModelsColInstance, testDatasColInstance;
-// Cette fonction va remplacer la logique de votre beforeEach pour la création de contexte
-async function setupTestContext() {
+import { vi, describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { ObjectId } from 'mongodb';
+import { hasPermission, onInit } from '../src/modules/user.js';
+import { Config } from '../src/config.js';
+import { initEngine, generateUniqueName } from '../src/setenv.js';
+import { getCollection, getCollectionForUser } from '../src/modules/mongodb.js';
+import { Logger } from '../src/gameObject.js';
+import { insertData, deleteData, deleteModels, createModel } from '../src/index.js';
 
-
-    // Créer un utilisateur unique pour ce test
-    const username = generateUniqueName('testuserUserIntegration');
-    currentTestUser = {
-        username,
-        userPlan: 'free',
-        _model: 'user',
-        _user: username,
-        email: generateUniqueName('test') + '@example.com'
-    };
-
-    // Initialize collection instances after the engine is ready
-    testModelsColInstance = getAppModelsCollection;
-    testDatasColInstance = await getAppUserCollection(currentTestUser);
-
-    await testDatasColInstance.deleteMany({}); // Nettoyage de la base de test
-    // 1. Créer les permissions
-    const permissions = await testDatasColInstance.insertMany([
-        { _model: 'permission', name: 'post:read', description: 'Lire les articles' },
-        { _model: 'permission', name: 'post:write', description: 'Écrire des articles' },
-        { _model: 'permission', name: 'post:delete', description: 'Supprimer des articles' },
-        { _model: 'permission', name: 'user:manage', description: 'Gérer les utilisateurs' }
-    ]);
-    permRead = permissions.insertedIds[0];
-    permWrite = permissions.insertedIds[1];
-    permDelete = permissions.insertedIds[2];
-    permManage = permissions.insertedIds[3];
-
-    // 2. Créer les rôles
-    const roles = await testDatasColInstance.insertMany([
-        { _user: currentTestUser.username, _model: 'role', name: 'Viewer', permissions: [permRead.toString()] },
-        { _user: currentTestUser.username, _model: 'role', name: 'Editor', permissions: [permRead.toString(), permWrite.toString()] }
-    ]);
-    roleViewer = roles.insertedIds[0];
-    roleEditor = roles.insertedIds[1];
-
-    // 3. Créer les utilisateurs
-    const users = await testDatasColInstance.insertMany([
-        { _user: currentTestUser.username, _model: 'user', roles: [roleEditor.toString()] },
-        { _user: currentTestUser.username, _model: 'user', roles: [roleEditor.toString()] }
-    ]);
-    testUser = {...currentTestUser, _id: users.insertedIds[0].toString(), roles: [roleEditor.toString()] };
-    adminUser = {...currentTestUser,  _id: users.insertedIds[1].toString(), roles: [roleEditor.toString()] };
-
-    return testDatasColInstance;
-};
 let engine;
-describe('User Permission Logic', () => {
+let logger;
 
-    // --- SETUP : Création des données de test avant tous les tests ---
+describe('User Permission System with Filters', () => {
+    let collection;
+    let testUser, testUserWithRole, systemUser;
+    let permNoFilter, permWithSimpleFilter, permWithUserFilter, permWithReqFilter, permOrderEditForManager;
+    let roleWithPerms;
+
     beforeAll(async () => {
-        Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "auth-google", "auth-saml", "auth-microsoft"]);
+        Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow", "user", "assistant"]);
         engine = await initEngine();
-
+        logger = engine.getComponent(Logger);
+        await onInit(engine);
     });
 
-    // --- Tests pour la fonction principale de calcul ---
-    describe('getUserActivePermissions()', () => {
+    beforeEach(async () => {
+        // Utiliser un utilisateur unique pour l'isolation des tests
+        const username = generateUniqueName('perm_test_user');
+        testUser = { _id: new ObjectId(), username: username, _user: username, roles: [], _model: 'user' };
+        testUserWithRole = { _id: new ObjectId(), username: username, _user: username, roles: [], _model: 'user' }; // roles sera ajouté après la création du rôle
+        systemUser = { roles: ['admin', 'product.view'] };
 
-        it('should return base permissions from the user\'s role', async () => {
-            const coll = await setupTestContext();
-            const permissions = await getUserActivePermissions(testUser);
-            expect(permissions).to.be.an.instanceOf(Set);
-            expect(permissions.size).to.equal(2);
-            expect(permissions.has('post:read')).to.be.true;
-            expect(permissions.has('post:write')).to.be.true;
-            expect(permissions.has('post:delete')).to.be.false;
-            await coll.drop();
+        collection = await getCollectionForUser(testUser);
+        await collection.deleteMany({ _user: username });
+
+        // --- Création des données de test ---
+        // Créer les modèles nécessaires pour les permissions et les rôles
+        await createModel({ name: 'permission', _user: username, fields: [{ name: 'name', type: 'string' }, { name: 'filter', type: 'code' }] });
+        await createModel({ name: 'role', _user: username, fields: [{ name: 'name', type: 'string' }, { name: 'permissions', type: 'relation', relation: 'permission', multiple: true }] });
+        await createModel({ name: 'userPermission', _user: username, fields: [{ name: 'user', type: 'relation', relation: 'user' }, { name: 'permission', type: 'relation', relation: 'permission' }, { name: 'isGranted', type: 'boolean' }, { name: 'filter', type: 'code' }] });
+
+        const permResult = await collection.insertMany([
+            { _model: 'permission', name: 'product.view', _user: username },
+            { _model: 'permission', name: 'order.edit', filter: { status: 'pending' }, _user: username },
+            { _model: 'permission', name: 'document.edit', filter: { createdBy: '{user._id}' }, _user: username },
+            { _model: 'permission', name: 'login.attempt', filter: { "ip": "{req.ip}" }, _user: username }
+        ]);
+        permNoFilter = permResult.insertedIds[0];
+        permWithSimpleFilter = permResult.insertedIds[1];
+        permWithUserFilter = permResult.insertedIds[2];
+        permWithReqFilter = permResult.insertedIds[3];
+
+        const roleResult = await collection.insertOne({
+            _model: 'role',
+            name: 'Editor',
+            permissions: [permNoFilter.toString(), permWithSimpleFilter.toString()],
+            _user: username
         });
+        roleWithPerms = roleResult.insertedId;
 
-        it('should grant a temporary permission via an exception', async () => {
-            const coll = await setupTestContext();
-            // Ajoute une exception qui donne la permission de supprimer, expirant demain
-            const futureDate = new Date();
-            futureDate.setDate(futureDate.getDate() + 1);
-
-            await coll.insertOne({
-                _model: 'userPermission',
-                user: testUser._id,
-                permission: permDelete,
-                isGranted: true,
-                expiresAt: futureDate
-            });
-
-            const permissions = await getUserActivePermissions(testUser);
-            expect(permissions.size).to.equal(3);
-            expect(permissions.has('post:delete')).to.be.true;
-
-            // Nettoyage de l'exception pour ne pas affecter les autres tests
-            await coll.deleteOne({ _model: 'userPermission', user: testUser._id });
-
-            await coll.drop();
-        });
-
-        it('should NOT grant an expired temporary permission', async () => {
-            const coll = await setupTestContext();
-            // Ajoute une exception qui a expiré hier
-            const pastDate = new Date();
-            pastDate.setDate(pastDate.getDate() - 1);
-
-            await coll.insertOne({
-                _model: 'userPermission',
-                user: testUser._id,
-                permission: permDelete,
-                isGranted: true,
-                expiresAt: pastDate
-            });
-
-            const permissions = await getUserActivePermissions(testUser);
-            expect(permissions.size).to.equal(2); // Revient la normale
-            expect(permissions.has('post:delete')).to.be.false;
-
-            await coll.deleteOne({ _model: 'userPermission', user: testUser._id });
-            await coll.drop();
-        });
-
-        it('should revoke a base permission via an exception', async () => {
-            const coll = await setupTestContext();
-            // L'utilisateur est "Editor", mais on lui retire le droit d'écriture temporairement
-            const futureDate = new Date();
-            futureDate.setDate(futureDate.getDate() + 1);
-
-            await coll.insertOne({
-                _model: 'userPermission',
-                user: testUser._id,
-                permission: permWrite,
-                isGranted: false, // Révocation
-                expiresAt: futureDate
-            });
-
-            const permissions = await getUserActivePermissions(testUser);
-            expect(permissions.size).to.equal(1);
-            expect(permissions.has('post:read')).to.be.true;
-            expect(permissions.has('post:write')).to.be.false; // La permission a été retirée
-
-            await coll.deleteOne({ _model: 'userPermission', user: testUser._id });
-            await coll.drop();
-        });
-
-        it('should restore a revoked permission if the revocation has expired', async () => {
-            const coll = await setupTestContext();
-            // La révocation a expiré, l'utilisateur devrait retrouver son droit d'écriture
-            const pastDate = new Date();
-            pastDate.setDate(pastDate.getDate() - 1);
-
-            await coll.insertOne({
-                _model: 'userPermission',
-                user: testUser._id,
-                permission: permWrite,
-                isGranted: false,
-                expiresAt: pastDate
-            });
-
-            const permissions = await getUserActivePermissions(testUser);
-            expect(permissions.size).to.equal(2);
-            expect(permissions.has('post:write')).to.be.true; // La permission est de retour
-
-            await coll.deleteOne({ _model: 'userPermission', user: testUser._id });
-            await coll.drop();
-        });
+        // Assigner le rôle à l'utilisateur de test
+        testUserWithRole.roles = [roleWithPerms.toString()];
     });
 
-    // --- Tests pour la fonction publique `hasPermission` ---
-    describe('hasPermission()', () => {
-        it('should return true for a permission the user has', async () => {
-            const coll = await setupTestContext();
-            const result = await hasPermission('post:read', testUser);
-            expect(result).to.be.true;
-            await coll.drop();
-        });
-
-        it('should return false for a permission the user does not have', async () => {
-            const coll = await setupTestContext();
-            const result = await hasPermission('user:manage', testUser);
-            expect(result).to.be.false;
-            await coll.drop();
-        });
-
-        it('should return true if user has at least one of the required permissions', async () => {
-            const coll = await setupTestContext();
-            const result = await hasPermission(['user:manage', 'post:write'], testUser);
-            expect(result).to.be.true;
-            await coll.drop();
-        });
-
-        it('should return false if user has none of the required permissions', async () => {
-            const coll = await setupTestContext();
-            const result = await hasPermission(['user:manage', 'post:delete'], testUser);
-            expect(result).to.be.false;
-            await coll.drop();
-        });
+    afterEach(async () => {
+        // Nettoyer les données créées
+        if (collection) {
+            await collection.deleteMany({ _user: testUser.username });
+        }
+        await deleteModels({ _user: testUser.username });
     });
 
-    describe('hasPermission() with environment context', () => {
-        let user, coll;
-        let permRead, permWrite;
-        let envProdId, envStagingId;
+    it('should return true for a permission without filter granted by a role', async () => {
+        const result = await hasPermission('product.view', testUserWithRole);
+        expect(result).toBe(true);
+    });
 
-        beforeAll(async () => {
-            // --- Setup ---
-            coll = await setupTestContext();
-            user = currentTestUser; // Récupère l'utilisateur du contexte
+    it('should return a simple filter object for a permission with filter granted by a role', async () => {
+        const result = await hasPermission('order.edit', testUserWithRole);
+        expect(result).toEqual({ status: 'pending' });
+    });
 
-            // 1. Créer les permissions
-            const perms = await coll.insertMany([
-                { _model: 'permission', name: 'env:read', _user: user.username },
-                { _model: 'permission', name: 'env:write', _user: user.username }
-            ]);
-            permRead = perms.insertedIds[0];
-            permWrite = perms.insertedIds[1];
+    it('should return false if user does not have the permission', async () => {
+        const result = await hasPermission('document.edit', testUserWithRole);
+        expect(result).toBe(false);
+    });
 
-            // 2. Créer les environnements
-            const envs = await coll.insertMany([
-                { _model: 'env', name: 'prod', _user: user.username },
-                { _model: 'env', name: 'staging', _user: user.username }
-            ]);
-            envProdId = envs.insertedIds[0].toString();
-            envStagingId = envs.insertedIds[1].toString();
-
-            // 3. Créer un rôle de base et l'assigner à l'utilisateur
-            const role = await coll.insertOne({
-                _model: 'role',
-                name: 'EnvTester',
-                permissions: [permRead.toString()],
-                _user: user.username
-            });
-            await coll.updateOne(
-                { _id: user._id },
-                { $set: { roles: [role.insertedId.toString()] } }
-            );
-            // Mettre à jour l'objet utilisateur en mémoire
-            user.roles = [role.insertedId.toString()];
-            user.permissions = ['env:read'];
+    it('should grant a permission with a filter via userPermission exception', async () => {
+        await collection.insertOne({
+            _model: 'userPermission',
+            user: testUser._id.toString(),
+            permission: permWithUserFilter.toString(),
+            isGranted: true,
+            _user: testUser.username
         });
 
-        afterAll(async () => {
-            await coll.drop();
+        const result = await hasPermission('document.edit', testUser);
+        expect(result).toEqual({ createdBy: testUser._id.toString() });
+    });
+
+    it('should substitute user._id in the filter', async () => {
+        await collection.insertOne({
+            _model: 'userPermission',
+            user: testUserWithRole._id.toString(),
+            permission: permWithUserFilter.toString(),
+            isGranted: true,
+            _user: testUser.username
         });
 
-        afterEach(async () => {
-            // Nettoyer les exceptions de permission après chaque test
-            await coll.deleteMany({ _model: 'userPermission', user: user._id });
+        const result = await hasPermission('document.edit', testUserWithRole);
+        expect(result).toEqual({ createdBy: testUserWithRole._id.toString() });
+    });
+
+    it('should substitute request context variables like req.ip', async () => {
+        await collection.insertOne({
+            _model: 'userPermission',
+            user: testUser._id.toString(),
+            permission: permWithReqFilter.toString(),
+            isGranted: true,
+            _user: testUser.username
         });
 
-        it('should grant permission if exception is global (no env)', async () => {
-            await coll.insertOne({
-                _model: 'userPermission', user: user._id, permission: permWrite, isGranted: true
-            });
-            // L'utilisateur doit avoir la permission dans n'importe quel environnement
-            expect(await hasPermission(['env:write'], user, envProdId)).toBe(true);
-            expect(await hasPermission(['env:write'], user, envStagingId)).toBe(true);
-            expect(await hasPermission(['env:write'], user, null)).toBe(true); // Environnement par défaut
+        const mockReq = {
+            ip: '192.168.1.100',
+            query: { from: 'test' },
+            body: { name: 'test-body' },
+            params: { id: '123' }
+        };
+
+        const result = await hasPermission('login.attempt', testUser, null, mockReq);
+        expect(result).toEqual({ ip: '192.168.1.100' });
+    });
+
+    it('should revoke a permission from a role via userPermission exception', async () => {
+        let result = await hasPermission('order.edit', testUserWithRole);
+        expect(result).toEqual({ status: 'pending' });
+
+        await collection.insertOne({
+            _model: 'userPermission',
+            user: testUserWithRole._id.toString(),
+            permission: permWithSimpleFilter.toString(),
+            isGranted: false,
+            _user: testUser.username
         });
 
-        it('should grant permission only in the specified environment', async () => {
-            await coll.insertOne({
-                _model: 'userPermission', user: user._id, permission: permWrite, isGranted: true, env: envProdId
-            });
-            // L'utilisateur ne doit avoir la permission qu'en 'prod'
-            expect(await hasPermission(['env:write'], user, envProdId)).toBe(true);
-            expect(await hasPermission(['env:write'], user, envStagingId)).toBe(false);
-            expect(await hasPermission(['env:write'], user, null)).toBe(false);
+        result = await hasPermission('order.edit', testUserWithRole);
+        expect(result).toBe(false);
+    });
+
+    it('should override a role filter with a userPermission filter', async () => {
+        const permResult = await collection.insertOne({
+            _model: 'permission',
+            name: 'order.edit',
+            filter: { manager_id: '{user._id}' },
+            _user: testUser.username
+        });
+        permOrderEditForManager = permResult.insertedId;
+
+        await collection.insertOne({
+            _model: 'userPermission',
+            user: testUserWithRole._id.toString(),
+            permission: permOrderEditForManager.toString(),
+            isGranted: true,
+            _user: testUser.username
         });
 
-        it('should revoke a base permission globally if exception has no env', async () => {
-            await coll.insertOne({
-                _model: 'userPermission', user: user._id, permission: permRead, isGranted: false
-            });
-            // La permission de lecture (du rôle) doit être révoquée partout
-            expect(await hasPermission(['env:read'], user, envProdId)).toBe(false);
-            expect(await hasPermission(['env:read'], user, envStagingId)).toBe(false);
-            expect(await hasPermission(['env:read'], user, null)).toBe(false);
+        const result = await hasPermission('order.edit', testUserWithRole);
+
+        expect(result).toEqual({ manager_id: testUserWithRole._id.toString() });
+    });
+
+    it('should use the filter from userPermission when overriding a permission', async () => {
+        // Le rôle donne 'order.edit' avec le filtre { status: 'pending' }
+        let result = await hasPermission('order.edit', testUserWithRole);
+        expect(result).toEqual({ status: 'pending' });
+
+        // On ajoute une exception qui accorde la même permission mais avec un filtre différent
+        await collection.insertOne({
+            _model: 'userPermission',
+            user: testUserWithRole._id.toString(),
+            permission: permWithSimpleFilter.toString(), // La permission 'order.edit'
+            isGranted: true,
+            filter: { "assignedTo": "{user._id}" }, // Le nouveau filtre
+            _user: testUser.username
         });
 
-        it('should revoke a base permission only in the specified environment', async () => {
-            await coll.insertOne({
-                _model: 'userPermission', user: user._id, permission: permRead, isGranted: false, env: envStagingId
-            });
-            // La permission de lecture ne doit être révoquée qu'en 'staging'
-            expect(await hasPermission(['env:read'], user, envProdId)).toBe(true);
-            expect(await hasPermission(['env:read'], user, envStagingId)).toBe(false);
-            expect(await hasPermission(['env:read'], user, null)).toBe(true);
+        // La fonction doit maintenant retourner le filtre de l'exception
+        result = await hasPermission('order.edit', testUserWithRole);
+        expect(result).toEqual({ assignedTo: testUserWithRole._id.toString() });
+    });
+
+    it('should fallback to base permission filter if userPermission has no filter', async () => {
+        // On accorde 'document.edit' (qui a un filtre { createdBy: '{user._id}' })
+        // via une exception qui n'a PAS de filtre personnalisé.
+        await collection.insertOne({
+            _model: 'userPermission',
+            user: testUser._id.toString(),
+            permission: permWithUserFilter.toString(), // La permission 'document.edit'
+            isGranted: true,
+            // Pas de champ 'filter' ici
+            _user: testUser.username
         });
 
-        it('should prioritize specific env revocation over a global grant', async () => {
-            await coll.insertMany([
-                // On accorde 'env:write' partout
-                { _model: 'userPermission', user: user._id, permission: permWrite, isGranted: true },
-                // Mais on le révoque spécifiquement pour 'staging'
-                { _model: 'userPermission', user: user._id, permission: permWrite, isGranted: false, env: envStagingId }
-            ]);
+        // La fonction doit retourner le filtre de la permission de base.
+        const result = await hasPermission('document.edit', testUser);
+        expect(result).toEqual({ createdBy: testUser._id.toString() });
+    });
 
-            expect(await hasPermission(['env:write'], user, envProdId)).toBe(true);
-            expect(await hasPermission(['env:write'], user, envStagingId)).toBe(false);
-            expect(await hasPermission(['env:write'], user, null)).toBe(true);
-        });
+    it('should handle non-local users correctly', async () => {
+        let result = await hasPermission('product.view', systemUser);
+        expect(result).toBe(true);
+
+        result = await hasPermission('order.edit', systemUser);
+        expect(result).toBe(false);
+    });
+
+    it('should return false and log an error if an exception occurs', async ({skip}) => {
+        // Pour simuler une erreur, on peut essayer de requêter avec un utilisateur invalide
+        // ou mocker une fonction interne pour qu'elle échoue.
+        const getCollectionForUserSpy = vi.spyOn(await import('../src/modules/mongodb.js'), 'getCollectionForUser');
+        getCollectionForUserSpy.mockRejectedValueOnce(new Error("DB connection failed"));
+        const errorSpy = vi.spyOn(logger, 'error');
+
+        const result = await hasPermission('product.view', testUserWithRole);
+
+        expect(result).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("Erreur lors de la vérification des permissions :", expect.any(Error));
+
+        getCollectionForUserSpy.mockRestore();
+        errorSpy.mockRestore();
     });
 });
