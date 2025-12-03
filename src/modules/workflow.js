@@ -18,6 +18,7 @@ import {getEnv, getSmtpConfig} from "./user.js";
 import { providers } from "./assistant/constants.js";
 import { getAIProvider } from "./assistant/providers.js";
 import {Config} from "../config.js";
+import {substituteVariables} from "../filter.js";
 
 let logger = null;
 export async function onInit(defaultEngine) {
