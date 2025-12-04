@@ -2,6 +2,7 @@
 import {Logger} from "../gameObject.js";
 import {MongoDatabase} from "../engine.js";
 import {ObjectId} from "mongodb";
+import {isLocalUser} from "../data.js";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
 
@@ -51,7 +52,7 @@ export const getCollection = (str) => {
 // New function to determine the collection name for a user
 export const getUserCollectionName = async (user) => {
     const feat = await engine.userProvider.hasFeature(user, 'indexes');
-    return feat ? `datas_${user.username}` : 'datas';
+    return feat ? (isLocalUser(user) ? `datas_${user._user}` :`datas_${user.username}` ) : 'datas';
 };
 
 

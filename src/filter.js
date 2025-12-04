@@ -14,6 +14,47 @@ export function setSafeRegex(validator) {
 }
 
 /**
+ * Évalue une comparaison entre une valeur cible et une valeur de condition.
+ * @param {string} operator - L'opérateur de comparaison (ex: '$eq', '$lt').
+ * @param {*} targetValue - La valeur actuelle du champ dans les données.
+ * @param {*} processedConditionValue - La valeur de la condition à comparer.
+ * @param {object} condition - La condition complète pour le contexte de logging.
+ * @returns {boolean} - Le résultat de la comparaison.
+ */
+function evaluateComparison(operator, targetValue, processedConditionValue, condition) {
+    const logClientEvalWarning = (message, details) => {
+        console.warn(`[Client Eval] ${message}:`, details);
+    };
+
+    try {
+        switch (operator) {
+            case '$eq': return targetValue == processedConditionValue; // Utilise '==' pour une comparaison plus souple
+            case '$ne': return targetValue != processedConditionValue;
+            case '$gt': return targetValue > processedConditionValue;
+            case '$lt': return targetValue < processedConditionValue;
+            case '$gte': return targetValue >= processedConditionValue;
+            case '$lte': return targetValue <= processedConditionValue;
+            case '$regex':
+                if (typeof targetValue !== 'string' || !processedConditionValue || typeof processedConditionValue !== 'string') return false;
+                try {
+                    if (safeRegex && !safeRegex(processedConditionValue)) return false;
+                    const regex = new RegExp(processedConditionValue, 'i');
+                    return regex.test(targetValue);
+                } catch (e) {
+                    logClientEvalWarning(`Invalid regex pattern: ${processedConditionValue}`, condition);
+                    return false;
+                }
+            case '$in': return Array.isArray(processedConditionValue) && processedConditionValue.includes(targetValue);
+            case '$nin': return !Array.isArray(processedConditionValue) || !processedConditionValue.includes(targetValue);
+            default: return true; // Permissif par défaut pour les opérateurs non gérés
+        }
+    } catch (evalError) {
+        logClientEvalWarning(`Error during condition evaluation: ${operator}, targetValue=${targetValue}, processedConditionValue=${processedConditionValue}`, condition);
+        return false;
+    }
+}
+
+/**
  * Récupère une valeur imbriquée dans un objet en utilisant une chaîne de chemin.
  * Gère les tableaux et les objets. Retourne undefined si le chemin n'est pas trouvé.
  * Exemple: getNestedValue({ a: { b: [ { c: 1 } ] } }, 'a.b.0.c') -> 1
@@ -67,6 +108,17 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
         return true; // Permissive default
     }
 
+    // If the condition is a standard query operator like { amount: { $lt: 1000 } }
+    const fieldNameFromCondition = Object.keys(condition)[0];
+    const conditionValueObject = condition[fieldNameFromCondition];
+
+    if (typeof conditionValueObject === 'object' && conditionValueObject !== null && !Array.isArray(conditionValueObject)) {
+        const operator = Object.keys(conditionValueObject)[0];
+        if (operator.startsWith('$')) {
+            return evaluateComparison(operator, formData[fieldNameFromCondition], conditionValueObject[operator], condition, checkRegex);
+        }
+    }
+
     // Si la condition est de la forme {field: value}, on la transforme en {$eq: value}
     if (!Object.keys(condition)[0].startsWith('$') && typeof condition[Object.keys(condition)[0]] !== 'object') {
         const fieldName = Object.keys(condition)[0];
@@ -81,11 +133,11 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
         const [fieldPath, expectedValue] = condition[operator];
         if (typeof fieldPath === 'string' && fieldPath.startsWith('$')) {
             const fieldName = fieldPath.substring(1); // Enlève le $ devant
-            const actualValue = formData[fieldName];
-            if (operator === '$eq') return actualValue == expectedValue;
-            if (operator === '$ne') return actualValue != expectedValue;
+            const actualValue = getNestedValue(formData, fieldName);
+            return evaluateComparison(operator, actualValue, expectedValue, condition, checkRegex);
         }
     }
+
 
     // Si la condition contient des opérateurs logiques, on les gère ici
     if (condition.$and || condition.$or || condition.$not || condition.$nor) {
@@ -165,7 +217,7 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
         return false;
     }
 
-    return evaluateComparison(fieldValue, targetValue, processedConditionValue, condition);
+    return evaluateComparison('$eq', targetValue, processedConditionValue, condition);
 
     function logClientEvalWarning(message, details) {
         console.warn(`[Client Eval] ${message}:`, details);
@@ -189,43 +241,6 @@ const evaluateSingleCondition = (currentModelDef, condition, formData, allModels
         }
     }
 
-    function evaluateComparison(operator, targetValue, processedConditionValue, condition) {
-        try {
-            switch (typeof operator === 'object' ? Object.keys(operator)[0] : null) {
-            case '$eq': return targetValue === processedConditionValue;
-            case '$ne': return targetValue !== processedConditionValue;
-            case '$gt': return targetValue > processedConditionValue;
-            case '$lt': return targetValue < processedConditionValue;
-            case '$gte': return targetValue >= processedConditionValue;
-            case '$lte': return targetValue <= processedConditionValue;
-            case '$regex':
-                if (typeof targetValue !== 'string') return false;
-                if (typeof processedConditionValue !== 'string') return false;
-                try {
-                    // On vérifie si la fonction a été injectée ET si la regex est sûre.
-                    // Côté client, `safeRegex` sera null, donc la vérification est simplement ignorée.
-                    if( checkRegex && safeRegex && safeRegex(processedConditionValue)) {
-                        const regex = new RegExp(processedConditionValue, 'i');
-                        return regex.test(targetValue);
-                    }
-                    return false;
-                } catch (e) {
-                    logClientEvalWarning(`Invalid regex pattern: ${processedConditionValue}`, condition);
-                    return false;
-                }
-            case '$in':
-                return Array.isArray(processedConditionValue) && processedConditionValue.includes(String(targetValue));
-            case '$nin':
-                return !Array.isArray(processedConditionValue) || !processedConditionValue.includes(String(targetValue));
-            default:
-                logClientEvalWarning(`Unhandled operator in client evaluation logic: ${operator}`, condition);
-                return true; // Permissive default
-            }
-        } catch (evalError) {
-            logClientEvalWarning(`Error during client condition evaluation: ${operator}, targetValue=${targetValue}, processedConditionValue=${processedConditionValue}`, condition);
-            return false;
-        }
-    }
 };
 
 export const isConditionMet = (model, cond, formData, allModels, user,checkRegex=true) => {
@@ -235,6 +250,22 @@ export const isConditionMet = (model, cond, formData, allModels, user,checkRegex
 
     if (typeof condition !== 'object' || condition === null) {
         return true;
+    }
+
+    // --- NOUVELLE LOGIQUE ---
+    // Gère les conditions de type expression d'agrégation comme { "$lt": ["$amount", 1000] }
+    const operatorKeys = Object.keys(condition).filter(k => k.startsWith('$'));
+    if (operatorKeys.length === 1) {
+        const operator = operatorKeys[0];
+        const operands = condition[operator];
+
+        if (Array.isArray(operands) && operands.length === 2 && typeof operands[0] === 'string' && operands[0].startsWith('$')) {
+            const fieldName = operands[0].substring(1); // Extrait 'amount' de '$amount'
+            const expectedValue = operands[1];
+            const actualValue = getNestedValue(formData, fieldName);
+
+            return evaluateComparison(operator, actualValue, expectedValue, condition, checkRegex);
+        }
     }
 
     // Cas spécial: Évaluation sans modèle (ex: pour les webhooks où la condition est déjà résolue)
