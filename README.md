@@ -1,1009 +1,116 @@
 # data-primals-engine
 [![Node.js CI](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml/badge.svg?branch=main)](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml)
 ![](https://img.shields.io/npm/dw/data-primals-engine)
-![](https://img.shields.io/npm/last-update/data-primals-engine)
 ![](https://img.shields.io/github/v/release/anonympins/data-primals-engine)
 ![](https://img.shields.io/github/license/anonympins/data-primals-engine)
 
-**data-primals-engine** is a powerful and flexible **Node.js** backend framework designed to accelerate development of complex data-driven applications. Built on **Express.js** and **MongoDB**, it offers dynamic data modeling, automation workflows, advanced user management, and more.
+**data-primals-engine** is a powerful and flexible **Node.js** backend framework designed to accelerate the development of complex data-driven applications. Built on **Express.js** and **MongoDB**, it provides a solid foundation so you can focus on what makes your application unique.
 
-> Whether you're building a CRM, e-commerce site, CMS, or SaaS platform, **data-primals-engine** provides the strong foundations so you can focus on what makes your application unique.
+---
 
 <p align="center">
   <a href="https://data.primals.net/prez1.jpg" target="_blank"><img alt="Light" src="https://data.primals.net/prez1.jpg" width="35%"></a>
   <a href="https://data.primals.net/prez6.jpg" target="_blank"><img alt="Light" src="https://data.primals.net/prez6.jpg" width="35%"></a>
   <a href="https://data.primals.net/api-docs" target="_blank"><img alt="Dark" src="https://data.primals.net/prez5.jpg" width="25%"></a>
 </p>
+
 ---
 
 ## 🚀 Key Features
 
-- **Visual Data Modeling**: Define and update schemas using a powerful UI Model Creator, or directly with JSON. No migrations required.
-- **Custom API Endpoints**: Create server-side logic and new API endpoints directly from the UI in a secure, sandboxed environment.
-- **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
-- **Advanced Querying & Aggregation**: Go beyond simple filters with a visual Condition Builder, deep relation expansion, complex lookups, and dynamic calculated fields.
-- **Rich UI Data Views**: Ready-to-use React components to display your data, including a powerful and configurable Data Table, a Kanban board, and a Calendar view.
-- **Integrated Backup & Restore**: Secure, encrypted user data backups with rotation policies, supporting both local and AWS S3 storage.
-- **Automatic Data Auditing**: Automatically tracks all changes (create, update, delete) for every record, providing a complete version history for auditing and traceability.
-- **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
-- **Authentication & Authorization**: Robust role-based access control (RBAC) and pluggable user providers.
-- **Built-in File Management**: Handle file uploads seamlessly with integrated support for AWS S3 storage.
-- **🧠 AI Integration**: Natively supports OpenAI, DeepSeek and Google Gemini models via LangChain for content generation, analysis, and more.
-- **🌐 Internationalization (i18n)**: Fully supports multilingual interfaces and user-specific translated data.
-- **📦 Starter Packs**: Quickly bootstrap applications with pre-built data packs for CRM, e-commerce, and more.
-- **📄Auto-Generated API Documentation**: Interactive API documentation available via the interface or at `/api-docs`.
+- **Visual Data Modeling**: Define and update schemas via a UI or JSON, without migrations.
+- **Automation Workflows**: Trigger complex actions based on data events (create, update) or schedules (cron).
+- **Dynamic & Extensible API**: Create custom API endpoints directly from the UI in a secure environment.
+- **Advanced Data Management**: Benefit from complex queries, aggregations, automatic change auditing, and a permission system (RBAC).
+- **AI Integration**: Native support for OpenAI, DeepSeek, and Google Gemini models via LangChain.
+- **Complete Ecosystem**: Includes file management (S3), internationalization (i18n), encrypted backups, and starter packs.
 
-## 🌟 Why Choose data-primals-engine?
-
-- **Zero Boilerplate**: Focus on your business logic, not infrastructure
-- **Scalability**: Architecture designed for rapidly growing applications
-- **Modularity**: Enable/disable features as needed
-- **Batteries Included**: Everything you need to get started quickly
-- **Proven Performance**: Handles 50k+ documents efficiently
-- **AI Ready**: Built-in LangChain integration for main providers (OpenAI,Gemini,Anthropic,DeepSeek)
-
----
-
-## 📊 Proven Performance
-
-The engine has been rigorously tested to ensure stability and scalability. Load tests simulating complex, multi-step user journeys (including model creation, data import, and API interactions) show excellent results:
-- **Zero Failures**: 100% success rate under sustained concurrent load.
-- **Excellent Responsiveness**: Median response times as low as 15-30ms.
-- **Linear Scaling**: Predictable performance as user load increases.
-
-For detailed reports, see the [Performance Testing Documentation](./perf/README.md).
-
----
-
-## ⚙️ Requirements
-
-- Node.js ≥ 20
-- MongoDB (local or remote), see [installation guide](https://www.mongodb.com/docs/manual/installation/)
-- NPM or Yarn
+For a detailed exploration of each feature, check out the wiki pages:
 
 ---
 
 ## ⚡ Quick Start
 
-### check
-```bash
-# Verify required versions
-node -v # Must show ≥ v20
-mongod --version # Must be installed
-```
+### 1. Prerequisites
+- **Node.js** ≥ 20
+- **MongoDB** (local or remote)
 
-### install
+### 2. Installation
 
-```bash
-npm i data-primals-engine
-```
-or
 ```bash
 git clone https://github.com/anonympins/data-primals-engine.git
 cd data-primals-engine
 npm install
 ```
 
-### configure 
-Possibly create a `.env` file:
+### 3. Configuration
+
+Create a `.env` file in the project root to configure the connection to your database :
+
 ```env
-MONGO_DB_URL=mongodb://127.0.0.1:27017
-```
-| Variable              | 	Description                                                            | 	Example                                 |
-|:----------------------|:------------------------------------------------------------------------|:-----------------------------------------| 
-| MONGO_DB_URL          | Connection URL for your MongoDB database.                               | 	mongodb://user:pass@host:27017/db       |
-| PORT                  | 	Port on which the Express server will listen.	                         | 7633                                     |
-| JWT_SECRET            | 	Secret key for signing JWT authentication tokens.	                     | a_long_random_secret_string              |
-| OPENAI_API_KEY        | 	Your optional OpenAI API key for AI features.	                         | sk-xxxxxxxxxxxxxxxxxxxx                  |
-| GOOGLE_API_KEY        | 	Your optional Google (Gemini) API key for AI features.	                | AIzaSyxxxxxxxxxxxxxxxxxxxx               |
-| DEEPSEEK_API_KEY      | 	Your optional DeepSeek API key for AI features.	                       | sk-xxxxxxxxxxxxxxxxxxxx                  |
-| ANTHROPIC_API_KEY     | 	Your optional Anthropic API key for AI features.	                      | sk-ant-xxxxxxxxxxxxxxxxxxx               |
-| AWS_ACCESS_KEY_ID     | 	AWS access key for S3 storage (files, backups). Keep empty to disable	 | AKIAIOSFODNN7EXAMPLE                     |
-| AWS_SECRET_ACCESS_KEY | 	AWS secret access key.	                                                | wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY |                                 |
-| AWS_REGION            | 	Region for your S3 bucket.                                             | 	eu-west-3                               |                                                                 |
-| AWS_S3_BUCKET_NAME    | 	Name of the S3 bucket to use.                                          | 	my-backup-bucket                        |                                                                             |
-| SMTP_HOST             | 	SMTP server host for sending emails.	                                  | smtp.example.com                         |
-| SMTP_PORT             | 	SMTP server port.	                                                     | 587                                      |
-| SMTP_USER             | 	Username for SMTP authentication.                                      | 	user@example.com                        |
-| SMTP_PASS             | 	Password for SMTP authentication.                                      | 	password                                |
-| TLS                   | 	Encrypted connection (TLS) mode. Disabled by default                   | 	0/1 false/true                          |
-| CA_CERT               | 	Path to CA cert file.                                                  | 	certs/ca.crt                            |
-| CERT                  | 	Path to cert file.                                                     | 	certs/cert.pem                          |
-| CERT_KEY              | Path to the key file for your certificate.                              | 	certs/key.pem                           |
-
-### Programmatic Configuration
-
-In addition to environment variables, you can programmatically override most of the application's internal constants at runtime. This is useful for fine-tuning performance, limits, or behavior without restarting the server.
-
-The engine exposes a `Config` object for this purpose. You can modify any constant defined in `src/constants.js`.
-
-To override a constant, use the `Config.Set()` method **before** initializing the engine:
-
-```javascript
-import express from "express";
-import { Engine, Config } from 'data-primals-engine';
-
-// Override default constants before engine initialization
-Config.Set("maxRequestData", 1000); // Increase max data per request
-Config.Set("maxFileSize", 50 * 1024 * 1024); // Allow larger file uploads (50MB)
-
-const app = express();
-const engine = await Engine.Create({ app });
+MONGO_DB_URL=mongodb://127.0.0.1:27017/my_database
+JWT_SECRET=a_long_and_random_secret
 ```
 
-### Start the server
+To discover all available environment variables (AWS, SMTP, AI, etc.), consult the **configuration documentation**.
+
+### 4. Launch
+
 ```bash
-# Development mode
+# Development mode with automatic reloading
 npm run devserver
 
 # Production mode
 npm run server
 ```
 
-By default, the app runs on port **7633** : http://localhost:7633
-
-
----
-
-## 🧠 Concepts
-
-### Authentication & Authorization
-
-The engine includes a pluggable system for user management. For development and testing, it uses a `DefaultUserProvider` which creates a volatile **`demo`** user. This is perfect for getting started quickly without setting up a user database.
-
-For production environments, you should use SSO providers as seen in the page below, or extend the base `UserProvider` class to connect to your actual user database (e.g., another MongoDB collection, a SQL database, or an external authentication service). This allows you to implement your own logic for finding and creating users.
-
-### Permission System
-
-The engine features a powerful dual-mode permission system, providing both granular, database-driven control and a lightweight, simplified approach.
-
-#### 1. The Complete System (for Local Users)
-
-This is the full-featured Role-Based Access Control (RBAC) system designed for application users. It relies on three core models:
-
--   **`permission`**: Defines a single action (e.g., `API_EDIT_DATA_product`) and can include a JSON-based **filter** to restrict its scope (e.g., only edit products where `status` is `'draft'`).
--   **`role`**: A group of permissions (e.g., an "Editor" role that includes `API_EDIT_DATA_product` and `API_SEARCH_DATA_product`).
--   **`userPermission`**: Manages exceptions for individual users, allowing you to grant or revoke specific permissions, or even override a permission's filter for a single user.
-
-When `hasPermission()` is called for a "local user" (a standard user stored in the database), the engine performs a detailed aggregation to compute the final set of active permissions and their corresponding filters.
-
-#### 2. The Simplified System (for System/Non-Local Users)
-
-For internal processes, system users, or temporary "demo" users, the full database-driven permission system can be overkill. The engine offers an "extremely simplified" mode for these cases.
-
-**How it works:**
-
-If a user object is not a "local user" (i.e., it does not have `_model: 'user'`), the permission check becomes a simple string comparison. The `hasPermission()` function will just check if the permission name you are testing exists directly in the user's `roles` array.
-
-**Use Case:** This is perfect for system-level scripts or internal services that need specific, hard-coded permissions without the overhead of database lookups.
-
-**Example:**
-
-Consider a system user defined directly in your code:
-
-```javascript
-const systemUser = {
-  username: 'internal-service',
-  roles: ['API_SEARCH_DATA_product', 'API_ADD_DATA_order']
-};
-
-await hasPermission('API_SEARCH_DATA_product', systemUser); // Returns true
-await hasPermission('API_DELETE_DATA_product', systemUser); // Returns false
-```
-
-This dual approach gives you the flexibility to use a robust, granular system for your end-users while maintaining a simple, performant mechanism for internal and system-level tasks.
-
-### Model generation
-Models are the way to handle structured data. They organize data and they can be declared in JSON.
-
-```json
-{
-  "name": "product",
-  "description": "E-commerce product schema",
-  "fields": [
-    { "name": "name", "type": "string", "required": true },
-    { "name": "price", "type": "number", "required": true },
-    { "name": "stock", "type": "number", "default": 0 },
-    { "name": "category", "type": "relation", "relation": "taxonomy",
-       "relationFilter": { "$eq": ["$type", "category"] }
-    },
-    { "name": "tags", "type": "relation", "relation": "taxonomy", "multiple": true,
-       "relationFilter": { "$eq": ["$type", "keyword"] }
-    }
-  ]
-}
-```
-
-### Custom fields types
-
-| Type        | Description                                                                         | 	Properties/Notes                                                         | 
-|:------------|:------------------------------------------------------------------------------------|:--------------------------------------------------------------------------|
-| string	     | Character string.                                                                   | 	minLength, maxLength                                                     |
-| string_t	   | International character string ID.                                                  | 	same as string, translated in { key, value }                             |
-| number	     | Numeric value (integer or float).                                                   | 	min, max                                                                 |
-| boolean	    | Boolean value (true/false).	                                                        | –                                                                         |
-| date	       | Stores a ISO date.	                                                                 | –                                                                         |
-| datetime	   | Stores an ISO date and time.	                                                       | –                                                                         |
-| richtext	   | Rich text field (HTML) for WYSIWYG editors.	                                        |                                                                           |
-| richtext_t	 | International rich text field (HTML) for WYSIWYG editors.	                          | i18n                                                                      |
-| email	      | String validated as an email address.	                                              | –                                                                         |
-| password	   | String that will be automatically hashed.	                                          | –                                                                         |
-| enum	       | Allows selecting a value from a predefined list.	                                   | items: ["value1", "value2"]                                               |
-| relation	   | Creates a link to a document in another model.                                      | 	relation: "target_model_name", multiple: true/false                      |
-| file	       | For uploading a file (stored on S3 if configured).	                                 | allowedTypes:['image/jpeg', 'image/png', 'image/bmp'], maxSize: 1024*1000 |
-| image	      | Specialized file type for images, with preview.	                                    | –                                                                         |
-| array	      | Stores a list of values.	                                                           | itemsType: 'enum' // any type except relations                            |
-| object	     | Stores a nested JSON object.	–                                                      |                                                                           |
-| code	       | Stores language="*" as string, stores language="json" as arbitrary JSON structure.	 | language="json" conditionBuilder=true                                     |                                            
-| color	      | Stores an hexadecimal value of an RGB color	                                        | '#FF0000'                                                                 |                                            
-| model	      | Stores a model by name                                                              | –                                                                         |                                            
-| modelField	 | Stores a model field path	                                                          | –                                                                         |                                            
-
-### Other model features
-- Handles up to 1500 direct relations per document by default (can be customized). For larger datasets, use intermediate collections or maxRelationsPerData constant.
-- Anonymizable fields (encrypted for API users)
-- **Dynamic Index Management**: The engine features a sophisticated system for managing database indexes directly from the model editor UI. This eliminates the need for manual database administration or migration scripts for indexing, significantly speeding up development and reducing errors. Indexes are created, updated, and removed automatically when you save a model's structure. All created indexes are **partial indexes**, meaning they only include documents for the specific model and user, which optimizes storage and performance.
-
-#### Available Index Types
-
-You can enable indexing on any field by checking the `index` box in the model editor and choosing one of the following types:
-
-| Index Type      | `indexType` | Use Case & Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         -|
- |-----------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-| **Regular**     | `regular`   | **Purpose**: The standard index for most use cases. It dramatically speeds up queries, sorting, and filtering on a specific field. <br/> **Behavior**: Creates a standard ascending B-tree index on a single field. This is the default and most common index type.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      -|
-| **Text Search** | `text`      | **Purpose**: Enables powerful, language-aware full-text search across one or more fields. It's ideal for implementing search bars that need to query descriptions, titles, and other text-heavy content. <br/> **Behavior**: Creates a single, special **compound `text` index** for the entire model. All fields marked with `indexType: 'text'` are included in this single index. This allows you to use MongoDB's `$text` operator in your search queries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      -|
-| **Geospatial**  | `2dsphere`  | **Purpose**: Essential for location-based queries. It allows you to efficiently find documents within a certain radius, within a polygon, or sorted by distance. <br/> **Behavior**: Creates a `2dsphere` index on a single field. This index type should be used exclusively on fields of type `geolocation` which store data in GeoJSON format (e.g., `{ "type": "Point", "coordinates": [ -73.97, 40.77 ] }`). |
-
-### Model constraints
-```javascript
-{
-    "name": "modelName",
-    "fields": [
-         { "name": "fieldName1", .... },
-         { "name": "fieldName2", .... }
-    ],
-    "constraints": [
-        // uniqueness
-        { "name": "uniqueConstraint", type: "unique", keys: ["fieldName1", "fieldName2"] }
-    ]
-}
-```
-
-## 🏗️ Use Case Examples
-
-### 🛒 E-Commerce Backoffice 
-> “Sell in 15 min, not 15 days”
-> 
-**Pain**: You're struggling to sync your catalog, inventory, orders, refunds…
- 
-**Promise**: Install the "E-commerce Starter Kit" to get all the models you need for products, orders, and payments, plus a pre-configured workflow to process new orders.
- 
-**Proof**: After installing the pack, a single API call creates the order, which can then automatically trigger the "Order Fulfillment" workflow to update its status and create a shipment record.
- 
-```bash
-curl -X POST "http://localhost:7633/api/data?_user=demo" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "model": "order",
-           "data": { "orderId": "ORDER-12345", "totalAmount": 99.98, "status": "pending" }
-         }'
-```
- 
-### 🎫 Support Ticket System 
-> "Transform Gmail into Zendesk in 10 minutes"
- 
-**Pain**: Tickets flood a shared inbox → delayed responses, broken SLAs.
- 
-**Promise**: Create a `ticket` model (with statuses, priority, etc.). Then, build a workflow that triggers on new high-priority tickets. This workflow can use the built-in **`HttpRequest`** action to send a message to a Discord or Slack webhook URL, and the **`SendEmail`** action to alert a manager.
- 
-**Proof**: A single API call to create a ticket instantly triggers the notification workflow. The following `curl` command demonstrates how to create a new high-priority ticket, which would immediately fire the pre-configured alerts.
-
-```bash
-curl -X POST "http://localhost:7633/api/data?_user=demo" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "model": "ticket",
-           "data": {
-             "subject": "Critical: Payment Gateway Down",
-             "priority": "high",
-             "description": "No payments have been processed in the last hour."
-           }
-         }'
-```
- 
-### 🤖 AI Chatbot
-> "Adds an assistant that answers instead of support."
-
-**Pain**: 70% of questions are "Where is my order?" → overloaded team.
-
-**Promise**: One line in the workflow `OnDataAdded/ticket`: `GenerateAIContent(prompt="Summarize the order {triggerData.orderId} and provide the tracking link").`
-
-**Proof**: The ticket is created, the AI ​​responds in 3 seconds, the status changes to "automatically resolved" → saves 30 hours/month of support.
-
-### 📧 Email Campaign Management
-> “Send 10,000 emails without crashing your VPS”
-
-**Pain**: for loop + SMTP = blacklist + 100% CPU usage.
-
-**Promise**: Install the "Marketing & Campaigning" pack, configure your SMTP credentials in the 'env' model, create a campaign: the workflow sends emails in efficient batches of 10.
-
-**Proof**: Simply edit a campaign and set its status to "scheduled". A background workflow is immediately triggered, processing your entire mailing list in small, manageable batches. This offloads your server and allows you to continue working while the campaign runs securely in the background.
+By default, the application is available at `http://localhost:7633`.
 
 ---
 
-## 📁 Project Structure
-```
-data-primals-engine/
-├── src/
-│   ├── middlewares/
-│   ├── migrations/
-│   ├── modules/
-│   ├── workers/
-│   ├── engine.js // The Express engine that serves the API
-│   ├── constants.js // The inner-application constants definitions
-│   ├── packs.js // The packs that will be loaded and available with installPack() method
-│   ├── defaultModels.js // The default models available at startup.
-│   ├── ...
-└── server.js
-```
 
----
-
-## 🔌 API Examples (using `curl`)
-
-### 📁 Model Management
-
-#### Create a model
-> Defines a new data model (schema) in the system. The request body must contain the model's name and an array of field definitions.
-```bash
-curl -X POST http://localhost:7633/api/model?_user=demo \
-     -H "Authorization: Bearer demotoken" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "name": "newModel",
-           "description": "A test model.",
-           "fields": [
-             {"name": "title", "type": "string", "required": true},
-             {"name": "price", "type": "number"}
-           ]
-         }'
-```
-
-#### Update a model
-> Modifies an existing model's structure using its unique ID. This allows you to add, remove, or change fields.
-```bash
-curl -X PUT http://localhost:7633/api/model/60d0fe4f5311236168a109ca?_user=demo \
-     -H "Authorization: Bearer demotoken" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "name": "updatedModel",
-           "description": "Updated description.",
-           "fields": [
-             {"name": "title", "type": "string", "required": true},
-             {"name": "status", "type": "enum", "items": ["active", "inactive"]}
-           ]
-         }'
-```
-
-#### Delete a model
-> Permanently deletes a model definition using its name. This action is irreversible.
-```bash
-curl -X DELETE "http://localhost:7633/api/model?_user=demo&name=newModel" \
-     -H "Authorization: Bearer demotoken"
-```
-
-### 🗂️ Data Management
-
-#### Create a document
-> Creates a single new document in the specified model. The `data` object must conform to the model's schema.
-```bash
-curl -X POST http://localhost:7633/api/data?_user=demo \
-     -H "Authorization: Bearer demotoken" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "model": "product",
-           "data": {
-             "name": "Widget Extraordinaire",
-             "price": 99.99,
-             "stock": 150,
-             "published": true
-           }
-         }'
-```
-
-
-#### Search documents
-> Searches for documents using a MongoDB-style filter. This endpoint is ideal for complex queries, pagination, and sorting.
-
-```bash
-curl -X POST http://localhost:7633/api/data/search?_user=demo \
-     -H "Authorization: Bearer demotoken" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "model": "product",
-           "filter": { "$gt" : ["$price", 50] }
-         }'
-```
-
-#### Update a document by ID
-> Updates a single document by its unique ID. The request body contains the fields to be modified.
-```bash
-curl -X PUT http://localhost:7633/api/data/64a31c123ef59d4c8d55aa99?_user=demo \
-     -H "Authorization: Bearer demotoken" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "model": "product",
-           "data": { "price": 109.99 }
-         }'
-```
-
-
-#### Bulk update
-> Updates multiple documents matching a filter. This is efficient for applying changes to a batch of records, such as restocking all out-of-stock products.
-```bash
-curl -X PUT http://localhost:7633/api/data?_user=demo \
-     -H "Authorization: Bearer demotoken" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "model": "product",
-           "data": { "stock": 999 }
-         }'
-```
-
-#### Delete documents
-> Deletes one or more documents. You can provide an array of `ids` to delete specific documents.
-```bash
-curl -X DELETE http://localhost:7633/api/data?_user=demo \
-     -H "Authorization: Bearer demotoken" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "ids": ["64a31c123ef59d4c8d55aa99"]
-         }'
-```
-
-## Other operations
-
-Make sure you use the code below to initialize the user : 
-```javascript
-import express from "express";
-import {Engine, insertData, searchData } from 'data-primals-engine';
-
-// Ensure the engine is initialized
-
-const app = express();
-const engine = await Engine.Create({ app });
-const currentUser = await engine.userProvider.findUserByUsername('demo');
-if (!currentUser) {
-    throw new Error("Could not retrieve the user. Please check credentials or user provider.");
-}
-console.log(`Successfully authenticated as ${currentUser.username}`);
-```
-
-### insertData(modelName, data, files, user)
-
-> Inserts one or more documents, intelligently handling nested relationships.
-_env is used to define the target environment, production ready by default.
-> 
-```javascript
-// Uses the `currentUser` object defined above
-const newProduct = { name: 'Super Widget', price: 99.99, status: 'available', _env: 'development' };
-const result = await insertData('product', newProduct, {}, currentUser);
-
-if (result.success) {
-    console.log(`Successfully inserted document with ID: ${result.insertedIds[0]}`);
-}
-```
-
-### editData(modelName, filter, data, files, user)
-
-> Updates existing data matching the filter.
-
-Example:
-
-```javascript
-await editData(
-    "userProfile",
-    { _id: "507f1f77bcf86cd799439011" },
-    { bio: "Updated bio text" },
-    null, // No files
-    currentUser
-);
-```
-
-```javascript
-await editData(
-    "resource",
-    { source: "507f1f77bcf86cd799439011" },
-    { "file[]": {
-        "path": "C:/Users/.../test-upload-on-insert.txt",
-        "name": 'test-upload-on-insert.txt',
-        "type": 'text/plain',
-        "size": 1524,
-        "lastModifiedDate": new Date(),
-    }}, // No files
-    currentUser
-);
-```
-
-### patchData(modelName, filter, data, files, user)
-
-> Partially updates data (only modifies specified fields).
-
-Example:
-
-```javascript
-
-// Edit user settings (dark theme mode)
-await patchData(
-    "settings",
-    { userId: "507f1f77bcf86cd799439011" },
-    { theme: "dark" },
-    null,
-    currentUser
-);
-
-// Transfers data to the 'development' environement
-await patchData(
-    "product",
-    { _id: "507f1f77bcf86cd799439012" },
-    { _env: "development" },
-    null,
-    currentUser
-);
-```
-
-### deleteData(modelName, filter, user)
-
->Deletes data with cascading relation cleanup.
-
-Examples:
-
-```javascript
-// Delete by IDs
-await deleteData("comments", ["61d1f1a9e3f1a9e3f1a9e3f1"], user);
-
-// Delete by filter
-await deleteData("logs", { createdAt: { $lt: "2023-01-01" } }, user);
-```
-
-### searchData(query, user)
-
-Powerful search with relation expansion and filtering.
-
-Query Options:
-
-- **model**: Model name to search
-- **env**: Filter data by environment (development, staging, production, ...)
-- **filter**: MongoDB-style filter
-- **depth**: Relation expansion depth (default: 1)
-- **limit**: Number of results
-- **page**: Current page for pagination (default: 1)
-- **sort**: Sorting criteria
-
-Example:
-```javascript
-const results = await searchData({
-     model: "blogPost",
-     filter: { status: "published" },
-     depth: 2, // Expand author and comments
-     limit: 10,
-     sort: "createdAt:DESC"
-}, user);
-```
-
-## Import/Export
-### importData(options, files, user)
-> Imports data from Excel / JSON / CSV files.
-
-Supported Formats:
-
-- Excel with headers or field mapping
-- CSV with headers or field mapping
-- JSON arrays
-- JSON with model-keyed objects
-
-Example:
-
-```javascript
-const result = await importData(
-    {
-        model: "products",
-        hasHeaders: true
-    },
-    { 
-        file: req.files.myFileField // from multipart body  
-    },
-    currentUser
-);
-```
-
-### exportData(options, user)
-> Exports data to a structured format.
-
-Example:
-
-```javascript
-await exportData(
-    {
-        models: ["products", "categories"],
-        depth: 1, // Include relations
-        lang: "fr" // Localized data
-    },
-    currentUser
-);
-// Returns: { success: true, data: { products: [...], categories: [...] } }
-```
-
-## Backup & Restore
-### dumpUserData(user)
-> Creates an encrypted backup of user data.
-
-Features:
-
-- Automatic encryption
-- S3 or local storage
-- Retention policies by plan (daily/weekly/monthly)
-
-Example:
-
-```javascript
-await dumpUserData(currentUser);
-// Backup saved to S3 or ./backups/
-```
-
-### loadFromDump(user, options)
-
-> Restores user data from backup.
-
-Options:
-- modelsOnly: Restore only model definitions
-
-Example:
-
-```javascript
-await loadFromDump(currentUser, { modelsOnly: false });
-// Full restore including data
-```
-
-## Pack Management
-
-### installPack(packId, user, lang)
-
-> Installs a data pack.
-
-Example:
-
-```javascript
-const result = await installPack([
-    {
-        "name": "My custom pack",
-        "description": "Markdown **description** of the pack",
-        "tags": ["customPack", "tag1", "tag2"],
-        "models": [
-            "env", // default model 
-            {
-                "name": "post",
-                "description": "Defines a post",
-                "fields": [
-                    {"name": "subject", "type": "string", "required": true},
-                ]
-            }, // or custom
-        ],
-        "data": {
-            "all": { // all languages installed data
-                "post": [
-                    {"subject": "My pack first data"}
-                ]
-            },
-            "en": { // English specific installed data
-                "post": [
-                    {"subject": "My english first post"}
-                ]
-            }
-        }
-    }
-], user, "en");
-// Returns installation summary
-```
-
-```javascript
-const result = await installPack("61d1f1a9e3f1a9e3f1a9e3f1", user, "en");
-// Returns installation summary
-```
-
-> You can also open the pack gallery to see the JSON structure of each pack, before installing them.
-
-
----
-### Data Auditing & History 
-data-primals-engine includes a built-in, automatic auditing system that creates a complete history for every record in your database. 
-
->This feature is essential for traceability, debugging, and maintaining a clear audit trail of all data manipulations. 
-
-#### How It Works 
-The history feature is non-intrusive and fully automatic. 
-
-Whenever you use the standard data management functions (insertData, patchData, deleteData, etc.), the engine performs two actions: 
-1.  It executes the requested operation (create, update, or delete) on the target document. 
-2.  It saves a complete "snapshot" of the document's state into a dedicated history collection. 
-
->Each history entry contains the original data along with crucial metadata: 
--   `_op`: The type of operation (i for insert, u for update, d for delete). 
--   `_v`: The version number of the record. 
--   `_user`: The username of the user who performed the action. 
--   `_updatedAt`: The timestamp of the operation. 
--   `_rid`: The ID of the original record, linking all history entries together. 
-
-### Accessing the History 
-You can retrieve the full history for any record via a simple API endpoint: 
-```x-sh
-curl -X GET http://localhost:7633/api/data/history/:modelName/:recordId
-```
-
----
-
-## Workflows: Automate Your Business Logic
-
-> Workflows are the automation engine of your application. 
-
-They allow you to define complex business processes that run in response to specific events, without writing custom code. 
-
-This is perfect for tasks like **sending welcome emails**, managing **order fulfillment**, or triggering data synchronization.
-
-A workflow is composed of two main parts: **Triggers** and **Actions**.
-
-> A 'workflowTrigger' is the event that initiates a workflow run.
-- **DataAdded**: Fires when a new document is created (e.g., a new user signs up).
-- **DataEdited**: Fires when a document is updated (e.g., an order status changes to "shipped").
-- **DataDeleted**: Fires when a document is removed.
-- **Scheduled**: Runs at a specific time or interval using a Cron expression (e.g., 0 0 * * * for a nightly data cleanup job).
-- **Manual**: Triggered on-demand via an API call, allowing you to integrate workflows into any part of your application.
-
-> A 'workflowAction' is the individual steps a workflow executes. You can chain them together to create sophisticated logic.
-- **CreateData**: Create a new document in any model.
-- **UpdateData**: Modify one or more existing documents that match a filter.
-- **SendEmail**: Send a transactional email using dynamic data from the trigger.
-- **HttpRequest**: Make an HTTP request (GET, POST, etc.) to an external service or API.
-- **ExecuteScript**: Run a custom JavaScript snippet for complex logic, data transformation, or conditional branching.
-- **GenerateAIContent**: Use an integrated AI provider (like OpenAI or Gemini) to generate text, summarize content, or make decisions.
-- **Wait**: Pause the workflow for a specific duration before continuing to the next step
-
-See the details of the workflow models for more details.
-
-## ⚡ Dynamic API Endpoints
-Beyond standard CRUD operations, data-primals-engine allows you to create your own custom API endpoints directly from the UI. This feature acts like a built-in serverless function environment, enabling you to write custom business logic, integrate with third-party services, or create complex data aggregations on the fly.
-
-Your code is executed in a secure, isolated sandbox, with access to the core data functions and the incoming request context.
-
-### How It Works
-Define an Endpoint: You create a new document in the endpoint model.
-Write Your Logic: In the code field, you write the JavaScript that will be executed.
-Activate: The engine automatically listens for requests on /api/actions/:path that match your endpoint's definition.
-
-### The endpoint Model
-To create a custom endpoint, you need to define a document with the following structure:
-```json
-{
-  "name": "GetContactPostCount",
-  "path": "postCount/:name",
-  "method": "GET",
-  "code": "const posts = await db.find('content', { author: { $find: { $eq: ['$lastName', request.params.name]}}}); return { postCount: posts.length };",
-  "isActive": true,
-  "isPublic": true
-}
-```
-| Field    | Type    | Description                                                          | 
-|:---------|:--------|:---------------------------------------------------------------------|
-| name     | string  | A descriptive name for your endpoint (e.g., "Calculate User Stats"). | 
-| path     | string  | The URL path. It can include parameters like :id.                    | 
-| method   | enum    | The HTTP method: GET, POST, PUT, PATCH, or DELETE.                   | 
-| code     | code    | The JavaScript code to execute when the endpoint is called.          |
-| isActive | boolean | A flag to enable or disable the endpoint without deleting it.        |
-| isPublic | boolean | A flag to enable public access (private by default).                 |
----
-
-### The Execution Context
-Your JavaScript code runs in an async context and has access to several global objects that are securely injected into the sandbox:
-Your current user is used to make the calls.
-
-#### The context Object
-> This object contains all the information about the incoming HTTP request.
-- context.request.**body**: The parsed request body (for POST, PUT, PATCH).
-- context.request.**query**: The URL query parameters as an object.
-- context.request.**params**: The URL path parameters (e.g., username from /user-summary/:username).
-- context.request.**headers**: The incoming request headers.
-
-#### The db Object
-> A secure API to interact with the database. All methods are async and must be awaited. They automatically operate within the authenticated user's permissions.
-- await db.**create**(modelName, dataObject): Inserts a new document.
-- await db.**find**(modelName, filter): Finds multiple documents. Returns an array.
-- await db.**findOne**(modelName, filter): Finds a single document. Returns an object or null.
-- await db.**update**(modelName, filter, updateObject): Partially updates documents matching the filter (similar to a PATCH).
-- await db.**delete**(modelName, filter): Deletes documents matching the filter.
-
-#### The logger Object
-> A safe way to log messages from your script. These logs will be collected and can be returned in the API response if an error occurs, which is very useful for debugging.
-- logger.**info**(...args)
-- logger.**warn**(...args)
-- logger.**error**(...args)
-
-#### The env Object
-> Provides access to the user-defined variables stored in the env model, not the server's process.env.
-- await env.**get**(variableName): Retrieves a single environment variable's value.
-- await env.**getAll**(): Retrieves all user environment variables as an object.
-
-#### Example: Creating a User Summary Endpoint
-Let's create an endpoint that fetches a user's profile and counts how many posts they have published.
-1. Create the Endpoint Document
-   Create a new document in the endpoint model with the following data:
-```json
-{
-    "name": "Get User Summary",
-    "path": "user-summary/:username",
-    "method": "GET",
-    "isActive": true,
-    "code": "const { username } = context.request.params;\n\n  if (!username) {\n    logger.error('Username parameter is required.');\n    return { success: false, error: 'Username is required.' };\n  }\n\n  logger.info(`Fetching summary for user: ${username}`);\n\n  // Fetch the user profile using the sandboxed db API\n  const userProfile = await db.findOne('userProfile', { username: username });\n\n  if (!userProfile) {\n    return { success: false, error: 'User not found' };\n  }\n\n  // Count the user's published posts\n  const posts = await db.find('post', { \n    authorId: userProfile._id.toString(), \n    status: 'published' \n  });\n\n  return {\n    profile: userProfile,\n    publishedPosts: posts.length\n  };\n});",
-}
-```
-2. Call the New Endpoint
-   You can now call this custom endpoint like any other API route:
-
-Expected response :
-```json
-{
-  "profile": {
-    "_id": "60d0fe4f5311236168a109ca",
-    "username": "demo",
-    "bio": "A demo user profile.",
-    "...": "..."
-  },
-  "publishedPosts": 15
-}
-
-```
-
-### Pluggable SSO Authentication (Google, SAML, Azure AD)
-
-`data-primals-engine` features a powerful and modular Single Sign-On (SSO) system built on Passport.js. This allows you to easily integrate with various enterprise and social identity providers. The core engine remains lightweight, and you only enable the providers you need.
-
-#### How It Works
-
-The engine provides a central `Sso` component that manages authentication logic. Each provider (Google, SAML, etc.) is an independent module that "plugs into" this central component.
-
-To enable an SSO provider, follow these three steps:
-
-#### Example: Enabling Google Sign-In
-
-**1. Install the Provider's Library**
-
-The required Passport strategy is a `peerDependency`. You must install it in your project:
-```bash
-npm install passport-google-oauth20
-```
-
-**2. Enable the Module**
-
-To enable the module in your next engine initilization, just add it to the `modules` array:
-```javascript
-Config.Set("modules", ["auth-google", "..."]);
-```
-
-**3. Set Environment Variables**
-
-Create or update your `.env` file with the credentials obtained from the Google Cloud Console:
-```env
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-```
-
-The login flow will now be available at `/api/auth/google`.
-
-#### Other Providers
-
-The process is identical for other supported providers:
-
--   **SAML**:
-    1.  `npm install passport-saml-encrypted`
-    2.  Enable the `auth-saml` module.
-    3.  Set `SAML_ENTRY_POINT`, `SAML_ISSUER`, `SAML_CERT`, and `SAML_DECRYPTION_KEY` environment variables.
-
--   **Microsoft Azure AD**:
-    1.  `npm install passport-azure-ad`
-    2.  Enable the `auth-microsoft` module.
-    3.  Set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_TENANT_ID` environment variables.
-
-This modular approach makes it simple to extend the engine with any Passport-compatible strategy to meet your authentication needs.
-
-See implementations in the `modules` directory.
-
----
-## Extensibility
-
-### Events (Triggers) Table
-> You can use the events below to access the engine and manipulate API responses.
-> It is useful for custom modules or middlewares for your application.
-
-Just use
-
-```javascript
-Event.Listen("OnDataAdded", (data) => {
-     my_callback()
-}, "event", "user");
-```
-
-or the system version
-```javascript
-Event.Listen("OnDataAdded", (engine, data) => {
-     my_callback()
-}, "event", "system");
-```
-
-| Event            | Description                                                             | Scope  | Triggered by             | Arguments (Payload)                                                  | 
-|:-----------------|:------------------------------------------------------------------------|:-------|:-------------------------|:---------------------------------------------------------------------|
-| OnServerStart    | Triggered once the HTTP server is started and listening.                | System | engine.start()           | engine                                                               | 
-| OnServerStop     | Triggered right after the HTTP server is stopped.                       | System | engine.stop()            | engine                                                               |
-| OnModelsLoaded   | Triggered after the initial models are loaded and validated at startup. | System | setupInitialModels()     | engine, dbModels                                                     |
-| OnModelsDeleted  | Triggered after all models are deleted via the reset function.          | System | engine.resetModels()     | engine                                                               | 
-| OnUserDataDumped | Triggered after a user's data has been backed up (dumped).              | System | jobDumpUserData()        | engine                                                               | 
-| OnDataRestored   | Triggered after a user's data has been restored from a backup.          | System | loadFromDump()           | (none)                                                               |
-| OnPackInstalled  | Triggered after a data pack has been successfully installed.            | System | installPack()            | pack                                                                 | 
-| OnModelEdited    | Triggered after a model definition has been modified.                   | System | editModel()              | newModel                                                             | 
-| OnDataAdded      | Triggered after new data has been inserted.                             | System | insertData()             | engine, insertedDocs                                                 | 
-| OnDataEdited     | Triggered after data has been edited.                                   | System | editData() / patchData() | engine, {modelName, before, after}                                   | 
-| OnDataDeleted    | Triggered just after data is actually deleted.                          | System | deleteData()             | engine, {model, filter}                                              | 
-| OnDataSearched   | Triggered after a data search.                                          | System | searchData()             | engine, {data, count}                                                | 
-| OnDataExported   | Triggered after a data export.                                          | User   | exportData()             | exportResults, modelsToExport                                        |
-| OnDataInsert     | Triggered just before data insertion. It will use the overrided data.   | System | internal                 | data                                                                 |
-| OnDataValidate   | Triggered to override validation check.                                 | System | internal                 | value, field, data                                                   |
-| OnDataFilter     | Triggered to override data filtering operation.                         | System | internal                 | filteredValue, field, data                                           |
-| OnEmailTemplate  | Triggered to override custom email templates                            | System | internal                 | templateData, lang                                                   |
-| OnSystemPrompt   | Triggered to override assistant system prompt                           | User   | handleChatRequest        | user                                                                 |
-| OnChatAction     | Triggered when an action is created by the AI                           | User   | handleChatRequest        | action, params, parsedResponse, command, llmOptions, user, reqParams |
-
-### Triggering events
-
-If you want to provide your own hooks, you can call :
-```javascript
-const result = await Event.Trigger("OnMyCustomEvent", "event", "user", ...args);
-```
-Results are merged together if multiple events are triggered.
-- strings are concatenated
-- numbers are added
-- booleans are ANDed
-- arrays are concatenated
-- objects are merged using spread operator
-
----
-
-## ⚛️ Frontend Integration (React)
-
-This engine is designed to work seamlessly with its dedicated client library, **`data-primals-engine/client`**. This library provides a complete set of React hooks and UI components to build a rich, data-centric user interface on top of the backend.
-
-While this README focuses on the backend engine and its API, you can find detailed instructions on how to integrate the client part in your React application here:
-
-➡️ **[View the Frontend Integration Guide](https://github.com/anonympins/data-primals-engine/tree/develop/client)**
-
-
----
-
-## 🤝 Contributing
-
-Find the issues available for [contributions here](https://github.com/anonympins/data-primals-engine/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22help%20wanted%22%20no%3Aassignee)
-
-1. Fork the repo
-2. Create your feature branch: `git checkout -b feature/your-feature`
-3. Launch ```npm run dev``` and make your changes with hot-reload on local port 
-3. Commit changes: `git commit -m "Add new feature"`
-4. Push to your branch: `git push origin feature/your-feature`
-5. Open a pull request
-
-Star ⭐ the repo if you find it useful!
+## 🧭 Explore the Platform
+Discover the core features to get started building and managing your data.
+Link to the official documentation: https://data.primals.net/en/documentation/
+
+- 🧠 [Core Concepts](./wiki/Concepts.md): Explore the fundamentals of data modeling
+- 🔌 [Custom API Endpoints](./wiki/Custom-Endpoints.md): Create dynamic HTTP routes directly from the backend
+- 🏗️ [Data Models](https://data.primals.net/en/documentation/create-models): Structure your information.
+- 🗃️ [Data Management](https://data.primals.net/en/documentation/manage-data): Create, read, update, and delete your entries.
+- 📊 [Views (Table, Kanban)](Views): Visualize your data in different ways. *(Page to be created)*
+- 📈 [Dashboards, KPIs, and Charts](https://data.primals.net/en/documentation/dashboards): Track your key metrics.
+- 👥 [Users](https://data.primals.net/en/documentation/users): Manage access to the platform.
+- 🔐 [Roles and Permissions](https://data.primals.net/en/documentation/roles-permissions): Define who can see and do what.
+- ⚙️ [Automation with Workflows](https://data.primals.net/en/documentation/automation-workflows): Create automated processes.
+- 🎁 [Pack Gallery](Packs-gallery): Discover ready-to-use configurations. *(Page to be created)*
+- 🤖 [AI Assistance](AI-assistance): Leverage artificial intelligence. *(Page to be created)*
+
+## 🔌 Integrate with your tools
+Connect the platform to your external applications and services via our API.
+
+- 📡 [API Requests](https://data.primals.net/en/documentation/api): The basics for interacting with the REST API.
+- 🚀 [Advanced Requests](https://data.primals.net/en/documentation/advanced-requests): Filters, sorts, projections, and more.
+- 📦 [Bulk Operations](https://data.primals.net/en/documentation/bulk-operations): Perform operations on large volumes of data.
+
+## 🧩 Extend Capabilities
+Go further by developing your own features and business logic.
+
+- ⚡ [Event System](Event-system): React to events in real time. *(Page to create)*
+- 🧠 [Advanced Workflows](Advanced-workflows): Create complex logic with custom scripts. *(Page to create)*
+- 📦 [Modules](Modules): Package and share your developments. *(Page to create)*
+- ❤️ [Contribute to the project (CONTRIBUTING.md)](https://github.com/anonympins/data-primals-engine/blob/main/CONTRIBUTING.md): Join the developer community.
+
+## 💻 For Developers
+Essential tools for a seamless development experience.
+
+- 📖 [Explore the API with Swagger](https://data.primals.net/api-docs/): Test API access points directly from your browser.
+- 📮 [Postman Collection](https://data.primals.net/doc/API.postman_collection.json): Import our collection to start querying in just a few clicks.
+
+## 🤝 Contribution
+
+Contributions are welcome! Check out the open issues to get started.
 
 ---
 
 ## 📄 License
-Distributed under the **MIT License**. See `LICENSE` file.
-
----
-
-## [🔼](#data-primals-engine) Back to Top
+Distributed under the **MIT License**. See the `LICENSE` file.
