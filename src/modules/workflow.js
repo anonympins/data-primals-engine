@@ -20,6 +20,14 @@ import { getAIProvider } from "./assistant/providers.js";
 import {Config} from "../config.js";
 import {safeAssignObject} from "../core.js";
 
+/**
+ * Récupère une valeur imbriquée dans un objet (ex: 'user.address.city').
+ */
+const getNestedValue = (obj, path) => {
+    if (!path || !obj) return undefined;
+    return path.split('.').reduce((acc, part) => acc && acc[part] !== undefined ? acc[part] : undefined, obj);
+};
+
 
 /**
  * Remplace les placeholders dans un template (string, object, array) par des valeurs du contextData.
