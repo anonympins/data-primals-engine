@@ -5,6 +5,35 @@ img {
   width: auto;
 }
 
+/*
+ * Style global pour les barres de défilement (scrollbars)
+ * S'applique à toute l'application, y compris les blocs de code.
+ */
+
+/* Pour les navigateurs WebKit (Chrome, Safari, Edge, etc.) */
+::-webkit-scrollbar {
+  width: 8px;  /* Largeur de la scrollbar verticale */
+  height: 8px; /* Hauteur de la scrollbar horizontale */
+}
+
+/* La piste (le fond de la scrollbar) */
+::-webkit-scrollbar-track {
+  background: $scrollbar-track-color;
+  border-radius: 10px;
+}
+
+/* La poignée (la partie mobile de la scrollbar) */
+::-webkit-scrollbar-thumb {
+  background-color: $scrollbar-thumb-color;
+  border-radius: 10px;
+  border: 2px solid $scrollbar-track-color; /* Crée un petit espacement autour de la poignée */
+}
+
+/* La poignée au survol de la souris */
+::-webkit-scrollbar-thumb:hover {
+  background-color: $scrollbar-thumb-hover-color;
+}
+
 body {
   font-family: "Nunito Sans", sans-serif;
   line-height: 1.6; // Améliore la lisibilité

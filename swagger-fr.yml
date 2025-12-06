@@ -473,7 +473,493 @@ components:
         message:
           type: string
           example: "Opération réussie."
-    # --- Schémas de Modèles (générés dynamiquement) ---
+    # --- Schémas de Modèles ---
+    userPermission:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: userPermission
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        user:
+          type: string
+          description: ID of a user document
+        permission:
+          type: string
+          description: ID of a permission document
+        isGranted:
+          type: boolean
+          description: "True pour accorder la permission, False pour la révoquer explicitement."
+        expiresAt:
+          type: string
+          format: date-time
+          description: "Si défini, l'exception (l'octroi ou la révocation) est temporaire."
+        env:
+          type: string
+          description: ID of a env document
+      required:
+        - user
+        - permission
+        - isGranted
+    alert:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: alert
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        targetModel:
+          type: string
+          description: ""
+        description:
+          type: string
+          description: ""
+        triggerCondition:
+          type: string
+          format: text
+          description: "La condition qui, si elle est remplie, déclenchera l'alerte."
+        frequency:
+          type: string
+          description: "À quelle fréquence vérifier si la condition est remplie."
+        isActive:
+          type: boolean
+          default: true
+          description: ""
+        sendEmail:
+          type: boolean
+          default: false
+          description: "Cochez pour envoyer également une notification par e-mail."
+        lastNotifiedAt:
+          type: string
+          format: date-time
+          description: "Timestamp de la dernière notification envoyée pour cette alerte."
+        message:
+          type: string
+          description: "Message personnalisé pour l'e-mail. Si vide, un message par défaut sera utilisé. Vous pouvez utiliser les variables {count}, {alert.name}...."
+      required:
+        - name
+        - targetModel
+        - triggerCondition
+        - frequency
+    env:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: env
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: ""
+        value:
+          type: string
+          description: ""
+      required:
+        - name
+    kpi:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: kpi
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: "Nom affiché du KPI (ex: Chiffre d'affaires total)"
+        description:
+          type: string
+          description: "Informations complémentaires sur le KPI"
+        targetModel:
+          type: string
+          description: "Nom du modèle sur lequel calculer le KPI (ex: order)"
+        aggregationType:
+          type: string
+          enum:
+            - count
+            - sum
+            - avg
+            - min
+            - max
+          description: "Type de calcul à effectuer"
+        aggregationField:
+          type: string
+          description: "Nom du champ numérique sur lequel appliquer l'agrégation (ex: totalAmount). Non requis pour 'count'."
+        matchFormula:
+          type: string
+          format: text
+          description: "Filtre JSON (MongoDB $match) à appliquer avant l'agrégation (ex: { \"status\": \"delivered\" })"
+        showTotal:
+          type: boolean
+          description: "Afficher le total"
+        showPercentTotal:
+          type: boolean
+          description: "Afficher le total en %"
+        totalMatchFormula:
+          type: string
+          format: text
+          description: "Formule pour le total (calcul %)"
+        unit:
+          type: string
+          description: "Unité à afficher (ex: €, $, utilisateurs)"
+        icon:
+          type: string
+          description: "Nom de l'icône (ex: FaUsers, FaShoppingCart)"
+        order:
+          type: number
+          description: "Ordre d'affichage sur un tableau de bord"
+        color:
+          type: string
+          format: color
+          description: "Couleur associée au KPI"
+      required:
+        - name
+        - targetModel
+        - aggregationType
+    imageGallery:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: imageGallery
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: "Le nom ou titre de la galerie d'images."
+        images:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: "Les fichiers images de cette galerie."
+        description:
+          type: string
+          description: "Description de la galerie (optionnel)."
+        tags:
+          type: array
+          items:
+            type: string
+            description: ID of a taxonomy document
+        createdAt:
+          type: string
+          format: date-time
+          description: "Date de création de la galerie (généralement géré par le système)."
+      required:
+        - name
+    budget:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: budget
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        name:
+          type: string
+          description: "Nom ou description de la transaction (ex: Courses, Salaire Janvier)."
+        amount:
+          type: number
+          description: "Montant de la transaction. Positif pour un revenu, négatif pour une dépense."
+        currency:
+          type: string
+          description: ID of a currency document
+        transactionDate:
+          type: string
+          format: date-time
+          description: "Date à laquelle la transaction a eu lieu."
+        description:
+          type: string
+          description: "Notes ou détails supplémentaires sur la transaction."
+        paymentMethod:
+          type: string
+          description: "Méthode de paiement utilisée (ex: Carte de crédit, Espèces, Virement)."
+        category:
+          type: string
+          description: ID of a taxonomy document
+        isRecurring:
+          type: boolean
+          default: false
+          description: "Indique si cette transaction est récurrente."
+        recurringFrequency:
+          type: string
+          enum:
+            - daily
+            - weekly
+            - monthly
+            - yearly
+          description: ""
+        recurringEndDate:
+          type: string
+          format: date
+          description: ""
+        attachments:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: "Pièces jointes (reçus, factures)."
+      required:
+        - name
+        - amount
+        - currency
+        - transactionDate
+    event:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: event
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        title:
+          type: string
+          description: "The title of the event"
+        description:
+          type: string
+          description: "A detailed description of the event, including agenda, speakers, and other relevant information."
+        startDate:
+          type: string
+          format: date-time
+          description: "The starting date and time of the event"
+        endDate:
+          type: string
+          format: date-time
+          description: "The ending date and time of the event"
+        location:
+          type: string
+          description: ID of a location document
+        categories:
+          type: array
+          items:
+            type: string
+            description: ID of a taxonomy document
+        organizer:
+          type: string
+          description: ID of a contact document
+        isOnline:
+          type: boolean
+          default: false
+          description: "Whether the event is online or in-person."
+        eventUrl:
+          type: string
+          format: uri
+          description: "A link to the official event webpage or registration page."
+        imageUrl:
+          type: string
+          format: uuid
+          description: "URL of the event image or banner."
+        status:
+          type: string
+          enum:
+            - scheduled
+            - ongoing
+            - completed
+            - cancelled
+            - postponed
+          description: "The current status of the event."
+        capacity:
+          type: number
+          description: "The maximum number of attendees allowed for the event."
+        price:
+          type: number
+          description: "The price of admission, if applicable."
+        currency:
+          type: string
+          description: ID of a currency document
+        registrationDeadline:
+          type: string
+          format: date-time
+          description: "The date by which attendees must register for the event."
+        attendees:
+          type: array
+          items:
+            type: string
+            description: ID of a contact document
+        sponsors:
+          type: array
+          items:
+            type: string
+            description: ID of a contact document
+      required:
+        - title
+        - startDate
+        - endDate
+    endpoint:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: endpoint
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        isActive:
+          type: boolean
+          default: true
+          description: "If checked, the endpoint is active and can be called."
+        name:
+          type: string
+          description: "A human-readable name to identify the endpoint."
+        path:
+          type: string
+          description: "The URL path after /api/actions/ (e.g., 'send-welcome-email'). Do not include '/'."
+        method:
+          type: string
+          enum:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          description: "The HTTP method required to call this endpoint."
+        code:
+          type: string
+          format: text
+          description: "The script to execute. Must return a value or an object that will be the JSON response."
+        isPublic:
+          type: boolean
+          default: false
+          description: "Si coché, ce point d'accès sera accessible sans authentification."
+      required:
+        - isActive
+        - name
+        - path
+        - method
+        - code
     permission:
       type: object
       properties:
@@ -504,8 +990,6 @@ components:
         description:
           type: string
           description: ""
-      required:
-        - name
     role:
       type: object
       properties:
