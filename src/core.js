@@ -40,7 +40,10 @@ export const isUnsecureKey = (key) => {
 export const parseSafeJSON = (json) => JSON.parse(json, (key, value) => isUnsecureKey(key) ? undefined : value);
 
 
-export const isDate = dt => String(new Date(dt)) !== 'Invalid Date'
+export const isDate = dt => {
+    if (dt === null || typeof dt === 'undefined') return false;
+    return String(new Date(dt)) !== 'Invalid Date';
+};
 
 export const safeAssignObject = (obj, key, value) => {
     if( !isUnsecureKey(key)){
@@ -157,11 +160,11 @@ export function isPathRelativeTo(dir, parent) {
  * @param value string value
  */
 export function isGUID(value) {
-    return typeof(value) === 'string' && value.match(/^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$/);
+    return !!(typeof(value) === 'string' && value.match(/^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$/));
 }
 
 export function isPlainObject(obj) {
-    return typeof obj === 'object' && obj !== null;
+    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && !(obj instanceof Date);
 }
 
 export function escapeRegExp(string) {
@@ -210,7 +213,11 @@ function splitmix32(a) {
 }
 
 
-export const getRand = () =>splitmix32(seed);
+export const getRand = () => {
+    const result = splitmix32(seed);
+    seed++; // Simple increment to change the state for the next call
+    return result;
+};
 
 const MAX_RANGE_SIZE = 2n ** 64n
 const buffer = new BigUint64Array(512)
@@ -371,14 +378,26 @@ export const event_off = (name, callback) => {
 };
 
 
-export function slugify(str,replacer='-', replaceUnicode=false) {
-    str = str.replace(/^\s+|\s+$/g, ''); // trim leading/trailing white space
-    str = str.toLowerCase(); // convert string to lowercase
-    if( replaceUnicode)
-        str = str.replace(/[^a-z0-9 -]/g, ''); // remove any non-alphanumeric characters
-    str = str.replace(/\s+/g, replacer) // replace spaces with hyphens
-        .replace(/-+/g, replacer); // remove consecutive hyphens
-    return str;
+export function slugify(str,replacer='-', removeNonAscii=false) {
+
+    if (!str) return '';
+
+    // 1. Convert to string, lowercase, and trim whitespace.
+    str = str.toString().toLowerCase().trim();
+
+    // 2. Normalize Unicode characters (e.g., è -> e). This is now always done.
+    str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // 3. Remove any remaining non-ASCII characters if the flag is set.
+    if (removeNonAscii) {
+        str = str.replace(/[^a-z0-9\s-]/g, '');
+    }
+
+    // 4. Replace spaces with the replacer and clean up consecutive/trailing replacers.
+    return str
+        .replace(/\s+/g, replacer) // Replace spaces with the replacer.
+        .replace(new RegExp(`[^a-z0-9${replacer}]`, 'g'), '') // Remove any character that is not a letter, a number, or the replacer itself.
+        .replace(new RegExp(`${replacer}+`, 'g'), replacer); // Replace multiple replacers with a single one.
 }
 
 // resource : https://stackoverflow.com/questions/190852/how-can-i-get-file-extensions-with-javascript
