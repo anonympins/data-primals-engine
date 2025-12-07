@@ -18,7 +18,144 @@ import {getEnv, getSmtpConfig} from "./user.js";
 import { providers } from "./assistant/constants.js";
 import { getAIProvider } from "./assistant/providers.js";
 import {Config} from "../config.js";
-import {substituteVariables} from "../filter.js";
+import {safeAssignObject} from "../core.js";
+
+/**
+ * Récupère une valeur imbriquée dans un objet (ex: 'user.address.city').
+ */
+const getNestedValue = (obj, path) => {
+    if (!path || !obj) return undefined;
+    return path.split('.').reduce((acc, part) => acc && acc[part] !== undefined ? acc[part] : undefined, obj);
+};
+
+
+/**
+ * Remplace les placeholders dans un template (string, object, array) par des valeurs du contextData.
+ * Version améliorée avec support des chemins complexes via resolvePathValue.
+ */
+export async function substituteVariables(template, contextData, user) {
+    // 1. Retourner les types non substituables tels quels
+    if (template === null || (typeof template !== 'string' && typeof template !== 'object')) {
+        return template;
+    }
+
+    // 2. Gérer les tableaux de manière récursive
+    if (Array.isArray(template)) {
+        return Promise.all(template.map(item => substituteVariables(item, contextData, user)));
+    }
+
+    // 3. Gérer les objets de manière récursive
+    if (typeof template === 'object') {
+        const newObj = {};
+        for (const key in template) {
+            if (Object.prototype.hasOwnProperty.call(template, key)) {
+                const val = await substituteVariables(template[key], contextData, user);
+                safeAssignObject(newObj, key, val);
+            }
+        }
+        return newObj;
+    }
+
+    // --- À partir d'ici, nous savons que `template` est une chaîne de caractères ---
+
+    // 4. Construire le contexte complet pour la substitution
+    const dbCollection = await getCollectionForUser(user);
+    const userEnvVars = await dbCollection.find({ _model: 'env', _user: user.username }).toArray();
+    const userEnv = userEnvVars.reduce((acc, v) => ({ ...acc, [v.name]: v.value }), {});
+
+    // `contextToSearch` contient toutes les données disponibles à sa racine
+    const contextToSearch = { ...contextData, env: userEnv };
+
+    // 5. Logique de résolution de valeur améliorée avec resolvePathValue
+    const findValue = async (key) => {
+        let path = key.trim();
+        if (path.startsWith('context.')) {
+            path = path.substring('context.'.length);
+        }
+        if (path.endsWith('._id')) {
+            const basePath = path.slice(0, -4);
+            const value = await findValue(basePath);
+            return value?._id?.toString(); // Convertit l'ObjectId en string
+        }
+
+        // Gérer les valeurs dynamiques spéciales
+        if (path === 'now') {
+            return new Date().toISOString();
+        } else if (path === 'randomUUID') {
+            return crypto.randomUUID();
+        } else if( path === "baseUrl" ){
+            return process.env.NODE_ENV === 'production' ? 'https://'+getHost()+'/' : 'http://localhost:/'+port;
+        }
+
+        // Détecter si le chemin est complexe (contient plus d'un point)
+        if (path.split('.').length > 1) {
+            try {
+                // Essayer de résoudre le chemin avec resolvePathValue
+                const [root, ...rest] = path.split('.');
+                // On vérifie si la racine du chemin (ex: 'triggerData') existe dans notre contexte
+                if (contextToSearch[root]) {
+                    const resolvedValue = await resolvePathValue(
+                        rest.join('.'),
+                        contextToSearch[root], // On passe le bon objet de départ (ex: l'objet triggerData)
+                        user
+                    );
+                    if (resolvedValue !== undefined) {
+                        return resolvedValue;
+                    }
+                }
+            } catch (error) {
+                console.warn(`Erreur lors de la résolution du chemin "${path}":`, error.message);
+                // On continue avec la méthode normale si la résolution échoue
+            }
+        }
+
+        // Fallback: chercher le chemin dans l'objet de contexte normal
+        return getNestedValue(contextToSearch, path);
+    };
+
+    // CAS A : La chaîne est un unique placeholder (ex: "{context.triggerData.product.price}")
+    const singlePlaceholderMatch = template.match(/^\{([^}]+)\}$/);
+    if (singlePlaceholderMatch) {
+        const key = singlePlaceholderMatch[1];
+        const value = await findValue(key);
+
+        if (value === undefined) {
+            return template; // Placeholder not found, return as is.
+        }
+
+        // If the resolved value is a string, it might contain more placeholders.
+        // We recursively call substituteVariables on it, but only if it's different
+        // from the original template to prevent infinite loops.
+        if (typeof value === 'string' && value !== template) {
+            return substituteVariables(value, contextData, user);
+        }
+
+        // For non-string values or if value is same as template, return the value.
+        return value;
+    }
+
+    // CAS B : La chaîne contient plusieurs placeholders ou mix texte/variables
+    const placeholderRegex = /\{([^}]+)\}/g;
+    const placeholders = [...template.matchAll(placeholderRegex)];
+
+    // Si aucun placeholder trouvé, retourner la chaîne telle quelle
+    if (placeholders.length === 0) {
+        return template;
+    }
+
+    // Remplacer chaque placeholder de manière asynchrone
+    let result = template;
+    for (const [match, key] of placeholders) {
+        const value = await findValue(key);
+        const replacement = value !== undefined
+            ? (value === null ? 'null' : typeof value === 'object' ? JSON.stringify(value) : String(value))
+            : match;
+        result = result.replace(match, replacement);
+    }
+
+    return result;
+}
+
 
 let logger = null;
 export async function onInit(defaultEngine) {
@@ -26,8 +163,6 @@ export async function onInit(defaultEngine) {
 
     await scheduleWorkflowTriggers();
 }
-
-export { substituteVariables } from "../filter.js";
 
 /**
  * Déclenche un workflow par son nom et lui passe des données de contexte.

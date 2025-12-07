@@ -15,7 +15,7 @@ import rateLimit from "express-rate-limit";
 import ivm from "isolated-vm";
 import {emailDefaultConfig} from "../constants.js";
 import {safeAssignObject} from "../core.js";
-import {substituteVariables} from "../filter.js";
+import {substituteVariables} from "./workflow.js";
 import NodeCache from "node-cache";
 import {Config} from "../config.js";
 import { Event } from '../events.js';
