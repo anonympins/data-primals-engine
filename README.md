@@ -1,10 +1,13 @@
 # data-primals-engine
 [![Node.js CI](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml/badge.svg?branch=main)](https://github.com/anonympins/data-primals-engine/actions/workflows/node.js.yml)
 ![](https://img.shields.io/npm/dw/data-primals-engine)
+![](https://img.shields.io/npm/last-update/data-primals-engine)
 ![](https://img.shields.io/github/v/release/anonympins/data-primals-engine)
 ![](https://img.shields.io/github/license/anonympins/data-primals-engine)
 
 **data-primals-engine** is a powerful and flexible **Node.js** backend framework designed to accelerate the development of complex data-driven applications. Built on **Express.js** and **MongoDB**, it provides a solid foundation so you can focus on what makes your application unique.
+
+> Whether you're building a CRM, e-commerce site, CMS, or SaaS platform, **data-primals-engine** provides the strong foundations so you can focus on what makes your application unique.
 
 ---
 
@@ -13,19 +16,52 @@
   <a href="https://data.primals.net/prez6.jpg" target="_blank"><img alt="Light" src="https://data.primals.net/prez6.jpg" width="35%"></a>
   <a href="https://data.primals.net/api-docs" target="_blank"><img alt="Dark" src="https://data.primals.net/prez5.jpg" width="25%"></a>
 </p>
-
 ---
 
 ## 🚀 Key Features
 
-- **Visual Data Modeling**: Define and update schemas via a UI or JSON, without migrations.
-- **Automation Workflows**: Trigger complex actions based on data events (create, update) or schedules (cron).
-- **Dynamic & Extensible API**: Create custom API endpoints directly from the UI in a secure environment.
-- **Advanced Data Management**: Benefit from complex queries, aggregations, automatic change auditing, and a permission system (RBAC).
-- **AI Integration**: Native support for OpenAI, DeepSeek, and Google Gemini models via LangChain.
-- **Complete Ecosystem**: Includes file management (S3), internationalization (i18n), encrypted backups, and starter packs.
+- **Visual Data Modeling**: Define and update schemas using a powerful UI Model Creator, or directly with JSON. No migrations required.
+- **Custom API Endpoints**: Create server-side logic and new API endpoints directly from the UI in a secure, sandboxed environment.
+- **Automation Workflows**: Trigger complex actions based on data events (create, update, delete) or schedules (cron).
+- **Advanced Querying & Aggregation**: Go beyond simple filters with a visual Condition Builder, deep relation expansion, complex lookups, and dynamic calculated fields.
+- **Rich UI Data Views**: Ready-to-use React components to display your data, including a powerful and configurable Data Table, a Kanban board, and a Calendar view.
+- **Integrated Backup & Restore**: Secure, encrypted user data backups with rotation policies, supporting both local and AWS S3 storage.
+- **Automatic Data Auditing**: Automatically tracks all changes (create, update, delete) for every record, providing a complete version history for auditing and traceability.
+- **Event-Driven & Extensible**: A core event system allows for deep customization and the easy creation of new modules or plugins.
+- **Authentication & Authorization**: Robust role-based access control (RBAC) and pluggable user providers.
+- **Built-in File Management**: Handle file uploads seamlessly with integrated support for AWS S3 storage.
+- **🧠 AI Integration**: Natively supports OpenAI, DeepSeek and Google Gemini models via LangChain for content generation, analysis, and more.
+- **🌐 Internationalization (i18n)**: Fully supports multilingual interfaces and user-specific translated data.
+- **📦 Starter Packs**: Quickly bootstrap applications with pre-built data packs for CRM, e-commerce, and more.
+- **📄Auto-Generated API Documentation**: Interactive API documentation available via the interface or at `/api-docs`.
 
-For a detailed exploration of each feature, check out the wiki pages:
+## 🌟 Why Choose data-primals-engine?
+
+- **Zero Boilerplate**: Focus on your business logic, not infrastructure
+- **Scalability**: Architecture designed for rapidly growing applications
+- **Modularity**: Enable/disable features as needed
+- **Batteries Included**: Everything you need to get started quickly
+- **Proven Performance**: Handles 50k+ documents efficiently
+- **AI Ready**: Built-in LangChain integration for main providers (OpenAI,Gemini,Anthropic,DeepSeek)
+
+---
+
+## 📊 Proven Performance
+
+The engine has been rigorously tested to ensure stability and scalability. Load tests simulating complex, multi-step user journeys (including model creation, data import, and API interactions) show excellent results:
+- **Zero Failures**: 100% success rate under sustained concurrent load.
+- **Excellent Responsiveness**: Median response times as low as 15-30ms.
+- **Linear Scaling**: Predictable performance as user load increases.
+
+For detailed reports, see the Performance Testing Documentation.
+
+---
+
+## ⚙️ Requirements
+
+- Node.js ≥ 20
+- MongoDB (local or remote), see installation guide
+- NPM or Yarn
 
 ---
 
@@ -35,8 +71,19 @@ For a detailed exploration of each feature, check out the wiki pages:
 - **Node.js** ≥ 20
 - **MongoDB** (local or remote)
 
+### check
+```bash
+# Verify required versions
+node -v # Must show ≥ v20
+mongod --version # Must be installed
+```
+
 ### 2. Installation
 
+```bash
+npm i data-primals-engine
+```
+or
 ```bash
 git clone https://github.com/anonympins/data-primals-engine.git
 cd data-primals-engine
