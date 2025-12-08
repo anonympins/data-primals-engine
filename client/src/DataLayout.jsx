@@ -447,7 +447,7 @@ function DataLayout({refreshUI}) {
             const { record, apiCallParams } = variables;
             let command;
             if (record) { // C'était une mise à jour
-                command = createUpdateCommand(selectedModel.name, record, apiCallParams);
+                command = createUpdateCommand(selectedModel.name, record, apiCallParams, insertOrUpdateApiCall);
             } else { // C'était une insertion
                 command = createInsertCommand(selectedModel.name, { ...apiCallParams, formData: response.data });
             }
@@ -520,7 +520,7 @@ function DataLayout({refreshUI}) {
         deleteMutation(checkedItems, {
             onSuccess: () => {
                 // Et on crée la commande pour l'historique seulement après le succès
-                const command = createDeleteCommand(deleteApiCall, selectedModel.name, checkedItems);
+                const command = createDeleteCommand(deleteApiCall, selectedModel.name, checkedItems, deleteApiCall);
                 addCommand(command);
                 addNotification({ title: command.successMessage, status: 'completed' });
                 setCheckedItems([]); // Vider la sélection
@@ -677,10 +677,10 @@ function DataLayout({refreshUI}) {
                     <FaProjectDiagram />
                 </Button>
                 <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-md">
-                    <Button onClick={() => undo(insertOrUpdateApiCall)} disabled={!canUndo} title={t('btns.undo', 'Annuler')}>
+                    <Button onClick={undo} disabled={!canUndo} title={t('btns.undo', 'Annuler')}>
                         <FaUndo />
                     </Button>
-                    <Button onClick={() => redo(insertOrUpdateApiCall)} disabled={!canRedo} title={t('btns.redo', 'Rétablir')}>
+                    <Button onClick={redo} disabled={!canRedo} title={t('btns.redo', 'Rétablir')}>
                         <FaRedo />
                     </Button>
                 </div>
