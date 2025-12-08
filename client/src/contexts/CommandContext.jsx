@@ -197,6 +197,10 @@ export class DeleteCommand {
 // ce qui permet de conserver l'historique des commandes (undo/redo).
 const commandManagerInstance = new CommandManager();
 
+const createInsertCommand = (modelName, apiCallParams) => new InsertCommand(modelName, apiCallParams);
+const createUpdateCommand = (modelName, record, apiCallParams) => new UpdateCommand(modelName, record, apiCallParams);
+const createDeleteCommand = (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete);
+
 // --- Provider Component ---
 export const CommandProvider = ({ children, onResetQueryClient }) => {
     const { addNotification } = useNotificationContext();
@@ -234,7 +238,6 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         await commandManagerRef.current.redo();
         updateUndoRedoState();
     };
-
     // --- CORRECTION ---
     // On inclut `setManagerContext` directement dans la valeur du contexte
     // et on mémorise l'objet avec `useMemo` pour la stabilité.
@@ -244,13 +247,13 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         redo,
         canUndo, // boolean
         canRedo, // boolean
-        createInsertCommand: (modelName, apiCallParams) => new InsertCommand(modelName, apiCallParams),
-        createUpdateCommand: (modelName, record, apiCallParams) => new UpdateCommand(modelName, record, apiCallParams),
-        createDeleteCommand: (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete),
+        createInsertCommand,
+        createUpdateCommand,
+        createDeleteCommand,
         setManagerContext: (context) => {
             commandManagerRef.current.context = context;
         }
-    }), [canUndo, canRedo]); // Dépendances pour la mémorisation
+    }), [canUndo, canRedo, createInsertCommand, createUpdateCommand, createDeleteCommand, createUpdateCommand]); // Dépendances pour la mémorisation
 
     return (
         <CommandContext.Provider value={value}>{children}</CommandContext.Provider>
