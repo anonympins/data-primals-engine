@@ -26,22 +26,17 @@ class CommandManager {
         this.queryClient = queryClient; // Injection du client
     }
 
-    async execute(command, apiCall) {
+    // La méthode execute est maintenant beaucoup plus simple.
+    // Elle n'appelle plus de fonction API, elle enregistre juste la commande.
+    add(command) {
         try {
             // Supprimer l'historique "redo" si on exécute une nouvelle commande
             this.history = this.history.slice(0, this.currentIndex + 1);
-            await command.execute(apiCall);
             this.history.push(command);
             this.currentIndex++;
-            await this.invalidateQueries(command.modelName, command.constructor.name);
-            // On vide la sélection APRÈS avoir invalidé, pour éviter les conflits de rendu.
-            if (command instanceof DeleteCommand && this.context?.setCheckedItems) {
-                this.context.setCheckedItems([]);
-            }
-            this.addNotification({ title: command.successMessage, status: 'completed' });
-        } catch (error) {
-            console.error("Command execution failed:", error);
-            this.addNotification({ title: this.t('command.error.execute', 'Erreur d\'exécution'), message: error.message, status: 'error' });
+            this.invalidateQueries(command.modelName, command.constructor.name);
+        } catch (e) {
+            
         }
     }
 
@@ -49,7 +44,7 @@ class CommandManager {
         if (this.canUndo()) {
             try {
                 const command = this.history[this.currentIndex];
-                await command.undo(apiCall);
+                await command.undo(apiCall); // La fonction undo a toujours besoin de l'appel API
                 this.currentIndex--;
                 await this.invalidateQueries(command.modelName, command.constructor.name + 'Undo');
                 this.addNotification({ title: this.t('command.success.undo', 'Action annulée'), status: 'completed' });
@@ -64,8 +59,9 @@ class CommandManager {
         if (this.canRedo()) {
             try {
                 this.currentIndex++;
-                const command = this.history[this.currentIndex];
-                await command.execute(apiCall);
+                const commandToRedo = this.history[this.currentIndex];
+                // Pour refaire, on exécute à nouveau l'action originale.
+                await commandToRedo.execute(apiCall);
                 await this.invalidateQueries(command.modelName, command.constructor.name);
                 this.addNotification({ title: this.t('command.success.redo', 'Action rétablie'), status: 'completed' });
             } catch (error) {
@@ -103,13 +99,13 @@ export class InsertCommand {
         this.successMessage = "Donnée ajoutée";
     }
 
-    async execute(apiCall) { // La fonction apiCall est maintenant injectée par le CommandManager
-        const dataToInsert = this.insertedItem ? { ...this.insertedItem, _id: undefined, _hash: undefined } : this.apiCallParams.formData;
-
-        const response = await apiCall({ ...this.apiCallParams, formData: dataToInsert, record: null });
-        if (!response.success) throw new Error(response.error || 'Insert failed');
-
+    // La méthode execute est maintenant utilisée uniquement pour le 'redo'.
+    // Elle doit refaire l'appel API initial.
+    async execute(apiCall) {
+        const response = await apiCall(this.apiCallParams);
+        if (!response.success) throw new Error(response.error || 'Redo (Insert) failed');
         // On stocke l'objet complet retourné par l'API, qui inclut le nouvel _id.
+        // C'est important pour que le 'undo' suivant fonctionne.
         this.insertedItem = response.data;
         if (!this.insertedItem?._id) throw new Error('No inserted data returned from API');
     }
@@ -134,8 +130,10 @@ export class UpdateCommand {
         this.successMessage = "Donnée mise à jour";
     }
 
+    // La méthode execute est utilisée pour le 'redo'.
+    // Elle refait la mise à jour avec les nouvelles données.
     async execute(apiCall) {
-        const response = await apiCall({ ...this.apiCallParams, record: this.originalData });
+        const response = await apiCall(this.apiCallParams);
         if (!response.success) throw new Error(response.error || 'Update failed');
     }
 
@@ -147,14 +145,17 @@ export class UpdateCommand {
 
 export class DeleteCommand {
     constructor(apiCall, modelName, itemsToDelete) { // queryClient a été retiré
-        this.apiCall = apiCall;
+        this.apiCall = apiCall; // La fonction pour supprimer
         this.modelName = modelName;
         this.itemsToDelete = Array.isArray(itemsToDelete) ? [...itemsToDelete] : [itemsToDelete];
         this.successMessage = "Donnée(s) supprimée(s)";
     }
 
-    async execute() {
-        const response = await this.apiCall(this.itemsToDelete);
+    // La méthode execute est utilisée pour le 'redo'.
+    // Elle doit refaire la suppression.
+    async execute(deleteApiCall) {
+        // On utilise la fonction passée en paramètre, qui doit être la fonction de suppression.
+        const response = await deleteApiCall(this.itemsToDelete);
         if (!response.success) throw new Error(response.error || 'Delete failed');
     }
 
@@ -217,18 +218,19 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         setCanRedo(commandManagerRef.current.canRedo());
     };
 
-    const execute = async (command, apiCall) => {
-        await commandManagerRef.current.execute(command, apiCall);
+    // Renommée en 'addCommand' pour plus de clarté.
+    const addCommand = (command) => {
+        commandManagerRef.current.add(command);
         updateUndoRedoState();
     };
 
     const undo = async (apiCall) => {
-        await commandManagerRef.current.undo(apiCall);
+        await commandManagerRef.current.undo(apiCall); // L'undo a besoin de l'apiCall
         updateUndoRedoState();
     };
 
     const redo = async (apiCall) => {
-        await commandManagerRef.current.redo(apiCall);
+        await commandManagerRef.current.redo(apiCall); // Le redo a aussi besoin de l'apiCall
         updateUndoRedoState();
     };
 
@@ -236,7 +238,7 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
     // On inclut `setManagerContext` directement dans la valeur du contexte
     // et on mémorise l'objet avec `useMemo` pour la stabilité.
     const value = useMemo(() => ({
-        execute, // (command, apiCall)
+        addCommand, // (command)
         undo,    // (apiCall)
         redo,    // (apiCall)
         canUndo, // boolean

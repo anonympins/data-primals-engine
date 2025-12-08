@@ -105,9 +105,9 @@ function DataLayout({refreshUI}) {
     const [isWorkflowListModalOpen, setWorkflowListModalOpen] = useState(false);
 
     const [showPackGallery, setShowPackGallery] = useState(false); 
-    const [checkedItems, setCheckedItems] = useState([])
+    const [checkedItems, setCheckedItems] = useState([]);
 
-    const { execute, undo, redo, canUndo, canRedo, createInsertCommand, createUpdateCommand, createDeleteCommand, setManagerContext } = useCommand();
+    const { addCommand, undo, redo, canUndo, canRedo, createInsertCommand, createUpdateCommand, createDeleteCommand, setManagerContext } = useCommand();
     const { triggerTutorialCheck } = useTutorials();
     const { t, i18n } = useTranslation(); 
 
@@ -399,7 +399,8 @@ function DataLayout({refreshUI}) {
 
     const { addNotification } = useNotificationContext();
 
-    const insertOrUpdateApiCall = useCallback(({formData, record, formRef}) => {
+    const insertOrUpdateApiCall = useCallback((variables) => {
+        const { record, apiCallParams: { formData, formRef } } = variables;
         const method = record ? 'PUT' : 'POST'; // Determine method based on record
         const url = record ? `/api/data/${record._id}` : `/api/data`; // Determine URL
 
@@ -435,19 +436,40 @@ function DataLayout({refreshUI}) {
         }
     }, [lang, me, selectedModel]);
 
-    const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall);
+    // La mutation react-query qui gère l'appel API et la logique post-succès.
+    const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall, {
+        onSuccess: (response, variables) => {
+            if (!response.success) {
+                addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: response.error, status: 'error' });
+                return;
+            }
+
+            const { record, apiCallParams } = variables;
+            let command;
+            if (record) { // C'était une mise à jour
+                command = createUpdateCommand(selectedModel.name, record, apiCallParams);
+            } else { // C'était une insertion
+                command = createInsertCommand(selectedModel.name, { ...apiCallParams, formData: response.data });
+            }
+            addCommand(command); // On ajoute la commande à l'historique SEULEMENT si l'appel API a réussi.
+            addNotification({ title: command.successMessage, status: 'completed' });
+            queryClient.invalidateQueries(['api/data', selectedModel.name]);
+        },
+        onError: (error) => {
+            addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: error.message, status: 'error' });
+        }
+    });
 
     const handleFormSubmit = async (formData, record, formRef) => { // Add record parameter
         let command;
         const apiCallParams = { formData, record, formRef };
         if (record) {
             // C'est une mise à jour
-            command = createUpdateCommand(selectedModel.name, record, apiCallParams);
+            insertOrUpdateMutation({ record, apiCallParams });
         } else {
             // C'est une insertion
-            command = createInsertCommand(selectedModel.name, apiCallParams);
+            insertOrUpdateMutation({ record: null, apiCallParams });
         }
-        await execute(command, insertOrUpdateApiCall);
     };
 
     const updateRelationIds = (model, data) => {
@@ -494,8 +516,16 @@ function DataLayout({refreshUI}) {
     const { mutateAsync: deleteMutation } = useMutation(deleteApiCall);
 
     const handleDeletion = () => {
-        const command = createDeleteCommand(deleteApiCall, selectedModel.name, checkedItems);
-        execute(command);
+        // On appelle directement la suppression via la mutation
+        deleteMutation(checkedItems, {
+            onSuccess: () => {
+                // Et on crée la commande pour l'historique seulement après le succès
+                const command = createDeleteCommand(deleteApiCall, selectedModel.name, checkedItems);
+                addCommand(command);
+                addNotification({ title: command.successMessage, status: 'completed' });
+                setCheckedItems([]); // Vider la sélection
+            }
+        });
     }
     const importModelsMutation = useMutation((selectedModels) => {
        return fetch('/api/models/import', { method: 'POST', headers: {
