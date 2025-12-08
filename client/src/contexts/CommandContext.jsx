@@ -2,8 +2,6 @@ import React, {createContext, useContext, useState, useCallback, useRef, useEffe
 import { useQueryClient } from 'react-query';
 import { useNotificationContext } from '../NotificationProvider.jsx';
 import { useTranslation } from 'react-i18next';
-import {elementsPerPage} from "../../../src/constants.js";
-import {useModelContext} from "./ModelContext.jsx";
 
 const CommandContext = createContext({});
 
@@ -238,14 +236,14 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
     // On inclut `setManagerContext` directement dans la valeur du contexte
     // et on mémorise l'objet avec `useMemo` pour la stabilité.
     const value = useMemo(() => ({
-        execute,
-        undo,
-        redo,
-        canUndo,
-        canRedo,
-        InsertCommand,
-        UpdateCommand,
-        DeleteCommand,
+        execute, // (command, apiCall)
+        undo,    // (apiCall)
+        redo,    // (apiCall)
+        canUndo, // boolean
+        canRedo, // boolean
+        createInsertCommand: (modelName, apiCallParams) => new InsertCommand(modelName, apiCallParams),
+        createUpdateCommand: (modelName, record, apiCallParams) => new UpdateCommand(modelName, record, apiCallParams),
+        createDeleteCommand: (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete),
         setManagerContext: (context) => {
             commandManagerRef.current.context = context;
         }

@@ -104,10 +104,10 @@ function DataLayout({refreshUI}) {
     const [isKanbanModalOpen, setKanbanModalOpen] = useState(false);
     const [isWorkflowListModalOpen, setWorkflowListModalOpen] = useState(false);
 
-    const [showPackGallery, setShowPackGallery] = useState(false);
+    const [showPackGallery, setShowPackGallery] = useState(false); 
     const [checkedItems, setCheckedItems] = useState([])
 
-    const { execute, undo, redo, canUndo, canRedo, InsertCommand, UpdateCommand, DeleteCommand, setManagerContext } = useCommand();
+    const { execute, undo, redo, canUndo, canRedo, createInsertCommand, createUpdateCommand, createDeleteCommand, setManagerContext } = useCommand();
     const { triggerTutorialCheck } = useTutorials();
     const { t, i18n } = useTranslation(); 
 
@@ -442,10 +442,10 @@ function DataLayout({refreshUI}) {
         const apiCallParams = { formData, record, formRef };
         if (record) {
             // C'est une mise à jour
-            command = new UpdateCommand(selectedModel.name, record, apiCallParams);
+            command = createUpdateCommand(selectedModel.name, record, apiCallParams);
         } else {
             // C'est une insertion
-            command = new InsertCommand(selectedModel.name, apiCallParams);
+            command = createInsertCommand(selectedModel.name, apiCallParams);
         }
         await execute(command, insertOrUpdateApiCall);
     };
@@ -494,7 +494,7 @@ function DataLayout({refreshUI}) {
     const { mutateAsync: deleteMutation } = useMutation(deleteApiCall);
 
     const handleDeletion = () => {
-        const command = new DeleteCommand(deleteApiCall, selectedModel.name, checkedItems);
+        const command = createDeleteCommand(deleteApiCall, selectedModel.name, checkedItems);
         execute(command);
     }
     const importModelsMutation = useMutation((selectedModels) => {
