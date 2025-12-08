@@ -43,7 +43,7 @@ import PackGallery from "./PackGallery.jsx";
 import TutorialsMenu from "./TutorialsMenu.jsx";
 import {FaBookAtlas} from "react-icons/fa6";
 import {AssistantChat, NotificationList} from "../index.js";
-import { useCommand } from './contexts/CommandContext.jsx';
+import {createDeleteCommand, createInsertCommand, createUpdateCommand, useCommand} from './contexts/CommandContext.jsx';
 
 import "./DataLayout.scss"
 import WorkflowEditor from "./WorkflowEditor.jsx";
@@ -107,7 +107,7 @@ function DataLayout({refreshUI}) {
     const [showPackGallery, setShowPackGallery] = useState(false); 
     const [checkedItems, setCheckedItems] = useState([]);
 
-    const { addCommand, undo, redo, canUndo, canRedo, createInsertCommand, createUpdateCommand, createDeleteCommand, setManagerContext } = useCommand();
+    const { addCommand, undo, redo, canUndo, canRedo, setManagerContext } = useCommand();
     const { triggerTutorialCheck } = useTutorials();
     const { t, i18n } = useTranslation(); 
 

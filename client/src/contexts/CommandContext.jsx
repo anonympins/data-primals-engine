@@ -197,9 +197,9 @@ export class DeleteCommand {
 // ce qui permet de conserver l'historique des commandes (undo/redo).
 const commandManagerInstance = new CommandManager();
 
-const createInsertCommand = (modelName, apiCallParams) => new InsertCommand(modelName, apiCallParams);
-const createUpdateCommand = (modelName, record, apiCallParams) => new UpdateCommand(modelName, record, apiCallParams);
-const createDeleteCommand = (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete);
+export const createInsertCommand = (modelName, apiCallParams) => new InsertCommand(modelName, apiCallParams);
+export const createUpdateCommand = (modelName, record, apiCallParams) => new UpdateCommand(modelName, record, apiCallParams);
+export const createDeleteCommand = (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete);
 
 // --- Provider Component ---
 export const CommandProvider = ({ children, onResetQueryClient }) => {
@@ -253,7 +253,7 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         setManagerContext: (context) => {
             commandManagerRef.current.context = context;
         }
-    }), [canUndo, canRedo, createInsertCommand, createUpdateCommand, createDeleteCommand, createUpdateCommand]); // Dépendances pour la mémorisation
+    }), [canUndo, canRedo]); // Dépendances pour la mémorisation
 
     return (
         <CommandContext.Provider value={value}>{children}</CommandContext.Provider>
