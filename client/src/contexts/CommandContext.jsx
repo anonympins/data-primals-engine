@@ -28,11 +28,11 @@ class CommandManager {
         this.queryClient = queryClient; // Injection du client
     }
 
-    async execute(command) {
+    async execute(command, apiCall) {
         try {
             // Supprimer l'historique "redo" si on exécute une nouvelle commande
             this.history = this.history.slice(0, this.currentIndex + 1);
-            await command.execute();
+            await command.execute(apiCall);
             this.history.push(command);
             this.currentIndex++;
             await this.invalidateQueries(command.modelName, command.constructor.name);
@@ -47,11 +47,11 @@ class CommandManager {
         }
     }
 
-    async undo() {
+    async undo(apiCall) {
         if (this.canUndo()) {
             try {
                 const command = this.history[this.currentIndex];
-                await command.undo();
+                await command.undo(apiCall);
                 this.currentIndex--;
                 await this.invalidateQueries(command.modelName, command.constructor.name + 'Undo');
                 this.addNotification({ title: this.t('command.success.undo', 'Action annulée'), status: 'completed' });
@@ -62,12 +62,12 @@ class CommandManager {
         }
     }
 
-    async redo() {
+    async redo(apiCall) {
         if (this.canRedo()) {
             try {
                 this.currentIndex++;
                 const command = this.history[this.currentIndex];
-                await command.execute();
+                await command.execute(apiCall);
                 await this.invalidateQueries(command.modelName, command.constructor.name);
                 this.addNotification({ title: this.t('command.success.redo', 'Action rétablie'), status: 'completed' });
             } catch (error) {
@@ -98,19 +98,17 @@ class CommandManager {
 // --- Command Definitions ---
 
 export class InsertCommand {
-    constructor(apiCall, modelName, formData) {
-        this.apiCall = apiCall;
+    constructor(modelName, apiCallParams) {
         this.modelName = modelName;
-        this.formData = { ...formData };
+        this.apiCallParams = apiCallParams; // Stocke directement les paramètres
         this.insertedItem = null; // On va stocker l'objet complet inséré
         this.successMessage = "Donnée ajoutée";
     }
 
-    async execute() {
-        // Si on a déjà un item (cas du redo), on le ré-insère. Sinon, on utilise le formData initial.
-        const dataToInsert = this.insertedItem ? { ...this.insertedItem, _id: undefined, _hash: undefined } : this.formData;
+    async execute(apiCall) { // La fonction apiCall est maintenant injectée par le CommandManager
+        const dataToInsert = this.insertedItem ? { ...this.insertedItem, _id: undefined, _hash: undefined } : this.apiCallParams.formData;
 
-        const response = await this.apiCall({ formData: dataToInsert, record: null });
+        const response = await apiCall({ ...this.apiCallParams, formData: dataToInsert, record: null });
         if (!response.success) throw new Error(response.error || 'Insert failed');
 
         // On stocke l'objet complet retourné par l'API, qui inclut le nouvel _id.
@@ -118,7 +116,7 @@ export class InsertCommand {
         if (!this.insertedItem?._id) throw new Error('No inserted data returned from API');
     }
 
-    async undo() {
+    async undo(apiCall, deleteApiCall) {
         // On garde une copie de l'item avant de le supprimer pour le redo.
         if (!this.insertedItem?._id) throw new Error("Cannot undo insert: item ID is missing.");
         const response = await fetch(`/api/data/${this.insertedItem._id}`, { method: 'DELETE' });
@@ -130,23 +128,22 @@ export class InsertCommand {
 }
 
 export class UpdateCommand {
-    constructor(apiCall, modelName, originalData, newData) {
-        this.apiCall = apiCall;
+    constructor(modelName, originalData, apiCallParams) {
         this.modelName = modelName;
         this.originalData = { ...originalData }; // Copie pour l'undo
-        this.newData = { ...newData };
+        this.apiCallParams = apiCallParams;
         this.recordId = originalData._id;
         this.successMessage = "Donnée mise à jour";
     }
 
-    async execute() {
-        const response = await this.apiCall({ formData: this.newData, record: this.originalData });
+    async execute(apiCall) {
+        const response = await apiCall({ ...this.apiCallParams, record: this.originalData });
         if (!response.success) throw new Error(response.error || 'Update failed');
     }
 
-    async undo() {
+    async undo(apiCall) {
         // Pour annuler, on ré-applique les données originales
-        await this.apiCall({ formData: this.originalData, record: this.originalData });
+        await apiCall({ ...this.apiCallParams, formData: this.originalData, record: this.originalData });
     }
 }
 
@@ -222,18 +219,18 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         setCanRedo(commandManagerRef.current.canRedo());
     };
 
-    const execute = async (command) => {
-        await commandManagerRef.current.execute(command);
+    const execute = async (command, apiCall) => {
+        await commandManagerRef.current.execute(command, apiCall);
         updateUndoRedoState();
     };
 
-    const undo = async () => {
-        await commandManagerRef.current.undo();
+    const undo = async (apiCall) => {
+        await commandManagerRef.current.undo(apiCall);
         updateUndoRedoState();
     };
 
-    const redo = async () => {
-        await commandManagerRef.current.redo();
+    const redo = async (apiCall) => {
+        await commandManagerRef.current.redo(apiCall);
         updateUndoRedoState();
     };
 

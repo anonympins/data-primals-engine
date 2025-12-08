@@ -399,11 +399,12 @@ function DataLayout({refreshUI}) {
 
     const { addNotification } = useNotificationContext();
 
-    const insertOrUpdateApiCall = useCallback(({formData, record}) => {
+    const insertOrUpdateApiCall = useCallback(({formData, record, formRef}) => {
         const method = record ? 'PUT' : 'POST'; // Determine method based on record
         const url = record ? `/api/data/${record._id}` : `/api/data`; // Determine URL
 
         try {
+            const formElement = formRef.current;
             const fd = new FormData();
 
             let obj = {};
@@ -411,13 +412,15 @@ function DataLayout({refreshUI}) {
                 if (formData[key] !== undefined)
                     obj[key] = formData[key];
             }
-            Array.from(document.querySelectorAll('.field-file input[data-field]')).forEach(input =>{
-                const fieldName = input.dataset['field'];
-                for (let x = 0; x < input.files.length; x++) {
-                    fd.append(`${fieldName}[${x}]`, input.files[x]);
-                }
-                obj[fieldName] = null;
-            });
+            if (formElement) {
+                Array.from(formElement.querySelectorAll('.field-file input[data-field]')).forEach(input => {
+                    const fieldName = input.dataset['field'];
+                    for (let x = 0; x < input.files.length; x++) {
+                        fd.append(`${fieldName}[${x}]`, input.files[x]);
+                    }
+                    obj[fieldName] = null;
+                });
+            }
             fd.append("_data", JSON.stringify({...obj, _hash: undefined, _id: undefined}));
             fd.append('model', selectedModel.name);
 
@@ -434,16 +437,17 @@ function DataLayout({refreshUI}) {
 
     const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall);
 
-    const handleFormSubmit = async (formData, record) => { // Add record parameter
+    const handleFormSubmit = async (formData, record, formRef) => { // Add record parameter
         let command;
+        const apiCallParams = { formData, record, formRef };
         if (record) {
             // C'est une mise à jour
-            command = new UpdateCommand(insertOrUpdateApiCall, selectedModel.name, record, formData);
+            command = new UpdateCommand(selectedModel.name, record, apiCallParams);
         } else {
             // C'est une insertion
-            command = new InsertCommand(insertOrUpdateApiCall, selectedModel.name, formData);
+            command = new InsertCommand(selectedModel.name, apiCallParams);
         }
-        await execute(command);
+        await execute(command, insertOrUpdateApiCall);
     };
 
     const updateRelationIds = (model, data) => {
@@ -643,10 +647,10 @@ function DataLayout({refreshUI}) {
                     <FaProjectDiagram />
                 </Button>
                 <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-md">
-                    <Button onClick={undo} disabled={!canUndo} title={t('btns.undo', 'Annuler')}>
+                    <Button onClick={() => undo(insertOrUpdateApiCall)} disabled={!canUndo} title={t('btns.undo', 'Annuler')}>
                         <FaUndo />
                     </Button>
-                    <Button onClick={redo} disabled={!canRedo} title={t('btns.redo', 'Rétablir')}>
+                    <Button onClick={() => redo(insertOrUpdateApiCall)} disabled={!canRedo} title={t('btns.redo', 'Rétablir')}>
                         <FaRedo />
                     </Button>
                 </div>
@@ -751,7 +755,7 @@ function DataLayout({refreshUI}) {
                 )}
             <div className="hidden-anchor" ref={mainPartRef}></div>
 
-                {showDataEditor && (<DataEditor
+                {showDataEditor && (<DataEditor ref={mainPartRef}
                     key={selectedModel?.name}
                     isLoading={isLoading}
                     model={selectedModel}

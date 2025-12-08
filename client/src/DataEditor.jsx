@@ -310,7 +310,7 @@ export const DataEditor = forwardRef(function MyDataEditor({
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        onSubmit(formData, record); // Pass record to onSubmit
+        onSubmit(formData, record, ref); // Pass record to onSubmit
     };
 
     const handleNew = (e) => {
