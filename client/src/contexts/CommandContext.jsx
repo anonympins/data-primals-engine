@@ -59,10 +59,10 @@ class CommandManager {
         if (this.canRedo()) {
             try {
                 this.currentIndex++;
-                const commandToRedo = this.history[this.currentIndex];
+                const commandToRedo = this.history[this.currentIndex]; // Renommé pour plus de clarté
                 // Pour refaire, on exécute à nouveau l'action originale.
-                await commandToRedo.execute();
-                await this.invalidateQueries(command.modelName, command.constructor.name);
+                await commandToRedo.execute(this.context.apiCall); // *** CORRECTION: On passe la fonction apiCall ***
+                await this.invalidateQueries(commandToRedo.modelName, commandToRedo.constructor.name);
                 this.addNotification({ title: this.t('command.success.redo', 'Action rétablie'), status: 'completed' });
             } catch (error) {
                 console.error("Command redo failed:", error);
@@ -102,7 +102,10 @@ export class InsertCommand {
     // La méthode execute est maintenant utilisée uniquement pour le 'redo'.
     // Elle doit refaire l'appel API initial.
     async execute(apiCall) {
-        const response = await apiCall(this.apiCallParams);
+        const redoVariables = {
+            apiCallParams: this.apiCallParams
+        };
+        const response = await apiCall(redoVariables);
         if (!response.success) throw new Error(response.error || 'Redo (Insert) failed');
         // On stocke l'objet complet retourné par l'API, qui inclut le nouvel _id.
         // C'est important pour que le 'undo' suivant fonctionne.
@@ -124,29 +127,40 @@ export class InsertCommand {
 export class UpdateCommand {
     constructor(modelName, originalData, apiCallParams, apiCall) {
         this.modelName = modelName;
-        this.originalData = { ...originalData }; // Copie pour l'undo
+        this.originalData = Array.isArray(originalData) ? [...originalData] : [{ ...originalData }]; // Copie pour l'undo, s'assure que c'est un tableau
         this.apiCallParams = apiCallParams;
         this.apiCall = apiCall; // Stocke la fonction pour l'undo
-        this.recordId = originalData._id;
+        this.recordIds = this.originalData.map(d => d._id);
         this.successMessage = "Donnée mise à jour";
     }
 
     // La méthode execute est utilisée pour le 'redo'.
     // Elle refait la mise à jour avec les nouvelles données.
-    async execute() {
-        const response = await this.apiCall(this.apiCallParams);
+    async execute(apiCall) { // *** CORRECTION: Accepte apiCall en paramètre ***
+        const redoVariables = {
+            record: this.apiCallParams.record, // Le `record` est dans les params
+            apiCallParams: this.apiCallParams
+        };
+        const response = await (apiCall || this.apiCall)(redoVariables); // Utilise l'apiCall passée ou celle stockée
         if (!response.success) throw new Error(response.error || 'Update failed');
     }
 
     async undo() {
-        // Pour annuler, on ré-applique les données originales
-        await this.apiCall({ ...this.apiCallParams, formData: this.originalData, record: this.originalData });
+        // Pour annuler, on ré-applique les données originales pour chaque document
+        const undoPromises = this.originalData.map(doc => {
+            const undoVariables = {
+                record: doc, // Le document à restaurer
+                apiCallParams: { ...this.apiCallParams, formData: doc } // Les paramètres, en s'assurant que formData est bien le document original
+            };
+            return this.apiCall(undoVariables);
+        });
+        await Promise.all(undoPromises);
     }
 }
 
 export class DeleteCommand {
-    constructor(apiCall, modelName, itemsToDelete) { // queryClient a été retiré
-        this.apiCall = apiCall; // La fonction pour supprimer
+    constructor(apiCall, modelName, itemsToDelete) {
+        this.apiCall = apiCall; // *** CORRECTION: Stocker apiCall pour l'undo ***
         this.modelName = modelName;
         this.itemsToDelete = Array.isArray(itemsToDelete) ? [...itemsToDelete] : [itemsToDelete];
         this.successMessage = "Donnée(s) supprimée(s)";
@@ -154,7 +168,7 @@ export class DeleteCommand {
 
     // La méthode execute est utilisée pour le 'redo'.
     // Elle doit refaire la suppression.
-    async execute() {
+    async execute(apiCall) { // *** CORRECTION: Accepte apiCall en paramètre ***
         // On utilise la fonction stockée dans le constructeur.
         const response = await this.apiCall(this.itemsToDelete);
         if (!response.success) throw new Error(response.error || 'Delete failed');
@@ -198,7 +212,7 @@ export class DeleteCommand {
 const commandManagerInstance = new CommandManager();
 
 export const createInsertCommand = (modelName, apiCallParams) => new InsertCommand(modelName, apiCallParams);
-export const createUpdateCommand = (modelName, record, apiCallParams) => new UpdateCommand(modelName, record, apiCallParams);
+export const createUpdateCommand = (modelName, record, apiCallParams, apiCall) => new UpdateCommand(modelName, record, apiCallParams, apiCall);
 export const createDeleteCommand = (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete);
 
 // --- Provider Component ---
