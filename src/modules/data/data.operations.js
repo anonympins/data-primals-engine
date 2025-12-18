@@ -24,7 +24,7 @@ import {
     optionsSanitizer,
     searchRequestTimeout
 } from "../../constants.js";
-import {anonymizeText, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../../data.js";
+import {anonymizeText, encryptValue, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../../data.js";
 import sanitizeHtml from "sanitize-html";
 import {importJobs, modelsCache, runCryptoWorkerTask, runImportExportWorker} from "./data.core.js";
 import {
@@ -112,7 +112,13 @@ export const dataTypes = {
             const ml = Math.min(Math.max(field.maxlength, 0), m);
             return value === null || typeof value === 'string' && (!ml || value.length <= ml)
         },
-        anonymize: anonymizeText
+        anonymize: anonymizeText,
+        filter: async (value, field) => {
+            if (field.encrypted && value) {
+                return encryptValue(value);
+            }
+            return value;
+        }
     },
     code: {
         validate: (value, field) => {
@@ -142,8 +148,12 @@ export const dataTypes = {
             const ml = Math.min(Math.max(field.maxlength, 0), m);
             return value === null || typeof value === 'string' && (!ml || value.length <= ml)
         },
-        filter: async (value) => {
-            return sanitizeHtml(value, optionsSanitizer);
+        filter: async (value, field) => {
+            const sanitized = sanitizeHtml(value, optionsSanitizer);
+            if (field.encrypted && sanitized) {
+                return encryptValue(sanitized);
+            }
+            return sanitized;
         },
         anonymize: anonymizeText
     },
@@ -152,7 +162,7 @@ export const dataTypes = {
             if (value === null)
                 return true;
             const m = Config.Get('maxStringLength', maxStringLength);
-            const ml = Math.min(Math.max(field.maxlength, 0), maxStringLength);
+            const ml = Math.min(Math.max(field.maxlength, 0), m);
             // La valeur peut être une chaîne de caractères...
             if (typeof value === 'string') {
                 return !ml || value.length <= ml;
