@@ -63,16 +63,17 @@ When multiple listeners are registered for an event, their return values are mer
 
 Here is a list of the most important events you can listen to:
 
-| Event            | Description                                                             | Scope  | Triggered by             | Arguments (Payload)                                                  |
-|:-----------------|:------------------------------------------------------------------------|:-------|:-------------------------|:---------------------------------------------------------------------|
-| `OnServerStart`    | Triggered once the HTTP server is started and listening.                | System | `engine.start()`           | `engine`                                                               |
-| `OnModelsLoaded`   | Triggered after the initial models are loaded at startup.               | System | `setupInitialModels()`     | `engine`, `dbModels`                                                     |
-| `OnModelEdited`    | Triggered after a model definition has been modified.                   | System | `editModel()`              | `newModel`                                                             |
-| `OnDataAdded`      | Triggered after new data has been inserted.                             | System | `insertData()`             | `engine`, `insertedDocs`                                                 |
-| `OnDataEdited`     | Triggered after data has been edited.                                   | System | `editData()` / `patchData()` | `engine`, `{modelName, before, after}`                                   |
-| `OnDataDeleted`    | Triggered just after data is actually deleted.                          | System | `deleteData()`             | `engine`, `{model, filter}`                                              |
-| `OnDataSearched`   | Triggered after a data search.                                          | System | `searchData()`             | `engine`, `{data, count}`                                                |
-| `OnDataInsert`     | Triggered just before data insertion. Allows modifying the data.        | System | internal                 | `data`                                                                 |
-| `OnDataValidate`   | Triggered to override validation checks.                                | System | internal                 | `value`, `field`, `data`                                                   |
-| `OnChatAction`     | Triggered when an AI assistant decides on an action.                    | User   | `handleChatRequest`        | `action`, `params`, `parsedResponse`, `command`, `llmOptions`, `user`, `reqParams` |
-| `OnSystemPrompt`   | Triggered to override the AI assistant's system prompt.                 | User   | `handleChatRequest`        | `user`                                                                 |
+| Event              | Description                                                      | Scope  | Triggered by                 | Arguments (Payload)                                                                |
+|:-------------------|:-----------------------------------------------------------------|:-------|:-----------------------------|:-----------------------------------------------------------------------------------|
+| `OnServerStart`    | Triggered once the HTTP server is started and listening.         | System | `engine.start()`             | `engine`                                                                           |
+| `OnDatabaseLoaded` | Triggered once the lient is ready                                | System |                              | `engine`                                                                           |
+| `OnModelsLoaded`   | Triggered after the initial models are loaded at startup.        | System | `setupInitialModels()`       | `engine`, `dbModels`                                                               |
+| `OnModelEdited`    | Triggered after a model definition has been modified.            | System | `editModel()`                | `newModel`                                                                         |
+| `OnDataAdded`      | Triggered after new data has been inserted.                      | System | `insertData()`               | `engine`, `insertedDocs`                                                           |
+| `OnDataEdited`     | Triggered after data has been edited.                            | System | `editData()` / `patchData()` | `engine`, `{modelName, before, after}`                                             |
+| `OnDataDeleted`    | Triggered just after data is actually deleted.                   | System | `deleteData()`               | `engine`, `{model, filter}`                                                        |
+| `OnDataSearched`   | Triggered after a data search.                                   | System | `searchData()`               | `engine`, `{data, count}`                                                          |
+| `OnDataInsert`     | Triggered just before data insertion. Allows modifying the data. | System | internal                     | `data`                                                                             |
+| `OnDataValidate`   | Triggered to override validation checks.                         | System | internal                     | `value`, `field`, `data`                                                           |
+| `OnChatAction`     | Triggered when an AI assistant decides on an action.             | User   | `handleChatRequest`          | `action`, `params`, `parsedResponse`, `command`, `llmOptions`, `user`, `reqParams` |
+| `OnSystemPrompt`   | Triggered to override the AI assistant's system prompt.          | User   | `handleChatRequest`          | `user`                                                                             |

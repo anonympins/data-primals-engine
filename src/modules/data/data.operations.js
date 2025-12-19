@@ -1855,7 +1855,6 @@ export const searchData = async (query, user) => {
     // Vérifier si les données sont en cache
     const cachedData = searchCache.get(cacheKey);
     if (cachedData) {
-        console.log('Cache hit for key:', cacheKey);
         return cachedData;
     }
 
@@ -3109,7 +3108,6 @@ export const exportData = async (options, user) => {
 export async function installPack(packIdentifier, user = null, lang = 'en', options = {}) {
     let pack;
     const packsCollection = getCollection('packs');
-
     // Determine if we're working with an ID or direct pack object
     if (typeof packIdentifier === 'string') {
         let p;
@@ -3149,6 +3147,13 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
         throw new Error('Invalid pack identifier - must be either pack ID string or pack object');
     }
 
+    // Vérifier si le pack est déjà installé pour cet utilisateur
+    const existingPack = await packsCollection.findOne({ name: pack.name, _user: user?.username });
+    if (existingPack) {
+        logger.warn(`Pack '${pack.name}' is already installed for user '${user?.username}'. Skipping installation.`);
+        return { success: true, summary: {}, errors: [], modifiedCount: 0 };
+    }
+
     const username = user ? user.username : null;
     const logPrefix = username
         ? `Installing pack '${pack.name}' for user '${username}'`
@@ -3169,9 +3174,8 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     if (Array.isArray(pack.models)) {
         // For user installs, check existing models
         const existingModels = user
-            ? await modelsCollection.find({_user: username}).toArray()
+            ? await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user._user}, {_user: user.username}]}).toArray()
             : await modelsCollection.find({_user: {$exists: false}}).toArray();
-
         const existingModelNames = existingModels.map(m => m.name);
 
         for (let i = 0; i < pack.models.length; i++) {
@@ -3271,7 +3275,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
             delete docForInsert._temp_pack_id;
 
             if (user) docForInsert._user = username;
-            
+
             docForInsert._model = modelName;
             docForInsert._hash = getFieldValueHash(modelDefForHash, docForInsert);
 

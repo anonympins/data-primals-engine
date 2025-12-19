@@ -3,6 +3,7 @@ import {Logger} from "../gameObject.js";
 import {MongoDatabase} from "../engine.js";
 import {ObjectId} from "mongodb";
 import {isLocalUser} from "../data.js";
+import {Event} from "../events.js";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
 
@@ -21,6 +22,7 @@ export async function onInit(defaultEngine) {
 
     colls = await MongoDatabase.listCollections().toArray();
 
+    await Event.Trigger("OnDatabaseLoaded", "system", "calls", engine)
     logger.info("MongoDB collections loaded.");
 }
 
