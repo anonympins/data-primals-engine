@@ -3184,7 +3184,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
                 const modelName = typeof modelOrName === 'string' ? modelOrName : modelOrName?.name;
                 if (!modelName) throw new Error('Model definition in pack is missing a name.');
 
-                const r = await modelsCollection.findOne({name: modelName, _user: user.usename || /.*/});
+                const r = await modelsCollection.findOne({name: modelName, _user: user.username || /.*/});
                 if (r) {
                     logger.debug(`[Model Install] Skipping '${modelName}': already exists`);
                     summary.models.skipped.push(modelName);
