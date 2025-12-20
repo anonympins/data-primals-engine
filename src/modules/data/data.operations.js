@@ -3174,7 +3174,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     if (Array.isArray(pack.models)) {
         // For user installs, check existing models
         const existingModels = user
-            ? await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user._user}, {_user: user.username}]}).toArray()
+            ? await modelsCollection.find({_user: user.username}).toArray()
             : await modelsCollection.find({_user: {$exists: false}}).toArray();
         const existingModelNames = existingModels.map(m => m.name);
 
@@ -3184,7 +3184,8 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
                 const modelName = typeof modelOrName === 'string' ? modelOrName : modelOrName?.name;
                 if (!modelName) throw new Error('Model definition in pack is missing a name.');
 
-                if (existingModelNames.includes(modelName)) {
+                const r = await modelsCollection.findOne({name: modelName, _user: user.usename || /.*/}).toArray()
+                if (r) {
                     logger.debug(`[Model Install] Skipping '${modelName}': already exists`);
                     summary.models.skipped.push(modelName);
                     continue;
@@ -3224,7 +3225,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     const dataToInstall = {...pack.data?.all, ...pack.data?.[lang]};
     if (!dataToInstall || Object.keys(dataToInstall).length === 0) {
         logger.warn(`Pack '${pack.name}' has no data to install.`);
-        return {success: false, summary, errors, modifiedCount: 0};
+        return {success: errors.length === 0, summary, errors, modifiedCount: 0};
     }
 
     // Process link references (same as original)
@@ -3257,49 +3258,49 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
         const documents = dataToInstall[modelName];
         if (documents.length === 0) continue;
 
-        const docsToInsert = [];
-        const modelDefForHash = await getModel(modelName, user);
+        try {
+            const docsToInsert = [];
+            const modelDefForHash = await getModel(modelName, user);
 
-        for (const docSource of documents) {
-            let docForInsert = {...docSource};
+            for (const docSource of documents) {
+                let docForInsert = {...docSource};
 
-            // Clear $link fields for first pass
-            for (const key in docForInsert) {
-                if (isPlainObject(docForInsert[key]) && docForInsert[key].$link) {
-                    docForInsert[key] = null;
+                // Clear $link fields for first pass
+                for (const key in docForInsert) {
+                    if (isPlainObject(docForInsert[key]) && docForInsert[key].$link) {
+                        docForInsert[key] = null;
+                    }
+                }
+
+                const tempId = docForInsert._temp_pack_id;
+                delete docForInsert._id;
+                delete docForInsert._temp_pack_id;
+
+                if (user) docForInsert._user = username;
+
+                docForInsert._model = modelName;
+                docForInsert._hash = getFieldValueHash(modelDefForHash, docForInsert);
+
+                // Check for existing document
+                const existingQuery = {
+                    _hash: docForInsert._hash,
+                    _model: modelName
+                };
+
+                if (docForInsert._env) existingQuery._env = docForInsert._env;
+                if (user) existingQuery._user = username;
+
+                const existingDoc = await collection.findOne(existingQuery, {projection: {_id: 1}});
+                if (existingDoc) {
+                    tempIdToNewIdMap[tempId] = existingDoc._id;
+                    summary.datas.skipped++;
+                } else {
+                    docForInsert._temp_pack_id_for_mapping = tempId;
+                    docsToInsert.push(docForInsert);
                 }
             }
 
-            const tempId = docForInsert._temp_pack_id;
-            delete docForInsert._id;
-            delete docForInsert._temp_pack_id;
-
-            if (user) docForInsert._user = username;
-
-            docForInsert._model = modelName;
-            docForInsert._hash = getFieldValueHash(modelDefForHash, docForInsert);
-
-            // Check for existing document
-            const existingQuery = {
-                _hash: docForInsert._hash,
-                _model: modelName
-            };
-
-            if (docForInsert._env) existingQuery._env = docForInsert._env;
-            if (user) existingQuery._user = username;
-
-            const existingDoc = await collection.findOne(existingQuery, {projection: {_id: 1}});
-            if (existingDoc) {
-                tempIdToNewIdMap[tempId] = existingDoc._id;
-                summary.datas.skipped++;
-            } else {
-                docForInsert._temp_pack_id_for_mapping = tempId;
-                docsToInsert.push(docForInsert);
-            }
-        }
-
-        if (docsToInsert.length > 0) {
-            try {
+            if (docsToInsert.length > 0) {
                 const finalDocsToInsert = docsToInsert.map(d => {
                     const doc = {...d};
                     delete doc._temp_pack_id_for_mapping;
@@ -3317,11 +3318,11 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
                         tempIdToNewIdMap[doc._temp_pack_id_for_mapping] = result.insertedIds[index];
                     }
                 });
-            } catch (e) {
-                summary.datas.failed += docsToInsert.length;
-                errors.push(`Error inserting batch for ${modelName}: ${e.message}`);
-                logger.error(`[Pack Install] Error on insertMany for model ${modelName}:`, e);
             }
+        } catch (e) {
+            summary.datas.failed += documents.length;
+            errors.push(`Error processing model ${modelName}: ${e.message}`);
+            logger.error(`[Pack Install] Error processing model ${modelName}:`, e);
         }
     }
 
