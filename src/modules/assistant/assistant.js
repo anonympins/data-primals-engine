@@ -8,7 +8,7 @@ import {Config} from "../../config.js";
 import { Event } from "../../events.js";
 import rateLimit from "express-rate-limit";
 import {generateLimiter} from "../user.js";
-import {assistantConfig, maxAIReflectiveSteps} from "../../constants.js";
+import {maxAIReflectiveSteps} from "../../constants.js";
 import i18n from "../../i18n.js";
 import {parseSafeJSON} from "../../core.js";
 
@@ -80,16 +80,15 @@ REGLE FONDATRICE : suis les règles et ne dévie pas du chemin.
 STYLE UTILISE : apporte l'information au plus rapide, sans détours, ni sollicitation à l'utilisateur, ou à des tiers.
 
 FORMAT DE RÉPONSE OBLIGATOIRE :
-Ta réponse DOIT être un objet JSON unique OU un tableau d'objets JSON. Chaque objet doit contenir exactement 2 champs :
+Ta réponse DOIT être un tableau d'objets JSON (Même pour une seule action). Chaque objet doit contenir exactement 2 champs :
 1. "action" (string) 
 2. "params" (object)
 
-- Pour une action simple, retourne un objet : { "action": "...", "params": {...} }
-- Pour enchaîner plusieurs actions, retourne un tableau :
-  [
-    { "action": "search_models", "params": {"query": "..."} },
-    { "action": "displayMessage", "params": { "message": "Je cherche les modèles..." } }
-  ]
+Exemple :
+[
+  { "action": "search_models", "params": {"query": "..."} },
+  { "action": "displayMessage", "params": { "message": "Je cherche les modèles..." } }
+]
 
 Tu as accès aux outils et actions suivants.
 
@@ -529,7 +528,7 @@ export async function handleChatRequest(params, user, sendEvent = null) {
         }
         
         const toolResults = [];
-        let finalActionResult = null;
+        const finalActionResults = [];
 
         for (const command of commands) {
             logger.debug(`[Assistant] Action décidée par l'IA: ${command.action}`, command);
@@ -554,27 +553,31 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             const res = await Event.Trigger('OnChatAction', 'event', 'user', action, parsedParams, command, llmOptions, user, params);
 
             if (res) {
-                // On a trouvé une action finale. On la stocke et on arrête de chercher.
-                finalActionResult = res;
-                break; // Sort de la boucle des commandes
+                if (res.isToolResult) {
+                    toolResults.push({ action, result: res.toolResult || res.displayMessage });
+                } else {
+                    // On a trouvé une action finale. On la stocke.
+                    finalActionResults.push(res);
+                }
             } else {
                 // Si l'action n'est reconnue par aucune des logiques ci-dessus
                 logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
-                finalActionResult = {
+                finalActionResults.push({
                     success: true,
                     displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", { action })
-                };
-                break; // Sortir de la boucle des commandes
+                });
             }
         }
 
-        // Si une action finale a été exécutée, on retourne son résultat.
-        if (finalActionResult) {
+        // Si une ou plusieurs actions finales ont été exécutées, on retourne le résultat.
+        if (finalActionResults.length > 0) {
+            // Rétrocompatibilité : si un seul résultat, on renvoie l'objet directement. Sinon, on renvoie un tableau 'results'.
+            const response = finalActionResults.length === 1 ? finalActionResults[0] : { success: true, results: finalActionResults };
             if (sendEvent) {
-                sendEvent('final_result', finalActionResult);
+                sendEvent('final_result', response);
                 return;
             }
-            return finalActionResult;
+            return response;
         }
 
         // Si on a uniquement des résultats d'outils, on les ajoute à l'historique et on continue la boucle.
@@ -673,7 +676,14 @@ async function handleFinalChatAction(action, params, parsedResponse, llmOptions,
 
     // Actions nécessitant une confirmation de l'utilisateur
     if (['post', 'update', 'delete'].includes(action)) {
-        return { success: true, displayMessage: i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :"), confirmationRequest: parsedResponse };
+        return {
+            success: true,
+            displayMessage: i18n.t('assistant.confirmActionPrompt', "Veuillez confirmer l'action suivante :"),
+            confirmationRequest: parsedResponse,
+            model: params.model,
+            filter: params.filter,
+            data: params.data
+        };
     }
 
     // Action finale pour afficher un message
