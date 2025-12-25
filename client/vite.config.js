@@ -25,6 +25,6 @@ export default defineConfig({
         }
     },
     fs: {
-        allow: ["./src"]
+        allow: ["./src", "../src"]
     }
 })
