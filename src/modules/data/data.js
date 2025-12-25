@@ -22,7 +22,7 @@ import {cancelAlerts, scheduleAlerts, onInit as scheduleInit} from "./data.sched
 import {deleteData, installPack, onInit as operationsInit} from "./data.operations.js";
 import {jobDumpUserData, onInit as backupInit} from "./data.backup.js";
 import {Config} from "../../config.js";
-import {profiles} from "../../packs.js";
+import {profiles} from "../../profiles.js";
 
 let engine;
 let logger;
