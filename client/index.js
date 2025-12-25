@@ -4,6 +4,7 @@
 export { ModelProvider, useModelContext } from './src/contexts/ModelContext';
 export { AuthProvider, useAuthContext } from './src/contexts/AuthContext';
 export { UIProvider, useUI } from './src/contexts/UIContext';
+export { CommandProvider, createInsertCommand, createUpdateCommand, createDeleteCommand, DeleteCommand, InsertCommand, UpdateCommand , useCommand } from './src/contexts/CommandContext';
 export { NotificationProvider, useNotificationContext } from './src/NotificationProvider';
 
 // Hooks
