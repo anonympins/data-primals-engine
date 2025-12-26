@@ -57,7 +57,7 @@ export async function onInit(defaultEngine) {
 
     const i = Config.Get('install', install);
     if( i ) {
-        datasCollection = await createCollection("datas");
+        datasCollection = await createCollection(Config.Get('dataCollection', 'datas'));
         historyCollection = await createCollection("history");
         filesCollection = await createCollection("files");
         packsCollection = await createCollection("packs");
@@ -127,7 +127,7 @@ export async function onInit(defaultEngine) {
 
     }else {
         modelsCollection = getCollection("models");
-        datasCollection = getCollection("datas");
+        datasCollection = getCollection(Config.Get('dataCollection','datas'));
         filesCollection = getCollection("files");
         packsCollection = getCollection("packs");
         historyCollection = getCollection("history");
@@ -256,7 +256,7 @@ export async function handleDemoInitialization(req, res) {
 
     try {
         // 1. Nettoyage de l'environnement (inchangé)
-        const datasCollection = getCollection("datas");
+        const datasCollection = getCollection(Config.Get('dataCollection',"datas"));
         const modelsCollection = getCollection("models");
         const filesCollection = getCollection("files");
 

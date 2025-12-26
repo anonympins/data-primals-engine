@@ -136,7 +136,7 @@ export const loadFromDump = async (user, options = {}) => {
         await tar.extract({file: backupFilePath, gzip: true, C: tmpRestoreDir, sync: true});
 
         // ... (Cleaning logic: deleteMany, removeFile, cancelAlerts) ...
-        const datasCollection = getCollection("datas");
+        const datasCollection = getCollection(Config.Get('dataCollection', 'datas'));
         if (modelsOnly) {
             await modelsCollection.deleteMany({_user: user.username});
         } else {
@@ -169,7 +169,7 @@ export const loadFromDump = async (user, options = {}) => {
             args.push('--nsInclude', `${d}.models`);
         } else {
             // mongorestore accepte plusieurs fois l'option --nsInclude
-            args.push('--nsInclude', `${d}.datas`);
+            args.push('--nsInclude', `${d}.${Config.Get('dataCollection', 'datas')}`);
             args.push('--nsInclude', `${d}.models`);
         }
         // Le répertoire source est le dernier argument

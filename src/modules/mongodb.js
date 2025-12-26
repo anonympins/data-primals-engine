@@ -4,6 +4,7 @@ import {MongoDatabase} from "../engine.js";
 import {ObjectId} from "mongodb";
 import {isLocalUser} from "../data.js";
 import {Event} from "../events.js";
+import {Config} from "../config.js";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
 
@@ -16,7 +17,7 @@ export async function onInit(defaultEngine) {
     logger = engine.getComponent(Logger);
 
     modelsCollection = getCollection("models");
-    datasCollection = getCollection("datas");
+    datasCollection = getCollection(Config.Get('dataCollection', 'datas'));
     filesCollection = getCollection("files");
     packsCollection = getCollection("packs");
 
@@ -54,7 +55,8 @@ export const getCollection = (str) => {
 // New function to determine the collection name for a user
 export const getUserCollectionName = async (user) => {
     const feat = await engine.userProvider.hasFeature(user, 'indexes');
-    return feat ? (isLocalUser(user) ? `datas_${user._user}` :`datas_${user.username}` ) : 'datas';
+    const dataCollectionName = Config.Get('dataCollection', 'datas');
+    return feat ? (isLocalUser(user) ? `${dataCollectionName}_${user._user}` :`${dataCollectionName}_${user.username}` ) : dataCollectionName;
 };
 
 

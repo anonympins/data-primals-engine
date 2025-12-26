@@ -21,7 +21,7 @@ export function onInit(defaultEngine) {
 
 export const cancelAlerts = async (user) => {
 
-    const datasCollection = getCollection('datas'); // Alerts are in the global collection
+    const datasCollection = getCollection(Config.Get('dataCollection', 'datas')); // Alerts are in the global collection
 
     // 1. Fetch the latest state of the alert
     const alertDocs = await datasCollection.find({_user: user.username, _model: 'alert'}).toArray();
