@@ -1726,9 +1726,10 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
         } else {
             logger.info(`[deleteData] No documents to delete for user ${user?.username} after permission checks or matching criteria.`);
         }
-
         const res = { success: true, deletedCount };
 
+        if (!modelNameToInvalidate)
+            return res;
         // --- CORRECTION ---
         // The event payload must match what the history listener expects: { modelName, user, before }.
         // 'documentsToDelete' contains the full documents before they were deleted.
