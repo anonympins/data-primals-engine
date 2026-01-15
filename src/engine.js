@@ -94,7 +94,10 @@ export const MongoClient = new InternalMongoClient(dbUrl, clientOptions);
 
 
 // Database Name
-export const MongoDatabase = MongoClient.db(dbName);
+export const MongoDatabase = () => {
+    let dbName = Config.Get('dbName', dbNameBase);
+    return MongoClient.db(dbName);
+}
 
 
 export const Engine = {

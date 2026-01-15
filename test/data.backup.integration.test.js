@@ -57,7 +57,7 @@ let engineInstance;
 let testDatasApi;
 
 const backupDir = path.resolve('./test-backups'); // Use an absolute path
-
+let engine;
 beforeAll(async () => {
 
     process.env.BACKUP_DIR = backupDir; // Set backup directory
@@ -66,6 +66,8 @@ beforeAll(async () => {
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
     }
+    Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow", "user", "assistant"]);
+    engine = await initEngine();
 
     // Delete any existing files in the backup directory
     fs.readdirSync(backupDir).forEach(file => {

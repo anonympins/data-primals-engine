@@ -8,7 +8,6 @@ import { insertData, editData, deleteData } from '../src/index.js';
 import { getCollection, getCollectionForUser } from '../src/modules/mongodb.js';
 import { generateUniqueName, initEngine } from "../src/setenv.js";
 import {purgeData} from "../src/modules/data/data.history.js";
-import {MongoDatabase} from "../src/engine.js";
 
 let engine;
 let testUser;

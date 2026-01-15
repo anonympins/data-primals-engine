@@ -8,7 +8,7 @@ import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../buc
 import fs from "node:fs";
 import {modelsCache, runCryptoWorkerTask} from "./data.core.js";
 import * as tar from "tar";
-import {getCollection, getUserCollectionName, modelsCollection} from "../mongodb.js";
+import {getCollection, getDatabase, getUserCollectionName, modelsCollection} from "../mongodb.js";
 import {removeFile} from "../file.js";
 import {cancelAlerts, scheduleAlerts} from "./data.scheduling.js";
 import {dbName} from "../../constants.js";
@@ -245,7 +245,7 @@ export const dumpUserData = async (user) => {
 
 
         const d = Config.Get('dbName', dbName);
-        const collections = await MongoDatabase.listCollections().toArray();
+        const collections = await getDatabase().listCollections().toArray();
         for (const collection of collections) {
             const collsToBackup = [await getUserCollectionName(user), 'models'];
             if (collsToBackup.includes(collection.name)) {
