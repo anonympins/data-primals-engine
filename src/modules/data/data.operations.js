@@ -3100,7 +3100,6 @@ export const exportData = async (options, user) => {
  * Installs pack models and data for a user or globally.
  * Can accept either a pack ID (to install from database) or a direct pack JSON object.
  *
- * @param {object} logger - Logger instance
  * @param {string|object} packIdentifier - Either pack ID (string) or pack JSON object
  * @param {object|null} user - User object (if installing for user) or null (for global install)
  * @param {string} [lang='en'] - Language code for localized data
@@ -3151,7 +3150,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     // Vérifier si le pack est déjà installé pour cet utilisateur
     const existingPack = await packsCollection.findOne({ name: pack.name, _user: user?.username });
     if (existingPack) {
-        logger.warn(`Pack '${pack.name}' is already installed for user '${user?.username}'. Skipping installation.`);
+        logger?.warn(`Pack '${pack.name}' is already installed for user '${user?.username}'. Skipping installation.`);
         return { success: true, summary: {}, errors: [], modifiedCount: 0 };
     }
 
@@ -3160,7 +3159,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
         ? `Installing pack '${pack.name}' for user '${username}'`
         : `Installing pack '${pack.name}' globally`;
 
-    logger.info(`--- ${logPrefix} ---`);
+    logger?.info(`--- ${logPrefix} ---`);
 
     const summary = {
         models: {installed: [], skipped: [], failed: []},
@@ -3187,7 +3186,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
 
                 const r = typeof user?.username === 'string' && await modelsCollection.findOne({name: modelName, _user: user.username || /.*/});
                 if (r ) {
-                    logger.debug(`[Model Install] Skipping '${modelName}': already exists`);
+                    logger?.debug(`[Model Install] Skipping '${modelName}': already exists`);
                     summary.models.skipped.push(modelName);
                     continue;
                 }
@@ -3214,7 +3213,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
                 await modelsCollection.insertOne(preparedModel);
                 summary.models.installed.push(modelName);
             } catch (e) {
-                logger.error(e);
+                logger?.error(e);
                 const modelName = typeof modelOrName === 'string' ? modelOrName : modelOrName?.name || 'unknown';
                 errors.push(`Failed to install model '${modelName}': ${e.message}`);
                 summary.models.failed.push(modelName);
@@ -3225,7 +3224,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     // --- PHASE 2: DATA INSTALLATION ---
     const dataToInstall = {...pack.data?.all, ...pack.data?.[lang]};
     if (!dataToInstall || Object.keys(dataToInstall).length === 0) {
-        logger.warn(`Pack '${pack.name}' has no data to install.`);
+        logger?.warn(`Pack '${pack.name}' has no data to install.`);
         return {success: errors.length === 0, summary, errors, modifiedCount: 0};
     }
 
@@ -3323,18 +3322,18 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
         } catch (e) {
             summary.datas.failed += documents.length;
             errors.push(`Error processing model ${modelName}: ${e.message}`);
-            logger.error(`[Pack Install] Error processing model ${modelName}:`, e);
+            logger?.error(`[Pack Install] Error processing model ${modelName}:`, e);
         }
     }
 
     // --- PASS 2: REFERENCE LINKING ---
-    logger.info(`[Pack Install] Starting Pass 2: Linking ${linkQueue.length} references`);
+    logger?.info(`[Pack Install] Starting Pass 2: Linking ${linkQueue.length} references`);
     for (const linkOp of linkQueue) {
         const {sourceTempId, sourceModelName, fieldName, linkSelector} = linkOp;
         const sourceId = tempIdToNewIdMap[sourceTempId];
 
         if (!sourceId) {
-            logger.warn(`[LINK FAILED] Could not find newly inserted document for temp ID ${sourceTempId}. Skipping link.`);
+            logger?.warn(`[LINK FAILED] Could not find newly inserted document for temp ID ${sourceTempId}. Skipping link.`);
             continue;
         }
 
@@ -3346,7 +3345,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
             const fieldDef = sourceModelDef.fields.find(f => f.name === fieldName);
 
             if (!fieldDef) {
-                logger.warn(`[LINK FAILED] Field '${fieldName}' not found in source model '${sourceModelName}'`);
+                logger?.warn(`[LINK FAILED] Field '${fieldName}' not found in source model '${sourceModelName}'`);
                 errors.push(`[LINK FAILED] Field '${fieldName}' not found in source model '${sourceModelName}'`);
                 summary.datas.failed++;
                 continue;
@@ -3360,7 +3359,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
 
             if (!targetDocs || targetDocs.length === 0) {
                 const errorMsg = `[LINK FAILED] No target found for ${JSON.stringify(linkSelector)}`;
-                logger.warn(errorMsg);
+                logger?.warn(errorMsg);
                 errors.push(errorMsg);
                 summary.datas.failed++;
                 continue;
@@ -3379,7 +3378,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
 
         } catch (e) {
             const errorMsg = `[LINK CRITICAL] Error linking ${sourceModelName}.${fieldName}: ${e.message}`;
-            logger.error(errorMsg, e.stack);
+            logger?.error(errorMsg, e.stack);
             errors.push(errorMsg);
             summary.datas.failed++;
         }
@@ -3388,7 +3387,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     if (options.installForUser && user?.username) {
         if (pack.name)
             await packsCollection.deleteOne({name: pack.name, _user: user.username});
-        logger.info(`--- Creating pack '${pack.name}' for user... ---`);
+        logger?.info(`--- Creating pack '${pack.name}' for user... ---`);
         const packToCreate = {...pack, _id: undefined, private: true, _user: user.username};
         await packsCollection.insertOne(packToCreate);
     }
@@ -3399,7 +3398,7 @@ export async function installPack(packIdentifier, user = null, lang = 'en', opti
     }
 
     const modifiedCount = summary.datas.inserted + summary.datas.updated;
-    logger.info(`--- ${logPrefix} completed ---`);
+    logger?.info(`--- ${logPrefix} completed ---`);
     return {
         success: errors.length === 0,
         summary,
