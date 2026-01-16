@@ -1484,7 +1484,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         };
 
     } catch (error) {
-        logger.error("Erreur lors de la mise à jour de la ressource :", error);
+        logger?.error("Erreur lors de la mise à jour de la ressource :", error);
         return {success: false, error: error.message};
     }
 };
