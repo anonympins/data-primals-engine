@@ -860,7 +860,7 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
         return {success: true, data: firstInsertedDoc, insertedIds: insertedIds.map(id => id.toString())};
 
     } catch (error) { // Attrape les erreurs de permission ou de pushDataUnsecure
-        logger.error(`[insertData] Main error during insertion process for model ${modelName}: ${error.message}`, error.stack);
+        logger?.error(`[insertData] Main error during insertion process for model ${modelName}: ${error.message}`, error.stack);
         // Renvoyer une structure d'erreur cohérente
         return {
             success: false,
