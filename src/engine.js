@@ -114,6 +114,7 @@ export const Engine = {
 
         engine.userProvider = new DefaultUserProvider(engine);
 
+
         engine.setUserProvider = (providerInstance) => {
             engine.userProvider = providerInstance;
             logger.info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
@@ -194,6 +195,7 @@ export const Engine = {
 
         // On charge uniquement les modules spécifiés dans la configuration.
         const allModules = Config.Get('modules', []);
+        logger.info("Modules to load : ", JSON.stringify(allModules));
         const loadedModules = []; // Liste temporaire pour la phase 1
         for (const moduleIdentifier of allModules) {
             let moduleEntryPoint = null;
@@ -213,7 +215,9 @@ export const Engine = {
                         // C'est un fichier
                         moduleEntryPoint = pathToFileURL(externalPath).href;
                     }
-                } else {
+                }
+
+                if (!moduleEntryPoint) {
                     // 2. Si ce n'est pas un chemin, tenter de résoudre comme un module interne
                     const internalDir = path.resolve(__dirname, 'modules', moduleIdentifier);
                     const internalFile = path.resolve(__dirname, 'modules', `${moduleIdentifier}.js`);
