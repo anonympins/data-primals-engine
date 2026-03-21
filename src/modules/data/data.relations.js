@@ -581,7 +581,8 @@ export const checkHash = async (me, model, hash, excludeId = null) => {
     const query = {
         _model: model.name,
         _hash: hash,
-        ...(excludeId && {_id: {$ne: new ObjectId(excludeId)}})
+        ...(excludeId && {_id: {$ne: new ObjectId(excludeId)}}),
+        _user: me.username
     };
 
     console.log("Query being executed:", JSON.stringify(query, null, 2));

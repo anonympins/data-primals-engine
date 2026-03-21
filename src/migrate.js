@@ -24,7 +24,7 @@ engine.start(port, async () => {
     const target = process.argv[3]; // Le nom du fichier de migration cible
 
     try {
-        const db = MongoDatabase;
+        const db = MongoDatabase();
         const { executedNames, allMigrationFiles } = await getMigrationStatus(db);
 
         switch (command) {

@@ -11,10 +11,7 @@ $vs-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 .view-switcher {
   display: inline-flex;
   align-items: center;
-  background-color: $vs-background;
-  border-radius: 8px;
   padding: 4px;
-  border: 1px solid $vs-border-color;
 
   // Chaque option (bouton + potentiellement le bouton de configuration) est dans un wrapper
   .view-option-wrapper {
@@ -24,36 +21,8 @@ $vs-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
     // La magie de la transition pour un effet fluide
     transition: background-color 0.25s ease, box-shadow 0.25s ease;
 
-    // Le style du wrapper quand il est actif
-    &.is-active {
-      background-color: $vs-white;
-      box-shadow: $vs-shadow;
-    }
   }
 
-  .btn-view {
-    background-color: transparent;
-    border: none;
-    padding: 6px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    color: $vs-text-color;
-    font-weight: 500;
-    transition: color 0.2s ease-in-out;
-    white-space: nowrap; // Emphe le texte de passer à la ligne
-
-    .md\:inline-block {
-      font-size: 0.9rem;
-    }
-  }
-
-  // Quand le wrapper est actif, le bouton principal change de couleur
-  .is-active .btn-view {
-    color: $vs-primary-color;
-    font-weight: 600;
-  }
 
   // Le bouton de configuration (roue crantée)
   .btn-view-settings {

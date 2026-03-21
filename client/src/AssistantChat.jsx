@@ -82,59 +82,66 @@ const AssistantChat = ({ config }) => {
                     }
                 }
 
-                // On crée un objet de message pour le bot qui peut contenir plus que du texte
-                const botMessage = {
-                    from: 'bot',
-                    text: null,
-                    actionDetails: null, // Pour stocker les détails de l'action à afficher
-                    chartConfig: null,
-                    flexViewConfig: null,
-                    htmlViewConfig: null
+                // Fonction pour créer un message bot à partir d'un résultat
+                const createBotMessage = (res) => {
+                    const msg = {
+                        from: 'bot',
+                        text: null,
+                        actionDetails: null,
+                        chartConfig: null,
+                        flexViewConfig: null,
+                        htmlViewConfig: null,
+                        dataResult: null
+                    };
+
+                    if (res.displayMessage) {
+                        msg.text = res.displayMessage;
+                    } else if (res.codeMessage) {
+                        const code = typeof res.codeMessage === 'object'
+                            ? JSON.stringify(res.codeMessage, null, 2)
+                            : res.codeMessage;
+                        msg.text = `\`\`\`json\n${code}\n\`\`\``;
+                    }
+
+                    if (res.confirmationRequest) {
+                        msg.actionDetails = {
+                            model: res.model,
+                            filter: res.filter,
+                            data: res.data
+                        };
+                    }
+
+                    if (res.chartConfig) msg.chartConfig = res.chartConfig;
+                    if (res.flexViewConfig) msg.flexViewConfig = res.flexViewConfig;
+                    if (res.htmlViewConfig) msg.htmlViewConfig = res.htmlViewConfig;
+                    if (res.dataResult) msg.dataResult = res.dataResult;
+
+                    return msg;
                 };
 
-                // Gérer le texte à afficher
-                if (result.displayMessage) {
-                    botMessage.text = result.displayMessage;
-                } else if (result.codeMessage) {
-                    const code = typeof result.codeMessage === 'object'
-                        ? JSON.stringify(result.codeMessage, null, 2)
-                        : result.codeMessage;
-                    botMessage.text = `\`\`\`json\n${code}\n\`\`\``;
-                }
+                const resultsToProcess = result.results || [result];
+                const newMessages = [];
+                let newConfirmation = null;
 
-                // NOUVEAU : Si une confirmation est demandée, on enrichit le message
-                if (result.confirmationRequest) {
-                    // On stocke l'action complète dans l'état pour l'envoyer si l'utilisateur confirme
-                    setPendingConfirmation(result.confirmationRequest);
+                resultsToProcess.forEach(res => {
+                    const msg = createBotMessage(res);
+                    if (res.confirmationRequest) {
+                        newConfirmation = res.confirmationRequest;
+                    }
+                    // On ajoute le message s'il a du contenu
+                    if (msg.text || msg.chartConfig || msg.dataResult || msg.flexViewConfig || msg.htmlViewConfig || msg.actionDetails) {
+                        newMessages.push(msg);
+                    }
+                });
 
-                    // On ajoute les détails (modèle, filtre, données) au message pour l'affichage
-                    botMessage.actionDetails = {
-                        model: result.model,
-                        filter: result.filter,
-                        data: result.data // Sera undefined si non présent, ce qui est correct
-                    };
+                if (newConfirmation) {
+                    setPendingConfirmation(newConfirmation);
                 } else if (isConfirmation) {
-                    // Si c'était un appel de confirmation et qu'il n'y a pas de nouvelle demande, on vide l'état
                     setPendingConfirmation(null);
                 }
 
-                // On ajoute le message à la liste uniquement s'il a du contenu textuel
-                if (result.chartConfig) {
-                    botMessage.chartConfig = result.chartConfig;
-                }
-                if (result.flexViewConfig) {
-                    botMessage.flexViewConfig = result.flexViewConfig;
-                }
-                if (result.htmlViewConfig) {
-                    botMessage.htmlViewConfig = result.htmlViewConfig;
-                }
-                // Si des données tabulaires sont retournées
-                if (result.dataResult) {
-                    botMessage.dataResult = result.dataResult;
-                }
-                // On ajoute le message à la liste uniquement s'il a du contenu
-                if (botMessage.text || botMessage.chartConfig || botMessage.dataResult || botMessage.flexViewConfig || botMessage.htmlViewConfig) {
-                    setMessages(prev => [...prev, botMessage]);
+                if (newMessages.length > 0) {
+                    setMessages(prev => [...prev, ...newMessages]);
                 }
 
             } else {

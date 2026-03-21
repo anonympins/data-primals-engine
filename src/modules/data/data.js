@@ -2,7 +2,7 @@ import {Logger} from "../../gameObject.js";
 import {mkdir} from 'node:fs/promises';
 import {onInit as historyInit} from "./data.history.js";
 import {isDemoUser, isLocalUser} from "../../data.js";
-import {install, maxAlertsPerUser, maxRequestData, storageSafetyMargin} from "../../constants.js";
+import {install, storageSafetyMargin} from "../../constants.js";
 import {createCollection, getCollection} from "../mongodb.js";
 import path from "node:path";
 import {isGUID, sequential} from "../../core.js";
@@ -10,7 +10,6 @@ import {Event} from "../../events.js";
 import fs from "node:fs";
 import schedule from "node-schedule";
 import {middleware} from "../../middlewares/middleware-mongodb.js";
-import i18n from "../../i18n.js";
 import checkDiskSpace from "check-disk-space";
 import {removeFile} from "../file.js";
 import {hasPermission} from "../user.js";
@@ -18,11 +17,12 @@ import { onInit as userInit } from '../user.js';
 import {registerRoutes} from "./data.routes.js";
 import {mongoDBWhitelist} from "./data.core.js";
 import {onInit as relationsInit} from "./data.relations.js";
-import {validateField, onInit as validationInit} from "./data.validation.js";
+import { onInit as validationInit} from "./data.validation.js";
 import {cancelAlerts, scheduleAlerts, onInit as scheduleInit} from "./data.scheduling.js";
 import {deleteData, installPack, onInit as operationsInit} from "./data.operations.js";
 import {jobDumpUserData, onInit as backupInit} from "./data.backup.js";
 import {Config} from "../../config.js";
+import {profiles} from "../../profiles.js";
 
 let engine;
 let logger;
@@ -57,7 +57,7 @@ export async function onInit(defaultEngine) {
 
     const i = Config.Get('install', install);
     if( i ) {
-        datasCollection = await createCollection("datas");
+        datasCollection = await createCollection(Config.Get('dataCollection', 'datas'));
         historyCollection = await createCollection("history");
         filesCollection = await createCollection("files");
         packsCollection = await createCollection("packs");
@@ -127,7 +127,7 @@ export async function onInit(defaultEngine) {
 
     }else {
         modelsCollection = getCollection("models");
-        datasCollection = getCollection("datas");
+        datasCollection = getCollection(Config.Get('dataCollection','datas'));
         filesCollection = getCollection("files");
         packsCollection = getCollection("packs");
         historyCollection = getCollection("history");
@@ -256,7 +256,7 @@ export async function handleDemoInitialization(req, res) {
 
     try {
         // 1. Nettoyage de l'environnement (inchangé)
-        const datasCollection = getCollection("datas");
+        const datasCollection = getCollection(Config.Get('dataCollection',"datas"));
         const modelsCollection = getCollection("models");
         const filesCollection = getCollection("files");
 

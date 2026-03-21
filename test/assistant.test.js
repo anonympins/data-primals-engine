@@ -168,7 +168,7 @@ describe('Assistant Module Unit Tests', () => {
     });
 
     it('should correct a malformed filter from the AI', async () => {
-        const aiResponse = JSON.stringify({
+        const aiResponse = JSON.stringify([{
             action: 'search',
             params: {
                 model: modelName,
@@ -178,7 +178,7 @@ describe('Assistant Module Unit Tests', () => {
                     "$lt": ["$price", 200]
                 }
             }
-        });
+        }]);
         const mockLLM = {
             stream: vi.fn().mockReturnValue(createMockStream(aiResponse)),
         };

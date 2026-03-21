@@ -8,9 +8,9 @@ import Button from "./Button.jsx";
 import useLocalStorage from "./hooks/useLocalStorage.js";
 import {Tooltip} from "react-tooltip";
 import {useUI} from "./contexts/UIContext.jsx";
-import {profiles} from "./constants.js";
 import * as FaIcons from "react-icons/fa";
 import * as Fa6Icons from "react-icons/fa6";
+import {profiles} from "../../src/profiles.js";
 
 // --- SUGGESTION: Extraire cette logique dans un composant dédié si elle devient plus complexe ---
 // Fonction pour obtenir le composant icône par son nom

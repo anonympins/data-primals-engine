@@ -277,7 +277,7 @@ metaModels['erp'] = { load: [ 'accountingExercise', 'accountingLineItem', 'accou
  * Available model field attributes
  * @type {string[]}
  */
-export const allowedFields = ['locked', 'hiddenable', 'anonymized', 'condition', 'color', 'index', 'indexType', 'type', 'required', 'hint', 'default', 'validate', 'unique', 'name', 'placeholder', 'asMain'];
+export const allowedFields = ['locked', 'hiddenable', 'encrypted', 'anonymized', 'condition', 'color', 'index', 'indexType', 'type', 'required', 'hint', 'default', 'validate', 'unique', 'name', 'placeholder', 'asMain'];
 
 
 

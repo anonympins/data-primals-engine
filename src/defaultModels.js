@@ -303,7 +303,7 @@ export const defaultModels = {
         "icon": "FaTags",
         "description": "",
         "tags": ["cms", "organization"],
-        fields: [
+        "fields": [
             { name: 'name', type: 'string_t', required: true, color: '#71A314' },
             { name: 'parent', type: 'relation', relation: 'taxonomy', color: '#233607' }, // Relation vers la taxonomie parente
             { name: 'type', type: 'enum', items: ['keyword', 'category'], color: '#BFBFBF' },

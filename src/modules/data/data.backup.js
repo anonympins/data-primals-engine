@@ -8,7 +8,7 @@ import {downloadFromS3, getUserS3Config, listS3Backups, uploadToS3} from "../buc
 import fs from "node:fs";
 import {modelsCache, runCryptoWorkerTask} from "./data.core.js";
 import * as tar from "tar";
-import {getCollection, getUserCollectionName, modelsCollection} from "../mongodb.js";
+import {getCollection, getDatabase, getUserCollectionName, modelsCollection} from "../mongodb.js";
 import {removeFile} from "../file.js";
 import {cancelAlerts, scheduleAlerts} from "./data.scheduling.js";
 import {dbName} from "../../constants.js";
@@ -136,7 +136,7 @@ export const loadFromDump = async (user, options = {}) => {
         await tar.extract({file: backupFilePath, gzip: true, C: tmpRestoreDir, sync: true});
 
         // ... (Cleaning logic: deleteMany, removeFile, cancelAlerts) ...
-        const datasCollection = getCollection("datas");
+        const datasCollection = getCollection(Config.Get('dataCollection', 'datas'));
         if (modelsOnly) {
             await modelsCollection.deleteMany({_user: user.username});
         } else {
@@ -169,7 +169,7 @@ export const loadFromDump = async (user, options = {}) => {
             args.push('--nsInclude', `${d}.models`);
         } else {
             // mongorestore accepte plusieurs fois l'option --nsInclude
-            args.push('--nsInclude', `${d}.datas`);
+            args.push('--nsInclude', `${d}.${Config.Get('dataCollection', 'datas')}`);
             args.push('--nsInclude', `${d}.models`);
         }
         // Le répertoire source est le dernier argument
@@ -245,7 +245,7 @@ export const dumpUserData = async (user) => {
 
 
         const d = Config.Get('dbName', dbName);
-        const collections = await MongoDatabase.listCollections().toArray();
+        const collections = await getDatabase().listCollections().toArray();
         for (const collection of collections) {
             const collsToBackup = [await getUserCollectionName(user), 'models'];
             if (collsToBackup.includes(collection.name)) {

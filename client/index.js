@@ -4,6 +4,7 @@
 export { ModelProvider, useModelContext } from './src/contexts/ModelContext';
 export { AuthProvider, useAuthContext } from './src/contexts/AuthContext';
 export { UIProvider, useUI } from './src/contexts/UIContext';
+export { CommandProvider, createInsertCommand, createUpdateCommand, createDeleteCommand, DeleteCommand, InsertCommand, UpdateCommand , useCommand } from './src/contexts/CommandContext';
 export { NotificationProvider, useNotificationContext } from './src/NotificationProvider';
 
 // Hooks
@@ -22,3 +23,5 @@ export { default as MessageRotator } from './src/MessageRotator';
 export { default as DocumentationPageLayout } from './src/DocumentationPageLayout';
 export { default as ContentView } from './src/ContentView';
 export { default as AssistantChat } from './src/AssistantChat';
+
+export * from './src/constants.js';

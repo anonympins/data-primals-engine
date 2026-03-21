@@ -261,6 +261,11 @@ paths:
           schema:
             type: integer
             default: 1
+        - name: env
+          in: query
+          description: "Environment filter (e.g. 'production')."
+          schema:
+            type: string
         - name: lang
           in: query
           description: "Language used for error messages."

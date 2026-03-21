@@ -3,31 +3,36 @@ import {Logger} from "../gameObject.js";
 import {MongoDatabase} from "../engine.js";
 import {ObjectId} from "mongodb";
 import {isLocalUser} from "../data.js";
+import {Event} from "../events.js";
+import {Config} from "../config.js";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
 
 export {ObjectId};
 
-let engine, logger;
+let engine, logger, currentDb
+
 let colls= [];
 export async function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
+    currentDb = MongoDatabase();
     modelsCollection = getCollection("models");
-    datasCollection = getCollection("datas");
+    datasCollection = getCollection(Config.Get('dataCollection', 'datas'));
     filesCollection = getCollection("files");
     packsCollection = getCollection("packs");
 
-    colls = await MongoDatabase.listCollections().toArray();
+    colls = await currentDb.listCollections().toArray();
 
+    await Event.Trigger("OnDatabaseLoaded", "system", "calls", engine)
     logger.info("MongoDB collections loaded.");
 }
 
 export const getCollections= async (forceRefresh)=>{
     if( !forceRefresh )
         return colls;
-    colls = await MongoDatabase.listCollections().toArray();
+    colls = await currentDb.listCollections().toArray();
 }
 
 export const createCollection = async (coll)=>{
@@ -35,7 +40,7 @@ export const createCollection = async (coll)=>{
     if( found){
         return getCollection(coll);
     }
-    return await MongoDatabase.createCollection(coll);
+    return await currentDb.createCollection(coll);
 }
 
 export const isObjectId = (id) => {
@@ -44,15 +49,18 @@ export const isObjectId = (id) => {
 
 
 export const getCollection = (str) => {
-    return MongoDatabase.collection(str);
+    return currentDb.collection(str);
 }
 
-
+export const getDatabase = () => {
+    return currentDb;
+}
 
 // New function to determine the collection name for a user
 export const getUserCollectionName = async (user) => {
     const feat = await engine.userProvider.hasFeature(user, 'indexes');
-    return feat ? (isLocalUser(user) ? `datas_${user._user}` :`datas_${user.username}` ) : 'datas';
+    const dataCollectionName = Config.Get('dataCollection', 'datas');
+    return feat ? (isLocalUser(user) ? `${dataCollectionName}_${user._user}` :`${dataCollectionName}_${user.username}` ) : dataCollectionName;
 };
 
 
