@@ -71,7 +71,7 @@ const IMPORT_CHUNK_DELAY_MS = 1000; // Délai en millisecondes entre le traiteme
 
 export const dataTypes = {
     object: {
-        validate: (value, field) => {
+            validate: (value, field) => {
             return value === null || isPlainObject(value);
         }
     },
