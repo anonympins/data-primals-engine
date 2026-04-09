@@ -55,8 +55,6 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
     // Choisir le transporteur à utiliser
     const transporter = smtpConfig ? createTransporter(smtpConfig||cfg) : defaultTransporter;
 
-    Event.Listen("OnEmailTemplate", (data, lang) => data.content, "event", "system");
-
     if (tpl === null) tpl = await Event.Trigger("OnEmailTemplate", "event", "system", data, lang);
     let html = tpl;
     try {

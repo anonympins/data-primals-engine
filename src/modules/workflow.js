@@ -19,6 +19,7 @@ import { providers } from "./assistant/constants.js";
 import { getAIProvider } from "./assistant/providers.js";
 import {Config} from "../config.js";
 import {safeAssignObject} from "../core.js";
+import {Event} from "../events.js";
 
 /**
  * Récupère une valeur imbriquée dans un objet (ex: 'user.address.city').
@@ -391,8 +392,9 @@ export async function executeSafeJavascript(actionDef, context, user) {
         const vmContext = await isolate.createContext();
         const jail = vmContext.global;
 
-        const find = async (modelName, filter) => {
-            const result = await searchData({ model: modelName, filter: JSON.parse(filter) }, user);
+        const find = async (modelName, filter, options) => {
+            const parsedOptions = options ? JSON.parse(options) : {};
+            const result = await searchData({ model: modelName, filter: JSON.parse(filter), ...parsedOptions }, user);
             return new ivm.ExternalCopy(result).copyInto();
         };
         const findOne = async (modelName, filter) => {
@@ -824,6 +826,7 @@ async function handleUpdateDataAction(actionDef, contextData, user) {
         // Substitute targetSelector (assuming it's a JSON string or object)
         if (typeof targetSelector === 'string') {
             substitutedSelectorString = await substituteVariables(targetSelector, contextData, user);
+            selectorObject = await substituteVariables(targetSelector, contextData, user); // Substitute values within the object
         } else if (typeof targetSelector === 'object') {
             selectorObject = await substituteVariables(targetSelector, contextData, user); // Substitute values within the object
         } else {
@@ -1416,6 +1419,7 @@ export async function processWorkflowRun(workflowRunId, user) {
         }
 
         let stepCount = 0;
+        let lastStepId = null;
         const mw = Config.Get('maxWorkflowSteps', maxWorkflowSteps);
         while (currentStepId) {
             if (stepCount++ >= mw) {
@@ -1528,6 +1532,11 @@ export async function processWorkflowRun(workflowRunId, user) {
                                 actionHistoryEntry.result = logInfo;
                                 stepHistoryEntry.actions.push(actionHistoryEntry);
                                 break;
+                            } else if (actionResult.logs && actionResult.logs.length > 0) {
+                                // Ajouter les logs du script à l'historique de l'action
+                                actionHistoryEntry.logs = actionResult.logs;
+                                logger.info(`[processWorkflowRun] Script logs for action ${actionDef.name}:`, actionResult.logs);
+
                             }else{
                                 logInfo = `Action ${actionDef.name || actionId} : ${actionResult.message}`;
                                 actionHistoryEntry.status = 'success';
@@ -1539,6 +1548,7 @@ export async function processWorkflowRun(workflowRunId, user) {
                             }
                             //console.log("action", util.inspect(actionResult, false, 8, true));
                             logger.info(`[processWorkflowRun] Run ID: ${runId}, Step ID: ${currentStepId}, Action ID: ${actionId}: Executed successfully.`);
+                            logger.info(logInfo);
                         }
                     }
                     if (stepSucceeded) {
@@ -1612,6 +1622,8 @@ export async function processWorkflowRun(workflowRunId, user) {
             if(finalStatusForRun) {
                 logger.info(`[processWorkflowRun] Finished processing for workflowRun ID: ${runId}. Final Status: ${finalStatusForRun}`);
             }
+
+            lastStepId = currentStepId;
         }
     } catch (error) {
         logger.error(`[processWorkflowRun] Critical error during processing of workflowRun ID: ${runId}. Error: ${error.message}`, error.stack);
@@ -1741,6 +1753,7 @@ async function handleSendEmailAction(action, contextData, user) {
         resolvedRecipients = resolvedRecipients.flat();
 
         if (resolvedRecipients.length === 0) {
+            logger.error(`resolvedRecipients.error`, contextData);
             return { success: true, message: "No recipients found after substitution. Nothing to send." };
         }
 
