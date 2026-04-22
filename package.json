@@ -44,7 +44,8 @@
     "@xmldom/xmldom": ">=0.8.12",
     "picomatch": ">=4.0.4",
     "langsmith": ">=0.5.19",
-    "qs": ">=6.14.2"
+    "qs": ">=6.14.2",
+    "fast-xml-parser": ">=4.5.5"
   },
   "overrides": {
     "react-syntax-highlighter": {
@@ -119,7 +120,7 @@
     "tar": "7.5.11",
     "tinycolor2": "^1.6.0",
     "uniqid": "^5.4.0",
-    "vitest": "^3.2.4",
+    "vitest": "3.2.4",
     "yaml": "2.8.3"
   },
   "peerDependencies": {
