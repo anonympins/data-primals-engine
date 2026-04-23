@@ -70,6 +70,12 @@ function getNestedValue(obj, path) {
 
     // Parcourt chaque clé dans le chemin
     for (const key of keys) {
+        // --- SÉCURITÉ : Ajout de la validation de la clé ---
+        // Empêche la pollution de prototype en refusant les clés dangereuses.
+        if (["__proto__", "constructor", "prototype"].includes(key)) {
+            return undefined;
+        }
+
         // Si à un moment donné on atteint null ou undefined, le chemin est invalide
         if (current === null || current === undefined) {
             return undefined;
@@ -340,4 +346,3 @@ export const isConditionMet = (model, cond, formData, allModels, user,checkRegex
 
     return evaluateSingleCondition(model, condition, formData, allModels, user, checkRegex);
 };
-

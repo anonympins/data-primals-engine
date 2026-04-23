@@ -144,8 +144,11 @@ The core of this pack is a smart workflow that avoids overloading your server. I
                             "type": "ExecuteScript",
                             "script": `
 const chunkSize = 10; // Process 10 recipients per run
-const campaign = context.triggerData;
-const audience = await db.findOne("audience",{"_id": campaign.audience});
+const campaignId = context.triggerData._id;
+
+// Fetch fresh campaign data to get updated processedRecipients in the loop
+const campaign = await db.findOne("campaign", { "$eq": ["$_id", campaignId] });
+const audience = await db.findOne("audience", { "$eq": ["$_id", campaign.audience] });
 
 if (!audience || !audience.filter) {
 logger.error('Campaign audience or audience filter is not defined.');
@@ -153,13 +156,12 @@ return { chunk: [], message: 'Campaign audience or audience filter is not define
 }
 
 const processedIds = campaign.processedRecipients || [];
+const query = { "$and": [ audience.filter ] };
 
-const query = {
-    '$and': [
-        audience.filter,
-        { '$not':{ '$in': ["$_id", processedIds] } }
-    ]
-};
+// Only add the exclusion filter if there are already processed recipients
+if (processedIds.length > 0) {
+    query["$and"].push({ "$not": [{ "$in": ["$_id", processedIds] }] });
+}
 
 logger.info('Finding next chunk with filter:', JSON.stringify(query));
 
@@ -192,6 +194,8 @@ if (!emailResult || !Array.isArray(emailResult.sent) || emailResult.sent.length 
     return { processedChunk: context.result.chunk };
 }
 
+const campaignId = context.triggerData._id;
+const campaign = await db.findOne('campaign', { "$eq": ["$_id", campaignId] });
 const processedIds = emailResult.sent.map(recipient => recipient._id.toString());
 
 logger.info(\`Updating campaign \${campaignId} with \${processedIds.length} new processed IDs.\`);
@@ -199,7 +203,7 @@ logger.info(\`Updating campaign \${campaignId} with \${processedIds.length} new 
 await db.update(
     'campaign',
     { _id: campaignId },
-    { 'processedRecipients': [...campaign.processedRecipients, ...processedIds] }
+    { 'processedRecipients': [...(campaign.processedRecipients || []), ...processedIds] }
 );
 
 // Return the original chunk for the condition check step
@@ -237,7 +241,7 @@ return { processedChunk: context.result.chunk };
                         {
                             "name": "Check if Campaign is Complete",
                             "workflow": { "$link": { "name": "Campaign Emailing Workflow", "_model": "workflow" } },
-                            "conditions": { "$gt": [{ "$size": {$ifNull:["{context.result.processedChunk}", []]} }, 0] },
+                            "conditions": { "$gt": [{ "$size": [ { "$ifNull": ["{context.result.processedChunk}", []] } ] }, 0] },
                             "onSuccessStep": { "$link": { "name": "Process Recipient Chunk", "_model": "workflowStep" } },
                             "onFailureStep": { "$link": { "name": "Finish Campaign", "_model": "workflowStep" } }
                         },

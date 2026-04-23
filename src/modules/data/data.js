@@ -224,15 +224,24 @@ export const getResource = async (guid, user) => {
             // Idlement, on aurait aussi le nom de fichier original ici
         };
     } else { // Par défaut, on considère le stockage local
-        // On utilise le chemin stocké en base de données
-        const filepath = file.path;
-        if (!filepath || !fs.existsSync(filepath)) {
+        // --- CORRECTIF DE SÉCURITÉ ---
+        // Ne jamais faire confiance au chemin stocké en base de données.
+        // Toujours reconstruire le chemin à partir d'éléments fiables.
+        const uploadDir = path.join(process.cwd(), "uploads", "private");
+        const safeFilepath = path.join(uploadDir, file.filename); // file.filename est le nom sécurisé (guid.ext)
+
+        // Vérification supplémentaire pour s'assurer que le chemin résolu est bien dans le répertoire attendu.
+        if (!safeFilepath.startsWith(uploadDir)) {
+            throw new Error("Tentative d'accès à un chemin non autorisé.");
+        }
+
+        if (!fs.existsSync(safeFilepath)) {
             throw new Error("Fichier non trouvé sur le serveur.");
         }
         return {
             success: true,
             storage: 'local',
-            filepath: filepath,
+            filepath: safeFilepath, // On retourne le chemin sécurisé et reconstruit
             filename: file.filename,
             mimeType: file.mimeType
         };
