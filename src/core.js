@@ -97,6 +97,16 @@ export function cssProps(cssString) {
 
 
 export function removeDir(dirPath) {
+    // --- SÉCURITÉ : Ajout de la validation du chemin ---
+    // Définir le répertoire de base autorisé pour les suppressions.
+    const allowedBaseDir = path.resolve(process.cwd()); // Exemple, à adapter
+    const resolvedDirPath = path.resolve(dirPath);
+
+    // S'assurer que le répertoire à supprimer est bien un sous-répertoire de la base autorisée.
+    if (!resolvedDirPath.startsWith(allowedBaseDir)) {
+        throw new Error(`Suppression non autorisée en dehors du répertoire de base : ${dirPath}`);
+    }
+
     const dirContents = fs.readdirSync(dirPath); // List dir content
 
     for (const fileOrDirPath of dirContents) {
