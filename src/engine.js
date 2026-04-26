@@ -53,49 +53,51 @@ const secureContext = tls.createSecureContext({
 
 export const dbUrl = process.env.CI ? 'mongodb://mongodb:27017' : (process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017');
 
-const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TLS.toLowerCase()));
+export const InitMongo = () => {
+    const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TLS.toLowerCase()));
+    const clientOptions = {
+        maxPoolSize: databasePoolSize,
+        authSource: 'admin'
+    };
+    if (isTlsActive) {
+        clientOptions.tls = true;
 
-const clientOptions = {
-    maxPoolSize: databasePoolSize
-};
-
-// We add TLS options if enabled
-if (isTlsActive) {
-    clientOptions.tls = true;
-
-    // is mTLS ? (client certificate required instead of password)
-    if (process.env.CERT) {
-        clientOptions.secureContext = tls.createSecureContext({
-            ca: fs.readFileSync(process.env.CA_CERT),
-            cert: fs.readFileSync(process.env.CERT),
-            key: fs.readFileSync(process.env.CERT_KEY)
-        });
-    }else {
-        // Path to the authority certificate
-        if (process.env.CA_CERT) {
-            clientOptions.tlsCAFile = process.env.CA_CERT;
+        // is mTLS ? (client certificate required instead of password)
+        if (process.env.CERT) {
+            clientOptions.secureContext = tls.createSecureContext({
+                ca: fs.readFileSync(process.env.CA_CERT),
+                cert: fs.readFileSync(process.env.CERT),
+                key: fs.readFileSync(process.env.CERT_KEY)
+            });
+        }else {
+            // Path to the authority certificate
+            if (process.env.CA_CERT) {
+                clientOptions.tlsCAFile = process.env.CA_CERT;
+            }
+            // Path to the certificate key
+            if (process.env.CERT_KEY) {
+                clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
+            }
         }
-        // Path to the certificate key
-        if (process.env.CERT_KEY) {
-            clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
+        if (tlsAllowInvalidCertificates) {
+            clientOptions.tlsAllowInvalidCertificates = true;
+            console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidCertificates is ON. Server certificate will not be validated.");
+        }
+        if (tlsAllowInvalidHostnames) {
+            clientOptions.tlsAllowInvalidHostnames = true;
+            console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidHostnames is ON. Server hostname will not be validated.");
         }
     }
-    if (tlsAllowInvalidCertificates) {
-        clientOptions.tlsAllowInvalidCertificates = true;
-        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidCertificates is ON. Server certificate will not be validated.");
-    }
-    if (tlsAllowInvalidHostnames) {
-        clientOptions.tlsAllowInvalidHostnames = true;
-        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidHostnames is ON. Server hostname will not be validated.");
-    }
+    return new InternalMongoClient(dbUrl, clientOptions);
 }
 
-export const MongoClient = new InternalMongoClient(dbUrl, clientOptions);
-
+export let MongoClient = null;
 
 // Database Name
 export const MongoDatabase = () => {
     let dbName = Config.Get('dbName', dbNameBase);
+    if( !MongoClient)
+        MongoClient = InitMongo();
     return MongoClient.db(dbName);
 }
 
