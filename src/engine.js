@@ -61,7 +61,7 @@ export const InitMongo = () => {
     };
     if (isTlsActive) {
         clientOptions.tls = true;
-
+        console.log("TLS ACTIVE");
         // is mTLS ? (client certificate required instead of password)
         if (process.env.CERT) {
             clientOptions.secureContext = tls.createSecureContext({
@@ -87,6 +87,8 @@ export const InitMongo = () => {
             clientOptions.tlsAllowInvalidHostnames = true;
             console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidHostnames is ON. Server hostname will not be validated.");
         }
+    }else{
+        console.log("🚨[SEC] TLS INACTIVE", dbUrl, clientOptions);
     }
     return new InternalMongoClient(dbUrl, clientOptions);
 }
@@ -98,6 +100,7 @@ export const MongoDatabase = () => {
     let dbName = Config.Get('dbName', dbNameBase);
     if( !MongoClient)
         MongoClient = InitMongo();
+    console.log('SELECTING ' + dbName + " database.");
     return MongoClient.db(dbName);
 }
 

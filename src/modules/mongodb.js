@@ -23,7 +23,8 @@ export async function onInit(defaultEngine) {
     filesCollection = getCollection("files");
     packsCollection = getCollection("packs");
 
-    colls = await currentDb.listCollections().toArray();
+
+    colls = await (currentDb.listCollections()).toArray();
 
     await Event.Trigger("OnDatabaseLoaded", "system", "calls", engine)
     logger.info("MongoDB collections loaded.");
