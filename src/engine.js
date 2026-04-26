@@ -1,9 +1,18 @@
+import path from "node:path";
+import {fileURLToPath} from 'node:url';
+import process from "process";
+// Charger les variables d'environnement depuis le fichier .env
+import dotenv from "dotenv";
+
+// Charger le .env depuis la racine du projet appelant, et non depuis la lib.
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import {GameObject, Logger} from "./gameObject.js";
 import {Config} from "./config.js";
 import fs from 'node:fs'
 import express from 'express'
 import {MongoClient as InternalMongoClient} from 'mongodb'
-import process from "process";
 import {
     cookiesSecret,
     databasePoolSize,
@@ -19,18 +28,12 @@ import formidableMiddleware from 'express-formidable';
 import sirv from "sirv";
 import * as tls from "node:tls";
 import {Event} from "./events.js";
-import path from "node:path";
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import {validateModelStructure} from "./modules/data/data.validation.js";
 import { setSafeRegex } from "./filter.js";
 import safeRegexCallback from "safe-regex";
 import {createModel, deleteModels, getModels, installAllPacks} from "./modules/data/data.operations.js";
 // Constants
-
-// On définit __dirname pour obtenir le chemin absolu du répertoire courant,
-// ce qui est la méthode standard en ES Modules.
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 let dbName = Config.Get('dbName', dbNameBase);
 let caFile, certFile, keyFile;

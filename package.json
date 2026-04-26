@@ -89,6 +89,7 @@
     "cronstrue": "^3.2.0",
     "csv-parse": "^6.1.0",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.4.2",
     "express-csrf-double-submit-cookie": "^2.0.0",
     "express-formidable": "^1.2.0",
     "express-mongo-sanitize": "^2.2.0",
