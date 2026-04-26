@@ -1,5 +1,3 @@
-// client/src/components/AssistantChat.jsx
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FaRobot, FaPaperPlane, FaTimes, FaExpand, FaCompress, FaPlus } from 'react-icons/fa';
 import './AssistantChat.scss';
@@ -7,13 +5,13 @@ import { useModelContext } from "./contexts/ModelContext.jsx";
 import { Trans, useTranslation } from "react-i18next";
 import Markdown from 'react-markdown';
 import {useQueryClient} from "react-query";
-import {providers} from "../../src/modules/assistant/constants.js";
+import {providers} from "@modules/assistant/constants.js";
 import DashboardChart from "./DashboardChart.jsx";
 import FlexViewCard from "./FlexViewCard.jsx";
 import HtmlViewCard from "./HtmlViewCard.jsx";
 import {useUI} from "./contexts/UIContext.jsx";
 import Button from "./Button.jsx";
-import {getUserHash, getUserId} from "../../src/data.js";
+import {getUserHash} from "../../src/data.js";
 import {useAuthContext} from "./contexts/AuthContext.jsx";
 import {useNavigate} from "react-router-dom";
 import {DataTable} from "./DataTable.jsx";
