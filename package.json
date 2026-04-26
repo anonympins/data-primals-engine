@@ -66,7 +66,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/anonympins/data-primals-engine.git"
+    "url": "git+https://github.com/anonympins/data-primals-engine.git"
   },
   "exports": {
     ".": "./src/index.js",
