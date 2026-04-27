@@ -25,12 +25,6 @@ export default defineConfig({
             }
         }
     },
-    resolve: {
-        alias: {
-            '@modules': fileURLToPath(new URL('../src/modules', import.meta.url)),
-            '@client': fileURLToPath(new URL('./src', import.meta.url))
-        }
-    },
     fs: {
         allow: ["./src", "../src"]
     }

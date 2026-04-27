@@ -5,7 +5,7 @@ import { useModelContext } from "./contexts/ModelContext.jsx";
 import { Trans, useTranslation } from "react-i18next";
 import Markdown from 'react-markdown';
 import {useQueryClient} from "react-query";
-import {providers} from "@modules/assistant/constants.js";
+import {providers} from "../../src/modules/assistant/constants.js";
 import DashboardChart from "./DashboardChart.jsx";
 import FlexViewCard from "./FlexViewCard.jsx";
 import HtmlViewCard from "./HtmlViewCard.jsx";
