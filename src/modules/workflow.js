@@ -2,8 +2,6 @@ import {getCollection, getCollectionForUser, isObjectId} from "./mongodb.js";
 import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
 
-import ivm from 'isolated-vm';
-
 import {Logger} from "../gameObject.js";
 import {deleteData, getModel, insertData, patchData, searchData} from "./data/index.js";
 import { maxExecutionsByStep, maxWorkflowSteps } from "../constants.js";
@@ -20,6 +18,16 @@ import { getAIProvider } from "./assistant/providers.js";
 import {Config} from "../config.js";
 import {safeAssignObject} from "../core.js";
 import {Event} from "../events.js";
+
+let ivm = null;
+try {
+    // Tentative de chargement de 'isolated-vm'.
+    // Si cela échoue (ex: incompatibilité d'architecture, build manquant),
+    // le serveur pourra quand même démarrer.
+    ivm = (await import('isolated-vm')).default;
+} catch (e) {
+    console.warn(`[Module] Le module 'isolated-vm' n'a pas pu être chargé. L'action de workflow 'ExecuteScript' sera désactivée. Erreur : ${e.message}`);
+}
 
 /**
  * Récupère une valeur imbriquée dans un objet (ex: 'user.address.city').
@@ -384,6 +392,14 @@ async function handleWaitAction(actionDef, contextData, user) {
 
 
 export async function executeSafeJavascript(actionDef, context, user) {
+    // Vérifie si le module 'isolated-vm' a été chargé avec succès au démarrage.
+    if (!ivm) {
+        const errorMessage = "L'action 'ExecuteScript' est désactivée car le module 'isolated-vm' n'a pas pu être chargé au démarrage du serveur.";
+        logger.error(`[VM Script] ${errorMessage}`);
+        return { success: false, message: errorMessage, logs: [{ level: 'critical', message: errorMessage, timestamp: new Date().toISOString() }] };
+    }
+
+
     const code = actionDef.script;
     const collectedLogs = [];
     const isolate = new ivm.Isolate({ memoryLimit: 128 }); // 128MB memory limit
