@@ -1,6 +1,7 @@
 import {getCollection, getCollectionForUser, isObjectId} from "./mongodb.js";
 import schedule from "node-schedule";
 import {ObjectId} from "mongodb";
+import { Worker } from 'worker_threads';
 
 import {Logger} from "../gameObject.js";
 import {deleteData, getModel, insertData, patchData, searchData} from "./data/index.js";
@@ -17,15 +18,17 @@ import { providers } from "./assistant/constants.js";
 import { getAIProvider } from "./assistant/providers.js";
 import {Config} from "../config.js";
 import {safeAssignObject} from "../core.js";
-import {Event} from "../events.js";
 
-let ivm = null;
+let executionEngine = { type: null, module: null };
 try {
     // Tentative de chargement de 'isolated-vm'.
     // Si cela échoue (ex: incompatibilité d'architecture, build manquant),
     // le serveur pourra quand même démarrer.
-    ivm = (await import('isolated-vm')).default;
+
+    const ivm = (await import('isolated-vm')).default;
+    executionEngine = { type: 'isolated-vm', module: ivm };
 } catch (e) {
+    executionEngine = { type: 'worker_threads', module: null };
     console.warn(`[Module] Le module 'isolated-vm' n'a pas pu être chargé. L'action de workflow 'ExecuteScript' sera désactivée. Erreur : ${e.message}`);
 }
 
@@ -391,15 +394,100 @@ async function handleWaitAction(actionDef, contextData, user) {
 }
 
 
-export async function executeSafeJavascript(actionDef, context, user) {
-    // Vérifie si le module 'isolated-vm' a été chargé avec succès au démarrage.
-    if (!ivm) {
-        const errorMessage = "L'action 'ExecuteScript' est désactivée car le module 'isolated-vm' n'a pas pu être chargé au démarrage du serveur.";
-        logger.error(`[VM Script] ${errorMessage}`);
-        return { success: false, message: errorMessage, logs: [{ level: 'critical', message: errorMessage, timestamp: new Date().toISOString() }] };
-    }
+async function executeWithWorkerThreads(actionDef, context, user) {
+    const TIMEOUT = 5000;
+    const collectedLogs = [];
 
+    const code = actionDef.script;
+    // Contexte sécurisé
+    const safeContext = JSON.parse(JSON.stringify(context));
 
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(new URL('./worker-script-runner.js', import.meta.url));
+
+        const timeoutId = setTimeout(() => {
+            worker.terminate();
+            const errorMessage = `Script execution timed out after ${TIMEOUT}ms.`;
+            collectedLogs.push({level: 'critical', message: errorMessage, timestamp: new Date().toISOString()});
+            resolve({success: false, message: errorMessage, logs: collectedLogs});
+        }, TIMEOUT);
+
+        worker.on('message', async (msg) => {
+            if (msg.type === 'call') {
+                const {callId, service, method, args} = msg;
+                try {
+                    let result;
+                    // Recréez ici la logique d'appel des fonctions natives
+                    // C'est un pont entre le worker et votre application principale.
+                    if (service === 'db') {
+                        if (method === 'find') result = await searchData({
+                            model: args[0],
+                            filter: args[1], ...args[2]
+                        }, user);
+                        else if (method === 'findOne') result = (await searchData({
+                            model: args[0],
+                            filter: args[1],
+                            limit: 1
+                        }, user))?.data?.[0] || null;
+                        else if (method === 'create') result = await insertData(args[0], args[1], {}, user, false);
+                        else if (method === 'update') result = await patchData(args[0], args[1], args[2], {}, user, false);
+                        else if (method === 'delete') result = await deleteData(args[0], args[1], user, false);
+                    } else if (service === 'workflow') {
+                        if (method === 'run') result = await runWorkflowByName(args[0], args[1], user);
+                    } else if (service === 'log') {
+                        const message = args.join(' ');
+                        collectedLogs.push({level: method, message, timestamp: new Date().toISOString()});
+                        logger.trace(`[Worker Script Log - ${method}]`, message);
+                        result = {success: true};
+                    } else if (service === 'env') {
+                        if (method === 'get') result = (await searchData({
+                            model: 'env',
+                            filter: {name: args[0]},
+                            limit: 1
+                        }, user))?.data?.[0]?.value || null;
+                        else if (method === 'getAll') result = await getEnv(user);
+                    } else if (service === 'http') {
+                        const [methodHttp, url, options] = args;
+                        const fetchOptions = {
+                            method: methodHttp.toUpperCase(),
+                            headers: options.headers || {},
+                            body: options.body ? (typeof options.body === 'object' ? JSON.stringify(options.body) : options.body) : undefined
+                        };
+                        const response = await fetch(url, fetchOptions);
+                        const responseBody = await response.json().catch(() => response.text());
+                        result = {success: response.ok, status: response.status, body: responseBody};
+                    }
+
+                    worker.postMessage({type: 'response', callId, result});
+                } catch (error) {
+                    worker.postMessage({type: 'response', callId, error: error.message});
+                }
+            } else if (msg.type === 'done') {
+                clearTimeout(timeoutId);
+                worker.terminate();
+                resolve({success: true, data: msg.result, logs: collectedLogs, updatedContext: {result: msg.result}});
+            } else if (msg.type === 'error') {
+                clearTimeout(timeoutId);
+                worker.terminate();
+                const errorMessage = `Script execution failed: ${msg.error}`;
+                collectedLogs.push({level: 'critical', message: errorMessage, timestamp: new Date().toISOString()});
+                resolve({success: false, message: errorMessage, logs: collectedLogs});
+            }
+        });
+
+        worker.on('error', (err) => {
+            clearTimeout(timeoutId);
+            const errorMessage = `Worker error: ${err.message}`;
+            collectedLogs.push({level: 'critical', message: errorMessage, timestamp: new Date().toISOString()});
+            resolve({success: false, message: errorMessage, logs: collectedLogs});
+        });
+
+        worker.postMessage({code, context: safeContext});
+    });
+}
+
+async function executeWithIsolatedVm(actionDef, context, user) {
+    const ivm = executionEngine.module;
     const code = actionDef.script;
     const collectedLogs = [];
     const isolate = new ivm.Isolate({ memoryLimit: 128 }); // 128MB memory limit
@@ -493,43 +581,43 @@ export async function executeSafeJavascript(actionDef, context, user) {
 
         // Exécution
         const fullScript = `
-            const normalizeArgs = args => args.map(arg => {
-                if (typeof arg === 'object' && arg !== null) {
-                    return JSON.stringify(arg); // Convert objects to strings
-                }
-                return arg;
-            });
-            const db = {
-                create: (...args) => _db_create.applySyncPromise(null, normalizeArgs(args)),
-                find: (...args) => _db_find.applySyncPromise(null, normalizeArgs(args)),
-                findOne: (...args) => _db_findOne.applySyncPromise(null, normalizeArgs(args)),
-                update: (...args) => _db_update.applySyncPromise(null, normalizeArgs(args)),
-                delete: (...args) => _db_delete.applySyncPromise(null, normalizeArgs(args))
-            };
-            
-            const workflow = {
-                run: (...args) => _workflow_run.applySyncPromise(null, normalizeArgs(args))
-            };
-
-            const logger = {
-                info: _log_info,
-                warn: _log_warn,
-                error: _log_error
-            };
-
-            const env = {
-                get: _env_get,
-                getAll: _env_get_all
-            };
-            
-            const http = {
-                request: (...args) => _http_request.applySyncPromise(null, normalizeArgs(args))
-            };
-
-            (async function() {
-                ${code}
-            })();
-        `;
+             const normalizeArgs = args => args.map(arg => {
+                 if (typeof arg === 'object' && arg !== null) {
+                     return JSON.stringify(arg); // Convert objects to strings
+                 }
+                 return arg;
+             });
+             const db = {
+                 create: (...args) => _db_create.applySyncPromise(null, normalizeArgs(args)),
+                 find: (...args) => _db_find.applySyncPromise(null, normalizeArgs(args)),
+                 findOne: (...args) => _db_findOne.applySyncPromise(null, normalizeArgs(args)),
+                 update: (...args) => _db_update.applySyncPromise(null, normalizeArgs(args)),
+                 delete: (...args) => _db_delete.applySyncPromise(null, normalizeArgs(args))
+             };
+             
+             const workflow = {
+                 run: (...args) => _workflow_run.applySyncPromise(null, normalizeArgs(args))
+             };
+ 
+             const logger = {
+                 info: _log_info,
+                 warn: _log_warn,
+                 error: _log_error
+             };
+ 
+             const env = {
+                 get: _env_get,
+                 getAll: _env_get_all
+             };
+             
+             const http = {
+                 request: (...args) => _http_request.applySyncPromise(null, normalizeArgs(args))
+             };
+ 
+             (async function() {
+                 ${code}
+             })();
+         `;
 
         const TIMEOUT = 5000;
         const script = await isolate.compileScript(fullScript, { timeout: TIMEOUT });
@@ -572,6 +660,22 @@ export async function executeSafeJavascript(actionDef, context, user) {
     }
 }
 
+export async function executeSafeJavascript(actionDef, context, user) {
+    // Vérifie si un moteur d'exécution est disponible.
+    if (!executionEngine.type) {
+        const errorMessage = "L'action 'ExecuteScript' est désactivée car aucun moteur d'exécution (isolated-vm ou fallback) n'a pu être initialisé.";
+        logger.error(`[Script Engine] ${errorMessage}`);
+        return { success: false, message: errorMessage, logs: [{ level: 'critical', message: errorMessage, timestamp: new Date().toISOString() }] };
+    }
+
+    logger.info(`[Script Engine] Using '${executionEngine.type}' for script execution.`);
+
+    if (executionEngine.type === 'isolated-vm') {
+        return executeWithIsolatedVm(actionDef, context, user);
+    } else { // 'worker_threads'
+        return executeWithWorkerThreads(actionDef, context, user);
+    }
+}
 /**
  * Handles the 'HttpRequest' workflow action.
  * Sends an HTTP request to a specified URL with substituted data using native fetch.
@@ -583,16 +687,6 @@ export async function executeSafeJavascript(actionDef, context, user) {
  * @returns {Promise<{success: boolean, message?: string, responseStatus?: number, responseBody?: any}>} - Result of the action.
  */
 async function handleHttpRequestAction(actionDef, contextData, user, dbCollection) {
-    const { name: actionName, _id: actionId, url, method = 'POST', headers: headersTemplate, body: bodyTemplate } = actionDef;
-
-    // 1. Basic Validation
-    if (!url) {
-        const msg = `[handleHttpRequestAction] Action ${actionName} (${actionId}): Missing 'url'.`;
-        logger.error(msg);
-        return { success: false, message: msg };
-    }
-
-    logger.info(`[handleHttpRequestAction] Action ${actionName} (${actionId}): Executing webhook. Method: ${method}`);
 
     try {
         // 2. Substitute Variables
