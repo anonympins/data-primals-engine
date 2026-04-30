@@ -1533,7 +1533,7 @@ export async function processWorkflowRun(workflowRunId, user) {
         const mw = Config.Get('maxWorkflowSteps', maxWorkflowSteps);
         while (currentStepId) {
             if (stepCount++ >= mw) {
-                return await logError(`Maximum workflow step executions exceeded (${maxWorkflowSteps} max).`);
+                return await logError(`Maximum workflow step executions exceeded (${mw} max).`);
             }
 
             const execCount = (stepExecutionsCount[currentStepId] || 0) + 1;
