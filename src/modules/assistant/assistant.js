@@ -483,33 +483,29 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             }
         }
         if (sendEvent) sendEvent('llm_end', {});
+        logger.debug(`[Assistant] AI raw output received: "${llmOutput}"`); // Added log for raw AI output
 
         // Parsing JSON robuste pour un objet ou un tableau d'objets
-        let commands;
+        let commands = [];
         try {
-            // Tente d'extraire un objet JSON ou un tableau JSON de la réponse.
-            const jsonRegex = /^\s*([\[\{])[\s\S]*([\]\}])\s*$/;
+            // Extrait la structure JSON la plus large possible (du premier [ ou { au dernier ] ou })
+            const jsonRegex = /(```json)?([\[\{][\s\S]*[\]\}])(```pa si la rdirection instantanée est une oluti)?/;
             const match = llmOutput.match(jsonRegex);
 
-            if (match && match[0]) {
+            if (match) {
                 const parsed = parseSafeJSON(match[0]);
                 if (Array.isArray(parsed)) {
                     commands = parsed;
                 } else if (typeof parsed === 'object' && parsed !== null) {
                     commands = [parsed];
-                } else {
-                    throw new Error("Le JSON parsé n'est ni un objet ni un tableau.");
                 }
-            } else {
-                // Aucun JSON trouvé, c'est probablement une réponse textuelle simple.
-                const result = { success: true, displayMessage: llmOutput };
-                if (sendEvent) {
-                    sendEvent('final_result', result);
-                    return;
-                }
-                return result;
             }
 
+            if (commands.length === 0) {
+                throw new Error("No valid JSON structure found in AI response.");
+            }
+
+            logger.debug(`[Assistant] Parsed commands: ${JSON.stringify(commands)}`); // Added log for parsed commands
             // Valider chaque commande
             for (const cmd of commands) {
                 if (!cmd.action || !cmd.params) {
@@ -548,8 +544,8 @@ export async function handleChatRequest(params, user, sendEvent = null) {
                 toolResults.push({ action, result: toolResult });
                 continue; // Passe à la commande suivante sans vérifier si c'est une action finale
             }
-
-            // Actions finales
+            // Toutes les actions passent maintenant par l'événement OnChatAction
+            logger.debug(`[Assistant] Triggering OnChatAction for action: ${action}`); // Added log before triggering OnChatAction
             const res = await Event.Trigger('OnChatAction', 'event', 'user', action, parsedParams, command, llmOptions, user, params);
 
             if (res) {
@@ -560,24 +556,11 @@ export async function handleChatRequest(params, user, sendEvent = null) {
                     finalActionResults.push(res);
                 }
             } else {
-                // Si l'action n'est reconnue par aucune des logiques ci-dessus
-                logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
-                finalActionResults.push({
-                    success: true,
-                    displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", { action })
-                });
+                // Si l'action n'est reconnue par aucun écouteur, on envoie un feedback à l'IA 
+                // au lieu de couper court. Cela lui permet de corriger sa commande.
+                logger.warn(`[Assistant] Action non gérée par OnChatAction: ${action}`);
+                toolResults.push({ action, result: `Erreur: L'action '${action}' n'est pas reconnue par le système. Veuillez utiliser une action valide.` });
             }
-        }
-
-        // Si une ou plusieurs actions finales ont été exécutées, on retourne le résultat.
-        if (finalActionResults.length > 0) {
-            // Rétrocompatibilité : si un seul résultat, on renvoie l'objet directement. Sinon, on renvoie un tableau 'results'.
-            const response = finalActionResults.length === 1 ? finalActionResults[0] : { success: true, results: finalActionResults };
-            if (sendEvent) {
-                sendEvent('final_result', response);
-                return;
-            }
-            return response;
         }
 
         // Si on a uniquement des résultats d'outils, on les ajoute à l'historique et on continue la boucle.
@@ -589,6 +572,17 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             }
             conversationHistory.push(new SystemMessage(toolResponse));
             continue;
+        }
+
+        // Si une ou plusieurs actions finales ont été exécutées, on retourne le résultat.
+        if (finalActionResults.length > 0) {
+            // Rétrocompatibilité : si un seul résultat, on renvoie l'objet directement. Sinon, on renvoie un tableau 'results'.
+            const response = finalActionResults.length === 1 ? finalActionResults[0] : { success: true, results: finalActionResults };
+            if (sendEvent) {
+                sendEvent('final_result', response);
+                return;
+            }
+            return response;
         }
 
         // Si l'IA ne retourne ni outil ni action finale reconnue, on arrête.
