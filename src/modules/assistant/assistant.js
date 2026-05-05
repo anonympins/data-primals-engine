@@ -26,7 +26,11 @@ export const assistantGlobalLimiter = rateLimit({
 });
 
 async function searchModels(query, user) {
-    if (!query) return { main: [], related: [] };
+    // Validation stricte du type pour éviter l'injection via objet dans RegExp
+    if (typeof query !== 'string' || !query) {
+        return { main: [], related: [] };
+    }
+
     const searchRegex = new RegExp(query, 'i');
     const mainModels = await modelsCollection.find({
         $or: [{ _user: user.username }, { _user: { $exists: false } }],
@@ -375,6 +379,15 @@ async function executeTool(action, params, user, allModels) {
 export async function handleChatRequest(params, user, sendEvent = null) {
 
     const { message, history, provider, confirmedAction } = params;
+
+    // Validation des types pour prévenir NoSQLi (object injection)
+    if (provider && typeof provider !== 'string') {
+        throw new Error("Paramètre 'provider' invalide.");
+    }
+    if (message && typeof message !== 'string') {
+        throw new Error("Paramètre 'message' invalide.");
+    }
+
     const allModels = await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user.username}]}).toArray();
 
     // --- GESTION D'UNE ACTION CONFIRMÉE ---
@@ -489,7 +502,7 @@ export async function handleChatRequest(params, user, sendEvent = null) {
         let commands = [];
         try {
             // Extrait la structure JSON la plus large possible (du premier [ ou { au dernier ] ou })
-            const jsonRegex = /(```json)?([\[\{][\s\S]*[\]\}])(```pa si la rdirection instantanée est une oluti)?/;
+            const jsonRegex = /(```json)?([\[\{][\s\S]*[\]\}])/;
             const match = llmOutput.match(jsonRegex);
 
             if (match) {
@@ -612,15 +625,24 @@ export async function handleChatRequest(params, user, sendEvent = null) {
  */
 async function executeConfirmedAction(action, params, user) {
     logger.info(`[Assistant] Exécution de l'action confirmée par l'utilisateur: ${action}`);
+    
+    if (typeof action !== 'string' || !params || typeof params !== 'object') {
+        throw new Error("Format d'action ou de paramètres invalide.");
+    }
+
+    const modelName = params.model;
+    if (typeof modelName !== 'string') {
+        throw new Error("Le nom du modèle doit être une chaîne de caractères.");
+    }
+
     switch (action) {
     case 'post':
         // Note : on passe false pour ne pas redéclencher de workflow ici
-        return await insertData(params.model, params.data, {}, user, false, false);
+        return await insertData(modelName, params.data, {}, user, false, false);
     case 'update':
-        return await patchData(params.model, params.filter, params.data, {}, user);
+        return await patchData(modelName, params.filter, params.data, {}, user);
     case 'delete':
-        // Le modèle est dans les params, pas besoin de le passer en argument sparé
-        return await deleteData(params.model, params.filter, user);
+        return await deleteData(modelName, params.filter, user);
     default:
         throw new Error(`Action confirmée non supportée: ${action}`);
     }
@@ -708,6 +730,14 @@ export async function onInit(engine) {
         // La validation ne s'applique que s'il n'y a pas d'action confirmée
         if (!confirmedAction) {
             if (typeof (message) !== 'string' || !message.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["message"])
+                });
+            }
+        } else {
+            // Validation de la structure de l'action confirmée
+            if (typeof confirmedAction !== 'object' || typeof confirmedAction.action !== 'string') {
                 return res.status(400).json({
                     success: false,
                     message: i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["message"])

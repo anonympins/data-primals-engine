@@ -50,6 +50,10 @@ export const isObjectId = (id) => {
 
 
 export const getCollection = (str) => {
+    if (typeof str !== 'string') {
+        logger?.error(`[MongoDB] Tentative d'accès à une collection avec un type invalide: ${typeof str}`);
+        throw new Error("Le nom de la collection doit être une chaîne de caractères.");
+    }
     return currentDb.collection(str);
 }
 
@@ -70,5 +74,3 @@ export const getCollectionForUser = async (user) => {
     const collectionName = await getUserCollectionName(user);
     return getCollection(collectionName);
 };
-
-
