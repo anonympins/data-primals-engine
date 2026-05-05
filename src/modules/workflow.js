@@ -698,6 +698,15 @@ export async function executeSafeJavascript(actionDef, context, user) {
 async function handleHttpRequestAction(actionDef, contextData, user, dbCollection) {
 
     try {
+        const {
+            method = 'GET',
+            url,
+            headers: headersTemplate,
+            body: bodyTemplate,
+            name: actionName = 'Unnamed Action',
+            _id: actionId = 'unknown'
+        } = actionDef;
+
         // 2. Substitute Variables
         const substitutedUrl = await substituteVariables(url, contextData, user);
         let substitutedHeadersString;

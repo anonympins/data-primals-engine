@@ -20,9 +20,6 @@ export const assistantGlobalLimiter = rateLimit({
     standardHeaders: true, // Active les en-têtes standard `RateLimit-*`
     legacyHeaders: false, // Désactive les anciens en-têtes `X-RateLimit-*`
     message: { success: false, message: "Trop de requêtes globales envoyées à l'assistant. Veuillez réessayer plus tard." },
-    skip: (req) => {
-        return !!req.fields?.confirmedAction;
-    }
 });
 
 async function searchModels(query, user) {
