@@ -573,17 +573,6 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             }
         }
 
-        // Si on a uniquement des résultats d'outils, on les ajoute à l'historique et on continue la boucle.
-        if (toolResults.length > 0) {
-            let toolResponse = "";
-            for (const tool of toolResults) {
-                if (sendEvent) sendEvent('tool_result', { action: tool.action, result: tool.result });
-                toolResponse += `Résultat de l'outil '${tool.action}':\n${tool.result}\n\n`;
-            }
-            conversationHistory.push(new SystemMessage(toolResponse));
-            continue;
-        }
-
         // Si une ou plusieurs actions finales ont été exécutées, on retourne le résultat.
         if (finalActionResults.length > 0) {
             // Rétrocompatibilité : si un seul résultat, on renvoie l'objet directement. Sinon, on renvoie un tableau 'results'.
@@ -593,6 +582,17 @@ export async function handleChatRequest(params, user, sendEvent = null) {
                 return;
             }
             return response;
+        }
+
+        // Si on a uniquement des résultats d'outils, on les ajoute à l'historique et on continue la boucle.
+        if (toolResults.length > 0) {
+            let toolResponse = "";
+            for (const tool of toolResults) {
+                if (sendEvent) sendEvent('tool_result', { action: tool.action, result: tool.result });
+                toolResponse += `Résultat de l'outil '${tool.action}':\n${tool.result}\n\n`;
+            }
+            conversationHistory.push(new SystemMessage(toolResponse));
+            continue;
         }
 
         // Si l'IA ne retourne ni outil ni action finale reconnue, on arrête.
