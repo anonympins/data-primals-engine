@@ -33,7 +33,7 @@
     "rollup": ">=4.59.0",
     "on-headers": ">=1.1.0",
     "brace-expansion": ">=2.0.3",
-    "minimatch": ">=9.0.7",
+    "minimatch": ">=3.1.4",
     "path-to-regexp": ">=8.4.0",
     "prismjs": ">=1.30.0",
     "xml2js": ">=0.5.0",
@@ -42,6 +42,7 @@
     "node-forge": ">=1.4.0",
     "js-yaml": ">=4.1.1",
     "mdast-util-to-hast": ">=13.2.1",
+    "uuid": ">=11.1.1",
     "jws": ">=3.2.3",
     "undici": ">=6.23.0",
     "@xmldom/xmldom": ">=0.8.12",
@@ -49,7 +50,9 @@
     "langsmith": ">=0.5.19",
     "qs": ">=6.14.2",
     "fast-xml-parser": ">=4.5.5",
-    "ip-address": ">=10.1.1"
+    "fast-xml-builder": ">=1.1.7",
+    "ip-address": ">=10.1.1",
+    "postcss": ">=8.5.10"
   },
   "overrides": {
     "react-syntax-highlighter": {
@@ -119,7 +122,7 @@
     "read-excel-file": "^6.0.1",
     "request-ip": "^3.3.0",
     "safe-regex": "^2.1.1",
-    "sanitize-html": "^2.17.0",
+    "sanitize-html": "^2.17.4",
     "sirv": "^3.0.2",
     "stripe": "^20.0.0",
     "swagger-ui-express": "^5.0.1",
@@ -142,10 +145,10 @@
     "react-query": "^3.39.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.32.0",
+    "@eslint/js": "^9.39.4",
     "concurrently": "^9.2.0",
     "cross-env": "^10.0.0",
-    "eslint": "^9.32.0",
+    "eslint": "^9.39.4",
     "globals": "^16.3.0"
   },
   "subPackages": [
