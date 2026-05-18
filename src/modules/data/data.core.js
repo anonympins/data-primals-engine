@@ -40,7 +40,7 @@ export const mongoDBWhitelist = [
     '$add', '$subtract', '$multiply', '$divide', '$mod', '$pow', "$sqrt",
     "$rand",
     "$abs", '$sin', '$cos', '$tan', '$asin', '$acos', '$atan',
-    "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
+    "$dateFromString", "$toDate", "$toBool", "$toString", "$toInt", "$toDouble",
     "$dateDiff", "$dateSubtract", "$dateAdd", "$dateToString",
     '$year', '$month', '$week', '$dayOfMonth', '$dayOfWeek', '$dayOfYear', '$hour', '$minute', '$second', '$millisecond',
     '$geoNear', '$regex', '$text', '$nearSphere','$geoWithin','$geoIntersects'

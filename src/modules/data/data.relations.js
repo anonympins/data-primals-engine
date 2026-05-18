@@ -224,16 +224,15 @@ export async function processDocuments(datas, model, collection, me) {
 /**
  * Traite toutes les relations du document
  */
-export async function processRelations(docToProcess, model, collection, me, idMap) {
-    const batchFinds = [];
-
+export async function processRelations(docToProcess, model, collection, me, idMap, batchFinds = []) {
+    const isRootCall = batchFinds.length === 0;
+    
     // Phase 1: Préparation des requêtes
     for (const field of model.fields) {
-        if (field.type !== 'relation') continue;
-
         const value = docToProcess[field.name];
-        if (value?.$find) {
+        if (field.type === 'relation' && value?.$find) {
             batchFinds.push({
+                doc: docToProcess,
                 field: field.name,
                 promise: searchData({
                     filter: value.$find,
@@ -242,25 +241,40 @@ export async function processRelations(docToProcess, model, collection, me, idMa
                 }, me),
                 multiple: field.multiple
             });
+        } else if (field.fields && value) {
+            const subModel = { name: field.name, fields: field.fields };
+            if (field.type === 'object' && isPlainObject(value)) {
+                await processRelations(value, subModel, collection, me, idMap, batchFinds);
+            } else if (field.type === 'array' && field.itemsType === 'object' && Array.isArray(value)) {
+                for (const item of value) {
+                    if (isPlainObject(item)) {
+                        await processRelations(item, subModel, collection, me, idMap, batchFinds);
+                    }
+                }
+            }
         }
     }
 
-    // Phase 2: Exécution parallèle
-    const findResults = await Promise.all(batchFinds.map(f => f.promise));
+    if (isRootCall && batchFinds.length > 0) {
+        // Phase 2: Exécution parallèle
+        const findResults = await Promise.all(batchFinds.map(f => f.promise));
 
-    // Phase 3: Traitement des résultats
-    findResults.forEach((result, index) => {
-        const {field, multiple} = batchFinds[index];
-        if (result.data?.length > 0) {
-            // Cas où des documents sont trouvés
-            docToProcess[field] = multiple
-                ? result.data.map(r => r._id.toString())
-                : result.data[0]._id.toString();
-        } else {
-            // Cas où AUCUN document n'est trouvé : il faut nettoyer le champ !
-            docToProcess[field] = multiple ? [] : null;
-        }
-    });
+        // Phase 3: Traitement des résultats
+        findResults.forEach((result, index) => {
+            const {doc, field, multiple} = batchFinds[index];
+            if (result.data?.length > 0) {
+                // Cas où des documents sont trouvés
+                doc[field] = multiple
+                    ? result.data.map(r => r._id.toString())
+                    : result.data[0]._id.toString();
+            } else {
+                // Cas où AUCUN document n'est trouvé : il faut nettoyer le champ !
+                doc[field] = multiple ? [] : null;
+            }
+        });
+    }
+
+    if (isRootCall === false) return;
 
 
     for (const field of model.fields) {
@@ -292,6 +306,18 @@ export async function processRelations(docToProcess, model, collection, me, idMa
                 me,
                 idMap
             );
+        } else if (field.fields && docToProcess[field.name]) {
+            const subModel = { name: field.name, fields: field.fields };
+            const subValue = docToProcess[field.name];
+            if (field.type === 'object' && isPlainObject(subValue)) {
+                await processRelations(subValue, subModel, collection, me, idMap);
+            } else if (field.type === 'array' && field.itemsType === 'object' && Array.isArray(subValue)) {
+                for (const subItem of subValue) {
+                    if (isPlainObject(subItem)) {
+                        await processRelations(subItem, subModel, collection, me, idMap);
+                    }
+                }
+            }
         }
     }
 }
@@ -408,6 +434,20 @@ async function applyFieldFilters(docToProcess, model) {
             const realFilter = await Event.Trigger('OnDataFilter', "event", "system", filter, field, docToProcess);
             docToProcess[field.name] = realFilter || filter;
         }
+
+        if (field.fields && docToProcess[field.name]) {
+            const subModel = { name: field.name, fields: field.fields };
+            const subValue = docToProcess[field.name];
+            if (field.type === 'object' && isPlainObject(subValue)) {
+                await applyFieldFilters(subValue, subModel);
+            } else if (field.type === 'array' && field.itemsType === 'object' && Array.isArray(subValue)) {
+                for (const subItem of subValue) {
+                    if (isPlainObject(subItem)) {
+                        await applyFieldFilters(subItem, subModel);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -522,20 +562,34 @@ async function checkUniqueFields(doc, model, collection) {
     }
 }
 
-function prepareDocument(doc, model, me) {
-    const docToProcess = {...doc};
-    delete docToProcess._id;
+function prepareDocument(doc, model, me, isRecursive = false) {
+    const docToProcess = { ...doc };
+    if (!isRecursive) delete docToProcess._id;
 
     // AJOUT: Nettoyage des champs non définis dans le modèle
     for (const key of Object.keys(docToProcess)) {
-        if (!model.fields.some(f => f.name === key) && !key.startsWith('_')) {
+        const fieldDef = model.fields.find(f => f.name === key);
+        if (!fieldDef && !key.startsWith('_') && !key.startsWith('$')) {
             delete docToProcess[key];
+            continue;
+        }
+
+        if (fieldDef && fieldDef.fields && docToProcess[key]) {
+            const subModel = { name: key, fields: fieldDef.fields };
+            const subValue = docToProcess[key];
+            if (fieldDef.type === 'object' && isPlainObject(subValue)) {
+                docToProcess[key] = prepareDocument(subValue, subModel, me, true);
+            } else if (fieldDef.type === 'array' && fieldDef.itemsType === 'object' && Array.isArray(subValue)) {
+                docToProcess[key] = subValue.map(item => isPlainObject(item) ? prepareDocument(item, subModel, me, true) : item);
+            }
         }
     }
 
-    docToProcess._model = model.name;
-    docToProcess._user = me.username || me._user;
-    docToProcess._hash = getFieldValueHash(model, docToProcess);
+    if (!isRecursive) {
+        docToProcess._model = model.name;
+        docToProcess._user = me.username || me._user;
+        docToProcess._hash = getFieldValueHash(model, docToProcess);
+    }
 
     return docToProcess;
 }

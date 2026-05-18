@@ -102,7 +102,7 @@ export const validateField = (field) => {
     // Check for specific field types
     switch (field.type) {
     case 'relation':
-        allowedFieldTest(['relation', 'multiple', 'relationFilter']);
+        allowedFieldTest(['relation', 'multiple', 'relationFilter', 'fields']);
         if (!field.relation || typeof field.relation !== 'string' || field.relation.length > maxModelNameLength) {
             throw new Error(i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["relation"]));
         }
@@ -132,7 +132,7 @@ export const validateField = (field) => {
         if (field.max !== undefined && typeof field.max !== 'number') {
             throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["max"]));
         }
-        if (field.max < field.min) {
+        if (field.max !== undefined && field.min !== undefined && field.max < field.min) {
             throw new Error(i18n.t('api.validate.inferiorTo', "L'attribut '{{0}}' doit être inférieur à l'attribut '{{1}}'.", ["min", "max"]));
         }
         if (field.step !== undefined && typeof field.step !== 'number') {
@@ -142,7 +142,7 @@ export const validateField = (field) => {
             throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["unit"]));
         }
         if (field.delay !== undefined && typeof field.delay !== 'boolean') {
-            throw new Error(i18n.t('api.validate.fieldBoolean', "Le champ '{{0}}' doit être un booléen.", ["unit"]));
+            throw new Error(i18n.t('api.validate.fieldBoolean', "Le champ '{{0}}' doit être un booléen.", ["delay"]));
         }
         if (field.gauge !== undefined && typeof field.gauge !== 'boolean') {
             throw new Error(i18n.t('api.validate.fieldBoolean', "L'attribut '{{0}}' doit être un booléen.", ["gauge"]));
@@ -187,9 +187,6 @@ export const validateField = (field) => {
             throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["targetModel"]));
         }
         break;
-    case 'object':
-        allowedFieldTest([]);
-        break;
     case 'boolean':
         allowedFieldTest([]);
         break;
@@ -228,18 +225,19 @@ export const validateField = (field) => {
         break;
     }
     case 'color':
-        allowedFieldTest([]);
-        return true;
+        allowedFieldTest(['fields']);
+        break;
     case 'cronSchedule':
-        allowedFieldTest(['cronMask']);
-        return true;
+        allowedFieldTest(['cronMask', 'fields']);
+        break;
     case 'geolocation':
-        allowedFieldTest([]);
-        return true;
+        allowedFieldTest(['fields']);
+        break;
     case 'calculated':
-        allowedFieldTest(['calculation']);
-        return true;
+        allowedFieldTest(['calculation', 'fields']);
+        break;
     case 'array':
+        allowedFieldTest(['itemsType', 'minItems', 'maxItems', 'fields', 'mimeTypes', 'maxSize', 'items', 'targetModel', 'relation', 'relationFilter']);
         if (!field.itemsType || typeof field.itemsType !== 'string') {
             throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["itemsType"]));
         }
@@ -251,6 +249,43 @@ export const validateField = (field) => {
         }
         if (field.maxItems !== undefined && typeof field.maxItems !== 'number') {
             throw new Error(i18n.t('api.validate.fieldNumber', "L'attribut '{{0}}' doit être un nombre.", ["maxItems"]));
+        }
+        if (field.itemsType === 'object' && field.fields) {
+            if (!Array.isArray(field.fields)) {
+                throw new Error(i18n.t('api.validate.fieldArray', ["fields"]));
+            }
+            field.fields.forEach(validateField);
+        }
+        if (field.itemsType === 'enum') {
+            if (!field.items || !Array.isArray(field.items) || field.items.length === 0) {
+                throw new Error(i18n.t('api.validate.fieldStringArray', "L'attribut '{{0}}' doit être un tableau de chaines de caractères.", ["items"]));
+            }
+            let id = field.items.findIndex(item => typeof item !== 'string');
+            if (id !== -1) {
+                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["items[" + id + "]"]));
+            }
+        }
+        if (['model', 'modelField'].includes(field.itemsType)) {
+            if (field.targetModel !== undefined && typeof field.targetModel !== 'string') {
+                throw new Error(i18n.t('api.validate.fieldString', "Le champ '{{0}}' doit être une chaîne de caractères.", ["targetModel"]));
+            }
+        }
+        if (field.itemsType === 'relation') {
+            if (!field.relation || typeof field.relation !== 'string') {
+                throw new Error(i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["relation"]));
+            }
+            if (field.relationFilter && typeof field.relationFilter !== 'object') {
+                throw new Error(i18n.t('api.validate.fieldObject', "L'attribut '{{0}}' doit être un objet.", ["relationFilter"]));
+            }
+        }
+        break;
+    case 'object':
+        allowedFieldTest(['fields']);
+        if (field.fields) {
+            if (!Array.isArray(field.fields)) {
+                throw new Error(i18n.t('api.validate.fieldArray', ["fields"]));
+            }
+            field.fields.forEach(validateField);
         }
         break;
     default:
@@ -325,6 +360,20 @@ export async function validateModelData(doc, model, isPatch = false) {
         const realValidation = await Event.Trigger('OnDataValidate', "event", "system", value, fieldDef, doc);
         if (!(valid || realValidation)) {
             throw new Error(i18n.t('api.field.validationFailed', {field: fieldName, value}));
+        }
+
+        // Validation récursive des sous-champs
+        if (value && fieldDef.fields) {
+            const subModel = { name: `${model.name}.${fieldName}`, fields: fieldDef.fields };
+            if (fieldDef.type === 'object') {
+                await validateModelData(value, subModel, isPatch);
+            } else if (fieldDef.type === 'array' && fieldDef.itemsType === 'object') {
+                if (Array.isArray(value)) {
+                    for (const item of value) {
+                        await validateModelData(item, subModel, isPatch);
+                    }
+                }
+            }
         }
     }
 }
