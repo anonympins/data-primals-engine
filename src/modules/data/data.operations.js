@@ -890,36 +890,23 @@ export const pushDataUnsecure = async (data, modelName, me, files = {}) => {
         // Traitement des fichiers avant l'insertion.
         // Cette logique suppose que si des fichiers sont présents, il s'agit d'une insertion unique.
         if (Object.keys(files).length > 0) {
-            const handleFilesRecursively = async (doc, currentModel, pathPrefix = '') => {
-                for (const field of currentModel.fields) {
-                    const fieldPath = pathPrefix ? `${pathPrefix}.${field.name}` : field.name;
-                    if (field.type === 'file' || (field.type === 'array' && field.itemsType === 'file')) {
-                        const fileData = Object.keys(files)
-                            .filter(k => k.startsWith(fieldPath + '['))
-                            .map(k => files[k]);
-                        if (fileData.length > 0) {
-                            if (field.type === 'file') {
-                                doc[field.name] = await addFile(fileData[0], me);
-                            } else {
-                                doc[field.name] = await Promise.all(fileData.map(f => addFile(f, me)));
-                            }
-                        }
-                    } else if (field.fields && doc[field.name]) {
-                        const subModel = { name: field.name, fields: field.fields };
-                        const subValue = doc[field.name];
-                        if (field.type === 'object' && isPlainObject(subValue)) {
-                            await handleFilesRecursively(subValue, subModel, fieldPath);
-                        } else if (field.type === 'array' && field.itemsType === 'object' && Array.isArray(subValue)) {
-                            for (let j = 0; j < subValue.length; j++) {
-                                if (isPlainObject(subValue[j])) {
-                                    await handleFilesRecursively(subValue[j], subModel, `${fieldPath}[${j}]`);
-                                }
-                            }
-                        }
+
+            const docToModify = datas[0];
+            const fileFields = model.fields.filter(f => f.type === 'file' || (f.type === 'array' && f.itemsType === 'file'));
+
+            for (const field of fileFields) {
+                const fileData = Object.keys(files).filter(f => f.startsWith(field.name+'[')).map(k => files[k]);
+                if (fileData && fileData.length > 0) {
+                    if (field.type === 'file') {
+                        const fileRef = await addFile(fileData[0], me);
+                        docToModify[field.name] = fileRef;
+                    } else if (field.type === 'array' && field.itemsType === 'file') {
+                        const fileArray = Array.isArray(fileData) ? fileData : [fileData];
+                        const fileRefs = await Promise.all(fileArray.map(f => addFile(f, me)));
+                        docToModify[field.name] = fileRefs;
                     }
                 }
-            };
-            await handleFilesRecursively(datas[0], model);
+            }
         }
 
         // 2. Vérification des limites (en parallèle avec les contraintes)
@@ -1859,7 +1846,7 @@ const searchCache = new NodeCache({
 export const searchData = async (query, user) => {
     const {page, limit, sort, model, pipelinesPosition, pipelines: customPipelines = [], ids, timeout, pack, env} = query;
 
-    if (user && !(isDemoUser(user) && Config.Get("useDemoAccounts")) && isLocalUser(user) && (
+    if (user && user.username !== 'demo' && isLocalUser(user) && (
         !await hasPermission(["API_ADMIN", "API_SEARCH_DATA", "API_SEARCH_DATA_" + model], user) ||
         await hasPermission(["API_SEARCH_DATA_NOT_" + model], user))) {
         throw new Error(i18n.t('api.permission.searchData'));
@@ -3436,27 +3423,25 @@ export const installAllPacks = async () => {
  * @param {object} model - La définition du modèle pour les données actuelles.
  * @param {object|Array<object>|null} data - Les données à traiter (un objet, un tableau ou null).
  * @param {object} user - L'objet utilisateur effectuant la requête.
- * @param {boolean} [isRecursiveCall=false] - Un drapeau interne.
- * @param {boolean} [parentCanRead=null] - État de permission hérité.
+ * @param {boolean} [isRecursiveCall=false] - Un drapeau interne pour éviter de recharger les traductions lors des appels récursifs.
  * @returns {Promise<object|Array<object>|null>} - Les données traitées, dans le même format que l'entrée.
  */
-const handleFields = async (model, data, user, isRecursiveCall = false, parentCanRead = null) => {
+const handleFields = async (model, data, user, isRecursiveCall = false) => {
     // Détermine si l'entrée était un tableau pour retourner le même format.
     const wasArray = Array.isArray(data);
-    const dataArray = wasArray ? data : (data !== null && data !== undefined ? [data] : []);
+    // Normalise les données en tableau pour un traitement unifié. Gère le cas où data est null/undefined.
+    const dataArray = wasArray ? data : (data ? [data] : []);
 
     if (dataArray.length === 0) {
         return wasArray ? [] : null;
     }
 
     // Fonction interne pour traiter les données. Appelée après la gestion des traductions.
-    const _processItems = async (items, inheritedCanRead = null) => {
-        // Si inheritedCanRead est null, on vérifie les permissions pour ce modèle. 
-        // Sinon, on utilise la permission héritée du parent (pour les objets/tableaux imbriqués).
-        const canRead = inheritedCanRead !== null ? inheritedCanRead : (!isLocalUser(user) || await hasPermission(["API_ADMIN", "API_DEANONYMIZED", "API_DEANONYMIZED_" + model.name], user));
+    const _processItems = async (items) => {
+        const canRead = !isLocalUser(user) || await hasPermission(["API_ADMIN", "API_DEANONYMIZED", "API_DEANONYMIZED_" + model.name], user);
 
         for (const item of items) {
-            if (!item || typeof item !== 'object') continue;
+            if (!item) continue;
 
             if (item['_id']) {
                 item['_id'] = item['_id'].toString();
@@ -3470,7 +3455,7 @@ const handleFields = async (model, data, user, isRecursiveCall = false, parentCa
 
                 // 1. Anonymisation des champs si nécessaire
                 if (field.anonymized && !canRead && dataTypes[field.type]?.anonymize) {
-                    item[fieldName] = dataTypes[field.type].anonymize(fieldValue, field, getObjectHash({id: item._id || 'nested'}));
+                    item[fieldName] = dataTypes[field.type].anonymize(fieldValue, field, getObjectHash({id: item._id}));
                 }
 
                 if (field.type === 'string_t') {
@@ -3478,39 +3463,18 @@ const handleFields = async (model, data, user, isRecursiveCall = false, parentCa
                 }
 
                 // 2. Résolution récursive des relations
+
                 if (field.type === 'relation' && fieldValue) {
                     try {
                         const relatedModel = await getModel(field.relation, user);
-                        
-                        let valueToProcess = fieldValue;
-                        // Si la valeur est un ID brut (string), on force son expansion
-                        if (typeof fieldValue === 'string' || fieldValue instanceof ObjectId) {
-                             const searchRes = await searchData({
-                                 model: field.relation,
-                                 ids: fieldValue.toString(),
-                                 limit: field.multiple ? 0 : 1
-                             }, user);
-                             valueToProcess = field.multiple ? searchRes.data : (searchRes.data[0] || fieldValue);
-                        }
-
-                        item[fieldName] = await handleFields(relatedModel, valueToProcess, user, true, null);
-                        
+                        // Appel récursif à la fonction principale, en signalant que ce n'est pas l'appel initial.
+                        item[fieldName] = await handleFields(relatedModel, fieldValue, user, true);
                         if (!field.multiple && Array.isArray(item[fieldName]) && item[fieldName].length <= 1) {
                             item[fieldName] = item[fieldName][0] || null;
                         }
                     } catch (e) {
                         logger.warn(`Impossible de traiter la relation pour le champ '${fieldName}' du modèle '${model.name}'. Erreur: ${e.message}`);
                         // En cas d'erreur (ex: modèle de relation introuvable), on conserve la valeur originale (probablement un ID).
-                    }
-                }
-
-                // 3. Traitement récursif des sous-champs
-                if (field.fields && fieldValue) {
-                    const subModel = { name: field.name, fields: field.fields };
-                    if (field.type === 'object' && isPlainObject(fieldValue)) {
-                        item[fieldName] = await handleFields(subModel, fieldValue, user, true, canRead);
-                    } else if (field.type === 'array' && field.itemsType === 'object' && Array.isArray(fieldValue)) {
-                        item[fieldName] = await handleFields(subModel, fieldValue, user, true, canRead);
                     }
                 }
             }
