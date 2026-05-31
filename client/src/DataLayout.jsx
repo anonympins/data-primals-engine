@@ -60,7 +60,6 @@ const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
 
 const WorkflowSelectorModal = ({ onClose, onSelectWorkflow }) => {
     const { t } = useTranslation();
-    const { searchData } = useModelContext();
     const { me } = useAuthContext();
     const { data: activeWorkflows, isLoading } = useQuery(
         'activeWorkflowsList',
@@ -759,7 +758,7 @@ function DataLayout({refreshUI}, ref) {
                     setDataEditorVisible(false);
                     setEditionMode(false);
                     setAPIInfoVisible(false);
-                    mainPartRef.current?.scrollIntoView({behavior: 'smooth'});
+                    //mainPartRef.current?.scrollIntoView({behavior: 'smooth'});
                     gtag("event", "select_content", {
                         content_type: "select_model",
                         content_id: model.name
