@@ -155,7 +155,6 @@ function DataLayout({refreshUI}) {
     const [showAPIInfo, setAPIInfoVisible] = useState(false);
     const nav = useNavigate();
     const mod = searchParams.get('model');
-    const loc = useLocation();
 
 
     // --- AJOUT : Récupérer le paramètre de l'URL pour l'édition de workflow ---
