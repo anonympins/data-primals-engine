@@ -17,7 +17,7 @@ const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureV
     const { t } = useTranslation();
 
     return (
-        <div className="view-switcher flex items-center gap-1 p-1 bg-gray-200 rounded-md">
+        <div className="view-switcher flex items-center gap-1 p-1 rounded-md">
             {viewOptions.map(view => {
                 const isConfigured = view.id === 'table' || configuredViews[view.id];
                 const isActive = currentView === view.id;
