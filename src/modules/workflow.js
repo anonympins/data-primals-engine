@@ -20,8 +20,8 @@ import {Config} from "../config.js";
 import {safeAssignObject} from "../core.js";
 
 // Add Node.js path utilities for worker_threads
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { fileURLToPath, URL } from 'node:url';
+import path from "node:path";
 let executionEngine = { type: null, module: null };
 try {
     // Tentative de chargement de 'isolated-vm'.
@@ -400,19 +400,15 @@ async function handleWaitAction(actionDef, contextData, user) {
 async function executeWithWorkerThreads(actionDef, context, user) {
     const TIMEOUT = 5000;
     const collectedLogs = [];
-
     const code = actionDef.script;
     // Contexte sécurisé
     const safeContext = JSON.parse(JSON.stringify(context));
 
     return new Promise((resolve, reject) => {
-        // Fix: For Node.js worker_threads, provide a direct file path to prevent Vite from treating it as a web worker.
-        // This ensures Node.js loads the worker script directly, allowing it to use Node.js-specific APIs like `parentPort`.
-        const __filename = fileURLToPath(import.meta.url);
-        const __dirname = path.dirname(__filename);
-        const workerScriptPath = path.join(__dirname, 'worker-script-runner.js');
-
-        const worker = new Worker(workerScriptPath);
+        // Construct an absolute file path for the worker. This is the most reliable method,
+        // ensuring Node.js loads the script directly without ambiguity.
+        const workerPath = path.dirname('src/workers/worker-script-runner.js');
+        const worker = new Worker(workerPath);
 
         const timeoutId = setTimeout(() => {
             worker.terminate();
