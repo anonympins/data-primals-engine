@@ -37,6 +37,8 @@ export function getUserHash(user) {
     if( isDemoUser(user) ){
         return user.username;
     }
+    if( user.hash )
+        return user.hash;
     return user ? (
         isLocalUser(user) ? getObjectHash({id: 'LOCAL_USER'+user._user+user.username}) : getObjectHash({id: user.hash})
     ) : 0;

@@ -145,6 +145,10 @@ export const kilobytes = 1024;
  */
 export const megabytes = 1024*1024;
 
+export const gigabytes = 1024*megabytes;
+
+export const terabytes = 1024*gigabytes;
+
 /**
  * Maximum bytes per second for data throttling
  * @type {number}
