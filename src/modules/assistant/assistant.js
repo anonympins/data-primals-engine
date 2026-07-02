@@ -2,7 +2,7 @@ import { getCollectionForUser, modelsCollection } from "../mongodb.js";
 import { Logger } from "../../gameObject.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { searchData, patchData, deleteData, insertData } from "../data/index.js";
-import { getAIProvider } from "./providers.js";
+import { getAIProvider, findFirstAvailableProvider } from "./providers.js";
 import {providers} from "./constants.js";
 import {Config} from "../../config.js";
 import { Event } from "../../events.js";
@@ -423,25 +423,23 @@ export async function handleChatRequest(params, user, sendEvent = null) {
     let llmOptions = {  };
     try {
         if (sendEvent) sendEvent('status', { message: i18n.t('assistant.initializing', "Initialisation de l'assistant...") });
-        const p =  Config.Get('assistant.provider', provider ||'OpenAI');
-        const envKeyName = providers[p].key;
-        if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
 
-        const envCollection = await getCollectionForUser(user);
-        const userEnvVar = await envCollection.findOne({_model: 'env', name: envKeyName, _user: user.username});
-        const apiKey = userEnvVar?.value || process.env[envKeyName];
+        const found = await findFirstAvailableProvider(user, provider);
 
-        if (!apiKey) {
-            const errorMsg = `Clé API pour ${p} (${envKeyName}) non trouvée.`;
+        if (!found) {
+            const errorMsg = i18n.t('assistant.error.noApiKey', "Aucune clé API pour un fournisseur d'IA n'a été configurée.");
             if (sendEvent) {
                 sendEvent('error', { success: false, message: errorMsg });
                 return;
             }
             return {success: false, message: errorMsg};
         }
+        
+        const selectedProvider = found.provider;
+        const apiKey = found.apiKey;
 
-        const model = Config.Get('assistant.model', providers[p]?.defaultModel);
-        llmOptions = { provider: p, model, apiKey };
+        const model = Config.Get('assistant.model', providers[selectedProvider]?.defaultModel);
+        llmOptions = { provider: selectedProvider, model, apiKey };
         llm = await getAIProvider(llmOptions.provider, llmOptions.model, llmOptions.apiKey);
     } catch (initError) {
         logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);

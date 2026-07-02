@@ -16,8 +16,8 @@ import {countKeys, parseSafeJSON, safeAssignObject, uuidv4} from "../../core.js"
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import i18n from "../../i18n.js";
-import {executeSafeJavascript, triggerWorkflows} from "../workflow.js";
-import {openaiJobModel} from "../../openai.jobs.js";
+import { executeSafeJavascript, triggerWorkflows } from "../workflow.js";
+import { generateModelViaAI } from "../../ai.jobs.js";
 import {getS3Stream, getUserS3Config} from "../bucket.js";
 import {generateLimiter, hasPermission, middlewareAuthenticator, userInitiator} from "../user.js";
 import {assistantGlobalLimiter} from "../assistant/assistant.js";
@@ -44,6 +44,8 @@ import {
 } from "./data.operations.js";
 import { dumpUserData, loadFromDump } from "./data.backup.js";
 import { invalidateModelCache } from "./data.operations.js";
+import { findFirstAvailableProvider, getAIProvider } from "../assistant/providers.js";
+import {providers} from "../assistant/constants.js";
 
 let logger, engine;
 
@@ -698,8 +700,27 @@ export async function registerRoutes(defaultEngine){
                 logger.info(`[AI Create] Génération d'un nouveau modèle depuis le prompt.`);
             }
 
-            // On passe le prompt final (soit de création, soit d'édition) à l'IA
-            const generatedModels = await openaiJobModel(lang, finalPrompt, history, modelNames);
+            // --- NOUVELLE LOGIQUE : Trouver un fournisseur IA disponible ---
+            const providerInfo = await findFirstAvailableProvider(user);
+            if (!providerInfo) {
+                return res.status(500).json({ success: false, error: i18n.t('assistant.error.noApiKey', "Aucune clé API pour un fournisseur d'IA n'a été configurée.") });
+            }
+
+            const llm = await getAIProvider(
+                providerInfo.provider,
+                // Utiliser le modèle de génération défini pour ce fournisseur
+                providers[providerInfo.provider]?.generationModel || 'gpt-4o-mini',
+                providerInfo.apiKey,
+                true // Request JSON mode
+            );
+
+            if (!llm) {
+                return res.status(500).json({ success: false, error: "Impossible d'initialiser le fournisseur IA." });
+            }
+            // --- FIN NOUVELLE LOGIQUE ---
+
+            // On passe le prompt final et l'instance LLM à la fonction de génération
+            const generatedModels = await generateModelViaAI(llm, lang, finalPrompt, history, modelNames);
 
             if (typeof(generatedModels) !== 'object' || !generatedModels.models) {
                 console.error("La réponse de l'IA n'est pas un objet avec une clé 'models':", generatedModels);
