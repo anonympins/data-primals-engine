@@ -9,7 +9,7 @@ import {
     maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
     maxMagnetsModels,
-    maxModelsPerUser, maxPackData, maxPackPreviewData
+    maxModelsPerUser, maxPackData, maxPackPreviewData, maxStringLength
 } from "../../constants.js";
 import {datasCollection, getCollection, getCollectionForUser, isObjectId, modelsCollection} from "../mongodb.js";
 import {countKeys, parseSafeJSON, safeAssignObject, uuidv4} from "../../core.js";
@@ -49,8 +49,39 @@ import {providers} from "../assistant/constants.js";
 
 let logger, engine;
 
+// ANCIEN : Stockage en mémoire locale, non scalable
+// RESTE UTILE : Chaque instance garde en mémoire SES propres connexions.
 const sseConnections = new Map();
 
+// NOUVEAU : Utilisation de MongoDB Change Streams pour la communication inter-serveurs
+async function initializeSseScaling() {
+    try {
+        // Utilise une collection dédiée pour les notifications pour de meilleures performances et une meilleure isolation.
+        const notificationsCollection = getCollection('sse_notifications');
+
+        // Créer un index TTL pour que les notifications s'auto-détruisent après 60 secondes
+        await notificationsCollection.createIndex({ "createdAt": 1 }, { expireAfterSeconds: 60 });
+
+        const changeStream = notificationsCollection.watch([
+            { $match: { 'fullDocument._model': 'sse_notification' } }
+        ]);
+
+        changeStream.on('change', async (change) => {
+            if (change.operationType === 'insert') {
+                const notificationDoc = change.fullDocument;
+                const res = sseConnections.get(notificationDoc.targetUser);
+                if (res) {
+                    logger.debug(`[SSE-MongoDB] Received notification for user ${notificationDoc.targetUser} on this instance. Sending.`);
+                    const ssePlugin = await Event.Trigger("sendSseToUser", "system", "calls", notificationDoc.payload) || notificationDoc.payload;
+                    res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
+                }
+            }
+        });
+        logger.info('[SSE-MongoDB] Change Stream is watching for notifications. Real-time is now scalable.');
+    } catch (error) {
+        logger.error('[SSE-MongoDB] Could not initialize Change Streams for SSE scaling. Real-time notifications will not be scalable.', error);
+    }
+}
 
 
 async function logApiRequest(req, res, user, startTime, responseBody = null, error = null) {
@@ -139,12 +170,29 @@ const middlewareLogger = async (req, res, next) => {
  * @returns {boolean} - True si l'événement a été envoyé, false sinon.
  */
 export async function sendSseToUser(username, data) {
+    // On essaie toujours d'envoyer directement si l'utilisateur est sur la même instance. C'est plus rapide.
     const res = sseConnections.get(username);
     if (res) {
         const ssePlugin = await Event.Trigger("sendSseToUser", "system", "calls", data) || data;
         res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
         return true;
     }
+
+    // NOUVEAU : Si l'utilisateur n'est pas sur cette instance, on insère un document
+    // dans MongoDB. Le Change Stream notifiera toutes les instances.
+    try {
+        const notificationsCollection = getCollection('sse_notifications');
+        await notificationsCollection.insertOne({
+            _model: 'sse_notification', // Pour filtrer dans le Change Stream
+            targetUser: username,
+            payload: data,
+            createdAt: new Date()
+        });
+        return true; // On suppose que le message sera délivré par une autre instance.
+    } catch (error) {
+        logger.error(`[SSE-MongoDB] Failed to insert notification for user ${username}:`, error);
+    }
+
     return false;
 }
 
@@ -344,6 +392,9 @@ export async function registerRoutes(defaultEngine){
 
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
+
+    // NOUVEAU : Initialisation du scaling SSE (via MongoDB Change Streams)
+    initializeSseScaling();
 
     const m = Config.Get('maxBytesPerSecondThrottleData', maxBytesPerSecondThrottleData)
     const throttle = throttleMiddleware(m);
