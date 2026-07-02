@@ -55,8 +55,10 @@ export function runImportExportWorker(action, payload) {
     return new Promise((resolve, reject) => {
         // Construct a full URL to the worker script. This is the most robust way
         // to ensure the worker is found, then convert it to a file path.
-        const workerPath = path.resolve('src/workers/import-export-worker.js');
-        const worker = new Worker(workerPath);
+        //const workerPath = path.resolve('src/workers/import-export-worker.js');
+        const workerPath = import.meta.dirname;
+
+        const worker = new Worker(path.resolve(workerPath,"../../workers/import-export-worker.js"));
 
         worker.postMessage({ action, payload });
 

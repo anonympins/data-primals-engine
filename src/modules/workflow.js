@@ -408,6 +408,7 @@ async function executeWithWorkerThreads(actionDef, context, user) {
         // Construct an absolute file path for the worker. This is the most reliable method,
         // ensuring Node.js loads the script directly without ambiguity.
         const workerPath = path.dirname('src/workers/worker-script-runner.js');
+
         const worker = new Worker(workerPath);
 
         const timeoutId = setTimeout(() => {
