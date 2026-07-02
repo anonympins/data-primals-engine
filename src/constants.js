@@ -206,6 +206,12 @@ export const maxPackData = 5000;
 export const maxPackPreviewData = maxPackData / 10;
 
 /**
+ * Maximum total size of database data per user (in bytes)
+ * @type {number}
+ */
+export const maxTotalDataSizePerUser = 50 * megabytes; // Exemple : 50 Mo
+
+/**
  * Default maximum number of data per request
  * @type {number}
  */

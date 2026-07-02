@@ -1344,12 +1344,17 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         const sizeDelta = finalDocsSize - originalDocsSize;
 
         if (sizeDelta > 0) {
-            const userStorageLimit = await engine.userProvider.getUserStorageLimit(user);
-            const currentStorageUsage = await calculateTotalUserStorageUsage(user);
-            if (currentStorageUsage + sizeDelta > userStorageLimit) {
-                throw new Error(i18n.t("api.data.storageLimitExceeded", { limit: Math.round(userStorageLimit / megabytes) }));
+            // --- MODIFICATION : Utiliser la nouvelle limite de stockage de la base de données ---
+            const dbStorageLimit = Config.Get('maxTotalDataSizePerUser'); // Récupère la limite en octets
+
+            if (dbStorageLimit > 0) {
+                const currentStorageUsage = await calculateTotalUserStorageUsage(user);
+                if (currentStorageUsage.database + sizeDelta > dbStorageLimit) {
+                    throw new Error(i18n.t("api.data.storageLimitExceeded", { limit: Math.round(dbStorageLimit / megabytes) }));
+                }
             }
-            const serverCapacity = await checkServerCapacity(sizeDelta);
+            // --- FIN MODIFICATION ---
+            const serverCapacity = await checkServerCapacity(sizeDelta); // La vérification de la capacité serveur reste pertinente
             if (!serverCapacity.isSufficient) {
                 throw new Error(i18n.t("api.data.serverStorageFull"));
             }

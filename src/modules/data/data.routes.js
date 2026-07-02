@@ -306,6 +306,39 @@ export async function middlewareEndpointAuthenticator(req, res, next) {
         res.status(500).json({success: false, message: 'Internal server error during endpoint authentication.'});
     }
 }
+// C:/Dev/data-primals-engine/src/modules/data/data.routes.js (à ajouter près des autres fonctions utilitaires)
+
+/**
+ * Calcule la taille actuelle de la base de données pour un utilisateur et vérifie si une nouvelle insertion dépasserait la limite.
+ * @param {object} user - L'objet utilisateur.
+ * @param {number} sizeOfNewData - La taille approximative des nouvelles données en octets.
+ */
+async function checkUserDatabaseStorage(user, sizeOfNewData) {
+    const limit = Config.Get('maxTotalDataSizePerUser', maxTotalDataSizePerUser);
+
+    // Si la limite est à 0 ou non définie, on ne vérifie pas.
+    if (!limit) return;
+
+    const collection = await getCollectionForUser(user);
+
+    // Pipeline d'agrégation pour sommer la taille de tous les documents de l'utilisateur
+    const pipeline = [
+        { $match: { _user: user.username } },
+        { $group: {
+            _id: null,
+            totalSize: { $sum: { $bsonSize: "$$ROOT" } } // $$ROOT fait référence au document entier
+        }}
+    ];
+
+    const result = await collection.aggregate(pipeline).toArray();
+    const currentSize = result.length > 0 ? result[0].totalSize : 0;
+
+    if (currentSize + sizeOfNewData > limit) {
+        throw new Error(i18n.t('api.data.storageLimitExceeded',
+            `L'ajout de ces données dépasserait votre limite de stockage de données de ${Math.round(limit / 1024 / 1024)} Mo.`
+        ));
+    }
+}
 
 export async function registerRoutes(defaultEngine){
 
@@ -787,6 +820,12 @@ export async function registerRoutes(defaultEngine){
             const model = await getModel(modelName, req.me);
             if( model.fields.some(f => f.type ==='password'))
                 req.hideApiLogs = true;
+
+            // --- NOUVELLE VÉRIFICATION DE LA TAILLE ---
+            const newDataSize = Buffer.byteLength(JSON.stringify(data), 'utf8');
+            await checkUserDatabaseStorage(req.me, newDataSize);
+            // --- FIN DE LA VÉRIFICATION ---
+
             const json = await insertData(modelName, data, req.files, req.me);
             res.status(200).json(json);
         } catch (e) {
