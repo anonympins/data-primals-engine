@@ -4,8 +4,9 @@ import * as util from 'node:util';
 import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {isDemoUser, isLocalUser} from "../../data.js";
 import {
-    getHost,
+    getHost, 
     install,
+    clusterPeers, // Importer la configuration du cluster
     maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
     maxMagnetsModels,
@@ -27,7 +28,7 @@ import {tutorialsConfig} from "../../../client/src/tutorials.js";
 import {getResource, handleDemoInitialization} from "./data.js";
 import process from "node:process"; 
 import {throttleMiddleware} from "../../middlewares/throttle.js";
-import {importJobs, modelsCache, runImportExportWorker} from "./data.core.js";
+import {modelsCache} from "./data.core.js";
 import {validateModelData, validateModelStructure} from "./data.validation.js";
 import {
     deleteData,
@@ -45,6 +46,7 @@ import {
 import { dumpUserData, loadFromDump } from "./data.backup.js";
 import { invalidateModelCache } from "./data.operations.js";
 import { findFirstAvailableProvider, getAIProvider } from "../assistant/providers.js";
+import { isProxiedRequest, proxyRequest } from './data.cluster.js';
 import {providers} from "../assistant/constants.js";
 
 let logger, engine;
@@ -52,34 +54,81 @@ let logger, engine;
 // ANCIEN : Stockage en mémoire locale, non scalable
 // RESTE UTILE : Chaque instance garde en mémoire SES propres connexions.
 const sseConnections = new Map();
+/**
+ * Route interne pour la fédération : vérifie si une valeur pour un champ unique existe.
+ */
+async function checkUniqueness(req, res) {
+    const { model: modelName, field, value, user: username } = req.query;
 
-// NOUVEAU : Utilisation de MongoDB Change Streams pour la communication inter-serveurs
+    try {
+        // On cherche dans la collection de l'utilisateur spécifié
+        const user = await engine.userProvider.findUserByUsername(username);
+        if (!user) {
+            return res.status(404).json({ exists: false, error: 'User not found' });
+        }
+        const collection = await getCollectionForUser(user);
+
+        const query = {
+            _model: modelName,
+            _user: username,
+            [field]: value
+        };
+
+        const doc = await collection.findOne(query, { projection: { _id: 1 } });
+        res.json({ exists: !!doc });
+
+    } catch (error) {
+        res.status(500).json({ exists: false, error: error.message });
+    }
+}
+
+// Alternative aux Change Streams via Polling pour la communication inter-serveurs.
+// Cette méthode ne nécessite pas de replica set MongoDB.
 async function initializeSseScaling() {
     try {
-        // Utilise une collection dédiée pour les notifications pour de meilleures performances et une meilleure isolation.
         const notificationsCollection = getCollection('sse_notifications');
-
-        // Créer un index TTL pour que les notifications s'auto-détruisent après 60 secondes
+        // L'index TTL est conservé pour nettoyer automatiquement les notifications qui n'auraient pas été traitées.
         await notificationsCollection.createIndex({ "createdAt": 1 }, { expireAfterSeconds: 60 });
 
-        const changeStream = notificationsCollection.watch([
-            { $match: { 'fullDocument._model': 'sse_notification' } }
-        ]);
+        const pollingInterval = 2000; // Interroger toutes les 2 secondes.
 
-        changeStream.on('change', async (change) => {
-            if (change.operationType === 'insert') {
-                const notificationDoc = change.fullDocument;
-                const res = sseConnections.get(notificationDoc.targetUser);
-                if (res) {
-                    logger.debug(`[SSE-MongoDB] Received notification for user ${notificationDoc.targetUser} on this instance. Sending.`);
-                    const ssePlugin = await Event.Trigger("sendSseToUser", "system", "calls", notificationDoc.payload) || notificationDoc.payload;
-                    res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
-                }
+        const pollForNotifications = async () => {
+            const connectedUsers = Array.from(sseConnections.keys());
+            // On écoute toujours, même sans utilisateur connecté, pour les messages de broadcast.
+            if (connectedUsers.length === 0) {
+                return; // Rien à faire si personne n'est connecté à cette instance.
             }
-        });
-        logger.info('[SSE-MongoDB] Change Stream is watching for notifications. Real-time is now scalable.');
+
+            try {
+                const notifications = await notificationsCollection.find({
+                    targetUser: { $in: connectedUsers }
+                }).toArray();
+
+                if (notifications.length > 0) {
+                    for (const notif of notifications) {
+                        if (notif.targetUser) {
+                            // C'est une notification SSE standard pour un utilisateur
+                            const res = sseConnections.get(notif.targetUser);
+                            if (res && !res.writableEnded) {
+                                logger.debug(`[SSE-Polling] Sending notification to user ${notif.targetUser} on this instance.`);
+                                const ssePlugin = await Event.Trigger("sendSseToUser", "system", "calls", notif.payload) || notif.payload;
+                                res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
+                            }
+                        }
+                    }
+                    // Supprimer les notifications traitées pour ne pas les renvoyer.
+                    const idsToDelete = notifications.map(n => n._id);
+                    await notificationsCollection.deleteMany({ _id: { $in: idsToDelete } });
+                }
+            } catch (pollError) {
+                logger.error('[SSE-Polling] Error during notification polling:', pollError);
+            }
+        };
+
+        setInterval(pollForNotifications, pollingInterval);
+        logger.info(`[SSE-Polling] Initialized with a ${pollingInterval}ms interval. Real-time is now scalable without replica set.`);
     } catch (error) {
-        logger.error('[SSE-MongoDB] Could not initialize Change Streams for SSE scaling. Real-time notifications will not be scalable.', error);
+        logger.error('[SSE-Polling] Could not initialize polling for SSE scaling. Real-time notifications will not be scalable.', error);
     }
 }
 
@@ -360,30 +409,30 @@ export async function middlewareEndpointAuthenticator(req, res, next) {
  * Calcule la taille actuelle de la base de données pour un utilisateur et vérifie si une nouvelle insertion dépasserait la limite.
  * @param {object} user - L'objet utilisateur.
  * @param {number} sizeOfNewData - La taille approximative des nouvelles données en octets.
+ * @returns {Promise<void>}
  */
 async function checkUserDatabaseStorage(user, sizeOfNewData) {
-    const limit = Config.Get('maxTotalDataSizePerUser', maxTotalDataSizePerUser);
+    // La limite est maintenant récupérée depuis le plan de l'utilisateur ou une config par défaut
+    const limit = await engine.userProvider.getUserStorageLimit(user);
 
     // Si la limite est à 0 ou non définie, on ne vérifie pas.
     if (!limit) return;
 
-    const collection = await getCollectionForUser(user);
+    // On lit directement la valeur dénormalisée sur l'objet utilisateur.
+    // req.me doit être rafraîchi pour avoir la dernière valeur, ou on peut le relire.
+    // Pour plus de sûreté, relisons l'utilisateur.
+    const usersCollection = getCollection("users"); // En supposant que vous avez une collection 'users'
+    const freshUser = await usersCollection.findOne({ username: user.username });
+    const currentSize = freshUser?.storageUsed || 0;
 
-    // Pipeline d'agrégation pour sommer la taille de tous les documents de l'utilisateur
-    const pipeline = [
-        { $match: { _user: user.username } },
-        { $group: {
-            _id: null,
-            totalSize: { $sum: { $bsonSize: "$$ROOT" } } // $$ROOT fait référence au document entier
-        }}
-    ];
-
-    const result = await collection.aggregate(pipeline).toArray();
-    const currentSize = result.length > 0 ? result[0].totalSize : 0;
+    logger.debug(`[Storage Check] User: ${user.username}, Current: ${currentSize}, New: ${sizeOfNewData}, Limit: ${limit}`);
 
     if (currentSize + sizeOfNewData > limit) {
+        // On peut ajouter un peu de contexte pour l'utilisateur
+        const currentSizeMb = (currentSize / 1024 / 1024).toFixed(2);
+        const limitMb = (limit / 1024 / 1024).toFixed(2);
         throw new Error(i18n.t('api.data.storageLimitExceeded',
-            `L'ajout de ces données dépasserait votre limite de stockage de données de ${Math.round(limit / 1024 / 1024)} Mo.`
+            `L'ajout de ces données dépasserait votre limite de stockage (${currentSizeMb} Mo / ${limitMb} Mo).`
         ));
     }
 }
@@ -401,10 +450,11 @@ export async function registerRoutes(defaultEngine){
 
     let userMiddlewares = await engine.userProvider.getMiddlewares();
 
+    // NOUVEL ENDPOINT : Invalidation de cache interne au cluster
     engine.all('/api/actions/:user/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.all('/api/actions/:path', [middlewareAuthenticator, middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
-
+    engine.get('/api/data/check-uniqueness', [middlewareAuthenticator, userInitiator], checkUniqueness);
     engine.post('/api/data/validate', [middlewareAuthenticator, userInitiator, middlewareLogger], validateDataRealtime);
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
         const user = req.me;
@@ -636,34 +686,39 @@ export async function registerRoutes(defaultEngine){
     engine.get('/api/import/progress/:jobId', middlewareAuthenticator, async (req, res) => {
         const { jobId } = req.params;
         const user = req.me;
-
-        // Vérification d'autorisation: s'assurer que l'utilisateur est bien le propriétaire de la tâche
-        if (!importJobs[jobId] || importJobs[jobId].userId !== user.username) {
-            return res.status(403).send('Forbidden');
-        }
+        const importJobsCollection = getCollection('import_jobs');
 
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no'); // Important pour désactiver le buffering de certains proxys (ex: Nginx)
 
-        const sendProgress = () => {
-            const job = importJobs[jobId];
-            if (job) {
-                res.write(`data: ${JSON.stringify(job)}\n\n`);
-                if (job.status === 'completed' || job.status === 'failed') {
-                    res.end(); // Terminer le stream lorsque la tâche est terminée
-                    delete importJobs[jobId]; // Nettoyer la tâche de la mémoire
+        const sendProgress = async () => {
+            try {
+                const job = await importJobsCollection.findOne({ _id: new ObjectId(jobId), userId: user.username });
+
+                if (res.writableEnded) return;
+
+                if (job) {
+                    res.write(`data: ${JSON.stringify(job)}\n\n`);
+                    if (job.status === 'completed' || job.status === 'failed') {
+                        res.end(); // Terminer le stream lorsque la tâche est terminée
+                    }
+                } else {
+                    // Si la tâche n'est plus là (déjà nettoyée par le TTL ou jamais existé/pas autorisé)
+                    res.write(`data: ${JSON.stringify({ status: 'not_found', message: 'Job not found or already completed.' })}\n\n`);
+                    res.end();
                 }
-            } else {
-                // Si la tâche n'est plus là (déjà nettoyée ou jamais existé)
-                res.write(`data: ${JSON.stringify({ status: 'not_found', message: 'Job not found or already completed.' })}\n\n`);
+            } catch (error) {
+                logger.error(`[SSE Import Progress] Error fetching job ${jobId}:`, error);
+                if (res.writableEnded) return;
+                res.write(`data: ${JSON.stringify({ status: 'error', message: 'Failed to fetch job status.' })}\n\n`);
                 res.end();
             }
         };
 
         // Envoyer la progression initiale immédiatement
-        sendProgress();
+        await sendProgress();
 
         // Mettre en place un intervalle pour envoyer des mises à jour régulières
         // Pour une application plus complexe, vous pourriez utiliser un EventEmitter
@@ -672,6 +727,9 @@ export async function registerRoutes(defaultEngine){
 
         // Nettoyer l'intervalle lorsque le client se déconnecte
         req.on('close', () => {
+            if (res.writableEnded) {
+                clearInterval(intervalId);
+            }
             clearInterval(intervalId);
             logger.debug(`SSE client disconnected for job ${jobId}`);
         });
@@ -867,6 +925,12 @@ export async function registerRoutes(defaultEngine){
         const modelName = body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
         const data = body.data || (body._data && JSON.parse(body._data));
 
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return; // La requête a été relayée, on s'arrête ici.
+        }
+        // --- FIN CLUSTER ---
+
         try {
             const model = await getModel(modelName, req.me);
             if( model.fields.some(f => f.type ==='password'))
@@ -877,7 +941,7 @@ export async function registerRoutes(defaultEngine){
             await checkUserDatabaseStorage(req.me, newDataSize);
             // --- FIN DE LA VÉRIFICATION ---
 
-            const json = await insertData(modelName, data, req.files, req.me);
+            const json = await insertData(modelName, data, req.files, req.me, true, false, true, req);
             res.status(200).json(json);
         } catch (e) {
             res.status(400).json({ success: false, error: e.message });
@@ -885,25 +949,40 @@ export async function registerRoutes(defaultEngine){
     });
 
     engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(30000)], async (req, res) => {
-        const { pack } = req.fields;
+        const { pack, federated } = req.fields;
+        const user = req.me;
+        // On parse les options de pagination et de tri
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 30;
+        const sort = req.query.sort || '_id:DESC';
+
+        const searchOptions = {...req.query, model: req.fields.model || req.query.model, filter: req.fields.filter, pack, page, limit, sort};
+        
+        // --- CLUSTER: Proxy de la lecture si l'on shard par utilisateur ---
+        // On suppose que `proxyReadRequest` utilise un hachage consistant sur `req.me.username`
+        // pour trouver le bon noeud et lui transférer la requête.
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return; // La requête a été relayée, on s'arrête ici.
+        }
+        // --- FIN CLUSTER ---
 
         try {
-            const {data, count} = await searchData({...req.query, model: req.fields.model || req.query.model, filter: req.fields.filter, pack}, req.me);
+            // --- Comportement standard : recherche locale ---
+            // Si la requête arrive ici, c'est que ce nœud est le maître pour l'utilisateur,
+            // ou que nous ne sommes pas dans un environnement clusterisé.
+            // La logique de recherche fédérée "fan-out" a été supprimée.
+            const {data, count} = await searchData(searchOptions, user);
 
             if( req.query.attachment ) {
-                res.attachment(req.query.attachment);
-                res.json(data.map(d=>{
+            res.attachment(req.query.attachment);
+                res.json(data.map(d => {
                     let fd = {...d};
-                    Object.keys(d).forEach(di =>{
-                        if (['_model', '_user'].includes(di)){
-                            delete fd[di];
-                        }
-                    });
+                    delete fd['_model'];
+                    delete fd['_user'];
                     return fd;
                 }));
-            }else
-            {
-                res.json({data, count: count});
+            } else {
+                res.json({data, count});
             }
         } catch (error) {
             logger.error(error);
@@ -913,6 +992,13 @@ export async function registerRoutes(defaultEngine){
 
     engine.delete('/api/data/:ids', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
         const ids = req.params.ids.split(',');
+
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await deleteData(req.fields.model, ids, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
@@ -922,6 +1008,13 @@ export async function registerRoutes(defaultEngine){
     });
 
     engine.delete('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
+        
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await deleteData(req.fields.model, req.fields.filter, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
@@ -963,6 +1056,13 @@ export async function registerRoutes(defaultEngine){
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
         const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
         if (r.error) {
             res.status(400).json(r);
@@ -976,6 +1076,13 @@ export async function registerRoutes(defaultEngine){
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
             const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+            // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+            if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+                return;
+            }
+            // --- FIN CLUSTER ---
+
             const r = await editData(req.fields.model, filter || hash, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);
@@ -990,6 +1097,13 @@ export async function registerRoutes(defaultEngine){
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
         const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
         if (r.error) {
             res.status(400).json(r);
@@ -1003,6 +1117,13 @@ export async function registerRoutes(defaultEngine){
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
             const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+            // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+            if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+                return;
+            }
+            // --- FIN CLUSTER ---
+
             const r = await editData(req.fields.model, filter || { "$eq": ["$_id", { "$toObjectId": hash}]}, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);

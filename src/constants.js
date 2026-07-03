@@ -231,6 +231,12 @@ export const tlsAllowInvalidCertificates = false;
 export const tlsAllowInvalidHostnames = false;
 
 /**
+ * Cluster configuration for data federation
+ * @type {string[]}
+ */
+export const clusterPeers = (process.env.CLUSTER_PEERS || '').split(',').filter(Boolean);
+
+/**
  * Options for the HTML sanitizer
  * @type {{allowedSchemesByTag: {}, selfClosing: string[], allowedSchemes: string[], enforceHtmlBoundary: boolean, disallowedTagsMode: string, allowProtocolRelative: boolean, allowedAttributes: {a: string[], img: string[], code: string[]}, allowedTags: string[], allowedSchemesAppliedToAttributes: string[]}}
  */
