@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { clusterPeers, getHost, port } from '../../constants.js';
+import { Config } from '../../config.js';
 import { Logger } from '../../gameObject.js';
 
 const logger = new Logger('DataCluster');
@@ -7,7 +8,8 @@ const logger = new Logger('DataCluster');
 // La liste de tous les nœuds inclut le nœud actuel.
 // On la trie pour s'assurer que l'ordre est le même sur toutes les instances.
 const selfUrl = `http://${getHost()}:${process.env.PORT || port}`;
-const allNodes = [selfUrl, ...clusterPeers].sort();
+const allNodes = Array.from(new Set([selfUrl, ...clusterPeers])).sort();
+const REPLICATION_FACTOR = Config.Get('replicationFactor', 2); // Maître + 1 réplique par défaut
 
 
 logger.info(`[Cluster] Initialized. Self: ${selfUrl}. All nodes: ${allNodes.join(', ')}`);
@@ -51,19 +53,37 @@ export async function broadcastCacheInvalidation(cacheType, key) {
 }
 
 /**
- * Détermine l'URL du nœud "maître" pour un utilisateur donné en utilisant un hashage cohérent.
+ * Détermine la liste ordonnée des nœuds responsables pour un utilisateur.
+ * Le premier est le maître, les suivants sont les répliques.
+ * @param {string} username - Le nom de l'utilisateur.
+ * @returns {string[]} Une liste d'URLs de nœuds.
+ */
+export function getResponsibleNodesForUser(username) {
+    if (allNodes.length <= 1) {
+        return [selfUrl];
+    }
+
+    const numNodes = allNodes.length;
+    const numReplicas = Math.min(REPLICATION_FACTOR, numNodes);
+    const responsibleNodes = [];
+
+    const hash = createHash('sha256').update(username).digest('hex');
+    const startIndex = parseInt(hash.substring(0, 8), 16) % numNodes;
+
+    for (let i = 0; i < numReplicas; i++) {
+        responsibleNodes.push(allNodes[(startIndex + i) % numNodes]);
+    }
+
+    return responsibleNodes;
+}
+
+/**
+ * Détermine l'URL du nœud "maître" pour un utilisateur donné.
  * @param {string} username - Le nom de l'utilisateur.
  * @returns {string} L'URL du nœud maître.
  */
 export function getMasterNodeForUser(username) {
-    if (allNodes.length <= 1) {
-        return selfUrl;
-    }
-    // Utilise un hash SHA256 pour une distribution uniforme
-    const hash = createHash('sha256').update(username).digest('hex');
-    // Prend une partie du hash et utilise le modulo pour choisir un index de nœud
-    const index = parseInt(hash.substring(0, 8), 16) % allNodes.length;
-    return allNodes[index];
+    return getResponsibleNodesForUser(username)[0];
 }
 
 /**
@@ -83,36 +103,68 @@ export function isSelfMasterForUser(username) {
  * @returns {Promise<boolean>} - Retourne `true` si la requête a été relayée, `false` sinon.
  */
 export async function proxyRequest(req, res, username) {
-    const masterNodeUrl = getMasterNodeForUser(username);
+    const responsibleNodes = getResponsibleNodesForUser(username);
+    const masterNodeUrl = responsibleNodes[0];
 
     if (masterNodeUrl === selfUrl) {
         // Ce nœud est le maître, on ne relaie pas.
         return false;
     }
 
-    logger.info(`[Cluster] Proxying (stream) ${req.method} ${req.originalUrl} for user ${username} to master node ${masterNodeUrl}`);
+    // Pour les écritures (POST, PUT, PATCH, DELETE), on cible toujours le maître.
+    if (req.method !== 'GET') {
+        logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNodeUrl}`);
+        await attemptProxy(req, res, masterNodeUrl);
+        return true; // La requête a été traitée (relayée ou a échoué).
+    }
 
-    const targetUrl = new URL(req.originalUrl, masterNodeUrl);
-
-    try {
-        // On propage la plupart des en-têtes, en ajoutant ceux nécessaires pour le proxying.
-        const headers = { ...req.headers };
-        delete headers['host']; // Le 'host' sera celui du nœud cible.
-        headers['X-Federation-Proxy'] = 'true'; // Marqueur anti-boucle.
-        // S'il n'y a pas de Content-Type, on en met un par défaut pour `fetch`.
-        if (!headers['content-type']) {
-            headers['content-type'] = 'application/json';
+    // Pour les lectures (GET), on tente le maître, puis les répliques en cas d'échec.
+    logger.info(`[Cluster] Proxying READ for user ${username}. Node preference: ${responsibleNodes.join(' -> ')}`);
+    for (const nodeUrl of responsibleNodes) {
+        try {
+            // Si le nœud est nous-mêmes, on arrête le proxying et on laisse le handler local prendre le relais.
+            if (nodeUrl === selfUrl) {
+                logger.info(`[Cluster] Failover to self. Handling request locally.`);
+                return false;
+            }
+            await attemptProxy(req, res, nodeUrl);
+            return true; // Succès, on arrête la boucle de failover.
+        } catch (error) {
+            logger.warn(`[Cluster] Proxy attempt to ${nodeUrl} failed: ${error.message}. Trying next node...`);
         }
+    }
 
+    // Si tous les nœuds ont échoué
+    logger.error(`[Cluster] All responsible nodes for user ${username} are down. Cannot serve request.`);
+    res.status(503).json({ success: false, error: `Service Unavailable: All responsible nodes for user ${username} are currently down.` });
+    return true; // La requête a été traitée (a échoué).
+}
+
+async function attemptProxy(req, res, nodeUrl) {
+    const targetUrl = new URL(req.originalUrl, nodeUrl);
+    const headers = { ...req.headers };
+    delete headers['host'];
+    headers['X-Federation-Proxy'] = 'true';
+    if (!headers['content-type']) {
+        headers['content-type'] = 'application/json';
+    }
+
+    // Utilisation d'un AbortController pour gérer les timeouts de connexion
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout de 5 secondes
+    
+    try {
         const proxyResponse = await fetch(targetUrl.toString(), {
             method: req.method,
             headers: headers,
-            body: JSON.stringify(req.fields)
+            body: (req.method !== 'GET' && req.method !== 'HEAD') ? JSON.stringify(req.fields) : undefined,
+            signal: controller.signal
         });
 
-        // --- AMÉLIORATION MAJEURE : STREAMING ---
-        // On propage le statut et les en-têtes de la réponse du pair vers le client.
-        // C'est crucial pour les téléchargements de fichiers (Content-Disposition), etc.
+        if (!proxyResponse.ok) {
+            throw new Error(`Node responded with status ${proxyResponse.status}`);
+        }
+
         res.status(proxyResponse.status);
         proxyResponse.headers.forEach((value, name) => {
             // On évite de propager des en-têtes liés à la connexion interne du cluster.
@@ -120,18 +172,13 @@ export async function proxyRequest(req, res, username) {
                 res.setHeader(name, value);
             }
         });
-
-        // On pipe le corps de la réponse du pair directement vers la réponse du client.
-        // `Readable.fromWeb` est nécessaire pour convertir le stream de `fetch` en stream Node.js.
         const { Readable } = await import('node:stream');
         Readable.fromWeb(proxyResponse.body).pipe(res);
-
     } catch (error) {
-        logger.error(`[Cluster] Proxy request to ${masterNodeUrl} failed: ${error.message}`);
-        res.status(502).json({ success: false, error: `Failed to proxy request to master node: ${error.message}` });
+        throw error; // Relancer l'erreur pour que la boucle de failover puisse l'attraper.
+    } finally {
+        clearTimeout(timeoutId);
     }
-
-    return true; // La requête a été traitée (relayée).
 }
 
 /**

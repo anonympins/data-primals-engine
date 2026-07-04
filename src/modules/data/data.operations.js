@@ -1447,6 +1447,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         // Préparation de l'objet de mise à jour final pour MongoDB
         const finalUpdateOperation = {};
         if (Object.keys(updateSetData).length > 0) {
+            updateSetData._lastModifiedAt = new Date(); // Ajout du timestamp
             finalUpdateOperation.$set = { ...updateSetData, _hash: newHash };
         }
         if (Object.keys(updatePushData).length > 0) {
@@ -1455,6 +1456,7 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             if (!finalUpdateOperation.$set) {
                 finalUpdateOperation.$set = { _hash: newHash };
             }
+            finalUpdateOperation.$set._lastModifiedAt = new Date(); // Ajout du timestamp
         }
 
         // 12. Exécution de la mise à jour.
