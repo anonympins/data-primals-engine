@@ -50,13 +50,11 @@ import {validateModelData, validateModelStructure} from "./data.validation.js";
 import {addFile, removeFile} from "../file.js";
 import NodeCache from "node-cache";
 import fs from "node:fs";
-import readXlsxFile from "read-excel-file/node";
 import {checkServerCapacity} from "./data.js";
 import {Logger} from "../../gameObject.js";
 import {
     changeValue,
     checkHash,
-    broadcastCacheInvalidation,
     convertDataTypes,
     handleFilesIfNeeded,
     processDocuments
@@ -65,6 +63,7 @@ import crypto from 'crypto';
 import cronstrue from 'cronstrue/i18n.js'
 import { isConditionMet } from '../../filter.js';
 import util from "node:util";
+import {broadcastCacheInvalidation} from "./data.cluster.js";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 const IMPORT_CHUNK_SIZE = 100; // Nombre d'enregistrements à traiter par lot
@@ -1168,6 +1167,16 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             };
         }
 
+        // --- FIX: Handle case where filter is a simple ID string ---
+        if (typeof filter === 'string' && isObjectId(filter)) {
+            combinedFilter = { $and: [ { _id: new ObjectId(filter) }, permissionResult || {} ] };
+        }
+
+        // Handle case where filter is an object like { _id: "..." }
+        if (isPlainObject(filter) && filter._id && isObjectId(filter._id)) {
+            combinedFilter = { $and: [ { _id: new ObjectId(filter._id) }, permissionResult || {} ] };
+        }
+
         // 3. Récupération des documents à modifier en utilisant le filtre combiné
         const docsToEditQuery = await searchData({model: modelName, filter: combinedFilter}, user);
         let existingDocs = docsToEditQuery.data;
@@ -1270,17 +1279,22 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         // 6. Vérification des champs uniques (s'applique uniquement aux opérations $set)
         const uniqueFields = model.fields.filter(f => f.unique);
         for (const field of uniqueFields) {
-            if (updateData[field.name] !== undefined) {
+            if (!updateData.hasOwnProperty(field.name)) {
+                continue;
+            }
+            const finalValue = updateData[field.name];
+
+            if (finalValue !== undefined && finalValue !== null && finalValue !== '') {
                 const existing = await collection.findOne({
                     _user: user._user || user.username,
                     _model: modelName,
-                    [field.name]: updateData[field.name],
-                    _id: {$nin: ids}
+                    [field.name]: finalValue,       // Cherche un document avec la nouvelle valeur...
+                    _id: {$ne: existingDocs[0]._id} // ...qui n'est PAS le document qu'on est en train de modifier.
                 });
                 if (existing) {
                     throw new Error(i18n.t("api.data.duplicateValue", {
                         field: field.name,
-                        value: updateData[field.name]
+                        value: finalValue
                     }));
                 }
             }
@@ -1420,6 +1434,16 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         }
         const newHash = getFieldValueHash(model, finalStateForHash);
 
+        // 11. *** CORRECTION LOGIQUE ***
+        // On ne vérifie l'unicité que si le hash a réellement changé.
+        if (newHash !== originalHash) {
+            const hashCheck = await checkHash(user, model, newHash, existingDocs[0]._id.toString());
+            if (hashCheck) {
+                // Le nouvel état du document créerait un doublon.
+                throw new Error(i18n.t("api.data.notUniqueData"));
+            }
+        }
+
         // Préparation de l'objet de mise à jour final pour MongoDB
         const finalUpdateOperation = {};
         if (Object.keys(updateSetData).length > 0) {
@@ -1430,16 +1454,6 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             // Si on a que du $push, il faut quand même mettre à jour le hash
             if (!finalUpdateOperation.$set) {
                 finalUpdateOperation.$set = { _hash: newHash };
-            }
-        }
-
-        // 11. *** CORRECTION LOGIQUE ***
-        // On ne vérifie l'unicité que si le hash a réellement changé.
-        if (newHash !== originalHash) {
-            const hashCheck = await checkHash(user, model, newHash, existingDocs[0]._id.toString());
-            if (hashCheck) {
-                // Le nouvel état du document créerait un doublon.
-                throw new Error(i18n.t("api.data.notUniqueData"));
             }
         }
 
@@ -1602,11 +1616,11 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
         // --- AMÉLIORATION ---
         // On détermine le nom du modèle à partir du premier document trouvé.
         // C'est crucial car la fonction peut être appelée sans `modelName` explicite (ex: via /api/data/:ids).
-        // On suppose que toutes les suppressions dans un même appel concernent le même modèle.
+        // On suppose que toutes les suppressions dans un même appel concernent le même modèle, ce qui est le cas ici.
         const modelNameToInvalidate = modelName || documentsToDelete[0]?._model;
 
         const finalIdsToDelete = []; // IDs des documents qui seront effectivement supprimés
-        const idsToInvalidate = [];  // *** AJOUT: IDs à invalider dans le cache ***
+        const idsToInvalidate = [];
 
         for (const docToDelete of documentsToDelete) {
             const deletePromises = [];
@@ -1628,7 +1642,6 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
                 }
             }
             if (deletePromises.length > 0) {
-                await Promise.allSettled(deletePromises);
             }
 
             // *** Ajout de l'annulation du schedule pour workflowTrigger ***
@@ -1743,7 +1756,7 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
             finalIdsToDelete.push(docToDelete._id);
             idsToInvalidate.push(docToDelete._id.toString());
         } // Fin de la boucle sur documentsToDelete
-
+        
         // 3. Supprimer effectivement les documents (ceux pour lesquels on a la permission)
         let deletedCount = 0;
         if (finalIdsToDelete.length > 0) {
@@ -2819,41 +2832,28 @@ export const importData = async (options, files, user) => {
                             options: {columns: hasHeaders}
                         });
 
-                        let datasToImport;
-                        if (!hasHeaders) {
-                            const effectiveHeadersForMapping = (userDefinedHeadersForMapping.length > 0 && userDefinedHeadersForMapping.some(h => h !== ''))
+                        const datasToImport = records.map(recordRow => {
+                            if (hasHeaders) {
+                                // If headers are present, the parser returns objects directly.
+                                return recordRow;
+                            }
+                            // If no headers, map array values to fields.
+                            const obj = {};
+                            const effectiveHeaders = (userDefinedHeadersForMapping.length > 0 && userDefinedHeadersForMapping.some(h => h))
                                 ? userDefinedHeadersForMapping
                                 : modelDef.fields.map(f => f.name);
 
-                            datasToImport = records.map(recordRow => {
-                                const obj = {};
-                                if (Array.isArray(recordRow)) {
-                                    recordRow.forEach((value, index) => {
-                                        const targetModelFieldName = effectiveHeadersForMapping[index];
-                                        if (targetModelFieldName && targetModelFieldName !== '') {
-                                            if (modelDef.fields.some(mf => mf.name === targetModelFieldName)) {
-                                                obj[targetModelFieldName] = value;
-                                            } else {
-                                                logger.warn(`CSV Import (!hasHeaders): Specified target field "${targetModelFieldName}" at column ${index + 1} does not exist in model "${modelNameForImport}". Skipping column.`);
-                                            }
-                                        }
-                                    });
-                                } else {
-                                    Object.values(recordRow).forEach((value, index) => {
-                                        const targetModelFieldName = effectiveHeadersForMapping[index];
-                                        if (targetModelFieldName && targetModelFieldName !== '') {
-                                            if (modelDef.fields.some(mf => mf.name === targetModelFieldName)) {
-                                                obj[targetModelFieldName] = value;
-                                            } else {
-                                                logger.warn(`CSV Import (!hasHeaders, object row): Specified target field "${targetModelFieldName}" at column ${index + 1} does not exist in model "${modelNameForImport}". Skipping column.`);
-                                            }
-                                        }
-                                    });
+                            Object.values(recordRow).forEach((value, index) => {
+                                const fieldName = effectiveHeaders[index];
+                                if (fieldName) {
+                                    obj[fieldName] = value;
                                 }
-                                return obj;
                             });
-                        } else {
-                            datasToImport = records;
+                            return obj;
+                        });
+
+                        if (datasToImport.length === 0) {
+                            throw new Error("No data could be parsed from the CSV file.");
                         }
                         const allProcessedData = convertDataTypes(datasToImport, modelDef.fields, 'csv');
 
