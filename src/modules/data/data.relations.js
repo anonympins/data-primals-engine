@@ -536,6 +536,7 @@ function prepareDocument(doc, model, me) {
     docToProcess._model = model.name;
     docToProcess._user = me.username || me._user;
     docToProcess._hash = getFieldValueHash(model, docToProcess);
+    docToProcess._lastModifiedAt = new Date(); // Ajout systématique du timestamp
 
     return docToProcess;
 }

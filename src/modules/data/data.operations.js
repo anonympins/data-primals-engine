@@ -1,6 +1,6 @@
 import {
     getObjectHash,
-    getRand,
+    getRand, 
     getRandom,
     isPlainObject,
     parseSafeJSON,
@@ -26,7 +26,7 @@ import {
 } from "../../constants.js";
 import {anonymizeText, encryptValue, getFieldValueHash, getUserId, isDemoUser, isLocalUser} from "../../data.js";
 import sanitizeHtml from "sanitize-html";
-import {importJobs, modelsCache, runCryptoWorkerTask, runImportExportWorker} from "./data.core.js";
+import {modelsCache, runCryptoWorkerTask, runImportExportWorker} from "./data.core.js";
 import {
     getCollection,
     getCollectionForUser,
@@ -50,7 +50,6 @@ import {validateModelData, validateModelStructure} from "./data.validation.js";
 import {addFile, removeFile} from "../file.js";
 import NodeCache from "node-cache";
 import fs from "node:fs";
-import readXlsxFile from "read-excel-file/node";
 import {checkServerCapacity} from "./data.js";
 import {Logger} from "../../gameObject.js";
 import {
@@ -64,6 +63,7 @@ import crypto from 'crypto';
 import cronstrue from 'cronstrue/i18n.js'
 import { isConditionMet } from '../../filter.js';
 import util from "node:util";
+import {broadcastCacheInvalidation} from "./data.cluster.js";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 const IMPORT_CHUNK_SIZE = 100; // Nombre d'enregistrements à traiter par lot
@@ -479,6 +479,43 @@ const userStorageCache = new NodeCache({
 
 
 let engine, logger;
+
+/**
+ * Vérifie l'unicité d'une valeur sur l'ensemble du cluster.
+ * @param {string} modelName - Nom du modèle.
+ * @param {string} fieldName - Nom du champ unique.
+ * @param {*} value - Valeur à vérifier.
+ * @param {object} user - Objet utilisateur.
+ * @param {string} authToken - Token d'authentification pour les appels internes.
+ * @returns {Promise<void>} - Lève une erreur si la valeur n'est pas unique.
+ */
+async function checkClusterUniqueness(modelName, fieldName, value, user, authToken) {
+    if (clusterPeers.length === 0) return; // Pas de cluster, pas de vérification distribuée.
+
+    logger.debug(`[Cluster] Checking uniqueness for ${modelName}.${fieldName} = ${value}`);
+
+    const checkPromises = clusterPeers.map(peerUrl => {
+        const url = new URL(`${peerUrl}/api/data/check-uniqueness`);
+        url.searchParams.append('model', modelName);
+        url.searchParams.append('field', fieldName);
+        url.searchParams.append('value', value);
+        url.searchParams.append('user', user.username);
+
+        return fetch(url.toString(), {
+            headers: { 'Authorization': authToken }
+        }).then(res => res.json());
+    });
+
+    const results = await Promise.all(checkPromises);
+
+    for (const result of results) {
+        if (result.exists) {
+            throw new Error(`La valeur '${value}' pour le champ '${fieldName}' existe déjà sur un autre nœud du cluster.`);
+        }
+    }
+}
+
+
 export function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
@@ -703,8 +740,8 @@ export const getModel = async (modelName, user) => {
 }
 export const getModels = async () => {
     return await getCollection('models')?.find({'$or': [{_user: {$exists: false}}]}).toArray() || [];
-}
-export const insertData = async (modelName, data, files, user, triggerWorkflow = true, waitForWorkflow = true, checkPermissions = true) => {
+} 
+export const insertData = async (modelName, data, files, user, triggerWorkflow = true, waitForWorkflow = true, checkPermissions = true, req = null) => {
 
     if (checkPermissions) {
         // --- Vérification des permissions ---
@@ -1130,6 +1167,16 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             };
         }
 
+        // --- FIX: Handle case where filter is a simple ID string ---
+        if (typeof filter === 'string' && isObjectId(filter)) {
+            combinedFilter = { $and: [ { _id: new ObjectId(filter) }, permissionResult || {} ] };
+        }
+
+        // Handle case where filter is an object like { _id: "..." }
+        if (isPlainObject(filter) && filter._id && isObjectId(filter._id)) {
+            combinedFilter = { $and: [ { _id: new ObjectId(filter._id) }, permissionResult || {} ] };
+        }
+
         // 3. Récupération des documents à modifier en utilisant le filtre combiné
         const docsToEditQuery = await searchData({model: modelName, filter: combinedFilter}, user);
         let existingDocs = docsToEditQuery.data;
@@ -1232,17 +1279,22 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         // 6. Vérification des champs uniques (s'applique uniquement aux opérations $set)
         const uniqueFields = model.fields.filter(f => f.unique);
         for (const field of uniqueFields) {
-            if (updateData[field.name] !== undefined) {
+            if (!updateData.hasOwnProperty(field.name)) {
+                continue;
+            }
+            const finalValue = updateData[field.name];
+
+            if (finalValue !== undefined && finalValue !== null && finalValue !== '') {
                 const existing = await collection.findOne({
                     _user: user._user || user.username,
                     _model: modelName,
-                    [field.name]: updateData[field.name],
-                    _id: {$nin: ids}
+                    [field.name]: finalValue,       // Cherche un document avec la nouvelle valeur...
+                    _id: {$ne: existingDocs[0]._id} // ...qui n'est PAS le document qu'on est en train de modifier.
                 });
                 if (existing) {
                     throw new Error(i18n.t("api.data.duplicateValue", {
                         field: field.name,
-                        value: updateData[field.name]
+                        value: finalValue
                     }));
                 }
             }
@@ -1344,12 +1396,17 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         const sizeDelta = finalDocsSize - originalDocsSize;
 
         if (sizeDelta > 0) {
-            const userStorageLimit = await engine.userProvider.getUserStorageLimit(user);
-            const currentStorageUsage = await calculateTotalUserStorageUsage(user);
-            if (currentStorageUsage + sizeDelta > userStorageLimit) {
-                throw new Error(i18n.t("api.data.storageLimitExceeded", { limit: Math.round(userStorageLimit / megabytes) }));
+            // --- MODIFICATION : Utiliser la nouvelle limite de stockage de la base de données ---
+            const dbStorageLimit = Config.Get('maxTotalDataSizePerUser'); // Récupère la limite en octets
+
+            if (dbStorageLimit > 0) {
+                const currentStorageUsage = await calculateTotalUserStorageUsage(user);
+                if (currentStorageUsage.database + sizeDelta > dbStorageLimit) {
+                    throw new Error(i18n.t("api.data.storageLimitExceeded", { limit: Math.round(dbStorageLimit / megabytes) }));
+                }
             }
-            const serverCapacity = await checkServerCapacity(sizeDelta);
+            // --- FIN MODIFICATION ---
+            const serverCapacity = await checkServerCapacity(sizeDelta); // La vérification de la capacité serveur reste pertinente
             if (!serverCapacity.isSufficient) {
                 throw new Error(i18n.t("api.data.serverStorageFull"));
             }
@@ -1377,19 +1434,6 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         }
         const newHash = getFieldValueHash(model, finalStateForHash);
 
-        // Préparation de l'objet de mise à jour final pour MongoDB
-        const finalUpdateOperation = {};
-        if (Object.keys(updateSetData).length > 0) {
-            finalUpdateOperation.$set = { ...updateSetData, _hash: newHash };
-        }
-        if (Object.keys(updatePushData).length > 0) {
-            finalUpdateOperation.$push = updatePushData;
-            // Si on a que du $push, il faut quand même mettre à jour le hash
-            if (!finalUpdateOperation.$set) {
-                finalUpdateOperation.$set = { _hash: newHash };
-            }
-        }
-
         // 11. *** CORRECTION LOGIQUE ***
         // On ne vérifie l'unicité que si le hash a réellement changé.
         if (newHash !== originalHash) {
@@ -1398,6 +1442,21 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
                 // Le nouvel état du document créerait un doublon.
                 throw new Error(i18n.t("api.data.notUniqueData"));
             }
+        }
+
+        // Préparation de l'objet de mise à jour final pour MongoDB
+        const finalUpdateOperation = {};
+        if (Object.keys(updateSetData).length > 0) {
+            updateSetData._lastModifiedAt = new Date(); // Ajout du timestamp
+            finalUpdateOperation.$set = { ...updateSetData, _hash: newHash };
+        }
+        if (Object.keys(updatePushData).length > 0) {
+            finalUpdateOperation.$push = updatePushData;
+            // Si on a que du $push, il faut quand même mettre à jour le hash
+            if (!finalUpdateOperation.$set) {
+                finalUpdateOperation.$set = { _hash: newHash };
+            }
+            finalUpdateOperation.$set._lastModifiedAt = new Date(); // Ajout du timestamp
         }
 
         // 12. Exécution de la mise à jour.
@@ -1559,11 +1618,11 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
         // --- AMÉLIORATION ---
         // On détermine le nom du modèle à partir du premier document trouvé.
         // C'est crucial car la fonction peut être appelée sans `modelName` explicite (ex: via /api/data/:ids).
-        // On suppose que toutes les suppressions dans un même appel concernent le même modèle.
+        // On suppose que toutes les suppressions dans un même appel concernent le même modèle, ce qui est le cas ici.
         const modelNameToInvalidate = modelName || documentsToDelete[0]?._model;
 
         const finalIdsToDelete = []; // IDs des documents qui seront effectivement supprimés
-        const idsToInvalidate = [];  // *** AJOUT: IDs à invalider dans le cache ***
+        const idsToInvalidate = [];
 
         for (const docToDelete of documentsToDelete) {
             const deletePromises = [];
@@ -1585,7 +1644,6 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
                 }
             }
             if (deletePromises.length > 0) {
-                await Promise.allSettled(deletePromises);
             }
 
             // *** Ajout de l'annulation du schedule pour workflowTrigger ***
@@ -1700,7 +1758,7 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
             finalIdsToDelete.push(docToDelete._id);
             idsToInvalidate.push(docToDelete._id.toString());
         } // Fin de la boucle sur documentsToDelete
-
+        
         // 3. Supprimer effectivement les documents (ceux pour lesquels on a la permission)
         let deletedCount = 0;
         if (finalIdsToDelete.length > 0) {
@@ -2520,6 +2578,9 @@ export const invalidateModelCache = (model) => {
         cacheRelations.delete(relationKey);
 
         console.log(`Invalidated cache for model: ${model}`);
+
+        // Broadcast this invalidation to other nodes in the cluster
+        broadcastCacheInvalidation('model', model);
     }
 };
 
@@ -2567,21 +2628,26 @@ export const importData = async (options, files, user) => {
         return ({success: false, error: "No file uploaded."});
     }
 
-    const importJobId = new ObjectId().toString();
-    importJobs[importJobId] = {
+    const importJobsCollection = getCollection('import_jobs');
+    // Créer un index TTL qui supprime les tâches 1h après leur dernière mise à jour.
+    await importJobsCollection.createIndex({ "updatedAt": 1 }, { expireAfterSeconds: 3600 });
+
+    const importJobData = {
         userId: user.username,
         status: 'pending',
         totalRecords: 0,
         processedRecords: 0,
         errors: [],
-        jobId: importJobId // Inclure l'ID de la tâche dans son état
+        createdAt: new Date(),
+        updatedAt: new Date()
     };
+    const insertResult = await importJobsCollection.insertOne(importJobData);
+    const importJobId = insertResult.insertedId;
 
-    const importJob = importJobs[importJobId];
     // Excuter le reste de la logique d'importation en arrière-plan
     (async () => {
         let fileProcessed = false;
-        const importResults = {success: true, counts: {}, errors: []}; // Pour collecter les erreurs internes
+        const importResults = { success: true, counts: {}, errors: [] };
 
         try {
             const fileContent = fs.readFileSync(file.path);
@@ -2676,8 +2742,9 @@ export const importData = async (options, files, user) => {
                 // --- DÉBUT DE LA MODIFICATION PRINCIPALE ---
                 // Mettre à jour le statut et le nombre total d'enregistrements avant la boucle
                 if (importResults.success && modelsToProcess.length > 0) {
-                    importJobs[importJobId].totalRecords = modelsToProcess.reduce((acc, model) => acc + model.data.length, 0);
-                    importJobs[importJobId].status = 'processing';
+                    await importJobsCollection.updateOne({ _id: importJobId }, {
+                        $set: { totalRecords: modelsToProcess.reduce((acc, model) => acc + model.data.length, 0), status: 'processing', updatedAt: new Date() }
+                    });
                 }
 
                 // Boucler sur CHAQUE modèle trouvé dans le fichier JSON
@@ -2706,11 +2773,12 @@ export const importData = async (options, files, user) => {
                             try {
                                 const insertedIdsArray = await pushDataUnsecure(chunk, modelName, user, {});
                                 if (insertedIdsArray && insertedIdsArray.length > 0) {
-                                    importJobs[importJobId].processedRecords += insertedIdsArray.length;
-                                    logger.debug(`[Import Job ${importJobId}] Processed chunk for '${modelName}': ${insertedIdsArray.length} records. Total processed: ${importJobs[importJobId].processedRecords}`);
+                                    const updateResult = await importJobsCollection.findOneAndUpdate({ _id: importJobId }, {
+                                        $inc: { processedRecords: insertedIdsArray.length },
+                                        $set: { updatedAt: new Date() }
+                                    }, { returnDocument: 'after' });
                                     sendSseToUser(user.username, {
-                                        type: 'import_progress',
-                                        job: importJobs[importJobId]
+                                        type: 'import_progress', job: updateResult
                                     });
                                 }
                             } catch (chunkError) {
@@ -2718,7 +2786,9 @@ export const importData = async (options, files, user) => {
                                 const errorMsg = `[Import Job ${importJobId}] Error on chunk for model '${modelName}': ${chunkError.message}`;
                                 logger.error(errorMsg);
                                 importResults.errors.push(errorMsg);
-                                importJobs[importJobId].errors.push(errorMsg);
+                                await importJobsCollection.updateOne({ _id: importJobId }, {
+                                    $push: { errors: errorMsg }, $set: { updatedAt: new Date() }
+                                });
                                 importResults.success = false;
                             }
 
@@ -2732,7 +2802,9 @@ export const importData = async (options, files, user) => {
                         const errorMsg = `[Import Job ${importJobId}] Failed to process model '${modelName}': ${modelProcessingError.message}`;
                         logger.error(errorMsg);
                         importResults.errors.push(errorMsg);
-                        importJobs[importJobId].errors.push(errorMsg);
+                        await importJobsCollection.updateOne({ _id: importJobId }, {
+                            $push: { errors: errorMsg }, $set: { updatedAt: new Date() }
+                        });
                         importResults.success = false;
                     }
                 }
@@ -2762,65 +2834,57 @@ export const importData = async (options, files, user) => {
                             options: {columns: hasHeaders}
                         });
 
-                        let datasToImport;
-                        if (!hasHeaders) {
-                            const effectiveHeadersForMapping = (userDefinedHeadersForMapping.length > 0 && userDefinedHeadersForMapping.some(h => h !== ''))
+                        const datasToImport = records.map(recordRow => {
+                            if (hasHeaders) {
+                                // If headers are present, the parser returns objects directly.
+                                return recordRow;
+                            }
+                            // If no headers, map array values to fields.
+                            const obj = {};
+                            const effectiveHeaders = (userDefinedHeadersForMapping.length > 0 && userDefinedHeadersForMapping.some(h => h))
                                 ? userDefinedHeadersForMapping
                                 : modelDef.fields.map(f => f.name);
 
-                            datasToImport = records.map(recordRow => {
-                                const obj = {};
-                                if (Array.isArray(recordRow)) {
-                                    recordRow.forEach((value, index) => {
-                                        const targetModelFieldName = effectiveHeadersForMapping[index];
-                                        if (targetModelFieldName && targetModelFieldName !== '') {
-                                            if (modelDef.fields.some(mf => mf.name === targetModelFieldName)) {
-                                                obj[targetModelFieldName] = value;
-                                            } else {
-                                                logger.warn(`CSV Import (!hasHeaders): Specified target field "${targetModelFieldName}" at column ${index + 1} does not exist in model "${modelNameForImport}". Skipping column.`);
-                                            }
-                                        }
-                                    });
-                                } else {
-                                    Object.values(recordRow).forEach((value, index) => {
-                                        const targetModelFieldName = effectiveHeadersForMapping[index];
-                                        if (targetModelFieldName && targetModelFieldName !== '') {
-                                            if (modelDef.fields.some(mf => mf.name === targetModelFieldName)) {
-                                                obj[targetModelFieldName] = value;
-                                            } else {
-                                                logger.warn(`CSV Import (!hasHeaders, object row): Specified target field "${targetModelFieldName}" at column ${index + 1} does not exist in model "${modelNameForImport}". Skipping column.`);
-                                            }
-                                        }
-                                    });
+                            Object.values(recordRow).forEach((value, index) => {
+                                const fieldName = effectiveHeaders[index];
+                                if (fieldName) {
+                                    obj[fieldName] = value;
                                 }
-                                return obj;
                             });
-                        } else {
-                            datasToImport = records;
+                            return obj;
+                        });
+
+                        if (datasToImport.length === 0) {
+                            throw new Error("No data could be parsed from the CSV file.");
                         }
                         const allProcessedData = convertDataTypes(datasToImport, modelDef.fields, 'csv');
 
                         // Logique de découpage en lots pour le CSV
                         if (allProcessedData.length > 0) {
-                            importJobs[importJobId].totalRecords = allProcessedData.length;
-                            importJobs[importJobId].status = 'processing';
+                            await importJobsCollection.updateOne({ _id: importJobId }, {
+                                $set: { totalRecords: allProcessedData.length, status: 'processing', updatedAt: new Date() }
+                            });
 
                             for (let i = 0; i < allProcessedData.length; i += IMPORT_CHUNK_SIZE) {
                                 const chunk = allProcessedData.slice(i, i + IMPORT_CHUNK_SIZE);
                                 try {
                                     const insertedIdsArray = await pushDataUnsecure(chunk, modelNameForImport, user, {});
                                     if (insertedIdsArray && insertedIdsArray.length > 0) {
-                                        importJobs[importJobId].processedRecords += insertedIdsArray.length;
+                                        const updateResult = await importJobsCollection.findOneAndUpdate({ _id: importJobId }, {
+                                            $inc: { processedRecords: insertedIdsArray.length },
+                                            $set: { updatedAt: new Date() }
+                                        }, { returnDocument: 'after' });
                                         sendSseToUser(user.username, {
-                                            type: 'import_progress',
-                                            job: importJobs[importJobId]
+                                            type: 'import_progress', job: updateResult
                                         });
                                     }
                                 } catch (chunkError) {
                                     const errorMsg = `[Import Job ${importJobId}] Error on CSV chunk: ${chunkError.message}`;
                                     logger.error(errorMsg, chunkError.stack);
                                     importResults.errors.push(errorMsg);
-                                    importJobs[importJobId].errors.push(errorMsg);
+                                    await importJobsCollection.updateOne({ _id: importJobId }, {
+                                        $push: { errors: errorMsg }, $set: { updatedAt: new Date() }
+                                    });
                                     importResults.success = false;
                                 }
                                 if (i + IMPORT_CHUNK_SIZE < allProcessedData.length) {
@@ -2834,7 +2898,9 @@ export const importData = async (options, files, user) => {
                         logger.error(`[Import CSV] Error processing model ${modelNameForImport}: ${modelProcessingError.message}`);
                         importResults.errors.push(`Model ${modelNameForImport} (CSV): ${modelProcessingError.message}`);
                         importResults.success = false;
-                        importJobs[importJobId].errors.push(`Model ${modelNameForImport} (CSV): ${modelProcessingError.message}`);
+                        await importJobsCollection.updateOne({ _id: importJobId }, {
+                            $push: { errors: `Model ${modelNameForImport} (CSV): ${modelProcessingError.message}` }, $set: { updatedAt: new Date() }
+                        });
                     }
                 }
             } else if (['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(file.type) || file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
@@ -2883,37 +2949,45 @@ export const importData = async (options, files, user) => {
                         });
 
                         if (excelErrors.length > 0) {
-                            excelErrors.forEach(error => {
+                            for(let i = 0; i < excelErrors.length;++i){
+                                const error = excelErrors[i];
                                 const errorMsg = `Excel Import Error (Row ${error.row}, Column "${error.column}"): ${error.error}.`;
                                 logger.error(`[Import Job ${importJobId}] ${errorMsg}`);
                                 importResults.errors.push(errorMsg);
-                                importJobs[importJobId].errors.push(errorMsg);
-                            });
+                                await importJobsCollection.updateOne({ _id: importJobId }, {
+                                    $push: { errors: errorMsg }, $set: { updatedAt: new Date() }
+                                });
+                            }
                             importResults.success = false;
                         }
 
                         if (datasToImport && datasToImport.length > 0) {
                             const allProcessedData = convertDataTypes(datasToImport, modelDef.fields, 'excel');
 
-                            importJobs[importJobId].totalRecords = allProcessedData.length;
-                            importJobs[importJobId].status = 'processing';
+                            await importJobsCollection.updateOne({ _id: importJobId }, {
+                                $set: { totalRecords: allProcessedData.length, status: 'processing', updatedAt: new Date() }
+                            });
 
                             for (let i = 0; i < allProcessedData.length; i += IMPORT_CHUNK_SIZE) {
                                 const chunk = allProcessedData.slice(i, i + IMPORT_CHUNK_SIZE);
                                 try {
                                     const insertedIdsArray = await pushDataUnsecure(chunk, modelNameForImport, user, {});
                                     if (insertedIdsArray && insertedIdsArray.length > 0) {
-                                        importJobs[importJobId].processedRecords += insertedIdsArray.length;
+                                        const updateResult = await importJobsCollection.findOneAndUpdate({ _id: importJobId }, {
+                                            $inc: { processedRecords: insertedIdsArray.length },
+                                            $set: { updatedAt: new Date() }
+                                        }, { returnDocument: 'after' });
                                         sendSseToUser(user.username, {
-                                            type: 'import_progress',
-                                            job: importJobs[importJobId]
+                                            type: 'import_progress', job: updateResult
                                         });
                                     }
                                 } catch (chunkError) {
                                     const errorMsg = `[Import Job ${importJobId}] Error on Excel chunk: ${chunkError.message}`;
                                     logger.error(errorMsg, chunkError.stack);
                                     importResults.errors.push(errorMsg);
-                                    importJobs[importJobId].errors.push(errorMsg);
+                                    await importJobsCollection.updateOne({ _id: importJobId }, {
+                                        $push: { errors: errorMsg }, $set: { updatedAt: new Date() }
+                                    });
                                     importResults.success = false;
                                 }
                                 if (i + IMPORT_CHUNK_SIZE < allProcessedData.length) await delay(IMPORT_CHUNK_DELAY_MS);
@@ -2925,34 +2999,38 @@ export const importData = async (options, files, user) => {
                         logger.error(`[Import Excel] Error processing model ${modelNameForImport}: ${modelProcessingError.message}`);
                         importResults.errors.push(`Model ${modelNameForImport} (Excel): ${modelProcessingError.message}`);
                         importResults.success = false;
-                        importJobs[importJobId].errors.push(`Model ${modelNameForImport} (Excel): ${modelProcessingError.message}`);
+                        await importJobsCollection.updateOne({ _id: importJobId }, {
+                            $push: { errors: `Model ${modelNameForImport} (Excel): ${modelProcessingError.message}` }, $set: { updatedAt: new Date() }
+                        });
                     }
                 }
             } else {
                 importResults.errors.push("Unsupported file type. Please upload a JSON or CSV file.");
                 importResults.success = false;
-                importJobs[importJobId].errors.push("Unsupported file type. Please upload a JSON or CSV file.");
+                await importJobsCollection.updateOne({ _id: importJobId }, {
+                    $push: { errors: "Unsupported file type. Please upload a JSON or CSV file." }, $set: { updatedAt: new Date() }
+                });
             }
 
         } catch (e) {
             logger.error("Import Error (Global):", e);
             importResults.success = false;
             importResults.errors.push(e.message || "An unexpected error occurred during import.");
-            if (importJobs[importJobId]) {
-                importJobs[importJobId].errors.push(e.message || "An unexpected error occurred during import.");
-            }
+            await importJobsCollection.updateOne({ _id: importJobId }, {
+                $push: { errors: e.message || "An unexpected error occurred during import." }, $set: { updatedAt: new Date() }
+            });
         } finally {
-            if (importJobs[importJobId]) {
-                if (importResults.errors.length > 0) {
-                    importJobs[importJobId].status = 'failed';
-                } else {
-                    importJobs[importJobId].status = 'completed';
-                }
+            const finalStatus = importResults.errors.length > 0 ? 'failed' : 'completed';
+            const finalJobState = await importJobsCollection.findOneAndUpdate({ _id: importJobId }, {
+                $set: { status: finalStatus, updatedAt: new Date() }
+            }, { returnDocument: 'after' });
+
+            if (finalJobState) {
                 sendSseToUser(user.username, {
-                    type: 'import_progress',
-                    job: importJobs[importJobId]
+                    type: 'import_progress', job: finalJobState
                 });
             }
+
             if (file && file.path && fs.existsSync(file.path)) {
                 fs.unlinkSync(file.path);
             }
@@ -2960,15 +3038,17 @@ export const importData = async (options, files, user) => {
     })().catch(error => {
         logger.error(`Unhandled error in background import job ${importJobId}:`, error);
         if (importJobs[importJobId]) {
-            importJobs[importJobId].status = 'failed';
-            importJobs[importJobId].errors.push(error.message || "An unhandled error occurred in background process.");
-            sendSseToUser(user.username, {
-                type: 'import_progress',
-                job: importJobs[importJobId]
+            importJobsCollection.findOneAndUpdate({ _id: importJobId }, {
+                $set: { status: 'failed', updatedAt: new Date() },
+                $push: { errors: error.message || "An unhandled error occurred in background process." }
+            }, { returnDocument: 'after' }).then(finalJobState => {
+                if (finalJobState) {
+                    sendSseToUser(user.username, { type: 'import_progress', job: finalJobState });
+                }
             });
         }
     });
-    return ({success: true, message: "Import initiated. Check progress via SSE.", job: importJob});
+    return ({ success: true, message: "Import initiated. Check progress via SSE.", jobId: importJobId.toString() });
 }
 export const exportData = async (options, user) => {
     // Extract parameters from request body and query

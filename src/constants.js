@@ -145,6 +145,10 @@ export const kilobytes = 1024;
  */
 export const megabytes = 1024*1024;
 
+export const gigabytes = 1024*megabytes;
+
+export const terabytes = 1024*gigabytes;
+
 /**
  * Maximum bytes per second for data throttling
  * @type {number}
@@ -202,6 +206,12 @@ export const maxPackData = 5000;
 export const maxPackPreviewData = maxPackData / 10;
 
 /**
+ * Maximum total size of database data per user (in bytes)
+ * @type {number}
+ */
+export const maxTotalDataSizePerUser = 50 * megabytes; // Exemple : 50 Mo
+
+/**
  * Default maximum number of data per request
  * @type {number}
  */
@@ -219,6 +229,12 @@ export const databasePoolSize = 30;
  */
 export const tlsAllowInvalidCertificates = false;
 export const tlsAllowInvalidHostnames = false;
+
+/**
+ * Cluster configuration for data federation
+ * @type {string[]}
+ */
+export const clusterPeers = (process.env.CLUSTER_PEERS || '').split(',').filter(Boolean);
 
 /**
  * Options for the HTML sanitizer

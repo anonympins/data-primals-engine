@@ -738,10 +738,10 @@ export function DataTable({
                                         </button>)}
                                         {/* AJOUT : Bouton pour ouvrir l'éditeur de workflow */}
                                         {model.name === 'workflow' && (
-                                            <NavLink to={`?edit-workflow=${item._id}`} className="datatable-action-btn workflow-edit"
+                                            <button onClick={() => nav(`?edit-workflow=${item._id}`)} className="btn-nav datatable-action-btn workflow-edit"
                                                      data-tooltip-id="tooltipActions" data-tooltip-content={t('workflow.editor.title', "Éditeur de Workflow")}>
                                                 <FaGear />
-                                            </NavLink>
+                                            </button>
                                         )}
 
                                         <button data-tooltip-id="tooltipActions"

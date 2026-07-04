@@ -1,9 +1,18 @@
+import path from "node:path";
+import {fileURLToPath} from 'node:url';
+import process from "process";
+// Charger les variables d'environnement depuis le fichier .env
+import dotenv from "dotenv";
+
+// Charger le .env depuis la racine du projet appelant, et non depuis la lib.
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import {GameObject, Logger} from "./gameObject.js";
 import {Config} from "./config.js";
 import fs from 'node:fs'
 import express from 'express'
 import {MongoClient as InternalMongoClient} from 'mongodb'
-import process from "process";
 import {
     cookiesSecret,
     databasePoolSize,
@@ -19,18 +28,12 @@ import formidableMiddleware from 'express-formidable';
 import sirv from "sirv";
 import * as tls from "node:tls";
 import {Event} from "./events.js";
-import path from "node:path";
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import {validateModelStructure} from "./modules/data/data.validation.js";
 import { setSafeRegex } from "./filter.js";
 import safeRegexCallback from "safe-regex";
 import {createModel, deleteModels, getModels, installAllPacks} from "./modules/data/data.operations.js";
 // Constants
-
-// On définit __dirname pour obtenir le chemin absolu du répertoire courant,
-// ce qui est la méthode standard en ES Modules.
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 let dbName = Config.Get('dbName', dbNameBase);
 let caFile, certFile, keyFile;
@@ -53,49 +56,54 @@ const secureContext = tls.createSecureContext({
 
 export const dbUrl = process.env.CI ? 'mongodb://mongodb:27017' : (process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017');
 
-const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TLS.toLowerCase()));
-
-const clientOptions = {
-    maxPoolSize: databasePoolSize
-};
-
-// We add TLS options if enabled
-if (isTlsActive) {
-    clientOptions.tls = true;
-
-    // is mTLS ? (client certificate required instead of password)
-    if (process.env.CERT) {
-        clientOptions.secureContext = tls.createSecureContext({
-            ca: fs.readFileSync(process.env.CA_CERT),
-            cert: fs.readFileSync(process.env.CERT),
-            key: fs.readFileSync(process.env.CERT_KEY)
-        });
-    }else {
-        // Path to the authority certificate
-        if (process.env.CA_CERT) {
-            clientOptions.tlsCAFile = process.env.CA_CERT;
+export const InitMongo = () => {
+    const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TLS.toLowerCase()));
+    const clientOptions = {
+        maxPoolSize: databasePoolSize,
+        authSource: 'admin'
+    };
+    if (isTlsActive) {
+        clientOptions.tls = true;
+        console.log("TLS ACTIVE");
+        // is mTLS ? (client certificate required instead of password)
+        if (process.env.CERT) {
+            clientOptions.secureContext = tls.createSecureContext({
+                ca: fs.readFileSync(process.env.CA_CERT),
+                cert: fs.readFileSync(process.env.CERT),
+                key: fs.readFileSync(process.env.CERT_KEY)
+            });
+        }else {
+            // Path to the authority certificate
+            if (process.env.CA_CERT) {
+                clientOptions.tlsCAFile = process.env.CA_CERT;
+            }
+            // Path to the certificate key
+            if (process.env.CERT_KEY) {
+                clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
+            }
         }
-        // Path to the certificate key
-        if (process.env.CERT_KEY) {
-            clientOptions.tlsCertificateKeyFile = process.env.CERT_KEY;
+        if (tlsAllowInvalidCertificates) {
+            clientOptions.tlsAllowInvalidCertificates = true;
+            console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidCertificates is ON. Server certificate will not be validated.");
         }
+        if (tlsAllowInvalidHostnames) {
+            clientOptions.tlsAllowInvalidHostnames = true;
+            console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidHostnames is ON. Server hostname will not be validated.");
+        }
+    }else{
+        console.log("🚨[SEC] TLS INACTIVE", dbUrl, clientOptions);
     }
-    if (tlsAllowInvalidCertificates) {
-        clientOptions.tlsAllowInvalidCertificates = true;
-        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidCertificates is ON. Server certificate will not be validated.");
-    }
-    if (tlsAllowInvalidHostnames) {
-        clientOptions.tlsAllowInvalidHostnames = true;
-        console.warn("🚨 [SECURITY WARNING] tlsAllowInvalidHostnames is ON. Server hostname will not be validated.");
-    }
+    return new InternalMongoClient(dbUrl, clientOptions);
 }
 
-export const MongoClient = new InternalMongoClient(dbUrl, clientOptions);
-
+export let MongoClient = null;
 
 // Database Name
 export const MongoDatabase = () => {
     let dbName = Config.Get('dbName', dbNameBase);
+    if( !MongoClient)
+        MongoClient = InitMongo();
+    console.log('SELECTING ' + dbName + " database.");
     return MongoClient.db(dbName);
 }
 

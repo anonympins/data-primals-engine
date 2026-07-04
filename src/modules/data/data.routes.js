@@ -4,20 +4,21 @@ import * as util from 'node:util';
 import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {isDemoUser, isLocalUser} from "../../data.js";
 import {
-    getHost,
+    getHost, 
     install,
+    clusterPeers, // Importer la configuration du cluster
     maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
     maxMagnetsModels,
-    maxModelsPerUser, maxPackData, maxPackPreviewData
+    maxModelsPerUser, maxPackData, maxPackPreviewData, maxStringLength
 } from "../../constants.js";
 import {datasCollection, getCollection, getCollectionForUser, isObjectId, modelsCollection} from "../mongodb.js";
 import {countKeys, parseSafeJSON, safeAssignObject, uuidv4} from "../../core.js";
 import {Event} from "../../events.js";
 import fs from "node:fs";
 import i18n from "../../i18n.js";
-import {executeSafeJavascript, triggerWorkflows} from "../workflow.js";
-import {openaiJobModel} from "../../openai.jobs.js";
+import { executeSafeJavascript, triggerWorkflows } from "../workflow.js";
+import { generateModelViaAI } from "../../ai.jobs.js";
 import {getS3Stream, getUserS3Config} from "../bucket.js";
 import {generateLimiter, hasPermission, middlewareAuthenticator, userInitiator} from "../user.js";
 import {assistantGlobalLimiter} from "../assistant/assistant.js";
@@ -27,7 +28,7 @@ import {tutorialsConfig} from "../../../client/src/tutorials.js";
 import {getResource, handleDemoInitialization} from "./data.js";
 import process from "node:process"; 
 import {throttleMiddleware} from "../../middlewares/throttle.js";
-import {importJobs, modelsCache, runImportExportWorker} from "./data.core.js";
+import {modelsCache} from "./data.core.js";
 import {validateModelData, validateModelStructure} from "./data.validation.js";
 import {
     deleteData,
@@ -39,16 +40,97 @@ import {
     importData,
     insertData,
     installPack,
-    patchData,
+    patchData, pushDataUnsecure,
     searchData
 } from "./data.operations.js";
 import { dumpUserData, loadFromDump } from "./data.backup.js";
 import { invalidateModelCache } from "./data.operations.js";
+import { findFirstAvailableProvider, getAIProvider } from "../assistant/providers.js";
+import { isProxiedRequest, proxyRequest } from './data.cluster.js';
+import {providers} from "../assistant/constants.js";
 
 let logger, engine;
 
+// ANCIEN : Stockage en mémoire locale, non scalable
+// RESTE UTILE : Chaque instance garde en mémoire SES propres connexions.
 const sseConnections = new Map();
+/**
+ * Route interne pour la fédération : vérifie si une valeur pour un champ unique existe.
+ */
+async function checkUniqueness(req, res) {
+    const { model: modelName, field, value, user: username } = req.query;
 
+    try {
+        // On cherche dans la collection de l'utilisateur spécifié
+        const user = await engine.userProvider.findUserByUsername(username);
+        if (!user) {
+            return res.status(404).json({ exists: false, error: 'User not found' });
+        }
+        const collection = await getCollectionForUser(user);
+
+        const query = {
+            _model: modelName,
+            _user: username,
+            [field]: value
+        };
+
+        const doc = await collection.findOne(query, { projection: { _id: 1 } });
+        res.json({ exists: !!doc });
+
+    } catch (error) {
+        res.status(500).json({ exists: false, error: error.message });
+    }
+}
+
+// Alternative aux Change Streams via Polling pour la communication inter-serveurs.
+// Cette méthode ne nécessite pas de replica set MongoDB.
+async function initializeSseScaling() {
+    try {
+        const notificationsCollection = getCollection('sse_notifications');
+        // L'index TTL est conservé pour nettoyer automatiquement les notifications qui n'auraient pas été traitées.
+        await notificationsCollection.createIndex({ "createdAt": 1 }, { expireAfterSeconds: 60 });
+
+        const pollingInterval = 2000; // Interroger toutes les 2 secondes.
+
+        const pollForNotifications = async () => {
+            const connectedUsers = Array.from(sseConnections.keys());
+            // On écoute toujours, même sans utilisateur connecté, pour les messages de broadcast.
+            if (connectedUsers.length === 0) {
+                return; // Rien à faire si personne n'est connecté à cette instance.
+            }
+
+            try {
+                const notifications = await notificationsCollection.find({
+                    targetUser: { $in: connectedUsers }
+                }).toArray();
+
+                if (notifications.length > 0) {
+                    for (const notif of notifications) {
+                        if (notif.targetUser) {
+                            // C'est une notification SSE standard pour un utilisateur
+                            const res = sseConnections.get(notif.targetUser);
+                            if (res && !res.writableEnded) {
+                                logger.debug(`[SSE-Polling] Sending notification to user ${notif.targetUser} on this instance.`);
+                                const ssePlugin = await Event.Trigger("sendSseToUser", "system", "calls", notif.payload) || notif.payload;
+                                res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
+                            }
+                        }
+                    }
+                    // Supprimer les notifications traitées pour ne pas les renvoyer.
+                    const idsToDelete = notifications.map(n => n._id);
+                    await notificationsCollection.deleteMany({ _id: { $in: idsToDelete } });
+                }
+            } catch (pollError) {
+                logger.error('[SSE-Polling] Error during notification polling:', pollError);
+            }
+        };
+
+        setInterval(pollForNotifications, pollingInterval);
+        logger.info(`[SSE-Polling] Initialized with a ${pollingInterval}ms interval. Real-time is now scalable without replica set.`);
+    } catch (error) {
+        logger.error('[SSE-Polling] Could not initialize polling for SSE scaling. Real-time notifications will not be scalable.', error);
+    }
+}
 
 
 async function logApiRequest(req, res, user, startTime, responseBody = null, error = null) {
@@ -137,12 +219,29 @@ const middlewareLogger = async (req, res, next) => {
  * @returns {boolean} - True si l'événement a été envoyé, false sinon.
  */
 export async function sendSseToUser(username, data) {
+    // On essaie toujours d'envoyer directement si l'utilisateur est sur la même instance. C'est plus rapide.
     const res = sseConnections.get(username);
     if (res) {
         const ssePlugin = await Event.Trigger("sendSseToUser", "system", "calls", data) || data;
         res.write(`data: ${JSON.stringify(ssePlugin)}\n\n`);
         return true;
     }
+
+    // NOUVEAU : Si l'utilisateur n'est pas sur cette instance, on insère un document
+    // dans MongoDB. Le Change Stream notifiera toutes les instances.
+    try {
+        const notificationsCollection = getCollection('sse_notifications');
+        await notificationsCollection.insertOne({
+            _model: 'sse_notification', // Pour filtrer dans le Change Stream
+            targetUser: username,
+            payload: data,
+            createdAt: new Date()
+        });
+        return true; // On suppose que le message sera délivré par une autre instance.
+    } catch (error) {
+        logger.error(`[SSE-MongoDB] Failed to insert notification for user ${username}:`, error);
+    }
+
     return false;
 }
 
@@ -304,21 +403,130 @@ export async function middlewareEndpointAuthenticator(req, res, next) {
         res.status(500).json({success: false, message: 'Internal server error during endpoint authentication.'});
     }
 }
+// C:/Dev/data-primals-engine/src/modules/data/data.routes.js (à ajouter près des autres fonctions utilitaires)
+
+/**
+ * Calcule la taille actuelle de la base de données pour un utilisateur et vérifie si une nouvelle insertion dépasserait la limite.
+ * @param {object} user - L'objet utilisateur.
+ * @param {number} sizeOfNewData - La taille approximative des nouvelles données en octets.
+ * @returns {Promise<void>}
+ */
+async function checkUserDatabaseStorage(user, sizeOfNewData) {
+    // La limite est maintenant récupérée depuis le plan de l'utilisateur ou une config par défaut
+    const limit = await engine.userProvider.getUserStorageLimit(user);
+
+    // Si la limite est à 0 ou non définie, on ne vérifie pas.
+    if (!limit) return;
+
+    // On lit directement la valeur dénormalisée sur l'objet utilisateur.
+    // req.me doit être rafraîchi pour avoir la dernière valeur, ou on peut le relire.
+    // Pour plus de sûreté, relisons l'utilisateur.
+    const usersCollection = getCollection("users"); // En supposant que vous avez une collection 'users'
+    const freshUser = await usersCollection.findOne({ username: user.username });
+    const currentSize = freshUser?.storageUsed || 0;
+
+    logger.debug(`[Storage Check] User: ${user.username}, Current: ${currentSize}, New: ${sizeOfNewData}, Limit: ${limit}`);
+
+    if (currentSize + sizeOfNewData > limit) {
+        // On peut ajouter un peu de contexte pour l'utilisateur
+        const currentSizeMb = (currentSize / 1024 / 1024).toFixed(2);
+        const limitMb = (limit / 1024 / 1024).toFixed(2);
+        throw new Error(i18n.t('api.data.storageLimitExceeded',
+            `L'ajout de ces données dépasserait votre limite de stockage (${currentSizeMb} Mo / ${limitMb} Mo).`
+        ));
+    }
+}
 
 export async function registerRoutes(defaultEngine){
 
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
+    // NOUVEAU : Initialisation du scaling SSE (via MongoDB Change Streams)
+    initializeSseScaling();
+
     const m = Config.Get('maxBytesPerSecondThrottleData', maxBytesPerSecondThrottleData)
     const throttle = throttleMiddleware(m);
 
     let userMiddlewares = await engine.userProvider.getMiddlewares();
 
+    // --- NOUVEL ENDPOINT INTERNE POUR LA RÉPLICATION ---
+    const internalAuth = (req, res, next) => {
+        const token = process.env.INTERNAL_CLUSTER_TOKEN;
+        if (!token || req.headers.authorization !== `Bearer ${token}`) {
+            return res.status(403).json({ error: 'Forbidden: Invalid internal token.' });
+        }
+        next();
+    };
+
+    engine.post('/api/internal/replicate', [internalAuth], async (req, res) => {
+        const { operation, modelName, user, payload } = req.fields;
+        logger.info(`[Replication] Received replication job: ${operation} on ${modelName} for ${user.username}`);
+
+        try {
+            // IMPORTANT: Le dernier paramètre `false` désactive le déclenchement de workflow
+            // pour éviter une boucle de réplication infinie.
+            const collection = await getCollectionForUser(user);
+
+            switch (operation) {
+            case 'insert':
+                // --- LWW: On ne fait l'insert que si le document n'existe pas déjà ---
+                // On vérifie si un document avec le même hash existe déjà.
+                const incomingDoc = payload.data[0];
+                const existingDoc = await collection.findOne({ _hash: incomingDoc._hash, _model: modelName, _user: user.username });
+                const incomingTimestampInsert = new Date(incomingDoc._lastModifiedAt);
+
+                if (existingDoc && new Date(existingDoc._lastModifiedAt) >= incomingTimestampInsert) {
+                    // Une version plus récente ou identique existe déjà, on ignore l'insert.
+                    logger.warn(`[Replication-LWW] Stale insert for ${modelName} with hash ${incomingDoc._hash} ignored. Local: ${existingDoc._lastModifiedAt.toISOString()}, Incoming: ${incomingTimestampInsert.toISOString()}`);
+                } else if (existingDoc) {
+                    // Une version plus ancienne existe, on la remplace.
+                    await collection.replaceOne({ _id: existingDoc._id }, incomingDoc);
+                } else {
+                    await collection.insertOne(incomingDoc);
+                }
+                break;
+            case 'update':
+                // --- LWW: Logique de comparaison des timestamps ---
+                const docToUpdate = await collection.findOne(payload.filter);
+                const incomingTimestamp = new Date(payload.data._lastModifiedAt);
+
+                if (!docToUpdate) {
+                    // Si le document n'existe pas localement, on le crée.
+                    // Cela peut arriver si des réplications arrivent dans le désordre.
+                    logger.info(`[Replication-LWW] Document ${payload.filter._id} not found locally. Inserting replicated version.`);
+                    await pushDataUnsecure([payload.data], modelName, user, {});
+                } else if (docToUpdate._lastModifiedAt && new Date(docToUpdate._lastModifiedAt) >= incomingTimestamp) {
+                    // La version locale est plus récente ou identique. On ignore la réplication.
+                    logger.warn(`[Replication-LWW] Stale update for ${modelName}:${payload.filter._id} ignored. Local: ${docToUpdate._lastModifiedAt.toISOString()}, Incoming: ${incomingTimestamp.toISOString()}`);
+                } else {
+                    // La version entrante est plus récente. On applique la mise à jour.
+                    // On utilise une opération de bas niveau pour éviter de redéclancher toute la logique de editData.
+                    await collection.replaceOne(payload.filter, payload.data);
+                }
+                break;
+            case 'delete':
+                // --- LWW: Pour la suppression, on peut la considérer comme l'état final ---
+                // Si un document a été supprimé sur le maître, il doit l'être partout,
+                // même si une réplique a une version "plus récente" (ce qui serait un état incohérent).
+                // La suppression l'emporte.
+                await deleteData(modelName, payload.ids, user, false, false);
+                break;
+            default:
+                throw new Error(`Unknown replication operation: ${operation}`);
+            }
+            res.status(200).json({ success: true });
+        } catch (error) {
+            logger.error(`[Replication] Failed to apply replication job: ${error.message}`, error.stack);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // NOUVEL ENDPOINT : Invalidation de cache interne au cluster
     engine.all('/api/actions/:user/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.all('/api/actions/:path', [middlewareAuthenticator, middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
-
+    engine.get('/api/data/check-uniqueness', [middlewareAuthenticator, userInitiator], checkUniqueness);
     engine.post('/api/data/validate', [middlewareAuthenticator, userInitiator, middlewareLogger], validateDataRealtime);
     engine.post('/api/magnets', [middlewareAuthenticator, userInitiator], async (req, res) => {
         const user = req.me;
@@ -550,34 +758,39 @@ export async function registerRoutes(defaultEngine){
     engine.get('/api/import/progress/:jobId', middlewareAuthenticator, async (req, res) => {
         const { jobId } = req.params;
         const user = req.me;
-
-        // Vérification d'autorisation: s'assurer que l'utilisateur est bien le propriétaire de la tâche
-        if (!importJobs[jobId] || importJobs[jobId].userId !== user.username) {
-            return res.status(403).send('Forbidden');
-        }
+        const importJobsCollection = getCollection('import_jobs');
 
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no'); // Important pour désactiver le buffering de certains proxys (ex: Nginx)
 
-        const sendProgress = () => {
-            const job = importJobs[jobId];
-            if (job) {
-                res.write(`data: ${JSON.stringify(job)}\n\n`);
-                if (job.status === 'completed' || job.status === 'failed') {
-                    res.end(); // Terminer le stream lorsque la tâche est terminée
-                    delete importJobs[jobId]; // Nettoyer la tâche de la mémoire
+        const sendProgress = async () => {
+            try {
+                const job = await importJobsCollection.findOne({ _id: new ObjectId(jobId), userId: user.username });
+
+                if (res.writableEnded) return;
+
+                if (job) {
+                    res.write(`data: ${JSON.stringify(job)}\n\n`);
+                    if (job.status === 'completed' || job.status === 'failed') {
+                        res.end(); // Terminer le stream lorsque la tâche est terminée
+                    }
+                } else {
+                    // Si la tâche n'est plus là (déjà nettoyée par le TTL ou jamais existé/pas autorisé)
+                    res.write(`data: ${JSON.stringify({ status: 'not_found', message: 'Job not found or already completed.' })}\n\n`);
+                    res.end();
                 }
-            } else {
-                // Si la tâche n'est plus là (déjà nettoyée ou jamais existé)
-                res.write(`data: ${JSON.stringify({ status: 'not_found', message: 'Job not found or already completed.' })}\n\n`);
+            } catch (error) {
+                logger.error(`[SSE Import Progress] Error fetching job ${jobId}:`, error);
+                if (res.writableEnded) return;
+                res.write(`data: ${JSON.stringify({ status: 'error', message: 'Failed to fetch job status.' })}\n\n`);
                 res.end();
             }
         };
 
         // Envoyer la progression initiale immédiatement
-        sendProgress();
+        await sendProgress();
 
         // Mettre en place un intervalle pour envoyer des mises à jour régulières
         // Pour une application plus complexe, vous pourriez utiliser un EventEmitter
@@ -586,6 +799,9 @@ export async function registerRoutes(defaultEngine){
 
         // Nettoyer l'intervalle lorsque le client se déconnecte
         req.on('close', () => {
+            if (res.writableEnded) {
+                clearInterval(intervalId);
+            }
             clearInterval(intervalId);
             logger.debug(`SSE client disconnected for job ${jobId}`);
         });
@@ -698,8 +914,27 @@ export async function registerRoutes(defaultEngine){
                 logger.info(`[AI Create] Génération d'un nouveau modèle depuis le prompt.`);
             }
 
-            // On passe le prompt final (soit de création, soit d'édition) à l'IA
-            const generatedModels = await openaiJobModel(lang, finalPrompt, history, modelNames);
+            // --- NOUVELLE LOGIQUE : Trouver un fournisseur IA disponible ---
+            const providerInfo = await findFirstAvailableProvider(user);
+            if (!providerInfo) {
+                return res.status(500).json({ success: false, error: i18n.t('assistant.error.noApiKey', "Aucune clé API pour un fournisseur d'IA n'a été configurée.") });
+            }
+
+            const llm = await getAIProvider(
+                providerInfo.provider,
+                // Utiliser le modèle de génération défini pour ce fournisseur
+                providers[providerInfo.provider]?.generationModel || 'gpt-4o-mini',
+                providerInfo.apiKey,
+                true // Request JSON mode
+            );
+
+            if (!llm) {
+                return res.status(500).json({ success: false, error: "Impossible d'initialiser le fournisseur IA." });
+            }
+            // --- FIN NOUVELLE LOGIQUE ---
+
+            // On passe le prompt final et l'instance LLM à la fonction de génération
+            const generatedModels = await generateModelViaAI(llm, lang, finalPrompt, history, modelNames);
 
             if (typeof(generatedModels) !== 'object' || !generatedModels.models) {
                 console.error("La réponse de l'IA n'est pas un objet avec une clé 'models':", generatedModels);
@@ -762,11 +997,23 @@ export async function registerRoutes(defaultEngine){
         const modelName = body.model; // Les données à insérer/mettre à jour (assurez-vous de valider et nettoyer ces données côté client et serveur !)
         const data = body.data || (body._data && JSON.parse(body._data));
 
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return; // La requête a été relayée, on s'arrête ici.
+        }
+        // --- FIN CLUSTER ---
+
         try {
             const model = await getModel(modelName, req.me);
             if( model.fields.some(f => f.type ==='password'))
                 req.hideApiLogs = true;
-            const json = await insertData(modelName, data, req.files, req.me);
+
+            // --- NOUVELLE VÉRIFICATION DE LA TAILLE ---
+            const newDataSize = Buffer.byteLength(JSON.stringify(data), 'utf8');
+            await checkUserDatabaseStorage(req.me, newDataSize);
+            // --- FIN DE LA VÉRIFICATION ---
+
+            const json = await insertData(modelName, data, req.files, req.me, true, false, true, req);
             res.status(200).json(json);
         } catch (e) {
             res.status(400).json({ success: false, error: e.message });
@@ -774,25 +1021,40 @@ export async function registerRoutes(defaultEngine){
     });
 
     engine.post('/api/data/search', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, ...userMiddlewares, setTimeoutMiddleware(30000)], async (req, res) => {
-        const { pack } = req.fields;
+        const { pack, federated } = req.fields;
+        const user = req.me;
+        // On parse les options de pagination et de tri
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 30;
+        const sort = req.query.sort || '_id:DESC';
+
+        const searchOptions = {...req.query, model: req.fields.model || req.query.model, filter: req.fields.filter, pack, page, limit, sort};
+        
+        // --- CLUSTER: Proxy de la lecture si l'on shard par utilisateur ---
+        // On suppose que `proxyReadRequest` utilise un hachage consistant sur `req.me.username`
+        // pour trouver le bon noeud et lui transférer la requête.
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return; // La requête a été relayée, on s'arrête ici.
+        }
+        // --- FIN CLUSTER ---
 
         try {
-            const {data, count} = await searchData({...req.query, model: req.fields.model || req.query.model, filter: req.fields.filter, pack}, req.me);
+            // --- Comportement standard : recherche locale ---
+            // Si la requête arrive ici, c'est que ce nœud est le maître pour l'utilisateur,
+            // ou que nous ne sommes pas dans un environnement clusterisé.
+            // La logique de recherche fédérée "fan-out" a été supprimée.
+            const {data, count} = await searchData(searchOptions, user);
 
             if( req.query.attachment ) {
-                res.attachment(req.query.attachment);
-                res.json(data.map(d=>{
+            res.attachment(req.query.attachment);
+                res.json(data.map(d => {
                     let fd = {...d};
-                    Object.keys(d).forEach(di =>{
-                        if (['_model', '_user'].includes(di)){
-                            delete fd[di];
-                        }
-                    });
+                    delete fd['_model'];
+                    delete fd['_user'];
                     return fd;
                 }));
-            }else
-            {
-                res.json({data, count: count});
+            } else {
+                res.json({data, count});
             }
         } catch (error) {
             logger.error(error);
@@ -802,6 +1064,13 @@ export async function registerRoutes(defaultEngine){
 
     engine.delete('/api/data/:ids', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
         const ids = req.params.ids.split(',');
+
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await deleteData(req.fields.model, ids, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
@@ -811,6 +1080,13 @@ export async function registerRoutes(defaultEngine){
     });
 
     engine.delete('/api/data', [throttle, middlewareAuthenticator, userInitiator, middlewareLogger, setTimeoutMiddleware(15000)], async (req, res) => {
+        
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await deleteData(req.fields.model, req.fields.filter, req.me);
         if( r.error) {
             return res.status(r.statusCode || 400).json(r);
@@ -852,6 +1128,13 @@ export async function registerRoutes(defaultEngine){
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
         const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
         if (r.error) {
             res.status(400).json(r);
@@ -865,6 +1148,13 @@ export async function registerRoutes(defaultEngine){
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
             const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+            // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+            if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+                return;
+            }
+            // --- FIN CLUSTER ---
+
             const r = await editData(req.fields.model, filter || hash, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);
@@ -879,6 +1169,13 @@ export async function registerRoutes(defaultEngine){
         const filter = req.fields.filter;
         const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
         const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+        // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+        if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+            return;
+        }
+        // --- FIN CLUSTER ---
+
         const r = await patchData(req.fields.model, filter || hash, data, req.files, req.me);
         if (r.error) {
             res.status(400).json(r);
@@ -892,6 +1189,13 @@ export async function registerRoutes(defaultEngine){
             const filter = req.fields.filter;
             const hash = req.params.id; // Récupérer l'identifiant de la ressource à modifier
             const data = req.fields.data || (req.fields._data && JSON.parse(req.fields._data));
+
+            // --- CLUSTER: Proxy de l'écriture si nécessaire ---
+            if (!isProxiedRequest(req) && await proxyRequest(req, res, req.me.username)) {
+                return;
+            }
+            // --- FIN CLUSTER ---
+
             const r = await editData(req.fields.model, filter || { "$eq": ["$_id", { "$toObjectId": hash}]}, data, req.files, req.me)
             if (r.error)
                 res.status(400).json(r);

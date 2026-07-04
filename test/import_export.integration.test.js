@@ -130,7 +130,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
 
             // Vérifications du résultat de l'opération
             expect(result.success).toBe(true);
-            expect(result.job.jobId).not.toBeNull();
+            expect(result.jobId).not.toBeNull();
 
             await sleep(5000);
 
@@ -164,7 +164,7 @@ describe('Intégration des fonctions d\'Import/Export', () => {
 
             // Vérifications du résultat
             expect(result.success).toBe(true);
-            expect(result.job.jobId).not.toBeNull();
+            expect(result.jobId).not.toBeNull();
 
             await sleep(5000);
             // Vérification en base de données
@@ -200,7 +200,7 @@ Valide K,SKU-A,40,true`;
 
             // L'initiation du job doit réussir
             expect(result.success).toBe(true);
-            expect(result.job.jobId).not.toBeNull();
+            expect(result.jobId).not.toBeNull();
 
             await sleep(5000);
             // Vérifier que seule les données valides sont en BDD

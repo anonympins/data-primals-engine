@@ -266,6 +266,10 @@ export async function onInit(defaultEngine) {
     engine.get('/api/backup/restore', [throttle, middlewareAuthenticator, userInitiator], async (req, res) => {
         const { token, username } = req.query;
 
+        if (!((req.me?.roles || []).includes("admin"))) {
+            return res.status(403).json({success: false, error: 'Cannot dump data.'})
+        }
+
         if (!token || !username) {
             return res.status(400).json({ error: 'Token and username are required.' });
         }

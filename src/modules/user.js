@@ -358,8 +358,14 @@ export async function getSmtpConfig(user) {
         acc[variable.name.replace('SMTP_', '').toLowerCase()] = variable.value;
         return acc;
     }, {});
+
     if( !smtpConfig.port )
         smtpConfig.port = cfg.port;
-
+    if( !smtpConfig.host )
+        smtpConfig.host = cfg.host;
+    if( !smtpConfig.user )
+        smtpConfig.user = cfg.user;
+    if( !smtpConfig.pass )
+        smtpConfig.pass = cfg.pass;
     return smtpConfig;
 }

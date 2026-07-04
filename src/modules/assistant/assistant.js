@@ -2,7 +2,7 @@ import { getCollectionForUser, modelsCollection } from "../mongodb.js";
 import { Logger } from "../../gameObject.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { searchData, patchData, deleteData, insertData } from "../data/index.js";
-import { getAIProvider } from "./providers.js";
+import { getAIProvider, findFirstAvailableProvider } from "./providers.js";
 import {providers} from "./constants.js";
 import {Config} from "../../config.js";
 import { Event } from "../../events.js";
@@ -20,13 +20,14 @@ export const assistantGlobalLimiter = rateLimit({
     standardHeaders: true, // Active les en-têtes standard `RateLimit-*`
     legacyHeaders: false, // Désactive les anciens en-têtes `X-RateLimit-*`
     message: { success: false, message: "Trop de requêtes globales envoyées à l'assistant. Veuillez réessayer plus tard." },
-    skip: (req) => {
-        return !!req.fields?.confirmedAction;
-    }
 });
 
 async function searchModels(query, user) {
-    if (!query) return { main: [], related: [] };
+    // Validation stricte du type pour éviter l'injection via objet dans RegExp
+    if (typeof query !== 'string' || !query) {
+        return { main: [], related: [] };
+    }
+
     const searchRegex = new RegExp(query, 'i');
     const mainModels = await modelsCollection.find({
         $or: [{ _user: user.username }, { _user: { $exists: false } }],
@@ -375,6 +376,15 @@ async function executeTool(action, params, user, allModels) {
 export async function handleChatRequest(params, user, sendEvent = null) {
 
     const { message, history, provider, confirmedAction } = params;
+
+    // Validation des types pour prévenir NoSQLi (object injection)
+    if (provider && typeof provider !== 'string') {
+        throw new Error("Paramètre 'provider' invalide.");
+    }
+    if (message && typeof message !== 'string') {
+        throw new Error("Paramètre 'message' invalide.");
+    }
+
     const allModels = await modelsCollection.find({$or: [{_user: {$exists: false}}, {_user: user.username}]}).toArray();
 
     // --- GESTION D'UNE ACTION CONFIRMÉE ---
@@ -413,25 +423,23 @@ export async function handleChatRequest(params, user, sendEvent = null) {
     let llmOptions = {  };
     try {
         if (sendEvent) sendEvent('status', { message: i18n.t('assistant.initializing', "Initialisation de l'assistant...") });
-        const p =  Config.Get('assistant.provider', provider ||'OpenAI');
-        const envKeyName = providers[p].key;
-        if (!envKeyName) return {success: false, message: `Fournisseur IA non supporté : ${p}`};
 
-        const envCollection = await getCollectionForUser(user);
-        const userEnvVar = await envCollection.findOne({_model: 'env', name: envKeyName, _user: user.username});
-        const apiKey = userEnvVar?.value || process.env[envKeyName];
+        const found = await findFirstAvailableProvider(user, provider);
 
-        if (!apiKey) {
-            const errorMsg = `Clé API pour ${p} (${envKeyName}) non trouvée.`;
+        if (!found) {
+            const errorMsg = i18n.t('assistant.error.noApiKey', "Aucune clé API pour un fournisseur d'IA n'a été configurée.");
             if (sendEvent) {
                 sendEvent('error', { success: false, message: errorMsg });
                 return;
             }
             return {success: false, message: errorMsg};
         }
+        
+        const selectedProvider = found.provider;
+        const apiKey = found.apiKey;
 
-        const model = Config.Get('assistant.model', providers[p]?.defaultModel);
-        llmOptions = { provider: p, model, apiKey };
+        const model = Config.Get('assistant.model', providers[selectedProvider]?.defaultModel);
+        llmOptions = { provider: selectedProvider, model, apiKey };
         llm = await getAIProvider(llmOptions.provider, llmOptions.model, llmOptions.apiKey);
     } catch (initError) {
         logger.error(`[Assistant] Erreur d'initialisation du client IA: ${initError.message}`);
@@ -483,33 +491,29 @@ export async function handleChatRequest(params, user, sendEvent = null) {
             }
         }
         if (sendEvent) sendEvent('llm_end', {});
+        logger.debug(`[Assistant] AI raw output received: "${llmOutput}"`); // Added log for raw AI output
 
         // Parsing JSON robuste pour un objet ou un tableau d'objets
-        let commands;
+        let commands = [];
         try {
-            // Tente d'extraire un objet JSON ou un tableau JSON de la réponse.
-            const jsonRegex = /^\s*([\[\{])[\s\S]*([\]\}])\s*$/;
+            // Extrait la structure JSON la plus large possible (du premier [ ou { au dernier ] ou })
+            const jsonRegex = /(```json)?([\[\{][\s\S]*[\]\}])/;
             const match = llmOutput.match(jsonRegex);
 
-            if (match && match[0]) {
+            if (match) {
                 const parsed = parseSafeJSON(match[0]);
                 if (Array.isArray(parsed)) {
                     commands = parsed;
                 } else if (typeof parsed === 'object' && parsed !== null) {
                     commands = [parsed];
-                } else {
-                    throw new Error("Le JSON parsé n'est ni un objet ni un tableau.");
                 }
-            } else {
-                // Aucun JSON trouvé, c'est probablement une réponse textuelle simple.
-                const result = { success: true, displayMessage: llmOutput };
-                if (sendEvent) {
-                    sendEvent('final_result', result);
-                    return;
-                }
-                return result;
             }
 
+            if (commands.length === 0) {
+                throw new Error("No valid JSON structure found in AI response.");
+            }
+
+            logger.debug(`[Assistant] Parsed commands: ${JSON.stringify(commands)}`); // Added log for parsed commands
             // Valider chaque commande
             for (const cmd of commands) {
                 if (!cmd.action || !cmd.params) {
@@ -548,8 +552,8 @@ export async function handleChatRequest(params, user, sendEvent = null) {
                 toolResults.push({ action, result: toolResult });
                 continue; // Passe à la commande suivante sans vérifier si c'est une action finale
             }
-
-            // Actions finales
+            // Toutes les actions passent maintenant par l'événement OnChatAction
+            logger.debug(`[Assistant] Triggering OnChatAction for action: ${action}`); // Added log before triggering OnChatAction
             const res = await Event.Trigger('OnChatAction', 'event', 'user', action, parsedParams, command, llmOptions, user, params);
 
             if (res) {
@@ -560,12 +564,10 @@ export async function handleChatRequest(params, user, sendEvent = null) {
                     finalActionResults.push(res);
                 }
             } else {
-                // Si l'action n'est reconnue par aucune des logiques ci-dessus
-                logger.warn(`[Assistant] Action non reconnue reçue de l'IA: ${action}`);
-                finalActionResults.push({
-                    success: true,
-                    displayMessage: i18n.t('assistant.unknownAction', "Désolé, je ne comprends pas la commande '{{action}}'.", { action })
-                });
+                // Si l'action n'est reconnue par aucun écouteur, on envoie un feedback à l'IA 
+                // au lieu de couper court. Cela lui permet de corriger sa commande.
+                logger.warn(`[Assistant] Action non gérée par OnChatAction: ${action}`);
+                toolResults.push({ action, result: `Erreur: L'action '${action}' n'est pas reconnue par le système. Veuillez utiliser une action valide.` });
             }
         }
 
@@ -618,15 +620,24 @@ export async function handleChatRequest(params, user, sendEvent = null) {
  */
 async function executeConfirmedAction(action, params, user) {
     logger.info(`[Assistant] Exécution de l'action confirmée par l'utilisateur: ${action}`);
+    
+    if (typeof action !== 'string' || !params || typeof params !== 'object') {
+        throw new Error("Format d'action ou de paramètres invalide.");
+    }
+
+    const modelName = params.model;
+    if (typeof modelName !== 'string') {
+        throw new Error("Le nom du modèle doit être une chaîne de caractères.");
+    }
+
     switch (action) {
     case 'post':
         // Note : on passe false pour ne pas redéclencher de workflow ici
-        return await insertData(params.model, params.data, {}, user, false, false);
+        return await insertData(modelName, params.data, {}, user, false, false);
     case 'update':
-        return await patchData(params.model, params.filter, params.data, {}, user);
+        return await patchData(modelName, params.filter, params.data, {}, user);
     case 'delete':
-        // Le modèle est dans les params, pas besoin de le passer en argument sparé
-        return await deleteData(params.model, params.filter, user);
+        return await deleteData(modelName, params.filter, user);
     default:
         throw new Error(`Action confirmée non supportée: ${action}`);
     }
@@ -714,6 +725,14 @@ export async function onInit(engine) {
         // La validation ne s'applique que s'il n'y a pas d'action confirmée
         if (!confirmedAction) {
             if (typeof (message) !== 'string' || !message.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["message"])
+                });
+            }
+        } else {
+            // Validation de la structure de l'action confirmée
+            if (typeof confirmedAction !== 'object' || typeof confirmedAction.action !== 'string') {
                 return res.status(400).json({
                     success: false,
                     message: i18n.t('api.validate.requiredFieldString', "Le champ '{{0}}' est requis et doit être une chaîne de caractères.", ["message"])

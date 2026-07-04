@@ -12,10 +12,11 @@ import * as dataOperations from '../src/modules/data/data.operations.js';
 // On mock le nouveau module 'providers.js' qui contient la fonction que l'on veut surcharger.
 vi.mock('../src/modules/assistant/providers.js', () => ({
     getAIProvider: vi.fn(),
+    findFirstAvailableProvider: vi.fn().mockResolvedValue({ provider: 'OpenAI', apiKey: 'mock-api-key' }),
 }));
 
 // On importe la version mockée de getAIProvider
-import { getAIProvider } from '../src/modules/assistant/providers.js';
+import { getAIProvider, findFirstAvailableProvider } from '../src/modules/assistant/providers.js';
 
 let testUser;
 let modelsCollection;

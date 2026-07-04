@@ -526,18 +526,27 @@ describe('Data integration tests (CRUD, validation...)', () => {
             await purge();
         });
 
-        it('devrait rejeter une modification qui viole une contrainte unique (stringUnique)', async ({skip}) => {
-            const { currentTestUser, comprehensiveTestModelDefinition, relatedModelDefinition, purge } = await initTest();
-            // Insert another doc to create the unique conflict
+        it('devrait rejeter une modification qui viole une contrainte unique (stringUnique)', async () => {
+            const { currentTestUser, comprehensiveTestModelDefinition, purge } = await initTest();
 
-            await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'Other', stringUnique: 'UniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, currentTestUser, false);
-            // Insert another doc to create the unique conflict
-            const res1 = await insertData(comprehensiveTestModelDefinition.name, { stringRequired: 'Other', stringUnique: 'ExistingUniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, currentTestUser, false);
+            // 1. Insérer un second document avec une valeur unique différente
+            const anotherDocData = {
+                stringRequired: 'Another Doc',
+                stringUnique: 'AnotherUniqueValue',
+                passwordField: 'anotherPass',
+                enumField: 'beta',
+                number: 10
+            };
+            const anotherInsertResult = await insertData(comprehensiveTestModelDefinition.name, anotherDocData, {}, currentTestUser, false);
+            expect(anotherInsertResult.success, "L'insertion du second document pour le test a échoué").toBe(true);
 
-            const result = await editData(comprehensiveTestModelDefinition.name, { stringUnique: 'ExistingUniqueValue'}, { stringRequired: 'Other', stringUnique: 'UniqueValue', enumField: 'beta', passwordField: 'pass' }, {}, currentTestUser);
+            // 2. Tenter de mettre à jour le premier document pour avoir la même valeur unique que le second
+            const result = await editData(comprehensiveTestModelDefinition.name, docToEditId, { stringUnique: 'AnotherUniqueValue' }, {}, currentTestUser);
+
+            // 3. Vérifier que l'opération a échoué avec le bon message d'erreur
             expect(result.success).toBe(false);
-            expect(result.error).toContain('UniqueValue');
-            expect(result.error).toContain('stringUnique');
+            expect(result.error).toContain('stringUnique'); // Le nom du champ qui a échoué
+
             await purge();
         });
 

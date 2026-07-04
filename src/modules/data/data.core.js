@@ -1,11 +1,8 @@
 import NodeCache from "node-cache";
-import path from "node:path";
 import {Worker} from 'worker_threads';
-import {fileURLToPath} from "node:url";
+import { fileURLToPath, URL } from "node:url";
+import path from "node:path";
 export const modelsCache = new NodeCache( { stdTTL: 100, checkperiod: 120 } );
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * Helper to escape characters for regex.
@@ -56,8 +53,12 @@ export let importJobs = {};
  */
 export function runImportExportWorker(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(process.cwd(), './src/workers/import-export-worker.js');
-        const worker = new Worker(workerPath);
+        // Construct a full URL to the worker script. This is the most robust way
+        // to ensure the worker is found, then convert it to a file path.
+        //const workerPath = path.resolve('src/workers/import-export-worker.js');
+        const workerPath = import.meta.dirname;
+
+        const worker = new Worker(path.resolve(workerPath,"../../workers/import-export-worker.js"));
 
         worker.postMessage({ action, payload });
 
@@ -91,7 +92,9 @@ export function runImportExportWorker(action, payload) {
  */
 export function runCryptoWorkerTask(action, payload) {
     return new Promise((resolve, reject) => {
-        const workerPath = path.resolve(__dirname, '../../workers/crypto-worker.js');
+        // Construct a full URL to the worker script, then convert it to a file path
+        // for maximum reliability with the Worker constructor.
+        const workerPath = path.resolve('src/workers/crypto-worker.js');
         const worker = new Worker(workerPath);
 
         worker.postMessage({ action, payload });

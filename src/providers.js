@@ -276,6 +276,7 @@ export class MongoUserProvider extends UserProvider {
             password: hashedPassword,
             createdAt: new Date(),
             userPlan: 'free', // Plan par défaut
+            storageUsed: 0, // NOUVEAU: Initialiser le compteur de stockage
             ...otherData
         });
 

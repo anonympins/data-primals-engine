@@ -304,8 +304,8 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
 
     it('devrait déclencher un workflow "DataDeleted" lors de la suppression de données', async () => {
         await initTest();
-        // 1. Arrange: Insérer une donnée et un déclencheur pour 'DataDeleted'
-        const insertResult = await insertData(targetDataModel.name, { projectName: 'To Delete', status: 'temp' }, {}, mockUser, false);
+        // 1. Arrange: Insérer une donnée à supprimer et un déclencheur pour 'DataDeleted'
+        const insertResult = await insertData(targetDataModel.name, { projectName: 'To Delete', status: 'obsolete' }, {}, mockUser, false);
         const projectId = insertResult.insertedIds[0];
 
         await insertData('workflowTrigger', {
@@ -316,14 +316,17 @@ describe('Intégration des Workflows - triggerWorkflows', () => {
             workflow: testWorkflow._id.toString()
         }, {}, mockUser, false);
 
-        // 2. Act: Supprimer la donnée
+        // 2. Act: Supprimer la donnée, en attendant la complétion du workflow
         const deleteResult = await deleteData(targetDataModel.name, [projectId], mockUser, true, true);
         expect(deleteResult.success).toBe(true);
+        expect(deleteResult.deletedCount).toBe(1);
 
-        // 3. Assert: Un `workflowRun` doit être créé
+        // 3. Assert: Vérifier que le workflowRun a été créé et est correct
         const workflowRun = await testDatasColInstance.findOne({ _model: 'workflowRun' });
+
         expect(workflowRun).not.toBeNull();
-        // Le `triggerData` est le document *avant* sa suppression
+        expect(workflowRun.status).toBe('completed');
         expect(workflowRun.contextData.triggerData.projectName).toBe('To Delete');
+        expect(workflowRun.contextData.triggerData._id.toString()).toBe(projectId.toString());
     });
 });

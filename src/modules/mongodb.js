@@ -23,7 +23,8 @@ export async function onInit(defaultEngine) {
     filesCollection = getCollection("files");
     packsCollection = getCollection("packs");
 
-    colls = await currentDb.listCollections().toArray();
+
+    colls = await (currentDb.listCollections()).toArray();
 
     await Event.Trigger("OnDatabaseLoaded", "system", "calls", engine)
     logger.info("MongoDB collections loaded.");
@@ -49,6 +50,10 @@ export const isObjectId = (id) => {
 
 
 export const getCollection = (str) => {
+    if (typeof str !== 'string') {
+        logger?.error(`[MongoDB] Tentative d'accès à une collection avec un type invalide: ${typeof str}`);
+        throw new Error("Le nom de la collection doit être une chaîne de caractères.");
+    }
     return currentDb.collection(str);
 }
 
@@ -69,5 +74,3 @@ export const getCollectionForUser = async (user) => {
     const collectionName = await getUserCollectionName(user);
     return getCollection(collectionName);
 };
-
-

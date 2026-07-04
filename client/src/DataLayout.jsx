@@ -60,7 +60,6 @@ const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
 
 const WorkflowSelectorModal = ({ onClose, onSelectWorkflow }) => {
     const { t } = useTranslation();
-    const { searchData } = useModelContext();
     const { me } = useAuthContext();
     const { data: activeWorkflows, isLoading } = useQuery(
         'activeWorkflowsList',
@@ -96,7 +95,7 @@ const WorkflowSelectorModal = ({ onClose, onSelectWorkflow }) => {
     );
 };
 
-function DataLayout({refreshUI}) {
+function DataLayout({refreshUI}, ref) {
     const [ searchParams, setSearchParams ] = useSearchParams();
     const [viewSettings, setViewSettings] = useLocalStorage('viewSettings', {});
 
@@ -147,6 +146,7 @@ function DataLayout({refreshUI}) {
 
     const mainPartRef = useRef();
     const modelCreatorRef = useRef();
+    const dataEditorRef = useRef(null);
 
     const [tutorialDialogVisible, setTutorialDialogVisible] = useState(false);
     const [importModalVisible, setImportModalVisible] = useState(false);
@@ -155,7 +155,6 @@ function DataLayout({refreshUI}) {
     const [showAPIInfo, setAPIInfoVisible] = useState(false);
     const nav = useNavigate();
     const mod = searchParams.get('model');
-    const loc = useLocation();
 
 
     // --- AJOUT : Récupérer le paramètre de l'URL pour l'édition de workflow ---
@@ -300,18 +299,24 @@ function DataLayout({refreshUI}) {
                     setFilterValues={setFilterValues}
                     model={selectedModel}
                     onAddData={(model) => {
-                        mainPartRef.current.scrollIntoView({behavior: "smooth"});
                         handleAddData(model);
+                        setTimeout(() => {
+                            dataEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
                     }}
                     onDuplicateData={(data) => {
-                        mainPartRef.current.scrollIntoView({behavior: "smooth"});
                         handleAddData(selectedModel, data);
+                        setTimeout(() => {
+                            dataEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
                     }}
                     onEdit={(item) => {
-                        mainPartRef.current.scrollIntoView({behavior: "smooth"});
                         setRecordToEdit(item);
                         setFormData(item);
                         setDataEditorVisible(true);
+                        setTimeout(() => {
+                            dataEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
                     }}
                     deleteApiCall={deleteApiCall}
                     queryClient={queryClient}
@@ -586,13 +591,6 @@ function DataLayout({refreshUI}) {
         setImportModalVisible(false);
     }
 
-    useEffect(() => {
-        if( showDataEditor && mainPartRef.current ){
-
-        }
-    }, [showDataEditor,mainPartRef.current]);
-
-
     const [currentProfile, setCurrentProfile] = useLocalStorage('profile', null);
     const {isTourOpen, setIsTourOpen, currentTourSteps, allTourSteps, setTourStepIndex, setCurrentTourSteps, currentTour,setCurrentTour, addLaunchedTour, assistantConfig, setAssistantConfig} = useUI();
 
@@ -707,7 +705,7 @@ function DataLayout({refreshUI}) {
                             onSelectWorkflow={(id) => {
                                 nav(`?edit-workflow=${id}`);
                                 setEditionMode(false)
-                                mainPartRef.current.scrollIntoView();
+                                mainPartRef.current?.scrollIntoView();
                                 setCurrentView('workflow'); // Ajout pour forcer le changement de vue
                                 setWorkflowListModalOpen(false);
                             }}
@@ -740,7 +738,7 @@ function DataLayout({refreshUI}) {
                     setAPIInfoVisible(false);
                     setDataEditorVisible(false);
                     setEditionMode(true);
-                    mainPartRef.current.scrollIntoView({behavior: 'smooth'});
+                    mainPartRef.current?.scrollIntoView({behavior: 'smooth'});
                     gtag("event", "select_content", {
                         content_type: "create_model",
                     });
@@ -750,7 +748,7 @@ function DataLayout({refreshUI}) {
                     setAPIInfoVisible(false);
                     setEditionMode(true);
 
-                    mainPartRef.current.scrollIntoView({behavior: 'smooth'});
+                    mainPartRef.current?.scrollIntoView({behavior: 'smooth'});
                     gtag("event", "select_content", {
                         content_type: "edit_model",
                         content_id: model.name
@@ -760,7 +758,7 @@ function DataLayout({refreshUI}) {
                     setDataEditorVisible(false);
                     setEditionMode(false);
                     setAPIInfoVisible(false);
-                    mainPartRef.current.scrollIntoView({behavior: 'smooth'});
+                    //mainPartRef.current?.scrollIntoView({behavior: 'smooth'});
                     gtag("event", "select_content", {
                         content_type: "select_model",
                         content_id: model.name
@@ -768,12 +766,12 @@ function DataLayout({refreshUI}) {
                            }} onImportPack={() => {
                                setShowPackGallery(true);
                 }} onNewData={(model) => {
-                    mainPartRef.current.scrollIntoView({behavior: 'smooth'});
+                    mainPartRef.current?.scrollIntoView({behavior: 'smooth'});
                     handleAddData(model);
                 }}/>
                 {(editionMode) && (
                     <ModelCreator ref={modelCreatorRef} onModelGenerated={() =>{
-                        modelCreatorRef.current.scrollIntoView({behavior: 'smooth'});
+                        modelCreatorRef?.current?.scrollIntoView({behavior: 'smooth'});
                     }} initialModel={selectedModel} onModelSaved={(model) => {
                         setRefreshTime(new Date().getTime());
                         handleModelSelect(model);
@@ -785,7 +783,8 @@ function DataLayout({refreshUI}) {
                 )}
             <div className="hidden-anchor" ref={mainPartRef}></div>
 
-                {showDataEditor && (<DataEditor ref={mainPartRef}
+                {showDataEditor && (<DataEditor
+                    ref={dataEditorRef}
                     key={selectedModel?.name}
                     isLoading={isLoading}
                     model={selectedModel}

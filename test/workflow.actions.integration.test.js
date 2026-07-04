@@ -74,8 +74,8 @@ const logDataModel = {
     description: "",
     _user: mockUser.username,
     fields: [
-        { name: 'message', type: 'string' },
-        { name: 'level', type: 'string' }
+        { name: 'message', type: 'string', required: true },
+        { name: 'level', type: 'string' },
     ]
 };
 
@@ -156,24 +156,21 @@ describe('Intégration des Actions de Workflow', () => {
      * @returns {Promise<{workflowId: ObjectId, stepId: ObjectId, actionId: ObjectId}>}
      */
     const setupWorkflow = async (actionDef) => {
+        // If the actionDef provides a startStep, it's a complex setup, and we don't create a trigger automatically.
+        const isComplexSetup = !!actionDef.startStep;
+
         const actionRes = await insertData('workflowAction', actionDef, {}, mockUser, false);
         const actionId = actionRes.insertedIds[0];
 
-        const stepRes = await insertData('workflowStep', { name: 'Test Step', actions: [actionId.toString()], isTerminal: true }, {}, mockUser, false);
-        const stepId = stepRes.insertedIds[0];
+        const stepId = isComplexSetup ? actionDef.startStep : (await insertData('workflowStep', { name: 'Test Step', actions: [actionId.toString()], isTerminal: true }, {}, mockUser, false)).insertedIds[0];
 
         const workflowRes = await insertData('workflow', { name: 'Test Workflow', startStep: stepId.toString() }, {}, mockUser, false);
         const workflowId = workflowRes.insertedIds[0];
 
-        // AJOUT : Créer le déclencheur qui lie l'événement au workflow.
-        // C'est l'élément manquant qui empêchait les workflows de se lancer.
-        await insertData('workflowTrigger', {
-            name: `Trigger for ${actionDef.name}`,
-            targetModel: 'task', // Tous les tests se déclenchent sur le modèle 'task'
-            onEvent: 'DataAdded', // Tous les tests utilisent cet événement
-            isActive: true,
-            workflow: workflowId.toString()
-        }, {}, mockUser, false);
+        // For simple setups, create the trigger that links the event to the workflow.
+        if (!isComplexSetup) {
+            await insertData('workflowTrigger', { name: `Trigger for ${actionDef.name}`, targetModel: 'task', onEvent: 'DataAdded', isActive: true, workflow: workflowId.toString() }, {}, mockUser, false);
+        }
 
         return { workflowId, stepId, actionId };
     };
@@ -436,9 +433,24 @@ describe('Intégration des Actions de Workflow', () => {
             startStep: mainStepRes.insertedIds[0].toString()
         });
 
-        const workflowRun = await runWorkflowAndWait(workflowId, { _model: 'task', title: 'Test failure path' });
+        // The setupWorkflow helper skips trigger creation for complex setups (when startStep is provided).
+        // We must create the trigger manually for this test.
+        await insertData('workflowTrigger', {
+            name: 'Trigger for Failure Path Test',
+            targetModel: 'task',
+            onEvent: 'DataAdded',
+            isActive: true,
+            workflow: workflowId.toString()
+        }, {}, mockUser, false);
 
-        expect(workflowRun.status).toBe('failed'); // Le statut final est 'failed' car il n'y a pas d'étape après l'échec
+        const workflowRun = await runWorkflowAndWait(workflowId, { _model: 'task', title: 'Test failure path' });
+// The workflow should follow the failure path, which leads to a terminal step.
+        // Because the action failed and there is a failure path, the overall run status is 'completed'
+        // because it successfully reached the terminal "Failure Step".
+        expect(workflowRun.status).toBe('completed'); // The workflow itself completed its run.
+        expect(workflowRun.currentStep).toBeNull(); // It correctly ended on a terminal step.
+        expect(workflowRun.history.some(h => h.stepName === 'Failure Step')).toBe(true);
+        expect(workflowRun.history.some(h => h.stepName === 'Success Step')).toBe(false);
     });
 
     it('Trigger dataFilter: ne devrait lancer le workflow que si le filtre correspond', async () => {
