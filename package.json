@@ -28,6 +28,7 @@
     "@rollup/rollup-linux-x64-gnu": "4.6.1"
   },
   "resolutions": {
+    "shell-quote": ">=1.8.4",
     "lodash": ">=4.18.0",
     "flatted": ">=3.4.2",
     "rollup": ">=4.59.0",
@@ -44,10 +45,10 @@
     "mdast-util-to-hast": ">=13.2.1",
     "uuid": ">=11.1.1",
     "jws": ">=3.2.3",
-    "undici": ">=6.23.0",
+    "undici": ">=7.28.0",
     "@xmldom/xmldom": ">=0.8.12",
     "picomatch": ">=4.0.4",
-    "langsmith": ">=0.5.19",
+    "langsmith": ">=0.6.0",
     "qs": ">=6.14.2",
     "fast-xml-parser": ">=4.5.5",
     "fast-xml-builder": ">=1.1.7",
@@ -111,7 +112,7 @@
     "mongodb": "^6.18.0",
     "node-cache": "^5.1.2",
     "node-schedule": "^2.1.1",
-    "nodemailer": "8.0.5",
+    "nodemailer": ">=9.0.1",
     "openai": "^6.9.1",
     "passport": "^0.7.0",
     "passport-saml-encrypted": "^0.1.13",
@@ -126,10 +127,10 @@
     "sirv": "^3.0.2",
     "stripe": "^20.0.0",
     "swagger-ui-express": "^5.0.1",
-    "tar": "7.5.11",
+    "tar": ">=7.5.16",
     "tinycolor2": "^1.6.0",
     "uniqid": "^5.4.0",
-    "vitest": "3.2.4",
+    "vitest": "3.2.6",
     "yaml": "2.8.3"
   },
   "peerDependencies": {
