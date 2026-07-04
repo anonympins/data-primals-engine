@@ -63,7 +63,7 @@ import crypto from 'crypto';
 import cronstrue from 'cronstrue/i18n.js'
 import { isConditionMet } from '../../filter.js';
 import util from "node:util";
-import {broadcastCacheInvalidation} from "./data.cluster.js";
+import { broadcastCacheInvalidation, replicateOperation } from "./data.cluster.js";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 const IMPORT_CHUNK_SIZE = 100; // Nombre d'enregistrements à traiter par lot
@@ -884,6 +884,10 @@ export const insertData = async (modelName, data, files, user, triggerWorkflow =
         // User specific event
         const userPayload = {...eventPayload};
         delete userPayload['user'];
+
+        // --- REPLICATION ---
+        replicateOperation('insert', modelName, user, { data: insertedDocs });
+
         await Event.Trigger("OnDataAdded", "event", "user", userPayload);
 
         // Return valid result
@@ -1521,6 +1525,10 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
             });
         }
 
+        // --- REPLICATION ---
+        // On envoie l'état final du document pour la réplication
+        replicateOperation('update', modelName, user, { filter: { _id: { $in: ids } }, data: finalStateForHash });
+
         // 13. Tâches post-mise à jour (schedules, workflows) (inchangé)
         if (["workflowTrigger", "alert"].includes(modelName)) {
             await handleScheduledJobs(modelName, existingDocs, collection, finalUpdateOperation.$set || {});
@@ -1781,6 +1789,10 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
             if (modelNameToInvalidate) invalidateModelCache(modelNameToInvalidate);
             deletedCount = result.deletedCount;
             logger.info(`[deleteData] Successfully deleted ${deletedCount} documents for user ${user?.username}.`);
+
+            // --- REPLICATION ---
+            replicateOperation('delete', modelNameToInvalidate, user, { ids: finalIdsToDelete });
+
         } else {
             logger.info(`[deleteData] No documents to delete for user ${user?.username} after permission checks or matching criteria.`);
         }

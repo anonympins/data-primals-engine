@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import { clusterPeers, getHost, port } from '../../constants.js';
 import { Config } from '../../config.js';
 import { Logger } from '../../gameObject.js';
+import { onInit as replicationInit, queueReplication } from './data.replication.js';
 
 const logger = new Logger('DataCluster');
 
 // La liste de tous les nœuds inclut le nœud actuel.
 // On la trie pour s'assurer que l'ordre est le même sur toutes les instances.
 const selfUrl = `http://${getHost()}:${process.env.PORT || port}`;
-const allNodes = Array.from(new Set([selfUrl, ...clusterPeers])).sort();
+const allNodes = clusterPeers.length > 0 ? Array.from(new Set([selfUrl, ...clusterPeers])).sort() : [selfUrl];
 const REPLICATION_FACTOR = Config.Get('replicationFactor', 2); // Maître + 1 réplique par défaut
 
 
@@ -50,6 +51,17 @@ export async function broadcastCacheInvalidation(cacheType, key) {
     });
 
     await Promise.allSettled(broadcastPromises);
+}
+
+/**
+ * Ajoute une opération à la file d'attente de réplication.
+ * @param {string} operation - 'insert', 'update', 'delete'.
+ * @param {string} modelName - Le nom du modèle.
+ * @param {object} user - L'objet utilisateur.
+ * @param {object} payload - Les données de l'opération.
+ */
+export function replicateOperation(operation, modelName, user, payload) {
+    queueReplication(operation, modelName, user, payload);
 }
 
 /**
@@ -188,4 +200,9 @@ async function attemptProxy(req, res, nodeUrl) {
  */
 export function isProxiedRequest(req) {
     return req.headers['x-federation-proxy'] === 'true';
+}
+
+export function onInit(engine) {
+    // Démarrer le processeur de la file d'attente de réplication
+    replicationInit(engine);
 }

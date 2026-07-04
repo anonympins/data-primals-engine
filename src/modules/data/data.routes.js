@@ -45,8 +45,8 @@ import {
 } from "./data.operations.js";
 import { dumpUserData, loadFromDump } from "./data.backup.js";
 import { invalidateModelCache } from "./data.operations.js";
-import { findFirstAvailableProvider, getAIProvider } from "../assistant/providers.js";
-import { isProxiedRequest, proxyRequest } from './data.cluster.js';
+import { findFirstAvailableProvider, getAIProvider } from '../assistant/providers.js';
+import { isProxiedRequest, proxyRequest, onInit as clusterInit } from './data.cluster.js';
 import {providers} from "../assistant/constants.js";
 
 let logger, engine;
@@ -442,6 +442,8 @@ export async function registerRoutes(defaultEngine){
     engine = defaultEngine;
     logger = engine.getComponent(Logger);
 
+    clusterInit(engine);
+
     // NOUVEAU : Initialisation du scaling SSE (via MongoDB Change Streams)
     initializeSseScaling();
 
@@ -460,66 +462,61 @@ export async function registerRoutes(defaultEngine){
     };
 
     engine.post('/api/internal/replicate', [internalAuth], async (req, res) => {
-        const { operation, modelName, user, payload } = req.fields;
-        logger.info(`[Replication] Received replication job: ${operation} on ${modelName} for ${user.username}`);
-
-        try {
-            // IMPORTANT: Le dernier paramètre `false` désactive le déclenchement de workflow
-            // pour éviter une boucle de réplication infinie.
-            const collection = await getCollectionForUser(user);
-
-            switch (operation) {
-            case 'insert':
-                // --- LWW: On ne fait l'insert que si le document n'existe pas déjà ---
-                // On vérifie si un document avec le même hash existe déjà.
-                const incomingDoc = payload.data[0];
-                const existingDoc = await collection.findOne({ _hash: incomingDoc._hash, _model: modelName, _user: user.username });
-                const incomingTimestampInsert = new Date(incomingDoc._lastModifiedAt);
-
-                if (existingDoc && new Date(existingDoc._lastModifiedAt) >= incomingTimestampInsert) {
-                    // Une version plus récente ou identique existe déjà, on ignore l'insert.
-                    logger.warn(`[Replication-LWW] Stale insert for ${modelName} with hash ${incomingDoc._hash} ignored. Local: ${existingDoc._lastModifiedAt.toISOString()}, Incoming: ${incomingTimestampInsert.toISOString()}`);
-                } else if (existingDoc) {
-                    // Une version plus ancienne existe, on la remplace.
-                    await collection.replaceOne({ _id: existingDoc._id }, incomingDoc);
-                } else {
-                    await collection.insertOne(incomingDoc);
-                }
-                break;
-            case 'update':
-                // --- LWW: Logique de comparaison des timestamps ---
-                const docToUpdate = await collection.findOne(payload.filter);
-                const incomingTimestamp = new Date(payload.data._lastModifiedAt);
-
-                if (!docToUpdate) {
-                    // Si le document n'existe pas localement, on le crée.
-                    // Cela peut arriver si des réplications arrivent dans le désordre.
-                    logger.info(`[Replication-LWW] Document ${payload.filter._id} not found locally. Inserting replicated version.`);
-                    await pushDataUnsecure([payload.data], modelName, user, {});
-                } else if (docToUpdate._lastModifiedAt && new Date(docToUpdate._lastModifiedAt) >= incomingTimestamp) {
-                    // La version locale est plus récente ou identique. On ignore la réplication.
-                    logger.warn(`[Replication-LWW] Stale update for ${modelName}:${payload.filter._id} ignored. Local: ${docToUpdate._lastModifiedAt.toISOString()}, Incoming: ${incomingTimestamp.toISOString()}`);
-                } else {
-                    // La version entrante est plus récente. On applique la mise à jour.
-                    // On utilise une opération de bas niveau pour éviter de redéclancher toute la logique de editData.
-                    await collection.replaceOne(payload.filter, payload.data);
-                }
-                break;
-            case 'delete':
-                // --- LWW: Pour la suppression, on peut la considérer comme l'état final ---
-                // Si un document a été supprimé sur le maître, il doit l'être partout,
-                // même si une réplique a une version "plus récente" (ce qui serait un état incohérent).
-                // La suppression l'emporte.
-                await deleteData(modelName, payload.ids, user, false, false);
-                break;
-            default:
-                throw new Error(`Unknown replication operation: ${operation}`);
-            }
-            res.status(200).json({ success: true });
-        } catch (error) {
-            logger.error(`[Replication] Failed to apply replication job: ${error.message}`, error.stack);
-            res.status(500).json({ success: false, error: error.message });
+        const { operations } = req.fields; // Le corps contient maintenant un tableau d'opérations
+        if (!Array.isArray(operations)) {
+            return res.status(400).json({ success: false, error: 'Expected an array of operations.' });
         }
+
+        logger.info(`[Replication] Received batch of ${operations.length} replication jobs.`);
+
+        for (const { operation, modelName, user, payload } of operations) {
+            try {
+                const collection = await getCollectionForUser(user);
+
+                switch (operation) {
+                case 'insert': {
+                    const incomingDoc = Array.isArray(payload.data) ? payload.data[0] : payload.data;
+                    if (!incomingDoc) continue;
+                    const existingDoc = await collection.findOne({ _hash: incomingDoc._hash, _model: modelName, _user: user.username });
+                    const incomingTimestampInsert = new Date(incomingDoc._lastModifiedAt);
+
+                    if (existingDoc && new Date(existingDoc._lastModifiedAt) >= incomingTimestampInsert) {
+                        logger.warn(`[Replication-LWW] Stale insert for ${modelName} with hash ${incomingDoc._hash} ignored. Local: ${existingDoc._lastModifiedAt.toISOString()}, Incoming: ${incomingTimestampInsert.toISOString()}`);
+                    } else if (existingDoc) {
+                        await collection.replaceOne({ _id: existingDoc._id }, incomingDoc);
+                    } else {
+                        await collection.insertOne(incomingDoc);
+                    }
+                    break;
+                }
+                case 'update': {
+                    const docToUpdate = await collection.findOne(payload.filter);
+                    const incomingTimestamp = new Date(payload.data._lastModifiedAt);
+
+                    if (!docToUpdate) {
+                        logger.info(`[Replication-LWW] Document for update not found locally. Inserting replicated version.`);
+                        await collection.insertOne(payload.data);
+                    } else if (docToUpdate._lastModifiedAt && new Date(docToUpdate._lastModifiedAt) >= incomingTimestamp) {
+                        logger.warn(`[Replication-LWW] Stale update for ${modelName}:${payload.filter._id} ignored. Local: ${docToUpdate._lastModifiedAt.toISOString()}, Incoming: ${incomingTimestamp.toISOString()}`);
+                    } else {
+                        await collection.replaceOne(payload.filter, payload.data);
+                    }
+                    break;
+                }
+                case 'delete':
+                    // La suppression l'emporte toujours.
+                    await deleteData(modelName, payload.ids, user, false, false);
+                    break;
+                default:
+                    logger.error(`[Replication] Unknown replication operation in batch: ${operation}`);
+                }
+            } catch (error) {
+                logger.error(`[Replication] Failed to apply one job from batch: ${operation} on ${modelName}. Error: ${error.message}`);
+                // On continue avec les autres opérations du lot.
+            }
+        }
+
+        res.status(200).json({ success: true, message: 'Batch processed.' });
     });
 
     // NOUVEL ENDPOINT : Invalidation de cache interne au cluster

@@ -1,83 +1,104 @@
-// --- NOUVEAU FICHIER : src/modules/data/data.replication.js ---
-import { Event } from '../../events.js';
 import { Logger } from '../../gameObject.js';
-import { getResponsibleNodesForUser, isSelfMasterForUser } from './data.cluster.js';
+import { clusterPeers } from '../../constants.js';
+import { getResponsibleNodesForUser } from './data.cluster.js';
 
-let logger;
+const logger = new Logger('DataReplication');
+const replicationQueue = [];
+const BATCH_INTERVAL = 100; // Traiter la file toutes les 100ms
+const BATCH_SIZE_LIMIT = 50; // Envoyer un maximum de 50 opérations par requête de batch
+
+let intervalId = null;
 
 /**
- * Réplique une opération de données vers les nœuds répliques.
+ * Ajoute une tâche de réplication à la file d'attente.
+ * C'est le point d'entrée pour toutes les opérations de données.
  * @param {string} operation - 'insert', 'update', 'delete'
  * @param {string} modelName - Le nom du modèle.
  * @param {object} user - L'objet utilisateur.
  * @param {object} payload - Les données de l'opération.
  */
-async function replicateOperation(operation, modelName, user, payload) {
-    if (!isSelfMasterForUser(user.username)) {
-        // Seul le nœud maître est autorisé à initier une réplication.
+export function queueReplication(operation, modelName, user, payload) {
+    if (clusterPeers.length === 0) {
+        return; // Pas de cluster, pas de réplication.
+    }
+    replicationQueue.push({ operation, modelName, user, payload, timestamp: new Date() });
+}
+
+/**
+ * Traite la file d'attente, groupe les opérations par réplique et les envoie en lots.
+ */
+async function processReplicationQueue() {
+    if (replicationQueue.length === 0) {
         return;
     }
 
-    const nodes = getResponsibleNodesForUser(user.username);
-    const replicas = nodes.slice(1); // Tous les nœuds sauf le premier (le maître)
+    const itemsToProcess = replicationQueue.splice(0, replicationQueue.length);
+    logger.debug(`[ReplicationQueue] Processing ${itemsToProcess.length} items.`);
 
-    if (replicas.length === 0) {
-        return; // Pas de répliques à notifier.
+    // Étape 1: Regrouper les opérations par URL de réplique
+    const batches = new Map(); // Map<peerUrl, operation[]>
+
+    for (const item of itemsToProcess) {
+        const responsibleNodes = getResponsibleNodesForUser(item.user.username);
+        const replicas = responsibleNodes.slice(1); // Exclut le maître
+
+        for (const replicaUrl of replicas) {
+            if (!batches.has(replicaUrl)) {
+                batches.set(replicaUrl, []);
+            }
+            // On ne garde que les informations nécessaires pour la réplique
+            batches.get(replicaUrl).push({
+                operation: item.operation,
+                modelName: item.modelName,
+                user: { username: item.user.username }, // On ne passe que le username
+                payload: item.payload
+            });
+        }
     }
 
-    logger.debug(`[Replication] Replicating '${operation}' on model '${modelName}' for user '${user.username}' to replicas: ${replicas.join(', ')}`);
+    // Étape 2: Envoyer les lots à chaque réplique
+    for (const [peerUrl, operations] of batches.entries()) {
+        // Découper les gros lots en plus petits morceaux (chunks)
+        for (let i = 0; i < operations.length; i += BATCH_SIZE_LIMIT) {
+            const chunk = operations.slice(i, i + BATCH_SIZE_LIMIT);
+            const targetUrl = `${peerUrl}/api/internal/replicate`;
+            const authToken = `Bearer ${process.env.INTERNAL_CLUSTER_TOKEN}`;
 
-    const replicationPayload = {
-        operation,
-        modelName,
-        user: { username: user.username, _user: user._user }, // Envoyer juste l'essentiel
-        payload
-    };
+            logger.info(`[ReplicationBatch] Sending batch of ${chunk.length} operations to ${peerUrl}`);
 
-    const promises = replicas.map(replicaUrl => {
-        const targetUrl = `${replicaUrl}/api/internal/replicate`;
-        const authToken = process.env.INTERNAL_CLUSTER_TOKEN ? `Bearer ${process.env.INTERNAL_CLUSTER_TOKEN}` : null;
-
-        return fetch(targetUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authToken
-            },
-            body: JSON.stringify(replicationPayload)
-        }).catch(err => {
-            logger.error(`[Replication] Failed to replicate to ${replicaUrl}: ${err.message}`);
-        });
-    });
-
-    // On ne bloque pas la réponse à l'utilisateur, la réplication est asynchrone.
-    Promise.allSettled(promises);
+            // Envoyer la requête sans attendre la réponse pour ne pas bloquer la boucle
+            fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken
+                },
+                body: JSON.stringify({ operations: chunk }) // Le corps contient maintenant un tableau d'opérations
+            }).catch(error => {
+                logger.error(`[ReplicationBatch] Failed to send batch to peer ${peerUrl}: ${error.message}`);
+                // On pourrait ré-ajouter les opérations échouées à la queue avec une logique de retry
+            });
+        }
+    }
 }
 
+/**
+ * Démarre le processeur de la file d'attente de réplication.
+ * @param {object} engine - L'instance du moteur.
+ */
 export function onInit(engine) {
-    logger = engine.getComponent(Logger);
+    if (clusterPeers.length > 0) {
+        intervalId = setInterval(processReplicationQueue, BATCH_INTERVAL);
+        logger.info(`Replication Queue processor started with a ${BATCH_INTERVAL}ms interval.`);
+    }
+}
 
-    // Écouter les événements de modification de données
-    Event.Listen("OnDataAdded", (eng, { modelName, insertedDocs, user }) => {
-        replicateOperation('insert', modelName, user, { data: insertedDocs });
-    }, "event", "system");
-
-    Event.Listen("OnDataEdited", (eng, { modelName, user, after }) => {
-        // Pour une mise à jour, on a besoin du filtre et des données modifiées.
-        // C'est un peu plus complexe car l'événement ne fournit pas le filtre original.
-        // Pour une réplication simple, on peut envoyer l'ID et le payload de mise à jour.
-        after.forEach(doc => {
-            replicateOperation('update', modelName, user, {
-                filter: { _id: doc._id.toString() },
-                data: doc // Envoyer le document complet est plus simple pour la réplique.
-            });
-        });
-    }, "event", "system");
-
-    Event.Listen("OnDataDeleted", (eng, { modelName, user, before }) => {
-        const idsToDelete = before.map(doc => doc._id.toString());
-        replicateOperation('delete', modelName, user, { ids: idsToDelete });
-    }, "event", "system");
-
-    logger.info("Replication module initialized and listening for data events.");
+/**
+ * Arrête le processeur de la file d'attente.
+ */
+export function stopReplicationQueue() {
+    if (intervalId) {
+        clearInterval(intervalId);
+        logger.info('Replication Queue processor stopped.');
+    }
 }
