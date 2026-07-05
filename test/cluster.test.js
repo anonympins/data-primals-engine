@@ -43,9 +43,9 @@ describe('Data Cluster & Gossip Logic', () => {
         mockEngine = {
             selfUrl: 'http://node-1:3000',
             peers: [
-                { id: 'node-1', url: 'http://node-1:3000', sharding: true, replica: true },
-                { id: 'node-2', url: 'http://node-2:3000', sharding: true, replica: true },
-                { id: 'node-3', url: 'http://node-3:3000', sharding: true, replica: true }
+                { id: 'node-1', public_domain: 'http://node-1:3000', sharding: true, replica: true },
+                { id: 'node-2', public_domain: 'http://node-2:3000', sharding: true, replica: true },
+                { id: 'node-3', public_domain: 'http://node-3:3000', sharding: true, replica: true }
             ],
             getComponent: vi.fn(componentName => {
                 if (componentName === 'DataHandler') return mockDataHandler;
@@ -143,9 +143,9 @@ describe('Data Cluster & Gossip Logic', () => {
 
         it('should merge the list received from a peer on successful gossip', async () => {
             const remoteList = [
-                { id: 'node-1', url: 'http://node-1:3000', status: 'UP', version: 1 },
-                { id: 'node-2', url: 'http://node-2:3000', status: 'UP', version: 2 }, // Higher version
-                { id: 'node-4', url: 'http://node-4:3000', status: 'UP', version: 1 }  // New node
+                { id: 'node-1', public_domain: 'http://node-1:3000', status: 'UP', version: 1 },
+                { id: 'node-2', public_domain: 'http://node-2:3000', status: 'UP', version: 2 }, // Higher version
+                { id: 'node-4', public_domain: 'http://node-4:3000', status: 'UP', version: 1 }  // New node
             ];
             mockEngine.sendToPeer.mockResolvedValue({ ok: true, json: () => Promise.resolve(remoteList) });
             clusterModule.onInit(mockEngine);
@@ -193,8 +193,8 @@ describe('Data Cluster & Gossip Logic', () => {
             const gossipEndpointHandler = postHandlers['/api/internal/gossip'];
 
             const remoteList = [
-                { id: 'node-3', url: 'http://node-3:3000', status: 'SUSPECT', version: 5 },
-                { id: 'node-4', url: 'http://node-4:3000', status: 'UP', version: 1 }
+                { id: 'node-3', public_domain: 'http://node-3:3000', status: 'SUSPECT', version: 5 },
+                { id: 'node-4', public_domain: 'http://node-4:3000', status: 'UP', version: 1 }
             ];
             const mockReq = { fields: remoteList };
             const mockRes = { json: vi.fn() };
