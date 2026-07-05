@@ -1,6 +1,5 @@
 import { Logger } from '../../gameObject.js';
-import { clusterPeers } from '../../constants.js';
-import { getResponsibleNodesForUser } from './data.cluster.js';
+import { getResponsibleNodesForUser, clusterPeers } from './data.cluster.js';
 
 const logger = new Logger('DataReplication');
 const replicationQueue = [];
@@ -8,6 +7,7 @@ const BATCH_INTERVAL = 100; // Traiter la file toutes les 100ms
 const BATCH_SIZE_LIMIT = 50; // Envoyer un maximum de 50 opérations par requête de batch
 
 let intervalId = null;
+let engineInstance = null; // Pour stocker l'instance du moteur
 
 /**
  * Ajoute une tâche de réplication à la file d'attente.
@@ -38,45 +38,33 @@ async function processReplicationQueue() {
     // Étape 1: Regrouper les opérations par URL de réplique
     const batches = new Map(); // Map<peerUrl, operation[]>
 
-    for (const item of itemsToProcess) {
-        const responsibleNodes = getResponsibleNodesForUser(item.user.username);
-        const replicas = responsibleNodes.slice(1); // Exclut le maître
+    // --- NOUVELLE LOGIQUE ---
+    // On utilise la liste des pairs directement depuis l'engine
+    const selfPrivateAddress = `http://127.0.0.1:${process.env.PORT || 7633}`; // Adaptez si nécessaire
+    const selfPeer = engineInstance.peers.find(p => p.private_address === selfPrivateAddress);
+    const selfId = selfPeer?.id;
+    const otherPeers = engineInstance.peers.filter(p => p.id !== selfId);
 
-        for (const replicaUrl of replicas) {
-            if (!batches.has(replicaUrl)) {
-                batches.set(replicaUrl, []);
-            }
-            // On ne garde que les informations nécessaires pour la réplique
-            batches.get(replicaUrl).push({
-                operation: item.operation,
-                modelName: item.modelName,
-                user: { username: item.user.username }, // On ne passe que le username
-                payload: item.payload
-            });
-        }
+    if (otherPeers.length === 0) {
+        logger.debug("[ReplicationQueue] No other online peers to replicate to.");
+        return;
     }
 
-    // Étape 2: Envoyer les lots à chaque réplique
-    for (const [peerUrl, operations] of batches.entries()) {
+    // Étape 2: Envoyer le lot complet à chaque autre pair
+    for (const peer of otherPeers) {
         // Découper les gros lots en plus petits morceaux (chunks)
-        for (let i = 0; i < operations.length; i += BATCH_SIZE_LIMIT) {
-            const chunk = operations.slice(i, i + BATCH_SIZE_LIMIT);
-            const targetUrl = `${peerUrl}/api/internal/replicate`;
-            const authToken = `Bearer ${process.env.INTERNAL_CLUSTER_TOKEN}`;
+        for (let i = 0; i < itemsToProcess.length; i += BATCH_SIZE_LIMIT) {
+            const chunk = itemsToProcess.slice(i, i + BATCH_SIZE_LIMIT);
 
-            logger.info(`[ReplicationBatch] Sending batch of ${chunk.length} operations to ${peerUrl}`);
+            logger.info(`[ReplicationBatch] Sending batch of ${chunk.length} operations to peer ${peer.id}`);
 
-            // Envoyer la requête sans attendre la réponse pour ne pas bloquer la boucle
-            fetch(targetUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': authToken
-                },
-                body: JSON.stringify({ operations: chunk }) // Le corps contient maintenant un tableau d'opérations
-            }).catch(error => {
-                logger.error(`[ReplicationBatch] Failed to send batch to peer ${peerUrl}: ${error.message}`);
-                // On pourrait ré-ajouter les opérations échouées à la queue avec une logique de retry
+            // Utiliser la nouvelle fonction centralisée !
+            engineInstance.sendToPeer(
+                peer.id,
+                '/api/internal/replicate',
+                { operations: chunk } // Le corps de la requête contient le lot d'opérations
+            ).catch(error => {
+                logger.error(`[ReplicationBatch] Failed to send batch to peer ${peer.id}: ${error.message}`);
             });
         }
     }
@@ -87,6 +75,7 @@ async function processReplicationQueue() {
  * @param {object} engine - L'instance du moteur.
  */
 export function onInit(engine) {
+    engineInstance = engine; // Stocker l'instance du moteur
     if (clusterPeers.length > 0) {
         intervalId = setInterval(processReplicationQueue, BATCH_INTERVAL);
         logger.info(`Replication Queue processor started with a ${BATCH_INTERVAL}ms interval.`);

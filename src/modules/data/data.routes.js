@@ -3,10 +3,9 @@ import {ObjectId} from "mongodb";
 import * as util from 'node:util';
 import {setTimeoutMiddleware} from '../../middlewares/timeout.js';
 import {isDemoUser, isLocalUser} from "../../data.js";
-import {
-    getHost, 
+import { 
+    getHost,
     install,
-    clusterPeers, // Importer la configuration du cluster
     maxBytesPerSecondThrottleData,
     maxMagnetsDataPerModel,
     maxMagnetsModels,

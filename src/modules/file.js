@@ -102,34 +102,17 @@ export const addFile = async (file, user) => {
             fileData.storage = 's3';
             logger.info(`Fichier ${newFilename} téléversé sur le bucket S3 ${s3Config.bucketName}.`);
         } catch (error) {
-            logger.error(`Le téléversement S3 a échoué pour ${originalName}: ${error.message}`, error);
-            throw new Error("Le téléversement S3 a échoué.");
+            // Si le téléversement S3 échoue, on se rabat sur le stockage local
+            logger.error(`Le téléversement S3 a échoué pour ${originalName}: ${error.message}. Tentative de sauvegarde locale.`, error);
+            await saveLocally(filePath, newFilename, fileData, originalName);
         } finally {
             // Nettoyer le fichier temporaire uploadé par express-formidable
             await fsPromises.unlink(filePath).catch(e => logger.warn(`Échec de la suppression du fichier temporaire ${filePath}: ${e.message}`));
         }
     } else {
-        // Sauvegarde locale
-        const uploadDir = path.join(process.cwd(), "uploads", "private");
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        const newPath = path.join(uploadDir, newFilename);
-
-        try {
-            // Utiliser copyFile puis unlink au lieu de rename pour éviter les erreurs cross-device (EXDEV)
-            // qui peuvent survenir dans des environnements conteneurisés comme GitHub Actions.
-            await fsPromises.copyFile(filePath, newPath);
-            await fsPromises.unlink(filePath);
-            fileData.storage = 'local';
-            fileData.path = newPath; // Le chemin complet pour les fichiers locaux
-            logger.info(`Fichier ${newFilename} sauvegardé localement dans ${newPath}.`);
-        } catch (error) {
-            logger.error(`Le stockage du fichier local a échoué pour ${originalName}: ${error.message}`, error);
-            // Essayer de nettoyer le fichier temporaire même si le renommage échoue
-            await fsPromises.unlink(filePath).catch(e => logger.warn(`Échec de la suppression du fichier temporaire ${filePath}: ${e.message}`));
-            throw new Error("Le stockage du fichier local a échoué.");
-        }
+        // Si la configuration S3 est absente ou désactivée, on utilise le stockage local par défaut.
+        logger.info("Configuration S3 non trouvée ou désactivée. Utilisation du stockage local.");
+        await saveLocally(filePath, newFilename, fileData, originalName);
     }
 
     const filesCollection = await getCollection("files");
@@ -137,6 +120,24 @@ export const addFile = async (file, user) => {
 
     return guid;
 };
+
+async function saveLocally(sourcePath, newFilename, fileData, originalName) {
+    const uploadDir = path.join(process.cwd(), "uploads", "private");
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const newPath = path.join(uploadDir, newFilename);
+
+    try {
+        await fsPromises.copyFile(sourcePath, newPath);
+        fileData.storage = 'local';
+        fileData.path = newPath; // Le chemin complet pour les fichiers locaux
+        logger.info(`Fichier ${newFilename} sauvegardé localement dans ${newPath}.`);
+    } catch (error) {
+        logger.error(`Le stockage du fichier local a échoué pour ${originalName}: ${error.message}`, error);
+        throw new Error("Le stockage du fichier local a échoué.");
+    }
+}
 
 /**
  * Récupère les métadonnées d'un fichier depuis la base de données.

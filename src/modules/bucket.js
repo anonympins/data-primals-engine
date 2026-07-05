@@ -91,6 +91,12 @@ async function _getUserS3ConfigFromDb(user) {
  * @returns {Promise<object>} - L'objet de configuration S3 final.
  */
 export async function getUserS3Config(user) {
+    // NOUVEAU : Vérification de l'interrupteur principal pour S3
+    // Si cette configuration n'est pas explicitement à `true`, on désactive S3.
+    if (Config.Get('storageS3', false) !== true) {
+        logger.debug("[S3] Le stockage S3 est désactivé via la configuration 'storageS3'.");
+        return null; // Retourne null pour indiquer que S3 n'est pas configuré.
+    }
 
     const adc = awsDefaultConfig;
     const dc = Config.Get('awsDefaultConfig', {});

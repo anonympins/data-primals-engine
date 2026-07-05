@@ -1,10 +1,16 @@
 import { createHash } from 'node:crypto';
-import { clusterPeers, getHost, port } from '../../constants.js';
+import { getHost, port } from '../../constants.js';
 import { Config } from '../../config.js';
 import { Logger } from '../../gameObject.js';
 import { onInit as replicationInit, queueReplication } from './data.replication.js';
 
 const logger = new Logger('DataCluster');
+
+/**
+ * Cluster configuration for data federation, read from environment variables.
+ * @type {string[]}
+ */
+export const clusterPeers = (process.env.CLUSTER_PEERS || '').split(',').filter(Boolean);
 
 // La liste de tous les nœuds inclut le nœud actuel.
 // On la trie pour s'assurer que l'ordre est le même sur toutes les instances.
