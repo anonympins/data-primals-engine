@@ -1,25 +1,11 @@
 import { createHash } from 'node:crypto';
-import { getHost, port } from '../../constants.js';
 import { Config } from '../../config.js';
 import { Logger } from '../../gameObject.js';
 import { onInit as replicationInit, queueReplication } from './data.replication.js';
 
 const logger = new Logger('DataCluster');
 
-/**
- * Cluster configuration for data federation, read from environment variables.
- * @type {string[]}
- */
-export const clusterPeers = (process.env.CLUSTER_PEERS || '').split(',').filter(Boolean);
-
-// La liste de tous les nœuds inclut le nœud actuel.
-// On la trie pour s'assurer que l'ordre est le même sur toutes les instances.
-const selfUrl = `http://${getHost()}:${process.env.PORT || port}`;
-const allNodes = clusterPeers.length > 0 ? Array.from(new Set([selfUrl, ...clusterPeers])).sort() : [selfUrl];
-const REPLICATION_FACTOR = Config.Get('replicationFactor', 2); // Maître + 1 réplique par défaut
-
-
-logger.info(`[Cluster] Initialized. Self: ${selfUrl}. All nodes: ${allNodes.join(', ')}`);
+let engine; // L'instance du moteur sera injectée via onInit
 
 /**
  * Diffuse un événement d'invalidation de cache à tous les nœuds du cluster.
@@ -27,14 +13,15 @@ logger.info(`[Cluster] Initialized. Self: ${selfUrl}. All nodes: ${allNodes.join
  * @param {string} key - La clé spécifique à invalider dans le cache.
  */
 export async function broadcastCacheInvalidation(cacheType, key) {
-    if (clusterPeers.length === 0) {
+    if (!engine || engine.peers.length <= 1) {
         return; // Pas de cluster, rien à faire.
     }
 
     logger.info(`[Cluster] Broadcasting direct cache invalidation for '${cacheType}' with key '${key}' to peers.`);
 
     // On envoie une requête à chaque autre nœud du cluster.
-    const broadcastPromises = clusterPeers.map(peerUrl => {
+    const broadcastPromises = engine.peers.filter(p => p.url !== engine.selfUrl).map(peer => {
+        const peerUrl = peer.url;
         const targetUrl = `${peerUrl}/api/internal/cache-invalidate`;
         // On suppose que les nœuds partagent un token/secret pour s'authentifier.
         // Le token de l'utilisateur actuel est une bonne option s'il est admin ou a des droits étendus.
@@ -77,24 +64,44 @@ export function replicateOperation(operation, modelName, user, payload) {
  * @returns {string[]} Une liste d'URLs de nœuds.
  */
 export function getResponsibleNodesForUser(username) {
-    if (allNodes.length <= 1) {
-        return [selfUrl];
+    const REPLICATION_FACTOR = Config.Get('replicationFactor', 2);
+
+    if (!engine || engine.peers.length <= 1) {
+        return [engine.selfUrl];
     }
 
-    const numNodes = allNodes.length;
-    const numReplicas = Math.min(REPLICATION_FACTOR, numNodes);
-    const responsibleNodes = [];
+    // 1. Filtrer les nœuds éligibles pour le sharding
+    const shardingNodes = engine.peers.filter(p => p.sharding === true).sort((a, b) => a.url.localeCompare(b.url));
+    if (shardingNodes.length === 0) {
+        logger.warn('[Cluster] No nodes available for sharding (sharding:true). Using all nodes as fallback.');
+        shardingNodes.push(...engine.peers.sort((a, b) => a.url.localeCompare(b.url)));
+    }
 
+    // 2. Déterminer le nœud maître basé sur le hachage de l'utilisateur
     const hash = createHash('sha256').update(username).digest('hex');
-    const startIndex = parseInt(hash.substring(0, 8), 16) % numNodes;
+    const masterIndex = parseInt(hash.substring(0, 8), 16) % shardingNodes.length;
+    const masterNode = shardingNodes[masterIndex];
 
-    for (let i = 0; i < numReplicas; i++) {
-        responsibleNodes.push(allNodes[(startIndex + i) % numNodes]);
+    const responsibleNodes = [masterNode];
+
+    // 3. Sélectionner les nœuds de réplication
+    const replicaPool = engine.peers.filter(p => p.replica === true && p.id !== masterNode.id);
+    const numReplicasToFind = Math.min(REPLICATION_FACTOR - 1, replicaPool.length);
+
+    if (numReplicasToFind > 0) {
+        // On utilise le même hash pour choisir les répliques de manière déterministe
+        const replicaStartIndex = parseInt(hash.substring(8, 16), 16) % replicaPool.length;
+        for (let i = 0; i < numReplicasToFind; i++) {
+            responsibleNodes.push(replicaPool[(replicaStartIndex + i) % replicaPool.length]);
+        }
     }
 
     return responsibleNodes;
 }
 
+export function getReplicaNodesForUser(username) {
+    return getResponsibleNodesForUser(username).slice(1);
+}
 /**
  * Détermine l'URL du nœud "maître" pour un utilisateur donné.
  * @param {string} username - Le nom de l'utilisateur.
@@ -110,7 +117,7 @@ export function getMasterNodeForUser(username) {
  * @returns {boolean}
  */
 export function isSelfMasterForUser(username) {
-    return getMasterNodeForUser(username) === selfUrl;
+    return getMasterNodeForUser(username)?.url === engine.selfUrl;
 }
 
 /**
@@ -124,7 +131,7 @@ export async function proxyRequest(req, res, username) {
     const responsibleNodes = getResponsibleNodesForUser(username);
     const masterNodeUrl = responsibleNodes[0];
 
-    if (masterNodeUrl === selfUrl) {
+    if (masterNodeUrl.url === engine.selfUrl) {
         // Ce nœud est le maître, on ne relaie pas.
         return false;
     }
@@ -140,8 +147,7 @@ export async function proxyRequest(req, res, username) {
     logger.info(`[Cluster] Proxying READ for user ${username}. Node preference: ${responsibleNodes.join(' -> ')}`);
     for (const nodeUrl of responsibleNodes) {
         try {
-            // Si le nœud est nous-mêmes, on arrête le proxying et on laisse le handler local prendre le relais.
-            if (nodeUrl === selfUrl) {
+            if (nodeUrl.url === engine.selfUrl) {
                 logger.info(`[Cluster] Failover to self. Handling request locally.`);
                 return false;
             }
@@ -159,7 +165,7 @@ export async function proxyRequest(req, res, username) {
 }
 
 async function attemptProxy(req, res, nodeUrl) {
-    const targetUrl = new URL(req.originalUrl, nodeUrl);
+    const targetUrl = new URL(req.originalUrl, nodeUrl.url);
     const headers = { ...req.headers };
     delete headers['host'];
     headers['X-Federation-Proxy'] = 'true';
@@ -208,7 +214,12 @@ export function isProxiedRequest(req) {
     return req.headers['x-federation-proxy'] === 'true';
 }
 
-export function onInit(engine) {
+export function onInit(defaultEngine) {
+    engine = defaultEngine;
+    // Tri des pairs pour garantir un ordre déterministe sur tous les nœuds. C'est crucial pour la cohérence du hachage.
+    engine.peers.sort((a, b) => a.url.localeCompare(b.url));
+    logger.info(`[Cluster] Initialized. Self: ${engine.selfUrl}. All peers (sorted): ${engine.peers.map(p => p.url).join(', ')}`);
+
     // Démarrer le processeur de la file d'attente de réplication
     replicationInit(engine);
 }
