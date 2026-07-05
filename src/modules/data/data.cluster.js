@@ -42,7 +42,7 @@ async function broadcastCacheInvalidation(cacheType, key) {
 
     // On envoie une requête à chaque autre nœud du cluster.
     const broadcastPromises = activePeers.map(peer => {
-        const peerUrl = peer.url;
+        const peerUrl = peer.public_domain;
         const targetUrl = `${peerUrl}/api/internal/cache-invalidate`;
         // On suppose que les nœuds partagent un token/secret pour s'authentifier.
         // Le token de l'utilisateur actuel est une bonne option s'il est admin ou a des droits étendus.
@@ -235,7 +235,7 @@ async function proxyRequest(req, res, username) {
     // Pour les écritures (POST, PUT, PATCH, DELETE), on cible toujours le maître.
     if (req.method !== 'GET') {
         const masterNode = getMasterNodeForUser(username); // Le maître désigné par le hash
-        logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNode.url}`);
+        logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNode.public_domain}`);
         await attemptProxy(req, res, masterNode);
         return true; // La requête a été traitée (relayée ou a échoué).
     }
@@ -252,7 +252,7 @@ async function proxyRequest(req, res, username) {
             await attemptProxy(req, res, node);
             return true; // Succès, on arrête la boucle de failover.
         } catch (error) {
-            logger.warn(`[Cluster] Proxy attempt to ${node.url} failed: ${error.message}. Trying next node...`);
+            logger.warn(`[Cluster] Proxy attempt to ${node.public_domain} failed: ${error.message}. Trying next node...`);
         }
     }
 
@@ -263,7 +263,7 @@ async function proxyRequest(req, res, username) {
 }
 
 async function attemptProxy(req, res, node) {
-    const targetUrl = new URL(req.originalUrl, node.url);
+    const targetUrl = new URL(req.originalUrl, `https://${node.public_domain}`);
     const headers = { ...req.headers };
     delete headers['host'];
     headers['X-Federation-Proxy'] = 'true';
@@ -458,7 +458,7 @@ function stopClusterServices() {
 function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger) || new Logger('DataCluster');
-    engine.selfId = engine.peers.find(p => p.url === engine.selfUrl)?.id;
+    engine.selfId = engine.peers.find(p => p.public_domain === engine.selfUrl)?.id;
 
     // 1. Initialiser la liste des membres à partir de la configuration statique
     memberList.clear();

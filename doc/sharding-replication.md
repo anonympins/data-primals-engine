@@ -131,9 +131,9 @@ This endpoint must return a JSON object containing a list of all nodes in the cl
 ```json
 {
   "peers": [
-    { "id": "node-1", "url": "https://node1.myapp.com", "sharding": true, "replica": true },
-    { "id": "node-2", "url": "https://node2.myapp.com", "sharding": true, "replica": true },
-    { "id": "node-3", "url": "https://node3.myapp.com", "sharding": true, "replica": true }
+    { "id": "node-1", "public_domain": "node1.myapp.com", "sharding": true, "replica": true },
+    { "id": "node-2", "public_domain": "node2.myapp.com", "sharding": true, "replica": true },
+    { "id": "node-3", "public_domain": "node3.myapp.com", "sharding": true, "replica": true }
   ]
 }
 ```

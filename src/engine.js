@@ -194,7 +194,7 @@ export const Engine = {
             // Utilise le protocole défini dans les données du pair, ou https par défaut.
             const protocol = targetPeer.protocol || 'https';
             const apiPath = path.startsWith('/') ? path : `/${path}`;
-            const url = `${protocol}://${targetPeer.url}${apiPath}`;
+            const url = `${protocol}://${targetPeer.public_domain}${apiPath}`;
 
             const fetchOptions = {
                 method: 'POST', // POST par défaut
