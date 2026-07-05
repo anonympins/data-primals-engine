@@ -266,10 +266,17 @@ function mergeLists(remoteList) {
 
 function updateMemberStatus(memberId, newStatus) {
     const member = memberList.get(memberId);
-    if (member && member.status !== newStatus) {
-        logger.info(`[Gossip] Updating status for ${memberId} from ${member.status} to ${newStatus}`);
-        member.status = newStatus;
-        member.version++; // Incrémenter la version pour propager le changement
+    if (!member) return;
+
+    const statusChanged = member.status !== newStatus;
+
+    // Si le statut change, ou si on reconfirme qu'un noeud est SUSPECT, on met à jour.
+    if (statusChanged || newStatus === 'SUSPECT') {
+        if (statusChanged) {
+            logger.info(`[Gossip] Updating status for ${memberId} from ${member.status} to ${newStatus}`);
+            member.status = newStatus;
+            member.version++; // On propage le changement uniquement si le statut change.
+        }
         member.lastUpdate = Date.now();
         logMemberList();
     }
@@ -278,7 +285,7 @@ function updateMemberStatus(memberId, newStatus) {
 /**
  * Vérifie périodiquement les nœuds suspects pour les réactiver ou les marquer comme DOWN.
  */
-function checkSuspectNodes() {
+export function checkSuspectNodes() {
     const now = Date.now();
     const SUSPECT_TIMEOUT = Config.Get('gossipSuspectTimeout', 10000); // 10 secondes
 

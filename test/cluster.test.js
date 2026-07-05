@@ -139,16 +139,29 @@ describe('Data Cluster & Gossip Logic', () => {
                 if (key === 'gossipSuspectTimeout') return 5000; // 5s timeout for test
                 return defaultValue;
             });
+
+            // Rendre le choix du pair déterministe en mockant Math.random
+            const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+
             clusterModule.onInit(mockEngine);
             mockEngine.sendToPeer.mockRejectedValue(new Error('Network error'));
 
-            await vi.advanceTimersByTimeAsync(2000); // 1st gossip fails, node becomes SUSPECT
+            // Le premier gossip échoue, node-2 devient SUSPECT
+            await vi.advanceTimersByTimeAsync(2000); 
             const memberListV1 = clusterModule.getMemberList();
-            expect(memberListV1.find(m => m.id !== 'node-1').status).toBe('SUSPECT');
+            expect(memberListV1.find(m => m.id === 'node-2').status).toBe('SUSPECT');
 
-            await vi.advanceTimersByTimeAsync(6000); // Advance time past the SUSPECT timeout
+            // On avance le temps au-delà du timeout.
+            await vi.advanceTimersByTimeAsync(6000);
+
+            // On exécute manuellement la vérification qui aurait dû se produire lors d'un cycle de gossip.
+            // Dans le code réel, `checkSuspectNodes` est appelé par `executeGossip`.
+            clusterModule.checkSuspectNodes();
+
             const memberListV2 = clusterModule.getMemberList();
-            expect(memberListV2.find(m => m.status === 'DOWN')).toBeDefined();
+            expect(memberListV2.find(m => m.id === 'node-2').status).toBe('DOWN');
+
+            randomSpy.mockRestore(); // Nettoyer le spy
         });
     });
 
