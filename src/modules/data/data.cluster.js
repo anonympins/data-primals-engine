@@ -1,11 +1,21 @@
 import { createHash } from 'node:crypto';
 import { Config } from '../../config.js';
 import { Logger } from '../../gameObject.js';
-import { onInit as replicationInit, queueReplication } from './data.replication.js';
+import { onInit as replicationInit, queueReplication, stopReplicationQueue } from './data.replication.js';
 
-const logger = new Logger('DataCluster');
+let logger;
 
 let engine; // L'instance du moteur sera injectée via onInit
+let gossipInterval;
+
+// La source de vérité sur l'état du cluster, gérée par le gossip.
+// La clé est l'ID du noeud (ex: 'node-1'), la valeur contient les métadonnées.
+const memberList = new Map();
+
+/**
+ * Structure d'un membre:
+ * { id: 'node-1', url: 'http://node-1:3000', sharding: true, replica: true, status: 'UP' | 'SUSPECT', version: 1 }
+ */
 
 /**
  * Diffuse un événement d'invalidation de cache à tous les nœuds du cluster.
@@ -19,8 +29,10 @@ export async function broadcastCacheInvalidation(cacheType, key) {
 
     logger.info(`[Cluster] Broadcasting direct cache invalidation for '${cacheType}' with key '${key}' to peers.`);
 
+    const activePeers = getMemberList().filter(p => p.id !== engine.selfId && p.status === 'UP');
+
     // On envoie une requête à chaque autre nœud du cluster.
-    const broadcastPromises = engine.peers.filter(p => p.url !== engine.selfUrl).map(peer => {
+    const broadcastPromises = activePeers.map(peer => {
         const peerUrl = peer.url;
         const targetUrl = `${peerUrl}/api/internal/cache-invalidate`;
         // On suppose que les nœuds partagent un token/secret pour s'authentifier.
@@ -65,16 +77,17 @@ export function replicateOperation(operation, modelName, user, payload) {
  */
 export function getResponsibleNodesForUser(username) {
     const REPLICATION_FACTOR = Config.Get('replicationFactor', 2);
+    const allNodes = getMemberList().filter(m => m.status === 'UP');
 
-    if (!engine || engine.peers.length <= 1) {
-        return [engine.selfUrl];
+    if (!engine || allNodes.length <= 1) {
+        return allNodes.length > 0 ? [allNodes[0]] : [];
     }
 
     // 1. Filtrer les nœuds éligibles pour le sharding
-    const shardingNodes = engine.peers.filter(p => p.sharding === true).sort((a, b) => a.url.localeCompare(b.url));
+    const shardingNodes = allNodes.filter(p => p.sharding === true);
     if (shardingNodes.length === 0) {
         logger.warn('[Cluster] No nodes available for sharding (sharding:true). Using all nodes as fallback.');
-        shardingNodes.push(...engine.peers.sort((a, b) => a.url.localeCompare(b.url)));
+        shardingNodes.push(...allNodes);
     }
 
     // 2. Déterminer le nœud maître basé sur le hachage de l'utilisateur
@@ -85,7 +98,7 @@ export function getResponsibleNodesForUser(username) {
     const responsibleNodes = [masterNode];
 
     // 3. Sélectionner les nœuds de réplication
-    const replicaPool = engine.peers.filter(p => p.replica === true && p.id !== masterNode.id);
+    const replicaPool = allNodes.filter(p => p.replica === true && p.id !== masterNode.id);
     const numReplicasToFind = Math.min(REPLICATION_FACTOR - 1, replicaPool.length);
 
     if (numReplicasToFind > 0) {
@@ -108,7 +121,12 @@ export function getReplicaNodesForUser(username) {
  * @returns {string} L'URL du nœud maître.
  */
 export function getMasterNodeForUser(username) {
-    return getResponsibleNodesForUser(username)[0];
+    const nodes = getResponsibleNodesForUser(username);
+    if (nodes && nodes.length > 0) {
+        return nodes[0];
+    }
+    // Fallback to self if no nodes are found (e.g., single node cluster)
+    return memberList.get(engine.selfId);
 }
 
 /**
@@ -117,7 +135,8 @@ export function getMasterNodeForUser(username) {
  * @returns {boolean}
  */
 export function isSelfMasterForUser(username) {
-    return getMasterNodeForUser(username)?.url === engine.selfUrl;
+    const master = getMasterNodeForUser(username);
+    return master?.id === engine.selfId;
 }
 
 /**
@@ -128,33 +147,33 @@ export function isSelfMasterForUser(username) {
  * @returns {Promise<boolean>} - Retourne `true` si la requête a été relayée, `false` sinon.
  */
 export async function proxyRequest(req, res, username) {
-    const responsibleNodes = getResponsibleNodesForUser(username);
-    const masterNodeUrl = responsibleNodes[0];
+    const masterNode = getMasterNodeForUser(username);
+    const responsibleNodes = getResponsibleNodesForUser(username); // Recalculate to get the full list
 
-    if (masterNodeUrl.url === engine.selfUrl) {
+    if (masterNode.id === engine.selfId) {
         // Ce nœud est le maître, on ne relaie pas.
         return false;
     }
 
     // Pour les écritures (POST, PUT, PATCH, DELETE), on cible toujours le maître.
     if (req.method !== 'GET') {
-        logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNodeUrl}`);
-        await attemptProxy(req, res, masterNodeUrl);
+        logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNode.url}`);
+        await attemptProxy(req, res, masterNode);
         return true; // La requête a été traitée (relayée ou a échoué).
     }
 
     // Pour les lectures (GET), on tente le maître, puis les répliques en cas d'échec.
-    logger.info(`[Cluster] Proxying READ for user ${username}. Node preference: ${responsibleNodes.join(' -> ')}`);
-    for (const nodeUrl of responsibleNodes) {
+    logger.info(`[Cluster] Proxying READ for user ${username}. Node preference: ${responsibleNodes.map(n => n.id).join(' -> ')}`);
+    for (const node of responsibleNodes) {
         try {
-            if (nodeUrl.url === engine.selfUrl) {
+            if (node.id === engine.selfId) {
                 logger.info(`[Cluster] Failover to self. Handling request locally.`);
                 return false;
             }
-            await attemptProxy(req, res, nodeUrl);
+            await attemptProxy(req, res, node);
             return true; // Succès, on arrête la boucle de failover.
         } catch (error) {
-            logger.warn(`[Cluster] Proxy attempt to ${nodeUrl} failed: ${error.message}. Trying next node...`);
+            logger.warn(`[Cluster] Proxy attempt to ${node.url} failed: ${error.message}. Trying next node...`);
         }
     }
 
@@ -164,8 +183,8 @@ export async function proxyRequest(req, res, username) {
     return true; // La requête a été traitée (a échoué).
 }
 
-async function attemptProxy(req, res, nodeUrl) {
-    const targetUrl = new URL(req.originalUrl, nodeUrl.url);
+async function attemptProxy(req, res, node) {
+    const targetUrl = new URL(req.originalUrl, node.url);
     const headers = { ...req.headers };
     delete headers['host'];
     headers['X-Federation-Proxy'] = 'true';
@@ -214,11 +233,139 @@ export function isProxiedRequest(req) {
     return req.headers['x-federation-proxy'] === 'true';
 }
 
+
+// --- GOSSIP PROTOCOL LOGIC ---
+
+function logMemberList() {
+    const simplifiedList = getMemberList().map(m => `${m.id}(${m.status}, v${m.version})`);
+    logger.debug(`[Gossip] Member list: [${simplifiedList.join(', ')}]`);
+}
+
+function mergeLists(remoteList) {
+    let updated = false;
+    for (const remoteMember of remoteList) {
+        const localMember = memberList.get(remoteMember.id);
+
+        if (!localMember) {
+            memberList.set(remoteMember.id, remoteMember);
+            logger.info(`[Gossip] Discovered new member: ${remoteMember.id} at ${remoteMember.url}`);
+            updated = true;
+            continue;
+        }
+
+        if (remoteMember.id !== engine.selfId && remoteMember.version > localMember.version) {
+            logger.debug(`[Gossip] Updating member ${remoteMember.id} from v${localMember.version} to v${remoteMember.version}`);
+            memberList.set(remoteMember.id, remoteMember);
+            updated = true;
+        }
+    }
+    if (updated) {
+        logMemberList();
+    }
+}
+
+function updateMemberStatus(memberId, newStatus) {
+    const member = memberList.get(memberId);
+    if (member && member.status !== newStatus) {
+        logger.info(`[Gossip] Updating status for ${memberId} from ${member.status} to ${newStatus}`);
+        member.status = newStatus;
+        member.version++; // Incrémenter la version pour propager le changement
+        member.lastUpdate = Date.now();
+        logMemberList();
+    }
+}
+
+/**
+ * Vérifie périodiquement les nœuds suspects pour les réactiver ou les marquer comme DOWN.
+ */
+function checkSuspectNodes() {
+    const now = Date.now();
+    const SUSPECT_TIMEOUT = Config.Get('gossipSuspectTimeout', 10000); // 10 secondes
+
+    const suspectNodes = getMemberList().filter(m => m.status === 'SUSPECT');
+
+    for (const member of suspectNodes) {
+        // Si un nœud est suspect depuis trop longtemps, on le considère comme DOWN.
+        // La logique de suppression effective des nœuds DOWN peut être ajoutée ici si nécessaire.
+        if (now - (member.lastUpdate || 0) > SUSPECT_TIMEOUT) {
+            if (member.status !== 'DOWN') {
+                logger.warn(`[Gossip] Member ${member.id} is now considered DOWN (was SUSPECT for too long).`);
+                updateMemberStatus(member.id, 'DOWN');
+            }
+        }
+    }
+}
+
+async function executeGossip() {
+    const peersToGossip = getMemberList().filter(m => m.id !== engine.selfId && m.status === 'UP');
+    if (peersToGossip.length === 0) {
+        return;
+    }
+
+    const targetPeer = peersToGossip[Math.floor(Math.random() * peersToGossip.length)];
+
+    try {
+        const payload = getMemberList();
+        const response = await engine.sendToPeer(targetPeer.id, '/api/internal/gossip', payload);
+
+        if (response.ok) {
+            const remoteList = await response.json();
+            mergeLists(remoteList);
+            // Si la communication a réussi, on s'assure que le pair est bien 'UP'
+            // Utile si le pair était 'SUSPECT' et est revenu en ligne.
+            if (memberList.get(targetPeer.id)?.status !== 'UP') {
+                updateMemberStatus(targetPeer.id, 'UP');
+            }
+        } else {
+            logger.warn(`[Gossip] Failed to gossip with ${targetPeer.id}. Status: ${response.status}`);
+            updateMemberStatus(targetPeer.id, 'SUSPECT');
+        }
+    } catch (error) {
+        logger.error(`[Gossip] Error while gossiping with ${targetPeer.id}: ${error.message}`);
+        updateMemberStatus(targetPeer.id, 'SUSPECT');
+    }
+
+    // Exécuter la vérification des nœuds suspects à chaque cycle
+    checkSuspectNodes();
+}
+
+export function getMemberList() {
+    return Array.from(memberList.values()).sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function stopClusterServices() {
+    clearInterval(gossipInterval);
+    stopReplicationQueue();
+    logger.info('[Cluster] Gossip and replication services stopped.');
+}
+
 export function onInit(defaultEngine) {
     engine = defaultEngine;
-    // Tri des pairs pour garantir un ordre déterministe sur tous les nœuds. C'est crucial pour la cohérence du hachage.
-    engine.peers.sort((a, b) => a.url.localeCompare(b.url));
-    logger.info(`[Cluster] Initialized. Self: ${engine.selfUrl}. All peers (sorted): ${engine.peers.map(p => p.url).join(', ')}`);
+    logger = engine.getComponent(Logger) || new Logger('DataCluster');
+    engine.selfId = engine.peers.find(p => p.url === engine.selfUrl)?.id;
+
+    // 1. Initialiser la liste des membres à partir de la configuration statique
+    memberList.clear();
+    for (const peer of engine.peers) {
+        memberList.set(peer.id, { ...peer, status: 'UP', version: 1, lastUpdate: Date.now() });
+    }
+    logger.info(`[Cluster] Initialized. Self: ${engine.selfId} @ ${engine.selfUrl}.`);
+    logMemberList();
+
+    // 2. Enregistrer l'endpoint pour recevoir les "gossips"
+    engine.post('/api/internal/gossip', (req, res) => {
+        const remoteList = req.fields;
+        if (Array.isArray(remoteList)) {
+            mergeLists(remoteList);
+        }
+        // En réponse, on renvoie notre propre liste mise à jour
+        res.json(getMemberList());
+    });
+
+    // 3. Démarrer la boucle de gossip
+    const interval = Config.Get('gossipInterval', 2000);
+    if (gossipInterval) clearInterval(gossipInterval); // Clear previous interval if re-initializing
+    gossipInterval = setInterval(executeGossip, interval);
 
     // Démarrer le processeur de la file d'attente de réplication
     replicationInit(engine);
