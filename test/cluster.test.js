@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as clusterModule from '../src/modules/data/data.cluster.js';
+import * as fs from 'node:fs/promises';
 import { Logger } from "../src/index.js";
 import { Config } from '../src/config.js';
 
@@ -19,6 +20,15 @@ vi.mock('../src/config.js', () => ({
         Get: vi.fn((key, defaultValue) => defaultValue)
     }
 }));
+
+// Mock fs.promises pour contrôler statfs
+vi.mock('node:fs/promises', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        statfs: vi.fn().mockResolvedValue({ bavail: 5000, bsize: 1024, blocks: 10000 }), // Mock de base
+    };
+});
 
 describe('Data Cluster & Gossip Logic', () => {
     let mockEngine;
@@ -110,7 +120,7 @@ describe('Data Cluster & Gossip Logic', () => {
             const failedPeerId = mockEngine.sendToPeer.mock.calls[0][0];
             
             const memberList = clusterModule.getMemberList();
-            const failedPeer = memberList.find(m => m.id === failedPeerId);
+            const failedPeer = memberList.find(m => m.id === failedPeerId); 
             expect(failedPeer.status).toBe('SUSPECT');
             expect(failedPeer.version).toBe(2); // Version incremented
         });
@@ -149,17 +159,13 @@ describe('Data Cluster & Gossip Logic', () => {
             // Le premier gossip échoue, node-2 devient SUSPECT
             await vi.advanceTimersByTimeAsync(2000); 
             const memberListV1 = clusterModule.getMemberList();
-            expect(memberListV1.find(m => m.id === 'node-2').status).toBe('SUSPECT');
+            expect(memberListV1.find(m => m.id === 'node-2')?.status).toBe('SUSPECT');
 
-            // On avance le temps au-delà du timeout.
-            await vi.advanceTimersByTimeAsync(6000);
-
-            // On exécute manuellement la vérification qui aurait dû se produire lors d'un cycle de gossip.
-            // Dans le code réel, `checkSuspectNodes` est appelé par `executeGossip`.
-            clusterModule.checkSuspectNodes();
+            // On avance le temps au-delà du timeout + un autre cycle de gossip pour que checkSuspectNodes s'exécute.
+            await vi.advanceTimersByTimeAsync(8000); // 6000ms (timeout) + 2000ms (next gossip)
 
             const memberListV2 = clusterModule.getMemberList();
-            expect(memberListV2.find(m => m.id === 'node-2').status).toBe('DOWN');
+            expect(memberListV2.find(m => m.id === 'node-2')?.status).toBe('DOWN');
 
             randomSpy.mockRestore(); // Nettoyer le spy
         });

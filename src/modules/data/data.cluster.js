@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { statfs } from 'node:fs/promises';
 import { Config } from '../../config.js';
 import { Logger } from '../../gameObject.js';
 import { onInit as replicationInit, queueReplication, stopReplicationQueue } from './data.replication.js';
@@ -14,7 +15,7 @@ const memberList = new Map();
 
 /**
  * Structure d'un membre:
- * { id: 'node-1', url: 'http://node-1:3000', sharding: true, replica: true, status: 'UP' | 'SUSPECT', version: 1 }
+ * { id: 'node-1', url: 'http://node-1:3000', sharding: true, replica: true, status: 'UP' | 'SUSPECT' | 'FULL', version: 1, disk: { free: 123, total: 456 } }
  */
 
 /**
@@ -75,38 +76,60 @@ export function replicateOperation(operation, modelName, user, payload) {
  * @param {string} username - Le nom de l'utilisateur.
  * @returns {string[]} Une liste d'URLs de nœuds.
  */
-export function getResponsibleNodesForUser(username) {
+export function getResponsibleNodesForUser(username, vnodesPerNode = 100) {
     const REPLICATION_FACTOR = Config.Get('replicationFactor', 2);
     const allNodes = getMemberList().filter(m => m.status === 'UP');
-
+    
     if (!engine || allNodes.length <= 1) {
         return allNodes.length > 0 ? [allNodes[0]] : [];
     }
-
+    
     // 1. Filtrer les nœuds éligibles pour le sharding
     const shardingNodes = allNodes.filter(p => p.sharding === true);
     if (shardingNodes.length === 0) {
         logger.warn('[Cluster] No nodes available for sharding (sharding:true). Using all nodes as fallback.');
         shardingNodes.push(...allNodes);
     }
-
-    // 2. Déterminer le nœud maître basé sur le hachage de l'utilisateur
-    const hash = createHash('sha256').update(username).digest('hex');
-    const masterIndex = parseInt(hash.substring(0, 8), 16) % shardingNodes.length;
-    const masterNode = shardingNodes[masterIndex];
+    
+    // 2. Amélioration avec des "nœuds virtuels" pour une meilleure distribution.
+    // Au lieu de `hash % N`, on divise l'espace de hachage en `N * vnodesPerNode` partitions.
+    // Cela lisse la distribution et réduit les "hot spots".
+    const totalVNodes = shardingNodes.length * vnodesPerNode;
+    const userHash = createHash('sha256').update(username).digest();
+    // On prend les 4 premiers octets du hash pour avoir un grand nombre entier.
+    const userHashInt = userHash.readUInt32BE(0);
+    
+    const partitionIndex = userHashInt % totalVNodes;
+    const masterNodeIndex = Math.floor(partitionIndex / vnodesPerNode);
+    const masterNode = shardingNodes[masterNodeIndex];
 
     const responsibleNodes = [masterNode];
 
     // 3. Sélectionner les nœuds de réplication
-    const replicaPool = allNodes.filter(p => p.replica === true && p.id !== masterNode.id);
+    // On filtre les noeuds éligibles et on les trie par espace disque libre (du plus grand au plus petit).
+    // Cela garantit que nous choisissons toujours les nœuds les plus sains en premier.
+    const replicaPool = allNodes.filter(p =>
+        p.replica === true && 
+        p.id !== masterNode.id &&
+        p.status !== 'DOWN' && p.status !== 'SUSPECT' && // On exclut les nœuds en panne
+        p.disk && p.disk.free > 0 // On s'assure d'avoir les infos disque et qu'il reste de la place
+    ).sort((a, b) => b.disk.free - a.disk.free); // Tri descendant par espace libre
+
     const numReplicasToFind = Math.min(REPLICATION_FACTOR - 1, replicaPool.length);
 
     if (numReplicasToFind > 0) {
-        // On utilise le même hash pour choisir les répliques de manière déterministe
-        const replicaStartIndex = parseInt(hash.substring(8, 16), 16) % replicaPool.length;
-        for (let i = 0; i < numReplicasToFind; i++) {
-            responsibleNodes.push(replicaPool[(replicaStartIndex + i) % replicaPool.length]);
-        }
+        // Au lieu d'une sélection par hash (qui peut assigner un user à un nœud presque plein),
+        // on prend simplement les N premiers nœuds de la liste triée.
+        // Ce sont les nœuds avec le plus d'espace libre.
+        // Cette approche est "goulue" (greedy) mais très efficace pour l'équilibrage.
+        const bestReplicas = replicaPool.slice(0, numReplicasToFind);
+        responsibleNodes.push(...bestReplicas);
+    }
+
+    // La condition de log est mise à jour pour refléter la nouvelle logique.
+    if (responsibleNodes.length < REPLICATION_FACTOR) {
+        // Pas assez de répliques saines disponibles. C'est un problème.
+        logger.warn(`[Cluster] Could not find enough healthy replicas for user '${username}'. Wanted ${REPLICATION_FACTOR}, found ${responsibleNodes.length}. Some data may be under-replicated.`);
     }
 
     return responsibleNodes;
@@ -280,6 +303,11 @@ function updateMemberStatus(memberId, newStatus) {
         member.lastUpdate = Date.now();
         logMemberList();
     }
+
+    // Si un noeud redevient 'UP', on réinitialise son état disque en attendant la prochaine mise à jour de sa part.
+    if (newStatus === 'UP' && member.status !== 'UP') {
+        member.disk = null; 
+    }
 }
 
 /**
@@ -303,8 +331,33 @@ export function checkSuspectNodes() {
     }
 }
 
+/**
+ * Met à jour les informations de disque pour le noeud local.
+ * Cette fonction sera appelée périodiquement.
+ */
+async function updateSelfDiskUsage() {
+    const self = memberList.get(engine.selfId);
+    if (!self) return;
+
+    try {
+        // Utilisation de la fonction native de Node.js pour obtenir l'espace disque
+        const stats = await statfs(process.cwd()); // Vérifie le disque de l'application
+        const free = stats.bavail * stats.bsize; // Espace libre disponible pour l'utilisateur
+        const total = stats.blocks * stats.bsize; // Espace total
+        self.disk = { free, total };
+        
+        // Si l'espace libre est < 10%, on se marque comme 'FULL' pour ne plus accepter de répliques.
+        const usagePercentage = 1 - (free / total);
+        updateMemberStatus(self.id, usagePercentage > 0.9 ? 'FULL' : 'UP');
+    } catch (err) {
+        logger.error(`[Gossip] Could not read disk usage: ${err.message}`);
+    }
+}
 async function executeGossip() {
     const peersToGossip = getMemberList().filter(m => m.id !== engine.selfId && m.status === 'UP');
+    
+    // On exécute la vérification des nœuds suspects à chaque cycle, même si aucun pair n'est UP.
+    checkSuspectNodes();
     if (peersToGossip.length === 0) {
         return;
     }
@@ -312,6 +365,9 @@ async function executeGossip() {
     const targetPeer = peersToGossip[Math.floor(Math.random() * peersToGossip.length)];
 
     try {
+        // Avant d'envoyer notre liste, on met à jour nos propres infos
+        await updateSelfDiskUsage();
+
         const payload = getMemberList();
         const response = await engine.sendToPeer(targetPeer.id, '/api/internal/gossip', payload);
 
@@ -331,9 +387,6 @@ async function executeGossip() {
         logger.error(`[Gossip] Error while gossiping with ${targetPeer.id}: ${error.message}`);
         updateMemberStatus(targetPeer.id, 'SUSPECT');
     }
-
-    // Exécuter la vérification des nœuds suspects à chaque cycle
-    checkSuspectNodes();
 }
 
 export function getMemberList() {
@@ -354,7 +407,7 @@ export function onInit(defaultEngine) {
     // 1. Initialiser la liste des membres à partir de la configuration statique
     memberList.clear();
     for (const peer of engine.peers) {
-        memberList.set(peer.id, { ...peer, status: 'UP', version: 1, lastUpdate: Date.now() });
+        memberList.set(peer.id, { ...peer, status: 'UP', version: 1, lastUpdate: Date.now(), disk: null });
     }
     logger.info(`[Cluster] Initialized. Self: ${engine.selfId} @ ${engine.selfUrl}.`);
     logMemberList();
