@@ -33,6 +33,8 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 describe('Data Cluster & Gossip Logic', () => {
     let mockEngine;
     let postHandlers = {};
+    let mockDataHandler;
+    let mockClusterLeaseModel;
 
     beforeEach(() => {
         vi.useFakeTimers();
@@ -45,11 +47,25 @@ describe('Data Cluster & Gossip Logic', () => {
                 { id: 'node-2', url: 'http://node-2:3000', sharding: true, replica: true },
                 { id: 'node-3', url: 'http://node-3:3000', sharding: true, replica: true }
             ],
-            getComponent: vi.fn().mockReturnValue(new Logger('mock')),
+            getComponent: vi.fn(componentName => {
+                if (componentName === 'DataHandler') return mockDataHandler;
+                return new Logger('mock');
+            }),
             sendToPeer: vi.fn(),
             post: vi.fn((path, handler) => {
                 postHandlers[path] = handler;
             }),
+        };
+
+        // Mock Mongoose/DataHandler for leasing
+        mockClusterLeaseModel = {
+            findOneAndUpdate: vi.fn(),
+        };
+        mockDataHandler = {
+            mongoose: {
+                Schema: class Schema {},
+                model: vi.fn().mockReturnValue(mockClusterLeaseModel),
+            }
         };
 
         // Reset post handlers for each test
@@ -194,6 +210,55 @@ describe('Data Cluster & Gossip Logic', () => {
 
             // Check if it responded with the new list
             expect(mockRes.json).toHaveBeenCalledWith(memberList);
+        });
+    });
+
+    describe('Mastership & Leasing (isSelfMasterForUser)', () => {
+        const username = 'test-user';
+        const resourceId = `mastership-${username}`;
+
+        it('should return false if node is not the potential master based on hash', async () => {
+            clusterModule.onInit(mockEngine);
+            // Mock getMasterNodeForUser to return another node
+            vi.spyOn(clusterModule, 'getMasterNodeForUser').mockReturnValue({ id: 'node-2' });
+
+            const isMaster = await clusterModule.isSelfMasterForUser(username);
+
+            expect(isMaster).toBe(false);
+            expect(mockClusterLeaseModel.findOneAndUpdate).not.toHaveBeenCalled();
+        });
+
+        it('should return true if node is potential master and successfully acquires lease', async () => {
+            clusterModule.onInit(mockEngine);
+            vi.spyOn(clusterModule, 'getMasterNodeForUser').mockReturnValue({ id: 'node-1' });
+
+            // Mock successful lease acquisition
+            mockClusterLeaseModel.findOneAndUpdate.mockResolvedValue({
+                resourceId: resourceId,
+                ownerId: 'node-1'
+            });
+
+            const isMaster = await clusterModule.isSelfMasterForUser(username);
+
+            expect(isMaster).toBe(true);
+            expect(mockClusterLeaseModel.findOneAndUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({ resourceId }),
+                expect.any(Object),
+                expect.any(Object)
+            );
+        });
+
+        it('should return false if node is potential master but fails to acquire lease', async () => {
+            clusterModule.onInit(mockEngine);
+            vi.spyOn(clusterModule, 'getMasterNodeForUser').mockReturnValue({ id: 'node-1' });
+
+            // Mock failed lease acquisition (another node holds it)
+            mockClusterLeaseModel.findOneAndUpdate.mockResolvedValue(null);
+
+            const isMaster = await clusterModule.isSelfMasterForUser(username);
+
+            expect(isMaster).toBe(false);
+            expect(mockClusterLeaseModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
         });
     });
 });

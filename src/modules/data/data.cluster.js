@@ -4,9 +4,17 @@ import { Config } from '../../config.js';
 import { Logger } from '../../gameObject.js';
 import { onInit as replicationInit, queueReplication, stopReplicationQueue } from './data.replication.js';
 
+// Importer le module dans lui-même pour accéder aux exports (et donc aux mocks dans les tests)
+import * as self from './data.cluster.js';
+
 let logger;
 
 let engine; // L'instance du moteur sera injectée via onInit
+let dataHandler; // Pour l'accès à MongoDB
+let ClusterLease; // Modèle Mongoose pour les baux
+
+const LEASE_DURATION_MS = 10000; // Durée du bail en ms (10s)
+
 let gossipInterval;
 
 // La source de vérité sur l'état du cluster, gérée par le gossip.
@@ -23,7 +31,7 @@ const memberList = new Map();
  * @param {string} cacheType - Le type de cache à invalider (ex: 'model').
  * @param {string} key - La clé spécifique à invalider dans le cache.
  */
-export async function broadcastCacheInvalidation(cacheType, key) {
+async function broadcastCacheInvalidation(cacheType, key) {
     if (!engine || engine.peers.length <= 1) {
         return; // Pas de cluster, rien à faire.
     }
@@ -66,7 +74,7 @@ export async function broadcastCacheInvalidation(cacheType, key) {
  * @param {object} user - L'objet utilisateur.
  * @param {object} payload - Les données de l'opération.
  */
-export function replicateOperation(operation, modelName, user, payload) {
+function replicateOperation(operation, modelName, user, payload) {
     queueReplication(operation, modelName, user, payload);
 }
 
@@ -76,7 +84,7 @@ export function replicateOperation(operation, modelName, user, payload) {
  * @param {string} username - Le nom de l'utilisateur.
  * @returns {string[]} Une liste d'URLs de nœuds.
  */
-export function getResponsibleNodesForUser(username, vnodesPerNode = 100) {
+function getResponsibleNodesForUser(username, vnodesPerNode = 100) {
     const REPLICATION_FACTOR = Config.Get('replicationFactor', 2);
     const allNodes = getMemberList().filter(m => m.status === 'UP');
     
@@ -135,7 +143,7 @@ export function getResponsibleNodesForUser(username, vnodesPerNode = 100) {
     return responsibleNodes;
 }
 
-export function getReplicaNodesForUser(username) {
+function getReplicaNodesForUser(username) {
     return getResponsibleNodesForUser(username).slice(1);
 }
 /**
@@ -156,12 +164,58 @@ export function getMasterNodeForUser(username) {
  * Vérifie si le nœud actuel est le maître pour cet utilisateur.
  * @param {string} username - Le nom de l'utilisateur.
  * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
-export function isSelfMasterForUser(username) {
-    const master = getMasterNodeForUser(username);
-    return master?.id === engine.selfId;
+async function isSelfMasterForUser(username) {
+    // 1. Détermination du maître potentiel par hash (logique inchangée)
+    const potentialMaster = self.getMasterNodeForUser(username);
+    if (potentialMaster?.id !== engine.selfId) {
+        // Si le hash ne nous désigne pas, nous ne sommes pas le maître.
+        return false;
+    }
+
+    // 2. Nous sommes le candidat. Tentons d'acquérir/renouveler le bail.
+    // C'est l'étape de "fencing" qui prévient le split-brain.
+    const resourceId = `mastership-${username}`;
+    const hasLease = await acquireOrRenewLease(resourceId, engine.selfId);
+
+    if (!hasLease) {
+        logger.warn(`[Cluster] Failed to acquire/renew mastership lease for user '${username}'. Another node may be master despite hash assignment. Stepping down.`);
+        return false;
+    }
+
+    // 3. Nous sommes le candidat désigné ET nous détenons le bail. Nous sommes le maître.
+    return true;
 }
 
+/**
+ * Tente d'acquérir ou de renouveler un bail pour une ressource donnée.
+ * Cette opération est atomique.
+ * @param {string} resourceId - L'identifiant unique de la ressource à verrouiller.
+ * @param {string} nodeId - L'ID du nœud qui tente d'acquérir le bail.
+ * @returns {Promise<boolean>} - `true` si le bail est acquis/renouvelé avec succès, `false` sinon.
+ */
+async function acquireOrRenewLease(resourceId, nodeId) {
+    if (!ClusterLease) {
+        logger.warn('[Lease] Lease model not initialized, cannot acquire lease. Assuming not master.');
+        return false;
+    }
+
+    const now = new Date();
+    const newExpiresAt = new Date(now.getTime() + LEASE_DURATION_MS);
+
+    try {
+        const result = await ClusterLease.findOneAndUpdate(
+            { resourceId, $or: [{ ownerId: nodeId }, { expiresAt: { $lt: now } }] },
+            { $set: { ownerId: nodeId, expiresAt: newExpiresAt } },
+            { new: true, upsert: true }
+        );
+        return result && result.ownerId === nodeId;
+    } catch (error) {
+        logger.error(`[Lease] Error during lease acquisition for '${resourceId}': ${error.message}`);
+        return false;
+    }
+}
 /**
  * Relaye une requête (lecture ou écriture) vers le nœud maître approprié de manière performante (streaming).
  * @param {object} req - L'objet requête Express.
@@ -169,23 +223,25 @@ export function isSelfMasterForUser(username) {
  * @param {string} username - Le nom de l'utilisateur concerné.
  * @returns {Promise<boolean>} - Retourne `true` si la requête a été relayée, `false` sinon.
  */
-export async function proxyRequest(req, res, username) {
-    const masterNode = getMasterNodeForUser(username);
-    const responsibleNodes = getResponsibleNodesForUser(username); // Recalculate to get the full list
+async function proxyRequest(req, res, username) {
+    // La vérification de maîtrise est maintenant asynchrone et basée sur le bail.
+    const isMaster = await isSelfMasterForUser(username);
 
-    if (masterNode.id === engine.selfId) {
+    if (isMaster) {
         // Ce nœud est le maître, on ne relaie pas.
         return false;
     }
 
     // Pour les écritures (POST, PUT, PATCH, DELETE), on cible toujours le maître.
     if (req.method !== 'GET') {
+        const masterNode = getMasterNodeForUser(username); // Le maître désigné par le hash
         logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNode.url}`);
         await attemptProxy(req, res, masterNode);
         return true; // La requête a été traitée (relayée ou a échoué).
     }
 
     // Pour les lectures (GET), on tente le maître, puis les répliques en cas d'échec.
+    const responsibleNodes = getResponsibleNodesForUser(username);
     logger.info(`[Cluster] Proxying READ for user ${username}. Node preference: ${responsibleNodes.map(n => n.id).join(' -> ')}`);
     for (const node of responsibleNodes) {
         try {
@@ -252,7 +308,7 @@ async function attemptProxy(req, res, node) {
  * @param {object} req - L'objet requête Express.
  * @returns {boolean}
  */
-export function isProxiedRequest(req) {
+function isProxiedRequest(req) {
     return req.headers['x-federation-proxy'] === 'true';
 }
 
@@ -276,7 +332,7 @@ function mergeLists(remoteList) {
             continue;
         }
 
-        if (remoteMember.id !== engine.selfId && remoteMember.version > localMember.version) {
+        if (remoteMember.id !== engine.selfId && remoteMember.version > (localMember.version || 0)) {
             logger.debug(`[Gossip] Updating member ${remoteMember.id} from v${localMember.version} to v${remoteMember.version}`);
             memberList.set(remoteMember.id, remoteMember);
             updated = true;
@@ -313,7 +369,7 @@ function updateMemberStatus(memberId, newStatus) {
 /**
  * Vérifie périodiquement les nœuds suspects pour les réactiver ou les marquer comme DOWN.
  */
-export function checkSuspectNodes() {
+function checkSuspectNodes() {
     const now = Date.now();
     const SUSPECT_TIMEOUT = Config.Get('gossipSuspectTimeout', 10000); // 10 secondes
 
@@ -389,19 +445,20 @@ async function executeGossip() {
     }
 }
 
-export function getMemberList() {
+function getMemberList() {
     return Array.from(memberList.values()).sort((a, b) => a.id.localeCompare(b.id));
 }
 
-export function stopClusterServices() {
+function stopClusterServices() {
     clearInterval(gossipInterval);
     stopReplicationQueue();
     logger.info('[Cluster] Gossip and replication services stopped.');
 }
 
-export function onInit(defaultEngine) {
+function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger) || new Logger('DataCluster');
+    dataHandler = engine.getComponent('DataHandler');
     engine.selfId = engine.peers.find(p => p.url === engine.selfUrl)?.id;
 
     // 1. Initialiser la liste des membres à partir de la configuration statique
@@ -411,6 +468,20 @@ export function onInit(defaultEngine) {
     }
     logger.info(`[Cluster] Initialized. Self: ${engine.selfId} @ ${engine.selfUrl}.`);
     logMemberList();
+
+    // Initialiser le système de baux si un DataHandler est présent
+    if (dataHandler) {
+        const leaseSchema = new dataHandler.mongoose.Schema({
+            resourceId: { type: String, required: true, unique: true, index: true },
+            ownerId: { type: String, required: true },
+            expiresAt: { type: Date, required: true, index: { expires: '1m' } }
+        }, { timestamps: true });
+
+        ClusterLease = dataHandler.mongoose.model('ClusterLease', leaseSchema);
+        logger.info('[Cluster] Lease manager initialized with MongoDB backend.');
+    } else {
+        logger.warn('[Cluster] DataHandler not found. Lease-based master verification is disabled. Cluster may be vulnerable to split-brain.');
+    }
 
     // 2. Enregistrer l'endpoint pour recevoir les "gossips"
     engine.post('/api/internal/gossip', (req, res) => {
@@ -428,5 +499,8 @@ export function onInit(defaultEngine) {
     gossipInterval = setInterval(executeGossip, interval);
 
     // Démarrer le processeur de la file d'attente de réplication
-    replicationInit(engine);
+    replicationInit(engine, { getReplicaNodesForUser: self.getReplicaNodesForUser });
 }
+
+
+export { broadcastCacheInvalidation, replicateOperation, getResponsibleNodesForUser, getReplicaNodesForUser, getMasterNodeForUser, isSelfMasterForUser, proxyRequest, isProxiedRequest, checkSuspectNodes, getMemberList, stopClusterServices, onInit };
