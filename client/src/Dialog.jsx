@@ -69,20 +69,22 @@ export const Dialog = ({
     }
   }, [addDialog, removeDialog]);
   return showModal ? (
-    <div
+    <div className="dialog-container">
+      <div
         aria-modal={true}
         aria-label={title}
-      className={`${className ? className : ""} dialog ${isModal ? "dialog-modal" : ""}`}
-    >
-      <div className="dialog-header">
-        {title && <h2>{title}</h2>}
-        {isClosable && (
-          <Button className={"btn btn-close"} onClick={handleClose}>
-            <FaWindowClose />
-          </Button>
-        )}
+        className={`${className ? className : ""} dialog ${isModal ? "dialog-modal" : ""}`}
+      >
+        <div className="dialog-header">
+          {title && <h2>{title}</h2>}
+          {isClosable && (
+            <Button className={"btn btn-close"} onClick={handleClose}>
+              <FaWindowClose />
+            </Button>
+          )}
+        </div>
+        <div className="dialog-content">{children}</div>
       </div>
-      <div className="dialog-content">{children}</div>
     </div>
   ) : (
     <></>
