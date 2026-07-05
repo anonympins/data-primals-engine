@@ -458,7 +458,6 @@ function stopClusterServices() {
 function onInit(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger) || new Logger('DataCluster');
-    dataHandler = engine.getComponent('DataHandler');
     engine.selfId = engine.peers.find(p => p.url === engine.selfUrl)?.id;
 
     // 1. Initialiser la liste des membres à partir de la configuration statique
