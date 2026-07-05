@@ -194,7 +194,7 @@ export const Engine = {
             // Utilise le protocole défini dans les données du pair, ou https par défaut.
             const protocol = targetPeer.protocol || 'https';
             const apiPath = path.startsWith('/') ? path : `/${path}`;
-            const url = `${protocol}://${targetPeer.public_domain}${apiPath}`;
+            const url = `${protocol}://${targetPeer.url}${apiPath}`;
 
             const fetchOptions = {
                 method: 'POST', // POST par défaut
@@ -202,9 +202,9 @@ export const Engine = {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Target-Peer-Id': peerId, // Le header crucial pour le routage
-                    ...(options.headers || {}),
+                    ...(options.headers || {})
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(payload)
             };
 
             try {

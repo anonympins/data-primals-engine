@@ -120,15 +120,15 @@ By default, the application is available at `http://localhost:7633`.
 Discover the core features to get started building and managing your data.
 Link to the official documentation: https://data.primals.net/en/documentation/
 
-- 🧠 [Core Concepts](https://github.com/anonympins/data-primals-engine/wiki/Concepts): Explore the fundamentals of data modeling
-- 🔌 [Custom API Endpoints](https://github.com/anonympins/data-primals-engine/wiki/Custom-Endpoints): Create dynamic HTTP routes directly from the backend
-- 🏗️ [Data Models](https://data.primals.net/en/documentation/create-models): Structure your information.
-- 🗃️ [Data Management](https://data.primals.net/en/documentation/manage-data): Create, read, update, and delete your entries.
-- 📊 [Views (Table, Kanban)](Views): Visualize your data in different ways. *(Page to be created)*
-- 📈 [Dashboards, KPIs, and Charts](https://data.primals.net/en/documentation/dashboards): Track your key metrics.
-- 👥 [Users](https://data.primals.net/en/documentation/users): Manage access to the platform.
-- 🔐 [Roles and Permissions](https://data.primals.net/en/documentation/roles-permissions): Define who can see and do what.
-- ⚙️ [Automation with Workflows](https://data.primals.net/en/documentation/automation-workflows): Create automated processes.
+- 🧠 [Core Concepts](https://github.com/anonympins/data-primals-engine/blob/main/doc/Concepts.md): Explore the fundamentals of data modeling
+- 🔌 [Custom API Endpoints](https://github.com/anonympins/data-primals-engine/blob/main/doc/Custom-Endpoints.md): Create dynamic HTTP routes directly from the backend
+- 🏗️ [Data Models](https://github.com/anonympins/data-primals-engine/blob/main/doc/data-models.md): Structure your information.
+- 🗃️ [Data Management](https://github.com/anonympins/data-primals-engine/blob/main/doc/data-management.md): Create, read, update, and delete your entries.
+- 📊 Views (Table, Kanban): Visualize your data in different ways. *(Page to be created)*
+- 📈 [Dashboards, KPIs, and Charts](https://github.com/anonympins/data-primals-engine/blob/main/doc/dashboards-kpis-charts.md): Track your key metrics.
+- 👥 [Users](https://github.com/anonympins/data-primals-engine/blob/main/doc/users.md): Manage access to the platform.
+- 🔐 [Roles and Permissions](https://github.com/anonympins/data-primals-engine/blob/main/doc/roles-permissions.md): Define who can see and do what.
+- ⚙️ [Automation with Workflows](https://github.com/anonympins/data-primals-engine/blob/main/doc/automation-workflows.md): Create automated processes.
 
 ## 🔌 Integrate with your tools
 Connect the platform to your external applications and services via our API.

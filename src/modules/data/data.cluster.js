@@ -502,4 +502,4 @@ function onInit(defaultEngine) {
 }
 
 
-export { broadcastCacheInvalidation, replicateOperation, getResponsibleNodesForUser, getReplicaNodesForUser, getMasterNodeForUser, isSelfMasterForUser, proxyRequest, isProxiedRequest, checkSuspectNodes, getMemberList, stopClusterServices, onInit };
+export { broadcastCacheInvalidation, replicateOperation, getResponsibleNodesForUser, getReplicaNodesForUser, isSelfMasterForUser, proxyRequest, isProxiedRequest, checkSuspectNodes, getMemberList, stopClusterServices, onInit };
