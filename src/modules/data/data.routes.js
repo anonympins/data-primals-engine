@@ -829,9 +829,9 @@ export async function registerRoutes(defaultEngine){
     engine.post('/api/data/import', [middlewareAuthenticator, userInitiator, ...userMiddlewares, setTimeoutMiddleware(60000)], async (req, res) => {
         // ... (vérifications de permissions existantes) ...
         const result = await importData(req.fields, req.files, req.me);
-        if( result.success ){
-            res.status(202).json(result);
-        }else{
+        if (result.success) {
+            res.status(200).json(result); // Changed from 202 to 200
+        } else {
             res.status(500).json(result);
         }
     });
