@@ -5,6 +5,10 @@ import { cookiesSecret } from "./constants.js";
 import {UserProvider} from "./providers.js";
 import {getCollection} from "./modules/mongodb.js";
 import process from "process";
+import {Event} from "./events.js"
+import { randomBytes } from 'crypto';
+import bcrypt from 'bcrypt';
+import { sendEmail } from './email.js';
 
 /**
  * @class SSOUserProvider
@@ -53,28 +57,56 @@ export class SSOUserProvider extends UserProvider {
 
         const email = profile.emails[0].value;
 
-        // 1. Chercher un utilisateur existant avec cet email.
-        const existingUser = await this.usersCollection.findOne({ email: email });
+        // 1. Chercher un contact existant avec cet email.
+        const contactCollection = getCollection("contact");
+        const existingContact = await contactCollection.findOne({ email: email });
 
-        if (existingUser) {
-            // TODO: Mettre à jour les informations de l'utilisateur si nécessaire (ex: nom, photo de profil)
-            // await this.usersCollection.updateOne({ _id: existingUser._id }, { $set: { lastLogin: new Date() } });
-            return existingUser;
+        if (existingContact) {
+            // 2. Si le contact existe, chercher l'utilisateur qui lui est lié.
+            const existingUser = await this.usersCollection.findOne({ contact: existingContact._id.toString() });
+            if (existingUser) {
+                // TODO: Mettre à jour les informations de l'utilisateur/contact si nécessaire (ex: nom, photo de profil)
+                return existingUser;
+            }
         }
 
-        // 2. Si aucun utilisateur n'est trouvé, en créer un nouveau.
-        const newUser = {
-            username: email, // Utiliser l'email comme nom d'utilisateur par défaut
+        // 3. Si aucun utilisateur n'est trouvé, en créer un nouveau avec son contact.
+        const [firstName, ...lastNameParts] = (profile.displayName || email).split(' ');
+        const lastName = lastNameParts.join(' ');
+
+        const newContact = {
+            _model: 'contact',
+            firstName: firstName,
+            lastName: lastName,
             email: email,
-            name: profile.displayName || email,
+            // On pourrait ajouter le _user ici si on a un utilisateur "système" pour les créations SSO
+        };
+        const contactResult = await contactCollection.insertOne(newContact);
+
+        // Générer un mot de passe aléatoire et sécurisé que l'utilisateur ne connaîtra pas.
+        // Il pourra utiliser le flux "mot de passe oublié" s'il souhaite se connecter localement.
+        const randomPassword = randomBytes(32).toString('hex');
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
+
+        const newUser = {
+            _model: 'user',
+            username: email, // Utiliser l'email comme nom d'utilisateur par défaut
+            contact: contactResult.insertedId.toString(),
             provider: profile.provider, // ex: 'google', 'saml'
             providerId: profile.id,
+            hash: hashedPassword, // Mot de passe haché pour une éventuelle connexion locale
             userPlan: 'free', // Assigner un plan par défaut
             createdAt: new Date()
         };
 
-        const result = await this.usersCollection.insertOne(newUser);
-        return await this.findUserById(result.insertedId);
+        const userResult = await this.usersCollection.insertOne(newUser);
+        const finalUser = await this.findUserById(userResult.insertedId);
+
+        // Envoyer un e-mail de bienvenue au nouvel utilisateur
+        sendEmail(email, { title: "Bienvenue !", content: "Votre compte a été créé avec succès." }).catch(console.error);
+
+        return finalUser;
     }
 
     // Les autres méthodes comme validatePassword ne sont pas pertinentes pour le SSO.
@@ -162,19 +194,39 @@ export class Sso extends Behaviour {
 
         const app = this.gameObject;
 
-        // Créer la route d'initiation
-        app.get(routes.authPath, passport.authenticate(name, options));
+        // --- ROUTE D'INITIATION AMÉLIORÉE ---
+        // Nous utilisons un middleware personnalisé pour préserver l'état (query params).
+        app.get(routes.authPath, (req, res, next) => {
+            this.#logger.debug(`[SSO] Initiating '${name}' auth. Full returnTo URL stored: '${req.session.returnTo}'`);
+            
+            // On sauvegarde la session manuellement avant de rediriger vers le fournisseur SSO.
+            // Ceci garantit que `returnTo` est persisté.
+            req.session.save(() => {
+                passport.authenticate(name, options)(req, res, next);
+            });
+        });
 
-        // Créer la route de callback
-        app.get(
-            routes.callbackPath,
-            passport.authenticate(name, { failureRedirect: '/login', failureMessage: true }),
-            (req, res) => {
-                // Redirection après une authentification réussie
-                res.redirect(req.session.returnTo || '/dashboard');
-                delete req.session.returnTo;
-            }
-        );
+        // --- ROUTE DE CALLBACK AMÉLIORÉE ---
+        // Nous utilisons un callback personnalisé pour déclencher des événements.
+        app.get(routes.callbackPath, (req, res, next) => {
+            passport.authenticate(name, { failureRedirect: '/login', failureMessage: true }, async (err, user, info) => {
+                if (err) { return next(err); }
+                if (!user) { return res.redirect('/login'); }
+
+                // Sauvegarder l'URL de retour avant que req.logIn() ne régénère potentiellement la session.
+                const returnToUrl = req.session.returnTo;
+
+                req.logIn(user, async (loginErr) => {
+                    if (loginErr) { return next(loginErr); }
+
+                    // Restaurer l'URL de retour dans la nouvelle session.
+                    req.session.returnTo = returnToUrl;
+
+                    // *** DÉCLENCHEMENT DE L'ÉVÉNEMENT OnSSOLogin ***
+                    await Event.Trigger("OnSsoLogin", "event", "system", { req, res, user, ssoProfile: info?.profile });
+                });
+            })(req, res, next);
+        });
 
         this.strategies.set(name, { strategy, routes, options });
         this.#logger.info(`Passport strategy '${name}' registered with routes: ${routes.authPath}, ${routes.callbackPath}`);
