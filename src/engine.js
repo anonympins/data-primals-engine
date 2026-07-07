@@ -227,7 +227,13 @@ export const Engine = {
 
             try {
                 logger.info(`Discovering peers from ${endpoint}...`);
-                const response = await fetch(endpoint);
+                // Ajout d'un AbortController pour gérer le timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // Timeout de 10 secondes
+
+                const response = await fetch(endpoint, { signal: controller.signal });
+                clearTimeout(timeoutId); // Annuler le timeout si la requête réussit
+
                 if (!response.ok) {
                     throw new Error(`Failed to fetch peers: ${response.status} ${response.statusText}`);
                 }
@@ -237,10 +243,30 @@ export const Engine = {
                     throw new Error("Invalid peer discovery response: 'peers' array not found.");
                 }
 
-                // Filtrer pour ne garder que les pairs en ligne
-                engine.peers = data.peers.filter(p => p.status === 'online');
+                const allOnlinePeers = data.peers.filter(p => p.status === 'online');
 
-                logger.info(`[Cluster] Discovered ${engine.peers.length} online peers: [${engine.peers.map(p => p.id).join(', ')}]`);
+                // --- NOUVELLE LOGIQUE DE FILTRAGE PAR PRÉFIXE ---
+                // On se base sur le nom de domaine public de l'instance pour plus de robustesse.
+                if (process.env.PEER_DOMAIN) {
+                    const selfHostname = new URL(process.env.PEER_DOMAIN).hostname; // ex: data-api-shard-1.primals.net
+                    logger.info(`[Cluster] Self hostname identified as '${selfHostname}'.`);
+                    // Extrait le préfixe du nom de domaine (ex: "data-api-shard" de "data-api-shard-1.primals.net")
+                    const selfPrefixMatch = selfHostname.match(/^([a-z0-9-]+?)(?:-[0-9]+)?\./);
+                    if (selfPrefixMatch) {
+                        const selfPrefix = selfPrefixMatch[1];
+                        logger.info(`[Cluster] Detected prefix: '${selfPrefix}'. Filtering peers...`);
+                        // Ne garder que les pairs qui ont le même préfixe
+                        engine.peers = allOnlinePeers.filter(p => {
+                            return new URL(p.public_domain).hostname.startsWith(selfPrefix);
+                        });
+                    } else {
+                        engine.peers = allOnlinePeers; // Pas de préfixe, on garde tout
+                    }
+                } else {
+                    engine.peers = allOnlinePeers; // Pas de selfUrl, on garde tout pour éviter une erreur
+                }
+
+                logger.info(`[Cluster] Final peer list: [${engine.peers.map(p => p.id).join(', ')}]`);
             } catch (error) {
                 logger.error(`Could not discover peers from endpoint ${endpoint}:`, error.message);
                 engine.peers = []; // En cas d'erreur, on s'assure que la liste est vide.

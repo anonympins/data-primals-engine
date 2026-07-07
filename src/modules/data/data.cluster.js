@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { statfs } from 'node:fs/promises';
 import { Config } from '../../config.js';
+import { Event } from '../../events.js';
 import { Logger } from '../../gameObject.js';
 import { onInit as replicationInit, queueReplication, stopReplicationQueue } from './data.replication.js';
 
@@ -462,10 +463,10 @@ function stopClusterServices() {
     logger.info('[Cluster] Gossip and replication services stopped.');
 }
 
-function onInit(defaultEngine) {
+function initializeCluster(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger) || new Logger('DataCluster');
-    engine.selfId = engine.peers.find(p => p.public_domain === engine.selfUrl)?.id;
+    engine.selfId = engine.peers.find(p => p.public_domain === engine.selfUrl)?.id || 'unknown-node';
 
     // 1. Initialiser la liste des membres à partir de la configuration statique
     memberList.clear();
@@ -509,4 +510,9 @@ function onInit(defaultEngine) {
 }
 
 
-export { broadcastCacheInvalidation, replicateOperation, getResponsibleNodesForUser, getReplicaNodesForUser, isSelfMasterForUser, proxyRequest, isProxiedRequest, checkSuspectNodes, getMemberList, stopClusterServices, onInit };
+export { broadcastCacheInvalidation, replicateOperation, getResponsibleNodesForUser, getReplicaNodesForUser, isSelfMasterForUser, proxyRequest, isProxiedRequest, checkSuspectNodes, getMemberList, stopClusterServices };
+
+export function onInit(engine) {
+    // On attend que le serveur soit démarré pour avoir engine.selfUrl et engine.peers
+    Event.Listen("OnServerStart", () => initializeCluster(engine), "event", "system");
+}

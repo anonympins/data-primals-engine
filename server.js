@@ -9,7 +9,7 @@ import sirv from "sirv";
 import express from "express";
 import {port} from "./src/constants.js";
 
-Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "swagger",  "cluster", "replication"])
+Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant", "swagger", "replication", "cluster"])
 Config.Set("middlewares", []);
 Config.Set("useDemoAccounts", true);
 
