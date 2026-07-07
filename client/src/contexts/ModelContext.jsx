@@ -204,7 +204,7 @@ export const ModelProvider = ({ children }) => {
                 const c = pagedFilterToMongoConds(pagedFilters, model)
                 const filter= JSON.stringify({filter:{$and:c}});
 
-                return fetch(`/api/data/search?${params.toString()}`, { credentials:"include",signal, credentials: "include", method: 'POST', body: filter, headers: { "Content-Type": "application/json"}})
+                return fetch(`/api/data/search?${params.toString()}`, { signal, credentials: "include", method: 'POST', body: filter, headers: { "Content-Type": "application/json"}})
                     .then((res) => res.json())
                     .then((e) => {
                         return {

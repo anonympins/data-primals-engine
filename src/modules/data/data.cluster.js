@@ -235,6 +235,13 @@ async function proxyRequest(req, res, username) {
     // Pour les écritures (POST, PUT, PATCH, DELETE), on cible toujours le maître.
     if (req.method !== 'GET') {
         const masterNode = getMasterNodeForUser(username); // Le maître désigné par le hash
+        // SÉCURITÉ : Vérifier que le nœud maître a bien été trouvé avant de l'utiliser.
+        if (!masterNode) {
+            logger.error(`[Cluster] Cannot proxy WRITE for user ${username}: No master node found.`);
+            res.status(503).json({ success: false, error: "Service Unavailable: No master node available to handle the request." });
+            return true; // La requête est gérée (avec une erreur), on arrête le traitement.
+        }
+
         logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNode.public_domain}`);
         await attemptProxy(req, res, masterNode);
         return true; // La requête a été traitée (relayée ou a échoué).
