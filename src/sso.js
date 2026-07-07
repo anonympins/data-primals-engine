@@ -113,7 +113,13 @@ export class SSOUserProvider extends UserProvider {
     // On peut les laisser vides ou les faire lever une erreur.
     async validatePassword(user, password) { return false; }
     async findUserByUsername(username) { return await this.usersCollection.findOne({ username }); }
-    async initiateUser(req) { /* Géré par Passport */ }
+    async initiateUser(req) {
+        const username = req.query._user || req.headers._user || req.cookies.username;
+        const user = await this.findUserByUsername(username);
+        if (user) {
+            req.me = user; // Attache l'utilisateur à la requête
+        }
+    }
 }
 
 /**

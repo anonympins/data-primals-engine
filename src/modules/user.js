@@ -68,7 +68,7 @@ export const middlewareAuthenticator = async (req, res, next) => {
     }
 
     try {
-        // 1. On demande au provider (votre PrimalsUserProvider) d'identifier l'utilisateur
+        // 1. On demande au provider d'identifier l'utilisateur
         await engine.userProvider.initiateUser(req);
 
         // 2. On vérifie simplement si le provider a attaché un utilisateur
