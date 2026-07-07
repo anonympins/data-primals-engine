@@ -6,7 +6,6 @@ import {useAuthContext} from "./contexts/AuthContext.jsx";
 import React, {useEffect, useMemo, useRef, useState} from "react"; 
 import {getUserHash, getUserId} from "../../src/data.js";
 import cronstrue from 'cronstrue/i18n';
-import {Event} from "../../src/events.js";
 
 import {
     FaBook,
@@ -337,6 +336,7 @@ export function DataTable({
         return fetch(`/api/data/export?lang=${lang}&${params.toString()}`, {
             method: 'POST',
             body,
+            credentials: "include",
             headers: {"Content-Type": "application/json"}
         })
             .then(async resp => {
@@ -393,6 +393,7 @@ export function DataTable({
             // Make the API call to request the restore link
             const response = await fetch('/api/backup/request-restore', {
                 method: 'POST',
+                credentials: "include",
                 // ... other options ...
             });
 

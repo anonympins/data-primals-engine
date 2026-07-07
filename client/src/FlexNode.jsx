@@ -92,7 +92,7 @@ export const FlexNodeRenderer = React.forwardRef((props, ref) => {
         setResult(null);
 
         try {
-            const response = await fetch(`/api/actions/${endpointPath}`, { method: 'GET' });
+            const response = await fetch(`/api/actions/${endpointPath}`, { credentials: "include",method: 'GET' });
             const data = await response.json();
             setResult({ status: response.status, data });
         } catch (error) {

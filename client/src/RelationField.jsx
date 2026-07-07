@@ -49,6 +49,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
 
             const response = await fetch(`/api/data/search?${params.toString()}`, {
                 method: 'POST',
+                credentials:"include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filter: {} }) // Le filtre peut être vide quand on cherche par IDs
             });
@@ -126,6 +127,7 @@ const RelationField = ({ field, help, onFocus, onBlur, onChange, value = null })
                 body: JSON.stringify({ filter: finalFilter }),
                 method: 'POST',
                 signal: signal,
+                credentials:"include",
                 headers: { 'Content-Type': 'application/json' },
             })
                 .then(e => e.json())

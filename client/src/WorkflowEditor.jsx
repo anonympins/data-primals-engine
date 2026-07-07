@@ -84,6 +84,7 @@ const WorkflowEditor = ({ workflowId }) => {
         ['mainWorkflow', workflowId],
         () => fetch('/api/data/search?_user='+me.username, {
             method: 'POST',
+            credentials:"include",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'workflow',
@@ -102,6 +103,7 @@ const WorkflowEditor = ({ workflowId }) => {
         ['workflowSteps', workflowId],
         () => fetch('/api/data/search?_user=' + me.username, {
             method: 'POST',
+            credentials:"include",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'workflowStep',
@@ -122,6 +124,7 @@ const WorkflowEditor = ({ workflowId }) => {
         ['workflowActions', workflowId],
         () => fetch('/api/data/search?_user=' + me.username, {
             method: 'POST',
+            credentials:"include",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'workflowAction',

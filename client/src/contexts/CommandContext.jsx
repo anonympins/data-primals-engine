@@ -116,7 +116,7 @@ export class InsertCommand {
     async undo() {
         // On garde une copie de l'item avant de le supprimer pour le redo.
         if (!this.insertedItem?._id) throw new Error("Cannot undo insert: item ID is missing.");
-        const response = await fetch(`/api/data/${this.insertedItem._id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/data/${this.insertedItem._id}`, { credentials:"include",method: 'DELETE' });
         const result = await response.json();
         if (!response.ok || !result.success) {
             throw new Error(result.error || 'Undo (delete) failed');
@@ -184,6 +184,7 @@ export class DeleteCommand {
  
             return fetch('/api/data?_user=system', { // On ajoute _user=system pour tracer l'origine de l'action
                 method: 'POST',
+                credentials:"include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ model: this.modelName, data: reinsertData }),
             }).then(res => res.json().then(data => {

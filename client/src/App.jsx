@@ -145,6 +145,7 @@ function Layout({ header, routes, body, footer, refreshUI, onResetQueryClient })
                     'Content-Type': 'application/json',
                     // L'authentification sera gérée par le contexte ou un intercepteur
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     model: 'env', // On cible le modèle 'env'
                     filter: { "name": { "$in": Object.values(providers).map(p => p.key) } },

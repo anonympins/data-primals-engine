@@ -44,6 +44,7 @@ const RelationValue = ({ field, data, align }) => {
 
             return fetch(`/api/data/search?${params.toString()}`, {
                 method: 'POST',
+                credentials:"include",
                 headers: { 'Content-Type': 'application/json' },
             })
                 .then(res => res.json())

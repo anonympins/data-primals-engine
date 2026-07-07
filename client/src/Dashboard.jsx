@@ -46,6 +46,7 @@ export function DashboardsPage() {
             const response = await fetch(
                 `/api/data/search?model=dashboard&_user=${me.username}`, {
                     method: 'POST',
+                    credentials: "include",
                     headers: { 'Content-Type': 'application/json' },
                     // body: JSON.stringify({ sort: { name: 1 } }) // Optionnel: trier
                 });
@@ -69,6 +70,7 @@ export function DashboardsPage() {
             const isFirstDashboard = !dashboardsData?.data || dashboardsData.data.length === 0;
             const response = await fetch('/api/data', {
                 method: 'POST',
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'dashboard',
@@ -100,6 +102,7 @@ export function DashboardsPage() {
             const { _id, _hash, _user, _createdAt, _updatedAt, ...data } = dashboardData;
             const response = await fetch(`/api/data`, {
                 method: 'PUT',
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'dashboard',

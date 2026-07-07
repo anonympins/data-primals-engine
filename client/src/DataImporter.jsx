@@ -87,6 +87,7 @@ export function DataImporter({onClose}) {
         try {
             const response = await fetch(`/api/data/import?lang=${lang}`, {
                 method: 'POST',
+                credentials: "include",
                 body: params
             });
 

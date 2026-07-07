@@ -12,6 +12,7 @@ export const useData = (model, filter, options) => {
     return useQuery([options.queryKey || model, filter, me], () => {
         return fetch('/api/data/search?limit='+(options.limit||1)+'&lang='+(options.lang||lang)+'&_user=' + encodeURIComponent(getUserId(me)) + '&model='+model, {
             method: 'POST',
+            credentials:"include",
             body: JSON.stringify({filter}),
             headers: { "Content-Type": "application/json"}}
         )

@@ -42,6 +42,7 @@ function RestoreDialog() {
             try {
                 const response = await fetch(apiUrl, {
                     method: 'GET', // Ou 'POST' si l'API l'exige, mais GET semble plus probable ici
+                    credentials:"include",
                     headers: {
                         'Accept': 'application/json',
                         // Ajoute d'autres headers si nécessaire (ex: Authorization si requis)

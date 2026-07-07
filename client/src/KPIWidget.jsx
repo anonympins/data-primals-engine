@@ -9,7 +9,7 @@ import { Tooltip } from 'react-tooltip';
 // Fonction pour récupérer la valeur calculée d'un KPI (MODIFIÉE)
 const fetchKpiValue = async (kpiId) => {
     if (!kpiId) return null;
-    const response = await fetch(`/api/kpis/calculate/${kpiId}`);
+    const response = await fetch(`/api/kpis/calculate/${kpiId}`, { credentials: "include",});
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Network response was not ok (${response.status})`);

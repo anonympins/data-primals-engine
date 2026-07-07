@@ -16,7 +16,7 @@ import {TextField, CheckboxField} from "./Field.jsx";
 // --- API Fetching Functions ---
 const fetchPacks = async (sortBy, lang, filterByUser = false, user) => {
     const url = `/api/packs?lang=${lang}&sortBy=${sortBy.field}&order=${sortBy.order}${filterByUser ? '&user='+user.username : ''}`;
-    const response = await fetch(url);
+    const response = await fetch(url, {credentials:"include"});
     if (!response.ok) {
         throw new Error('Network response was not ok');
     }
@@ -25,7 +25,7 @@ const fetchPacks = async (sortBy, lang, filterByUser = false, user) => {
 
 const fetchPackDetails = async (packId, lang) => {
     if (!packId) return null;
-    const response = await fetch(`/api/packs/${packId}?lang=${lang}`);
+    const response = await fetch(`/api/packs/${packId}?lang=${lang}`, {credentials:"include"});
     if (!response.ok) {
         throw new Error('Failed to fetch pack details');
     }
@@ -182,7 +182,7 @@ const PackDetail = ({ packId, onBack }) => {
 
 const installPackMutationFn = async ({packId, lang}) => {
     const response = await fetch(`/api/packs/${packId}/install?lang=${lang}`, {
-        method: 'POST',
+        method: 'POST',credentials: "include",
         headers: {
             'Content-Type': 'application/json',
         },
@@ -196,7 +196,7 @@ const installPackMutationFn = async ({packId, lang}) => {
 
 const updatePackMutationFn = async ({ packId, updateData }) => {
     const response = await fetch(`/api/packs/${packId}`, {
-        method: 'PATCH',
+        method: 'PATCH',credentials: "include",
         headers: {
             'Content-Type': 'application/json',
         },
@@ -241,6 +241,7 @@ const PackGallery = () => {
 
             const response = await fetch('/api/packs/install', {
                 method: 'POST',
+                credentials: "include",
                 headers: {
                     'Content-Type': 'application/json',
                 },

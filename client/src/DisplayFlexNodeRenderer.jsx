@@ -79,6 +79,7 @@ const CtaNode = ({ node, nodeStyle, dataItem }) => {
 
             if (method !== 'GET' && method !== 'HEAD' && node.requestBodyTemplate) {
                 fetchOptions.body = substituteClientVariables(node.requestBodyTemplate, dataItem);
+                fetchOptions.credentials= "include";
             }
 
             // 3. Exécuter la requête
