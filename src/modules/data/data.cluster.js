@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { statfs } from 'node:fs/promises';
 import { Config } from '../../config.js';
 import { Event } from '../../events.js';
-import { Logger } from '../../gameObject.js';
-import { onInit as replicationInit, queueReplication, stopReplicationQueue } from './data.replication.js';
+import {DataHandler, Logger} from '../../gameObject.js';
+import { onInit as replicationInit, queueReplication, stopReplicationQueue } from './data.replication.js';// Importer le module dans lui-même pour accéder aux exports (et donc aux mocks dans les tests)
+import { getCollection } from '../mongodb.js';
 
 // Importer le module dans lui-même pour accéder aux exports (et donc aux mocks dans les tests)
 import * as self from './data.cluster.js';
@@ -12,7 +13,7 @@ let logger;
 
 let engine; // L'instance du moteur sera injectée via onInit
 let dataHandler; // Pour l'accès à MongoDB
-let ClusterLease; // Modèle Mongoose pour les baux
+let clusterLeaseCollection; // Collection MongoDB native pour les baux
 
 const LEASE_DURATION_MS = 10000; // Durée du bail en ms (10s)
 
@@ -203,7 +204,7 @@ async function isSelfMasterForUser(username) {
  * @returns {Promise<boolean>} - `true` si le bail est acquis/renouvelé avec succès, `false` sinon.
  */
 async function acquireOrRenewLease(resourceId, nodeId) {
-    if (!ClusterLease) {
+    if (!clusterLeaseCollection) {
         logger.warn('[Lease] Lease model not initialized, cannot acquire lease. Assuming not master.');
         return false;
     }
@@ -212,11 +213,16 @@ async function acquireOrRenewLease(resourceId, nodeId) {
     const newExpiresAt = new Date(now.getTime() + LEASE_DURATION_MS);
 
     try {
-        const result = await ClusterLease.findOneAndUpdate(
+        // Utilisation du driver natif MongoDB.
+        // L'opération est atomique. On met à jour le document si :
+        // 1. On est déjà le propriétaire (renouvellement).
+        // 2. Le bail a expiré (acquisition).
+        const result = await clusterLeaseCollection.findOneAndUpdate(
             { resourceId, $or: [{ ownerId: nodeId }, { expiresAt: { $lt: now } }] },
             { $set: { ownerId: nodeId, expiresAt: newExpiresAt } },
-            { new: true, upsert: true }
+            { upsert: true, returnDocument: 'after' }
         );
+        // Le résultat contient le document mis à jour. On vérifie qu'on en est bien le propriétaire.
         return result && result.ownerId === nodeId;
     } catch (error) {
         logger.error(`[Lease] Error during lease acquisition for '${resourceId}': ${error.message}`);
@@ -285,7 +291,7 @@ async function proxyRequest(req, res, username) {
 
 async function attemptProxy(req, res, node) {
     const targetUrl = new URL(req.originalUrl, `https://${node.public_domain}`);
-    // On   copie les en-têtes, mais on supprime ceux qui sont gérés par fetch ou qui sont spécifiques à la connexion.
+    // On copie les en-têtes, mais on supprime ceux qui sont gérés par fetch ou qui sont spécifiques à la connexion.
     const headers = { ...req.headers };
     delete headers['host']; // Doit être défini par fetch en fonction de targetUrl
     delete headers['content-length']; // Sera recalculé par fetch en fonction du nouveau body
@@ -495,31 +501,34 @@ function stopClusterServices() {
     logger.info('[Cluster] Gossip and replication services stopped.');
 }
 
-function initializeCluster(defaultEngine) {
+async function initializeCluster(defaultEngine) {
     engine = defaultEngine;
     logger = engine.getComponent(Logger) || new Logger('DataCluster');
+    dataHandler = engine.getComponent(DataHandler); // On récupère le gestionnaire de données
     engine.selfId = engine.peers.find(p => p.public_domain === engine.selfUrl)?.id || 'unknown-node';
 
     // 1. Initialiser la liste des membres à partir de la configuration statique
     memberList.clear();
     for (const peer of engine.peers) {
-        memberList.set(peer.id, { ...peer, status: 'UP', version: 1, lastUpdate: Date.now(), disk: null });
+        memberList.set(peer.id, {...peer, status: 'UP', version: 1, lastUpdate: Date.now(), disk: null});
     }
     logger.info(`[Cluster] Initialized. Self: ${engine.selfId} @ ${engine.selfUrl}.`);
     logMemberList();
 
     // Initialiser le système de baux si un DataHandler est présent
-    if (dataHandler) {
-        const leaseSchema = new dataHandler.mongoose.Schema({
-            resourceId: { type: String, required: true, unique: true, index: true },
-            ownerId: { type: String, required: true },
-            expiresAt: { type: Date, required: true, index: { expires: '1m' } }
-        }, { timestamps: true });
-
-        ClusterLease = dataHandler.mongoose.model('ClusterLease', leaseSchema);
-        logger.info('[Cluster] Lease manager initialized with MongoDB backend.');
-    } else {
-        logger.warn('[Cluster] DataHandler not found. Lease-based master verification is disabled. Cluster may be vulnerable to split-brain.');
+    // La logique est déplacée pour utiliser le driver natif via le module mongodb.
+    // Cela ne dépend plus du composant DataHandler qui était problématique.
+    try {
+        clusterLeaseCollection = getCollection('cluster_leases');
+        // Création d'un index unique sur resourceId pour garantir l'intégrité.
+        await clusterLeaseCollection.createIndex({resourceId: 1}, {unique: true});
+        // Création d'un index TTL qui supprime automatiquement les documents dont le bail a expiré.
+        // C'est une bonne pratique pour le nettoyage automatique.
+        await clusterLeaseCollection.createIndex({expiresAt: 1}, {expireAfterSeconds: 0});
+        logger.info('[Cluster] Lease manager initialized with native MongoDB driver.');
+    } catch (error) {
+        logger.error('[Cluster] Failed to initialize lease manager with MongoDB. Lease-based master verification is disabled. Cluster may be vulnerable to split-brain.', error);
+        clusterLeaseCollection = null; // S'assurer que le système de bail est désactivé en cas d'erreur.
     }
 
     // 2. Enregistrer l'endpoint pour recevoir les "gossips"
@@ -538,7 +547,7 @@ function initializeCluster(defaultEngine) {
     gossipInterval = setInterval(executeGossip, interval);
 
     // Démarrer le processeur de la file d'attente de réplication
-    replicationInit(engine, { getReplicaNodesForUser: self.getReplicaNodesForUser });
+    replicationInit(engine, {getReplicaNodesForUser: self.getReplicaNodesForUser});
 }
 
 

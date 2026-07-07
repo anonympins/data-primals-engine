@@ -48,6 +48,12 @@ export class Behaviour {
         // Logique de nettoyage du comportement
     }
 }
+export class DataHandler extends Behaviour {
+    constructor(gameObject) {
+        super(gameObject);
+    }
+}
+
 // MovableBehavior.js
 export class MovableBehaviour extends Behaviour {
     constructor(gameObject, speed = 5) {
