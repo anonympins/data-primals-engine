@@ -249,6 +249,13 @@ async function proxyRequest(req, res, username) {
             return true; // La requête est gérée (avec une erreur), on arrête le traitement.
         }
 
+        // --- PRÉVENTION DE BOUCLE INFINIE ---
+        // Si le maître désigné est ce nœud, mais que isSelfMasterForUser a dit non (ex: perte de bail),
+        // on ne doit pas se relayer la requête à nous-mêmes. On la traite localement comme un échec.
+        if (masterNode.id === engine.selfId) {
+            logger.warn(`[Cluster] Mastership conflict for user ${username}. Hash designates self, but lease is not held. Aborting proxy loop.`);
+            return false; // On ne relaie pas, la requête sera traitée localement (et échouera probablement, ce qui est correct).
+        }
         logger.info(`[Cluster] Proxying WRITE ${req.method} for user ${username} to master node ${masterNode.public_domain}`);
         await attemptProxy(req, res, masterNode);
         return true; // La requête a été traitée (relayée ou a échoué).
@@ -278,8 +285,12 @@ async function proxyRequest(req, res, username) {
 
 async function attemptProxy(req, res, node) {
     const targetUrl = new URL(req.originalUrl, `https://${node.public_domain}`);
+    // On   copie les en-têtes, mais on supprime ceux qui sont gérés par fetch ou qui sont spécifiques à la connexion.
     const headers = { ...req.headers };
-    delete headers['host'];
+    delete headers['host']; // Doit être défini par fetch en fonction de targetUrl
+    delete headers['content-length']; // Sera recalculé par fetch en fonction du nouveau body
+    delete headers['transfer-encoding']; // Peut interférer avec le nouveau body
+
     headers['X-Federation-Proxy'] = 'true';
     if (!headers['content-type']) {
         headers['content-type'] = 'application/json';
@@ -312,7 +323,21 @@ async function attemptProxy(req, res, node) {
         const { Readable } = await import('node:stream');
         Readable.fromWeb(proxyResponse.body).pipe(res);
     } catch (error) {
-        throw error; // Relancer l'erreur pour que la boucle de failover puisse l'attraper.
+        // --- AMÉLIORATION DE LA GESTION D'ERREUR ---
+        // On enrichit le log pour comprendre pourquoi le fetch a échoué.
+        // Un "fetch failed" est souvent une erreur réseau, DNS, ou SSL.
+        logger.error(`[Proxy] Fetch to ${targetUrl.toString()} failed. Error: ${error.message}`);
+        
+        // L'objet `error` contient souvent une propriété `cause` avec plus de détails techniques.
+        if (error.cause) {
+            logger.error(`[Proxy] Underlying cause: ${error.cause.code} - ${error.cause.message}`);
+        }
+        
+        // On relance l'erreur pour que la logique de failover dans proxyRequest puisse fonctionner.
+        // On peut même encapsuler l'erreur originale pour conserver le contexte.
+        const proxyError = new Error(`Proxy attempt to ${node.public_domain} failed: ${error.message}`);
+        proxyError.cause = error; // Conserve l'erreur originale
+        throw proxyError;
     } finally {
         clearTimeout(timeoutId);
     }
