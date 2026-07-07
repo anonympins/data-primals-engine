@@ -243,7 +243,7 @@ export const Engine = {
                     throw new Error("Invalid peer discovery response: 'peers' array not found.");
                 }
 
-                const allOnlinePeers = data.peers.filter(p => p.status === 'online');
+                const allOnlinePeers = data.peers.filter(p => (p.status === 'online' || p.public_domain.startsWith(process.env.PEER_DOMAIN)));
 
                 // --- NOUVELLE LOGIQUE DE FILTRAGE PAR PRÉFIXE ---
                 // On se base sur le nom de domaine public de l'instance pour plus de robustesse.
@@ -258,6 +258,7 @@ export const Engine = {
                     if (selfPrefixMatch) {
                         const selfPrefix = selfPrefixMatch[1].replace(/-[0-9]+$/, ''); // Supprime le suffixe numérique s'il existe
                         logger.info(`[Cluster] Detected prefix: '${selfPrefix}'. Filtering peers...`);
+
                         // Ne garder que les pairs qui ont le même préfixe
                         engine.peers = allOnlinePeers.filter(p => {
                             return (p.public_domain || '').startsWith(selfPrefix);
