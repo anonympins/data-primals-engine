@@ -248,6 +248,7 @@ export const Engine = {
                 // --- NOUVELLE LOGIQUE DE FILTRAGE PAR PRÉFIXE ---
                 // On se base sur le nom de domaine public de l'instance pour plus de robustesse.
                 if (process.env.PEER_DOMAIN) {
+                    engine.selfUrl = process.env.PEER_DOMAIN;
                     const selfHostname = process.env.PEER_DOMAIN; // ex: data-api-shard-1.primals.net
                     logger.info(`[Cluster] Self hostname identified as '${selfHostname}'.`);
                     // Extrait le préfixe du nom de domaine (ex: "data-api-shard" de "data-api-shard-1.primals.net")
