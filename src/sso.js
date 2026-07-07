@@ -224,6 +224,12 @@ export class Sso extends Behaviour {
 
                     // *** DÉCLENCHEMENT DE L'ÉVÉNEMENT OnSSOLogin ***
                     await Event.Trigger("OnSsoLogin", "event", "system", { req, res, user, ssoProfile: info?.profile });
+
+                    // Après que l'événement a mis à jour la session (par exemple, avec un nouveau token),
+                    // nous pouvons rediriger l'utilisateur.
+                    // On restaure une dernière fois au cas où la session aurait été régénérée.
+                    const finalReturnTo = req.session.returnTo || '/';
+                    res.redirect(finalReturnTo);
                 });
             })(req, res, next);
         });
