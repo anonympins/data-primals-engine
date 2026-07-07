@@ -154,6 +154,12 @@ function getReplicaNodesForUser(username) {
  */
 export function getMasterNodeForUser(username) {
     const nodes = getResponsibleNodesForUser(username);
+    // --- FIX: Handle empty node list ---
+    // If no responsible nodes are found (e.g., empty peer list in a single-node setup),
+    // gracefully fall back to the current node itself.
+    if (!nodes || nodes.length === 0) {
+        return memberList.get(engine.selfId);
+    }
     if (nodes && nodes.length > 0) {
         return nodes[0];
     }
