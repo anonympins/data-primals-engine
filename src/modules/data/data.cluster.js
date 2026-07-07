@@ -288,6 +288,7 @@ async function attemptProxy(req, res, node) {
             method: req.method,
             headers: headers,
             body: (req.method !== 'GET' && req.method !== 'HEAD') ? JSON.stringify(req.fields) : undefined,
+            "Accept": "application/json", // Indiquer explicitement que nous attendons du JSON
             signal: controller.signal
         });
 

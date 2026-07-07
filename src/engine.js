@@ -229,7 +229,7 @@ export const Engine = {
                 logger.info(`Discovering peers from ${endpoint}...`);
                 // Ajout d'un AbortController pour gérer le timeout
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // Timeout de 10 secondes
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout de 30 secondes
 
                 const response = await fetch(endpoint, { signal: controller.signal });
                 clearTimeout(timeoutId); // Annuler le timeout si la requête réussit
@@ -248,7 +248,7 @@ export const Engine = {
                 // --- NOUVELLE LOGIQUE DE FILTRAGE PAR PRÉFIXE ---
                 // On se base sur le nom de domaine public de l'instance pour plus de robustesse.
                 if (process.env.PEER_DOMAIN) {
-                    const selfHostname = new URL(process.env.PEER_DOMAIN).hostname; // ex: data-api-shard-1.primals.net
+                    const selfHostname = process.env.PEER_DOMAIN; // ex: data-api-shard-1.primals.net
                     logger.info(`[Cluster] Self hostname identified as '${selfHostname}'.`);
                     // Extrait le préfixe du nom de domaine (ex: "data-api-shard" de "data-api-shard-1.primals.net")
                     const selfPrefixMatch = selfHostname.match(/^([a-z0-9-]+?)(?:-[0-9]+)?\./);
@@ -257,7 +257,7 @@ export const Engine = {
                         logger.info(`[Cluster] Detected prefix: '${selfPrefix}'. Filtering peers...`);
                         // Ne garder que les pairs qui ont le même préfixe
                         engine.peers = allOnlinePeers.filter(p => {
-                            return new URL(p.public_domain).hostname.startsWith(selfPrefix);
+                            return (p.public_domain || '').startsWith(selfPrefix);
                         });
                     } else {
                         engine.peers = allOnlinePeers; // Pas de préfixe, on garde tout
@@ -381,14 +381,10 @@ export const Engine = {
             server.headersTimeout = 20000;
             server.requestTimeout = 30000;
             server.keepAliveTimeout = 5000;
-
             server.listen(port);
 
             await setupInitialModels();
             await installAllPacks();
-
-            if (cb)
-                await cb();
 
             engine.get('/api/health', (req, res) => {
                 res.status(200).json({
@@ -396,12 +392,21 @@ export const Engine = {
                     timestamp: new Date().toISOString()
                 });
             });
-
+            
+            // --- CORRECTION DE L'ORDRE DES MIDDLEWARES ---
+            // Les routes API doivent être enregistrées AVANT le serveur de fichiers statiques.
+            await Event.Trigger("OnServerStart", "event", "system", engine);
+            
+            // Le serveur de fichiers statiques doit être le DERNIER middleware "catch-all".
             if( fs.existsSync('client/dist') ){
                 app.use(sirv('client/dist', {
                     single: true,
                     dev: process.env.NODE_ENV === 'development'
                 }));
+            }
+
+            if (cb) {
+                await cb();
             }
 
             process.on('uncaughtException', function (exception) {
@@ -413,8 +418,6 @@ export const Engine = {
                 });
                 process.exit(1);
             });
-
-            await Event.Trigger("OnServerStart", "event", "system", engine);
         }
 
         engine.stop = async () => {
