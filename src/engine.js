@@ -251,10 +251,12 @@ export const Engine = {
                     engine.selfUrl = process.env.PEER_DOMAIN;
                     const selfHostname = process.env.PEER_DOMAIN; // ex: data-api-shard-1.primals.net
                     logger.info(`[Cluster] Self hostname identified as '${selfHostname}'.`);
-                    // Extrait le préfixe du nom de domaine (ex: "data-api-shard" de "data-api-shard-1.primals.net")
-                    const selfPrefixMatch = selfHostname.match(/^([a-z0-9-]+?)(?:-[0-9]+)?\./);
+                    // --- CORRECTION DE LA LOGIQUE DE PRÉFIXE ---
+                    // Extrait le préfixe du nom de domaine (ex: "data-api-shard" de "data-api-shard-1.primals.net" ou "data" de "data.primals.net")
+                    // La regex capture tout jusqu'au premier point.
+                    const selfPrefixMatch = selfHostname.match(/^([^.]+)/);
                     if (selfPrefixMatch) {
-                        const selfPrefix = selfPrefixMatch[1];
+                        const selfPrefix = selfPrefixMatch[1].replace(/-[0-9]+$/, ''); // Supprime le suffixe numérique s'il existe
                         logger.info(`[Cluster] Detected prefix: '${selfPrefix}'. Filtering peers...`);
                         // Ne garder que les pairs qui ont le même préfixe
                         engine.peers = allOnlinePeers.filter(p => {
