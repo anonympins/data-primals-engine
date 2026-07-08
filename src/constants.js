@@ -309,8 +309,12 @@ export const MONGO_CALC_OPERATORS = {
     '$regexMatch': {
         label: 'Find by regex',
         description: 'Find a string matching a regular expression (Ecmascript)',
-        args: 2, // input et regex
-        specialStructure: true // Indique une structure spéciale
+        specialStructure: true, // Indique une structure spéciale
+        args: [
+            { name: 'input', label: 'Input String', type: 'text', description: 'The string to match against.' },
+            { name: 'regex', label: 'Regex Pattern', type: 'text', description: 'The ECMA-262 regex pattern.' },
+            { name: 'options', label: 'Options', type: 'text', optional: true, description: 'Regex options (e.g., "i" for case-insensitivity).' }
+        ]
     },
     $and: {
         label: 'Et (and)',
