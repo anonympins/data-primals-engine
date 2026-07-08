@@ -1,20 +1,8 @@
-import process from "node:process";
 import nodemailer from "nodemailer";
 import juice from "juice";
 import {Event} from "./events.js";
 import {emailDefaultConfig} from "./constants.js";
 import {Config} from "./config.js";
-
-// Le transporteur par défaut, utilisé si aucune config spécifique n'est fournie.
-const defaultTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
 
 /**
  * Crn * @param {object} smtpConfig - L'objet de configuration SMTP.
@@ -53,7 +41,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
     if (emails.length === 0) return false;
 
     // Choisir le transporteur à utiliser
-    const transporter = smtpConfig ? createTransporter(smtpConfig||cfg) : defaultTransporter;
+    const transporter = createTransporter(smtpConfig || cfg); // Always create transporter dynamically
 
     if (tpl === null) tpl = await Event.Trigger("OnEmailTemplate", "event", "system", data, lang);
     let html = tpl;

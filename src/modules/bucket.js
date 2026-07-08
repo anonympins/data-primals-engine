@@ -5,7 +5,7 @@ import path from "node:path";
 import {decryptValue, encryptValue} from "../data.js";
 import {loadFromDump, validateRestoreRequest} from "./data/index.js";
 import {Logger} from "../gameObject.js";
-import {middlewareAuthenticator, userInitiator} from "./user.js";
+import {getSmtpConfig, middlewareAuthenticator, userInitiator} from "./user.js";
 import {awsDefaultConfig, getHost, maxBytesPerSecondThrottleData} from "../constants.js";
 import crypto from "node:crypto";
 import i18n from "../../src/i18n.js";
@@ -30,6 +30,7 @@ export const requestRestore = async (user, lang) => {
     });
 
     i18n.changeLanguage(lang);
+    const smtpConfig = await getSmtpConfig(user); // Fetch SMTP config for the user
 
     try {
         // On utilise une nouvelle clé de traduction pour l'email
@@ -41,7 +42,7 @@ export const requestRestore = async (user, lang) => {
                 host: getHost(),
                 modelsToken: modelsRestoreToken
             })
-        });
+        }, smtpConfig);
         return { message: 'Restore links sent to your email.' };
     } catch (error) {
         console.error('Error sending email:', error);
