@@ -457,8 +457,8 @@ export const websiteTranslations = {
             "btns.backup": "Restaurer",
             "backup.restore.title": "Envoi de votre lien de restauration",
             "backup.restore.confirm": "Un lien pour restaurer votre sauvegarde vous sera envoyé à votre adresse e-mail. Ce lien expirera dans 30 minutes. Voulez-vous vraiment continuer?",
-            "email.backup.restoreRequest.subject": "Votre demande de restauration de sauvegarde",
-            "email.backup.restoreRequest.content": `<p>Vous avez demandé une restauration de sauvegarde. Veuillez choisir une option :</p>
+            "email_backup_restoreRequest_subject": "Votre demande de restauration de sauvegarde",
+            "email_backup_restoreRequest_content": `<p>Vous avez demandé une restauration de sauvegarde. Veuillez choisir une option :</p>
 <p><strong>ATTENTION : Toute restauration écrasera vos données actuelles (modèles et/ou données).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{modelsToken}}&username={{user}}&type=full">Restauration Complète (Modèles ET Données)</a></li>
@@ -1570,8 +1570,8 @@ export const websiteTranslations = {
             "backup.restore.title": "Sending your restore link",
             "btns.backup": "Restore",
             "backup.restore.confirm": "A link to restore your backup will be sent to your email address. This link will expire in 30 minutes. Are you sure you want to proceed?",
-            "email.backup.restoreRequest.subject": "Your Backup restoration request",
-            "email.backup.restoreRequest.content": `<p>You have requested a backup restoration. Please choose an option:</p>
+            "email_backup_restoreRequest_subject": "Your Backup restoration request",
+            "email_backup_restoreRequest_content": `<p>You have requested a backup restoration. Please choose an option:</p>
 <p><strong>WARNING: Any restoration will overwrite your current data (models and/or data).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Full Restoration (Models AND Data)</a></li>
@@ -3046,8 +3046,8 @@ export const websiteTranslations = {
             "btns.cancel": "Cancelar",
             "btns.backup": "Restaurar",
             "backup.restore.confirm": "Se enviará un enlace para restaurar su copia de seguridad a su correo electrónico. Este enlace caducará en 30 minutos. ¿Está seguro de que desea continuar?",
-            "email.backup.restoreRequest.subject": "Su solicitud de restauración de copia de seguridad",
-            "email.backup.restoreRequest.content": `<p>Has solicitado una restauración de copia de seguridad. Por favor, elige una opción:</p>
+            "email_backup_restoreRequest_subject": "Su solicitud de restauración de copia de seguridad",
+            "email_backup_restoreRequest_content": `<p>Has solicitado una restauración de copia de seguridad. Por favor, elige una opción:</p>
 <p><strong>ADVERTENCIA: Cualquier restauración sobrescribirá tus datos actuales (modelos y/o datos).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Restauración completa (Modelos Y Datos)</a></li>
@@ -4528,8 +4528,8 @@ export const websiteTranslations = {
             "btns.cancel": "Cancelar",
             "btns.backup": "Restaurar",
             "backup.restore.confirm": "Será enviado um link para restaurar o seu backup para o seu endereço de e-mail. Este link expirará em 30 minutos. Tem a certeza de que pretende prosseguir?",
-            "email.backup.restoreRequest.subject": "O seu pedido de restauro de cópia de segurança",
-            "email.backup.restoreRequest.content": `<p>Solicitou a restauração de uma cópia de segurança. Por favor, escolha uma opção:</p>
+            "email_backup_restoreRequest_subject": "O seu pedido de restauro de cópia de segurança",
+            "email_backup_restoreRequest_content": `<p>Solicitou a restauração de uma cópia de segurança. Por favor, escolha uma opção:</p>
 <p><strong>ATENÇÃO: Qualquer restauração irá substituir os seus dados atuais (modelos e/ou dados).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Restauração Completa (Modelos E Dados)</a></li>
@@ -5984,8 +5984,8 @@ export const websiteTranslations = {
             "btns.cancel": "Abbrechen",
             "btns.backup": "Wiederherstellen",
             "backup.restore.confirm": "Ein Link zur Wiederherstellung Ihres Backups wird an Ihre E-Mail-Adresse gesendet. Dieser Link läuft in 30 Minuten ab. Möchten Sie wirklich fortfahren?",
-            "email.backup.restoreRequest.subject": "Ihre Anfrage zur Wiederherstellung des Backups",
-            "email.backup.restoreRequest.content": `<p>Sie haben die Wiederherstellung eines Backups angefordert. Bitte wählen Sie eine Option:</p>
+            "email_backup_restoreRequest_subject": "Ihre Anfrage zur Wiederherstellung des Backups",
+            "email_backup_restoreRequest_content": `<p>Sie haben die Wiederherstellung eines Backups angefordert. Bitte wählen Sie eine Option:</p>
 <p><strong>ACHTUNG: Jede Wiederherstellung überschreibt Ihre aktuellen Daten (Modelle und/oder Daten).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Vollständige Wiederherstellung (Modelle UND Daten)</a></li>
@@ -7463,8 +7463,8 @@ export const websiteTranslations = {
             "btns.cancel": "Annulla",
             "btns.backup": "Ripristina",
             "backup.restore.confirm": "Un link per ripristinare il backup verrà inviato al tuo indirizzo email. Questo link scadrà tra 30 minuti. Vuoi procedere?",
-            "email.backup.restoreRequest.subject": "La tua richiesta di ripristino del backup",
-            "email.backup.restoreRequest.content": `<p>Hai richiesto il ripristino di un backup. Scegli un'opzione:</p>
+            "email_backup_restoreRequest_subject": "La tua richiesta di ripristino del backup",
+            "email_backup_restoreRequest_content": `<p>Hai richiesto il ripristino di un backup. Scegli un'opzione:</p>
 <p><strong>ATTENZIONE: Qualsiasi ripristino sovrascriverà i tuoi dati attuali (modelli e/o dati).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Ripristino Completo (Modelli E Dati)</a></li>
@@ -8937,8 +8937,8 @@ export const websiteTranslations = {
             "btns.cancel": "Zrušit",
             "btns.backup": "Obnovit",
             "backup.restore.confirm": "Na vaši e-mailovou adresu bude odeslán odkaz pro obnovení zálohy. Platnost tohoto odkazu vyprší za 30 minut. Opravdu chcete pokračovat?",
-            "email.backup.restoreRequest.subject": "Váš požadavek na obnovení zálohy",
-            "email.backup.restoreRequest.content": `<p>Požádali jste o obnovení ze zálohy. Vyberte prosím možnost:</p>
+            "email_backup_restoreRequest_subject": "Váš požadavek na obnovení zálohy",
+            "email_backup_restoreRequest_content": `<p>Požádali jste o obnovení ze zálohy. Vyberte prosím možnost:</p>
 <p><strong>VAROVÁNÍ: Jakákoli obnova přepíše vaše aktuální data (modely a/nebo data).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Kompletní obnova (Modely I Data)</a></li>
@@ -10409,8 +10409,8 @@ export const websiteTranslations = {
             "btns.cancel": "Отмена",
             "btns.backup": "Восстановить",
             "backup.restore.confirm": "Ссылка для восстановления резервной копии будет отправлена ​​на ваш адрес электронной почты. Срок действия этой ссылки истекает через 30 минут. Вы уверены, что хотите продолжить?",
-            "email.backup.restoreRequest.subject": "Ваш запрос на восстановление резервной копии",
-            "email.backup.restoreRequest.content": `<p>Вы запросили восстановление из резервной копии. Пожалуйста, выберите вариант:</p>
+            "email_backup_restoreRequest_subject": "Ваш запрос на восстановление резервной копии",
+            "email_backup_restoreRequest_content": `<p>Вы запросили восстановление из резервной копии. Пожалуйста, выберите вариант:</p>
 <p><strong>ВНИМАНИЕ: Любое восстановление перезапишет ваши текущие данные (модели и/или данные).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Полное восстановление (Модели И Данные)</a></li>
@@ -11900,8 +11900,8 @@ export const websiteTranslations = {
             "btns.cancel": "إلغاء",
             "btns.backup": "استعادة",
             "backup.restore.confirm": "سيتم إرسال رابط لاستعادة النسخة الاحتياطية إلى بريدك الإلكتروني. سينتهي هذا الرابط خلال 30 دقيقة. هل أنت متأكد من رغبتك في المتابعة؟",
-            "email.backup.restoreRequest.subject": "طلب استعادة النسخة الاحتياطية الخاص بك",
-            "email.backup.restoreRequest.content": `<p>لقد طلبت استعادة نسخة احتياطية. يرجى اختيار خيار:</p>
+            "email_backup_restoreRequest_subject": "طلب استعادة النسخة الاحتياطية الخاص بك",
+            "email_backup_restoreRequest_content": `<p>لقد طلبت استعادة نسخة احتياطية. يرجى اختيار خيار:</p>
 <p><strong>تحذير: أي عملية استعادة ستستبدل بياناتك الحالية (النماذج و/أو البيانات).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">استعادة كاملة (النماذج والبيانات)</a></li>
@@ -13380,8 +13380,8 @@ export const websiteTranslations = {
             "btns.cancel": "Avbryt",
             "btns.backup": "Återställ",
             "backup.restore.confirm": "En länk för att återställa din säkerhetskopia kommer att skickas till din e-postadress. Den här länken upphör att gälla om 30 minuter. Är du säker på att du vill fortsätta?",
-            "email.backup.restoreRequest.subject": "Din begäran om återställning av säkerhetskopia",
-            "email.backup.restoreRequest.content": `<p>Du har begärt en återställning från backup. Vänligen välj ett alternativ:</p>
+            "email_backup_restoreRequest_subject": "Din begäran om återställning av säkerhetskopia",
+            "email_backup_restoreRequest_content": `<p>Du har begärt en återställning från backup. Vänligen välj ett alternativ:</p>
 <p><strong>OBS: All återställning kommer att skriva över din nuvarande data (modeller och/eller data).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Fullständig återställning (Modeller OCH Data)</a></li>
@@ -14854,8 +14854,8 @@ export const websiteTranslations = {
             "btns.cancel": "Ακύρωση",
             "btns.backup": "Επαναφορά",
             "backup.restore.confirm": "Ένας σύνδεσμος για την επαναφορά του αντιγράφου ασφαλείας θα σταλεί στη διεύθυνση email σας. Αυτός ο σύνδεσμος θα λήξει σε 30 λεπτά. Είστε βέβαιοι ότι θέλετε να συνεχίσετε;",
-            "email.backup.restoreRequest.subject": "Το αίτημα επαναφοράς αντιγράφων ασφαλείας",
-            "email.backup.restoreRequest.content": `<p>Έχετε αιτηθεί επαναφορά από αντίγραφο ασφαλείας. Παρακαλώ επιλέξτε μια επιλογή:</p>
+            "email_backup_restoreRequest_subject": "Το αίτημα επαναφοράς αντιγράφων ασφαλείας",
+            "email_backup_restoreRequest_content": `<p>Έχετε αιτηθεί επαναφορά από αντίγραφο ασφαλείας. Παρακαλώ επιλέξτε μια επιλογή:</p>
 <p><strong>ΠΡΟΣΟΧΗ: Οποιαδήποτε επαναφορά θα αντικαταστήσει τα τρέχοντα δεδομένα σας (μοντέλα και/ή δεδομένα).</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">Πλήρης Επαναφορά (Μοντέλα ΚΑΙ Δεδομένα)</a></li>
@@ -16283,8 +16283,8 @@ export const websiteTranslations = {
             "btns.backup": "بازیابی",
             "backup.restore.title": "ارسال لینک بازیابی شما",
             "backup.restore.confirm": "لینکی برای بازیابی پشتیبان‌گیری شما به آدرس ایمیل شما ارسال خواهد شد. این لینک پس از 30 دقیقه منقضی می‌شود. آیا واقعاً می‌خواهید ادامه دهید؟",
-            "email.backup.restoreRequest.subject": "درخواست بازیابی پشتیبان‌گیری شما",
-            "email.backup.restoreRequest.content": `<p>درخواست بازیابی نسخه پشتیبان را داده‌اید. لطفاً یک گزینه انتخاب کنید:</p>
+            "email_backup_restoreRequest_subject": "درخواست بازیابی پشتیبان‌گیری شما",
+            "email_backup_restoreRequest_content": `<p>درخواست بازیابی نسخه پشتیبان را داده‌اید. لطفاً یک گزینه انتخاب کنید:</p>
 <p><strong>هشدار: هرگونه بازیابی، داده‌های فعلی شما (مدل‌ها و/یا داده‌ها) را بازنویسی خواهد کرد.</strong></p>
 <ul>
     <li><a href="https://{{host}}/backup/restore?token={{fullToken}}&username={{user}}&type=full">بازیابی کامل (هم مدل‌ها و هم داده‌ها)</a></li>

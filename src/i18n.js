@@ -328,7 +328,6 @@ export const translations = {
             "field_workflowRun_startedAt": "Démarré le",
             "field_workflowRun_completedAt": "Terminé le",
 
-
             "model_budget": "Budget",
             "model_request": "Requêtes",
             "model_imageGallery": "Galerie d'images",

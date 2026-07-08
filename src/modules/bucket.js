@@ -34,8 +34,8 @@ export const requestRestore = async (user, lang) => {
     try {
         // On utilise une nouvelle clé de traduction pour l'email
         await sendEmail(user.email, {
-            title: i18n.t('email.backup.restoreRequest.subject'),
-            content: i18n.t('email.backup.restoreRequest.content', {
+            title: i18n.t('email_backup_restoreRequest_subject'),
+            content: i18n.t('email_backup_restoreRequest_content', {
                 user: user?.username,
                 fullToken: fullRestoreToken,
                 host: getHost(),
