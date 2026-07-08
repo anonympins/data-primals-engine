@@ -551,7 +551,7 @@ async function initializeCluster(defaultEngine) {
 }
 
 
-export { broadcastCacheInvalidation, replicateOperation, getResponsibleNodesForUser, getReplicaNodesForUser, isSelfMasterForUser, proxyRequest, isProxiedRequest, checkSuspectNodes, getMemberList, stopClusterServices };
+export { broadcastCacheInvalidation, replicateOperation, getResponsibleNodesForUser, getReplicaNodesForUser, isSelfMasterForUser, proxyRequest, isProxiedRequest, checkSuspectNodes, getMemberList, stopClusterServices, initializeCluster };
 
 export function onInit(engine) {
     // On attend que le serveur soit démarré pour avoir engine.selfUrl et engine.peers

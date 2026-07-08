@@ -1,18 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as clusterModule from '../src/modules/data/data.cluster.js';
+import { initializeCluster, getMemberList, stopClusterServices } from '../src/modules/data/data.cluster.js';
 import * as fs from 'node:fs/promises';
 import { Logger } from "../src/index.js";
 import { Config } from '../src/config.js';
 
 // Mock Logger to prevent console output
-vi.mock('../src/gameObject.js', () => ({
-    Logger: class {
-        info = vi.fn();
-        warn = vi.fn();
-        error = vi.fn();
-        debug = vi.fn();
-    }
-}));
+vi.mock('../src/gameObject.js', async (importOriginal) => {
+    const original = await importOriginal();
+    return {
+        ...original, // Keep original exports like 'Behaviour'
+        Logger: class {
+            info = vi.fn();
+            warn = vi.fn();
+            error = vi.fn();
+            debug = vi.fn();
+        },
+        DataHandler: class {} // Provide a mock DataHandler class
+    };
+});
 
 // Mock Config
 vi.mock('../src/config.js', () => ({
@@ -73,15 +78,15 @@ describe('Data Cluster & Gossip Logic', () => {
     });
 
     afterEach(() => {
-        clusterModule.stopClusterServices();
+        stopClusterServices();
         vi.restoreAllMocks();
         vi.useRealTimers();
     });
 
     describe('Initialization (onInit)', () => {
-        it('should initialize member list from static peer configuration', () => {
-            clusterModule.onInit(mockEngine);
-            const memberList = clusterModule.getMemberList();
+        it('should initialize member list from static peer configuration', async () => {
+            await initializeCluster(mockEngine);
+            const memberList = getMemberList();
 
             expect(memberList).toHaveLength(3);
             expect(memberList.find(m => m.id === 'node-1')).toBeDefined();
@@ -93,27 +98,27 @@ describe('Data Cluster & Gossip Logic', () => {
             expect(node1.version).toBe(1);
         });
 
-        it('should correctly identify selfId', () => {
-            clusterModule.onInit(mockEngine);
+        it('should correctly identify selfId', async () => {
+            await initializeCluster(mockEngine);
             expect(mockEngine.selfId).toBe('node-1');
         });
 
-        it('should register the /api/internal/gossip endpoint', () => {
-            clusterModule.onInit(mockEngine);
+        it('should register the /api/internal/gossip endpoint', async () => {
+            await initializeCluster(mockEngine);
             expect(mockEngine.post).toHaveBeenCalledWith('/api/internal/gossip', expect.any(Function));
             expect(postHandlers['/api/internal/gossip']).toBeDefined();
         });
 
-        it('should start the gossip interval', () => {
+        it('should start the gossip interval', async () => {
             const setIntervalSpy = vi.spyOn(global, 'setInterval');
-            clusterModule.onInit(mockEngine);
+            await initializeCluster(mockEngine);
             expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 2000); // Default interval
         });
     });
 
     describe('Gossip Execution', () => {
         it('should send its member list to a random UP peer', async () => {
-            clusterModule.onInit(mockEngine);
+            await initializeCluster(mockEngine);
             mockEngine.sendToPeer.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
 
             await vi.advanceTimersByTimeAsync(2000); // Trigger gossip
@@ -127,15 +132,15 @@ describe('Data Cluster & Gossip Logic', () => {
         });
 
         it('should mark a peer as SUSPECT if sendToPeer fails', async () => {
-            clusterModule.onInit(mockEngine);
+            await initializeCluster(mockEngine);
             mockEngine.sendToPeer.mockRejectedValue(new Error('Network error'));
 
             await vi.advanceTimersByTimeAsync(2000); // Trigger gossip
 
             expect(mockEngine.sendToPeer).toHaveBeenCalledTimes(1);
             const failedPeerId = mockEngine.sendToPeer.mock.calls[0][0];
-            
-            const memberList = clusterModule.getMemberList();
+
+            const memberList = getMemberList();
             const failedPeer = memberList.find(m => m.id === failedPeerId); 
             expect(failedPeer.status).toBe('SUSPECT');
             expect(failedPeer.version).toBe(2); // Version incremented
@@ -148,11 +153,11 @@ describe('Data Cluster & Gossip Logic', () => {
                 { id: 'node-4', public_domain: 'http://node-4:3000', status: 'UP', version: 1 }  // New node
             ];
             mockEngine.sendToPeer.mockResolvedValue({ ok: true, json: () => Promise.resolve(remoteList) });
-            clusterModule.onInit(mockEngine);
-            
+            await initializeCluster(mockEngine);
+
             await vi.advanceTimersByTimeAsync(2000); // Trigger gossip
 
-            const memberList = clusterModule.getMemberList();
+            const memberList = getMemberList();
             expect(memberList).toHaveLength(4);
             expect(memberList.find(m => m.id === 'node-4')).toBeDefined(); // New node added
             expect(memberList.find(m => m.id === 'node-2').version).toBe(2); // Node updated
@@ -169,18 +174,18 @@ describe('Data Cluster & Gossip Logic', () => {
             // Rendre le choix du pair déterministe en mockant Math.random
             const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
 
-            clusterModule.onInit(mockEngine);
+            await initializeCluster(mockEngine);
             mockEngine.sendToPeer.mockRejectedValue(new Error('Network error'));
 
             // Le premier gossip échoue, node-2 devient SUSPECT
             await vi.advanceTimersByTimeAsync(2000); 
-            const memberListV1 = clusterModule.getMemberList();
+            const memberListV1 = getMemberList();
             expect(memberListV1.find(m => m.id === 'node-2')?.status).toBe('SUSPECT');
 
             // On avance le temps au-delà du timeout + un autre cycle de gossip pour que checkSuspectNodes s'exécute.
             await vi.advanceTimersByTimeAsync(8000); // 6000ms (timeout) + 2000ms (next gossip)
 
-            const memberListV2 = clusterModule.getMemberList();
+            const memberListV2 = getMemberList();
             expect(memberListV2.find(m => m.id === 'node-2')?.status).toBe('DOWN');
 
             randomSpy.mockRestore(); // Nettoyer le spy
@@ -188,8 +193,8 @@ describe('Data Cluster & Gossip Logic', () => {
     });
 
     describe('Gossip Endpoint', () => {
-        it('should merge received list and respond with its own updated list', () => {
-            clusterModule.onInit(mockEngine);
+        it('should merge received list and respond with its own updated list', async () => {
+            await initializeCluster(mockEngine);
             const gossipEndpointHandler = postHandlers['/api/internal/gossip'];
 
             const remoteList = [
@@ -202,7 +207,7 @@ describe('Data Cluster & Gossip Logic', () => {
             gossipEndpointHandler(mockReq, mockRes);
 
             // Check if list was merged
-            const memberList = clusterModule.getMemberList();
+            const memberList = getMemberList();
             expect(memberList).toHaveLength(4);
             expect(memberList.find(m => m.id === 'node-4')).toBeDefined();
             expect(memberList.find(m => m.id === 'node-3').status).toBe('SUSPECT');
