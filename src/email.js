@@ -4,6 +4,7 @@ import {Event} from "./events.js";
 import {emailDefaultConfig} from "./constants.js";
 import {Config} from "./config.js";
 import i18n from "./i18n.js";
+import {websiteTranslations} from "../client/src/translations.js";
 
 /**
  * Crn * @param {object} smtpConfig - L'objet de configuration SMTP.
@@ -38,7 +39,12 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
     // --- NOUVELLE LOGIQUE DE GESTION DE LANGUE ---
     const originalLang = i18n.language;
     if (lang && lang !== originalLang) {
-        await i18n.changeLanguage(lang);
+        await i18n.changeLanguage(lang, (err) => {
+            if (err) return console.error('something went wrong loading', err);
+            i18n.removeResourceBundle(lang, "dataEngineTranslations");
+            const trs = {...websiteTranslations[lang]?.['translation']} || {};
+            i18n.addResourceBundle(lang, 'dataEngineTranslations', trs);
+        });
     }
 
     const cfg = Config.Get('emailDefaultConfig', emailDefaultConfig);
