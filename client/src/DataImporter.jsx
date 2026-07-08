@@ -10,7 +10,7 @@ import {kilobytes, maxBytesPerSecondThrottleData, maxFileSize} from "../../src/c
 import {FileField, ModelField} from "./Field.jsx";
 import Button from "./Button.jsx";
 import {FaInfo, FaTrash} from "react-icons/fa";
-import {Dialog} from "./Dialog.jsx";
+import {Dialog, DialogProvider} from "./Dialog.jsx";
 import readXlsxFile from 'read-excel-file'
 // Ajoutez cette constante pour la clé de sessionStorage
 const SESSION_STORAGE_IMPORT_JOBS_KEY = 'activeImportJobs';
@@ -48,12 +48,29 @@ export function DataImporter({onClose}) {
     const [storedJobIds, setStoredJobIds] = useLocalStorage(SESSION_STORAGE_IMPORT_JOBS_KEY, []);
     // --- NOUVEAU : Charger/Sauvegarder les IDs des tâches actives depuis sessionStorage ---
     useEffect(() => {
-        // Charger les IDs des tâches actives depuis sessionStorage au montage
-        setActiveJobIds(storedJobIds);
+        const validJobIds = [];
+        const checkJobsPromises = storedJobIds.map(jobId =>
+            fetch(`/api/import/progress/${jobId}`)
+                .then(res => res.json())
+                .then(jobData => {
+                    if (jobData.status !== 'not_found') {
+                        validJobIds.push(jobId);
+                        // Mettre à jour l'état initial avec les données fraîches
+                        setImportJobs(prevJobs => ({
+                            ...prevJobs,
+                            [jobId]: { ...jobData, jobId: jobId } // Assurer que jobId est dans l'objet
+                        }));
+                    }
+                })
+                .catch(() => {
+                    // Ignorer les erreurs de réseau, le job sera simplement retiré
+                })
+        );
 
-        // Pour chaque jobId stockpour obtenir le dernier statut
-        storedJobIds.forEach(jobId => {
-            startProgressTracking(jobId);
+        Promise.all(checkJobsPromises).then(() => {
+            setActiveJobIds(validJobIds);
+            // Démarrer le suivi SSE uniquement pour les tâches valides
+            validJobIds.forEach(jobId => startProgressTracking(jobId));
         });
 
         // Fonction de nettoyage : fermer toutes les connexions EventSource lors du démontage du composant
@@ -91,9 +108,8 @@ export function DataImporter({onClose}) {
                 body: params
             });
 
-            if (response.status === 202) {
-                const { job } = await response.json();
-                const { jobId} = job;
+            if (response.status === 200) {
+                const { jobId } = await response.json();
 
                 // --- MODIFIÉ : Ajouter le nouvel jobId à activeJobIds et à l'état importJobs ---
                 setActiveJobIds(prevIds => [...prevIds, jobId]);
@@ -146,21 +162,18 @@ export function DataImporter({onClose}) {
             // --- MODIFIÉ : Mettre à jour la progression de la tâche spécifique ---
             setImportJobs(prevJobs => ({
                 ...prevJobs,
-                [jobId]: data
+                [jobId]: {
+                    ...data,
+                    jobId: jobId // Assurer que le jobId est toujours présent dans l'objet de la tâche
+                }
             }));
 
             // Si la tâche est terminée (succès ou échec), fermer la connexion SSE.
             // NE PAS la retirer de activeJobIds ici, pour qu'elle persiste au rafraîchissement.
             // Elle sera retirar le bouton "Effacer".
             if (data.status === 'completed' || data.status === 'failed' || data.status === 'not_found') {
-                eventSource.close();
-                delete eventSourceRefs.current[jobId]; // Supprimer la référence de l'EventSource
-
-                // --- LIGNE MODIFIÉE/SUPPRIMÉE ---
-                // Supprimez ou commentez la ligne suivante :
-                // setActiveJobIds(prevIds => prevIds.filter(id => id !== jobId));
-
                 queryClient.invalidateQueries(['api/data', selectedModel.name, 'page', page]); // Rafraîchir les données du tableau
+                queryClient.invalidateQueries(['api/data', selectedModel.name]); // Invalider toutes les requêtes pour ce modèle
 
                 if (data.status === 'completed') {
                     addNotification({
@@ -179,6 +192,9 @@ export function DataImporter({onClose}) {
                         status: 'warning'
                     });
                 }
+                // On ferme la connexion SSE et on retire la référence
+                eventSource.close();
+                delete eventSourceRefs.current[jobId];
             }
         };
 
@@ -217,7 +233,6 @@ export function DataImporter({onClose}) {
                 const arrayBuffer = await file.arrayBuffer();
                 const rows = await readXlsxFile(arrayBuffer);
                 setPreviewData(rows);
-                console.log(rows);
             } catch (error) {
                 console.error('Error reading Excel file:', error);
                 addNotification({
@@ -443,13 +458,18 @@ export function DataImporter({onClose}) {
                                     )}
                                     {isJobFinished && (
                                         <div className="flex justify-end mt-2">
-                                            <Button onClick={() => {
-                                                setImportJobs(prevJobs => {
-                                                    const newJobs = { ...prevJobs };
-                                                    delete newJobs[job.jobId];
-                                                    return newJobs;
+                                            <Button onClick={async () => {
+                                                // 1. Appeler l'API pour supprimer le job côté serveur
+                                                await fetch(`/api/import/job/${job.jobId}`, { method: 'DELETE', credentials: "include" });
+
+                                                // 2. Mettre à jour l'état local côté client
+                                                setActiveJobIds(prev => prev.filter(id => id !== job.jobId));
+                                                setImportJobs(prev => {
+                                                    const newState = { ...prev };
+                                                    delete newState[job.jobId];
+                                                    return newState;
                                                 });
-                                                setActiveJobIds(prevIds => prevIds.filter(id => id !== job.jobId));
+                                                addNotification({ title: t('dataimporter.jobCleared', 'Tâche effacée.'), status: 'info' });
                                             }}><Trans i18nKey="btns.clear">Effacer</Trans></Button>
                                         </div>
                                     )}

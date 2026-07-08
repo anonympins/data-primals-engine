@@ -803,6 +803,33 @@ export async function registerRoutes(defaultEngine){
         });
     });
 
+    engine.delete('/api/import/job/:jobId', [middlewareAuthenticator], async (req, res) => {
+        const { jobId } = req.params;
+        const user = req.me;
+
+        if (!isObjectId(jobId)) {
+            return res.status(400).json({ success: false, error: 'Invalid Job ID format.' });
+        }
+
+        try {
+            const importJobsCollection = getCollection('import_jobs');
+            const result = await importJobsCollection.deleteOne({
+                _id: new ObjectId(jobId),
+                userId: user.username // Security check: user can only delete their own jobs
+            });
+
+            if (result.deletedCount === 1) {
+                res.status(200).json({ success: true, message: 'Job deleted successfully.' });
+            } else {
+                res.status(404).json({ success: false, error: 'Job not found or you do not have permission to delete it.' });
+            }
+        } catch (error) {
+            logger.error(`[DELETE /api/import/job] Error deleting job ${jobId}:`, error);
+            res.status(500).json({ success: false, error: 'An internal server error occurred.' });
+        }
+    });
+
+
     engine.get('/api/alerts/subscribe', [middlewareAuthenticator], (req, res) => {
         const user = req.me;
 

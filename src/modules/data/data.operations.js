@@ -1064,6 +1064,11 @@ async function initializeAndValidate(data, modelName, me) {
     if (datas.length === 0) return {datas: [], model: null, collection: null};
 
     const model = await getModel(modelName, me);
+    // --- AJOUT DE LA VÉRIFICATION ---
+    if (!model) {
+        // Si le modèle n'existe pas, on ne peut pas continuer.
+        throw new Error(`Le modèle '${modelName}' est introuvable ou inaccessible.`);
+    }
     const collection = await getCollectionForUser(me);
     await validateModelStructure(model);
 
@@ -1496,6 +1501,9 @@ const internalEditOrPatchData = async (modelName, filter, data, files, user, isP
         const bulkResult = await collection.bulkWrite(bulkOps);
         const modifiedCount = bulkResult.modifiedCount || 0;
 
+        // --- AJOUT DE L'INVALIDATION DU CACHE DE DONNÉES ---
+        invalidateModelCache(modelName);
+
         if (modifiedCount > 0) {
             // Invalider le cache pour les IDs modifiés
             const idsToInvalidate = ids.map(id => id.toString());
@@ -1775,6 +1783,7 @@ export const deleteData = async (modelName, filter, user = {}, triggerWorkflow, 
                 // Le filtre _user est déjà implicite car on a fetch les documents de l'utilisateur
             });
 
+            // --- AJOUT DE L'INVALIDATION DU CACHE DE DONNÉES ---
             // SOLUTION RADICALE : On invalide TOUT le cache pour ce modèle.
             // C'est crucial car la suppression affecte les comptes, la pagination, etc.
             // --- AMÉLIORATION : Invalider aussi les modèles liés ---
@@ -2819,9 +2828,16 @@ export const importData = async (options, files, user) => {
                         });
                         importResults.success = false;
                     }
+
+                    // --- AJOUT DE L'INVALIDATION DU CACHE ---
+                    // Une fois toutes les données pour un modèle importées, on invalide le cache de recherche pour ce modèle.
+                    invalidateModelCache(modelName);
                 }
                 // --- FIN DE LA MODIFICATION PRINCIPALE ---
 
+                for (const modelToInstall of jsonData.models) {
+                    invalidateModelCache(modelToInstall)
+                }
             } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
                 // --- Logique CSV (inchangée, mais maintenant elle est séparée de la logique JSON) ---
                 fileProcessed = true;
@@ -2914,6 +2930,8 @@ export const importData = async (options, files, user) => {
                             $push: { errors: `Model ${modelNameForImport} (CSV): ${modelProcessingError.message}` }, $set: { updatedAt: new Date() }
                         });
                     }
+
+                    invalidateModelCache(modelNameForImport);
                 }
             } else if (['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(file.type) || file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
                 fileProcessed = true;
@@ -3006,7 +3024,7 @@ export const importData = async (options, files, user) => {
                             }
                             importResults.counts[modelNameForImport] = (importResults.counts[modelNameForImport] || 0) + allProcessedData.length;
                         }
-
+                        invalidateModelCache(modelNameForImport);
                     } catch (modelProcessingError) {
                         logger.error(`[Import Excel] Error processing model ${modelNameForImport}: ${modelProcessingError.message}`);
                         importResults.errors.push(`Model ${modelNameForImport} (Excel): ${modelProcessingError.message}`);
@@ -3023,6 +3041,7 @@ export const importData = async (options, files, user) => {
                     $push: { errors: "Unsupported file type. Please upload a JSON or CSV file." }, $set: { updatedAt: new Date() }
                 });
             }
+
 
         } catch (e) {
             logger.error("Import Error (Global):", e);

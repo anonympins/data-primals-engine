@@ -453,7 +453,7 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQuery
 
     const [prompt, setPrompt] = useLocalStorage("ai_model_prompt", null);
     const { me } = useAuthContext();
-    const id = getUserHash(me)+'';
+    const id = me ? getUserHash(me)+'' : '';
 
     // NOUVEAU : On récupère l'état de la navigation
     const location = useLocation();

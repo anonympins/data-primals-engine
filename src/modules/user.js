@@ -69,7 +69,6 @@ export const middlewareAuthenticator = async (req, res, next) => {
 
     try {
         const logger = engine.getComponent(Logger);
-        logger.info("Initiate user on provider ", engine.userProvider);
         // 1. On demande au provider d'identifier l'utilisateur
         await engine.userProvider.initiateUser(req);
 

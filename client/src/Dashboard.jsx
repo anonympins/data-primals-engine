@@ -387,7 +387,8 @@ export function DashboardsPage() {
                                     onChange={(selectedOption) => {
                                         setSelectedDashboardId(selectedOption.value);
                                         const d = dashboardsData.data.find(f => f._id === selectedOption.value);
-                                        history.pushState({}, null, '/user/'+getUserHash(me)+'/dashboards/'+d._hash);
+                                        if( me )
+                                            history.pushState({}, null, '/user/'+getUserHash(me)+'/dashboards/'+d._hash);
                                     }}
                                     items={dashboardOptions}
                                 />
@@ -428,7 +429,6 @@ export function DashboardsPage() {
                                             label={t('dashboards.refreshPresets.label', 'Préréglages')}
                                             value={dashboardToEdit.refreshInterval}
                                             onChange={(option) => {
-                                                console.log({option});
                                                 if (option?.value)
                                                     handleEditFieldChange({ name: 'refreshInterval', value: option?.value })
                                             }}
