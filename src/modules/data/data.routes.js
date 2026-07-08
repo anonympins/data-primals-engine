@@ -27,7 +27,7 @@ import {tutorialsConfig} from "../../../client/src/tutorials.js";
 import {getResource, handleDemoInitialization} from "./data.js";
 import process from "node:process"; 
 import {throttleMiddleware} from "../../middlewares/throttle.js";
-import {modelsCache} from "./data.core.js";
+import {modelsCache, runImportExportWorker} from "./data.core.js";
 import {validateModelData, validateModelStructure} from "./data.validation.js";
 import {
     deleteData,
