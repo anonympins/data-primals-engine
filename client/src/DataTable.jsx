@@ -391,7 +391,7 @@ export function DataTable({
     const handleConfirmRestore = async () => {
         try {
             // Make the API call to request the restore link
-            const response = await fetch('/api/backup/request-restore', {
+            const response = await fetch('/api/backup/request-restore?lang='+lang, {
                 method: 'POST',
                 credentials: "include",
                 // ... other options ...
@@ -452,7 +452,7 @@ export function DataTable({
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
                     i18nKey="btns.import">Importer</Trans></Button>
                 <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans i18nKey="btns.export">Exporter</Trans></Button>
-                {!/^demo[0-9]{1,2}$/.test(me.username) && (<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
+                {(<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
                     i18nKey="btns.backup">Backup</Trans></Button>)}
 
             </div>}

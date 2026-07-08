@@ -9,12 +9,11 @@ import {getInternalSmtpConfig, getSmtpConfig, middlewareAuthenticator, userIniti
 import {awsDefaultConfig, getHost, maxBytesPerSecondThrottleData} from "../constants.js";
 import crypto from "node:crypto";
 import i18n from "../../src/i18n.js";
-import {sendEmail} from "../email.js";
+import { sendEmail, changeLanguage } from "../email.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
 import {getCollectionForUser} from "./mongodb.js";
 import {safeAssignObject} from "../core.js";
 import {Config} from "../config.js";
-
 const restoreRequests = {};
 
 export const requestRestore = async (user, lang) => {
@@ -32,6 +31,7 @@ export const requestRestore = async (user, lang) => {
     const smtpConfig = await getInternalSmtpConfig(user); // Fetch SMTP config for the user
 
     try {
+        await changeLanguage(lang);
         // On utilise une nouvelle clé de traduction pour l'email
         await sendEmail(user.email, {
             title: i18n.t('email_backup_restoreRequest_subject'),
@@ -41,7 +41,8 @@ export const requestRestore = async (user, lang) => {
                 host: getHost(),
                 modelsToken: modelsRestoreToken
             })
-        }, smtpConfig, lang);
+        }, smtpConfig, lang).catch(e => logger.error(e.message));
+
         return { message: 'Restore links sent to your email.' };
     } catch (error) {
         console.error('Error sending email:', error);
@@ -262,7 +263,7 @@ export async function onInit(defaultEngine) {
         }
 
         try {
-            const result = await requestRestore(user);
+            const result = await requestRestore(user, req.query.lang);
             res.json(result);
         } catch (error) {
             console.error('Error requesting restore:', error);
