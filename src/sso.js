@@ -9,6 +9,7 @@ import {Event} from "./events.js"
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcrypt';
 import { sendEmail } from './email.js';
+import {getInternalSmtpConfig, getSmtpConfig} from "./modules/user.js";
 
 /**
  * @class SSOUserProvider
@@ -104,7 +105,8 @@ export class SSOUserProvider extends UserProvider {
         const finalUser = await this.findUserById(userResult.insertedId);
 
         // Envoyer un e-mail de bienvenue au nouvel utilisateur
-        sendEmail(email, { title: "Bienvenue !", content: "Votre compte a été créé avec succès." }).catch(console.error);
+        const smtpConfig = getInternalSmtpConfig(finalUser);
+        sendEmail(email, { title: "Bienvenue !", content: "Votre compte a été créé avec succès." }, smtpConfig).catch(console.error);
 
         return finalUser;
     }

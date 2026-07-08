@@ -345,6 +345,15 @@ export async function getEnv(user){
     return envObject;
 }
 
+export function getInternalSmtpConfig(){
+    const cfg = Config.Get('emailDefaultConfig', emailDefaultConfig);
+    cfg.host = process.env.SMTP_HOST || cfg.host;
+    cfg.port = process.env.SMTP_PORT || cfg.port;
+    cfg.user = process.env.SMTP_USER || cfg.user;
+    cfg.pass = process.env.SMTP_PASS || cfg.pass;
+    return cfg;
+}
+
 export async function getSmtpConfig(user) {
 
     const cfg = Config.Get('emailDefaultConfig', emailDefaultConfig);
