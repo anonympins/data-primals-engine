@@ -84,10 +84,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
         // Vous pouvez relancer l'erreur si vous voulez que l'appelant la gère
         throw error;
     } finally {
-        // --- RESTAURATION DE LA LANGUE ORIGINALE ---
-        if (lang && lang !== originalLang) {
-            await i18n.changeLanguage(originalLang);
-        }
+
     }
 };
 
