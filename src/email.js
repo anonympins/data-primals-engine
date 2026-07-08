@@ -3,6 +3,7 @@ import juice from "juice";
 import {Event} from "./events.js";
 import {emailDefaultConfig} from "./constants.js";
 import {Config} from "./config.js";
+import i18n from "./i18n.js";
 
 /**
  * Crn * @param {object} smtpConfig - L'objet de configuration SMTP.
@@ -34,11 +35,24 @@ const createTransporter = (smtpConfig) => {
  * @param {string|null} tpl - Le template HTML à utiliser.
  */
 export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl = null) => {
+    // --- NOUVELLE LOGIQUE DE GESTION DE LANGUE ---
+    const originalLang = i18n.language;
+    if (lang && lang !== originalLang) {
+        await i18n.changeLanguage(lang);
+    }
 
     const cfg = Config.Get('emailDefaultConfig', emailDefaultConfig);
     const contactEmail = smtpConfig ? (smtpConfig.from || cfg.from) :"Our company <noreply@ourdomain.tld>";
     const emails = Array.isArray(email) ? email : [email];
     if (emails.length === 0) return false;
+
+    // --- TRADUCTION AU DERNIER MOMENT ---
+    // On s'assure que les clés de traduction sont résolues maintenant,
+    // avec la bonne langue active.
+    const finalData = {
+        title: i18n.t(data.title, { defaultValue: data.title, ...data }),
+        content: i18n.t(data.content, { defaultValue: data.content, ...data })
+    };
 
     // Choisir le transporteur à utiliser
     const transporter = createTransporter(smtpConfig || cfg); // Always create transporter dynamically
@@ -56,7 +70,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
         const mailOptions = {
             from: contactEmail,
             to: e,
-            subject: data.title,
+            subject: finalData.title,
             html
         };
         return transporter.sendMail(mailOptions);
@@ -70,6 +84,11 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
         console.error("Error when sending to one ore more emails :", error);
         // Vous pouvez relancer l'erreur si vous voulez que l'appelant la gère
         throw error;
+    } finally {
+        // --- RESTAURATION DE LA LANGUE ORIGINALE ---
+        if (lang && lang !== originalLang) {
+            await i18n.changeLanguage(originalLang);
+        }
     }
 };
 

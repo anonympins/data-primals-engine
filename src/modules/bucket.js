@@ -29,7 +29,6 @@ export const requestRestore = async (user, lang) => {
         expiresAt: expiration
     });
 
-    i18n.changeLanguage(lang);
     const smtpConfig = await getInternalSmtpConfig(user); // Fetch SMTP config for the user
 
     try {
@@ -42,7 +41,7 @@ export const requestRestore = async (user, lang) => {
                 host: getHost(),
                 modelsToken: modelsRestoreToken
             })
-        }, smtpConfig);
+        }, smtpConfig, lang);
         return { message: 'Restore links sent to your email.' };
     } catch (error) {
         console.error('Error sending email:', error);
