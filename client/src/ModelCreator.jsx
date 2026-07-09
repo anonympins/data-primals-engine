@@ -94,6 +94,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             const url = `/api/model/${initialModel._id}/renameField?_user=${encodeURIComponent(getUserId(me))}`;
             return fetch(url, {
                 method: 'PATCH',
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ oldFieldName: oldName, newFieldName: newName }),
             }).then((res) => res.json());
@@ -120,6 +121,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
             const method = initialModel?._id ? 'PUT' : 'POST';
             return fetch(url+'?_user='+me.username, {
                 method: method,
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(modelData),
             }).then((res) => res.json());
@@ -173,6 +175,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
         (modelName) =>
             fetch(`/api/model?name=${modelName}&_user=${encodeURIComponent(getUserId(me))}`, {
                 method: 'DELETE',
+                credentials:"include",
             }).then((res) => res.json()),
         {
             onSuccess: () => {
@@ -386,6 +389,7 @@ const ModelCreator = forwardRef(({ initialPrompt = '', onModelGenerated, autoGen
 
             const response = await fetch(`/api/model/generate?lang=${lang}`, {
                 method: 'POST',
+                credentials:"include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(bodyPayload),
             });

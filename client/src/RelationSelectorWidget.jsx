@@ -13,6 +13,7 @@ import { useAuthContext } from './contexts/AuthContext.jsx';
 const insertDataAPI = async (modelName, data) => {
     const response = await fetch(`/api/data`, {
         method: 'POST',
+        credentials:"include",
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({model: modelName,data})
     });
@@ -27,6 +28,7 @@ const searchDataAPI = async (modelName, filter) => {
     const params = new URLSearchParams({ model: modelName, depth: '1' });
     const response = await fetch(`/api/data/search?${params.toString()}`, {
         method: 'POST',
+        credentials:"include",
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filter })
     });

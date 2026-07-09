@@ -46,6 +46,7 @@ export function DashboardsPage() {
             const response = await fetch(
                 `/api/data/search?model=dashboard&_user=${me.username}`, {
                     method: 'POST',
+                    credentials: "include",
                     headers: { 'Content-Type': 'application/json' },
                     // body: JSON.stringify({ sort: { name: 1 } }) // Optionnel: trier
                 });
@@ -69,6 +70,7 @@ export function DashboardsPage() {
             const isFirstDashboard = !dashboardsData?.data || dashboardsData.data.length === 0;
             const response = await fetch('/api/data', {
                 method: 'POST',
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'dashboard',
@@ -100,6 +102,7 @@ export function DashboardsPage() {
             const { _id, _hash, _user, _createdAt, _updatedAt, ...data } = dashboardData;
             const response = await fetch(`/api/data`, {
                 method: 'PUT',
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'dashboard',
@@ -384,7 +387,8 @@ export function DashboardsPage() {
                                     onChange={(selectedOption) => {
                                         setSelectedDashboardId(selectedOption.value);
                                         const d = dashboardsData.data.find(f => f._id === selectedOption.value);
-                                        history.pushState({}, null, '/user/'+getUserHash(me)+'/dashboards/'+d._hash);
+                                        if( me )
+                                            history.pushState({}, null, '/user/'+getUserHash(me)+'/dashboards/'+d._hash);
                                     }}
                                     items={dashboardOptions}
                                 />
@@ -425,7 +429,6 @@ export function DashboardsPage() {
                                             label={t('dashboards.refreshPresets.label', 'Préréglages')}
                                             value={dashboardToEdit.refreshInterval}
                                             onChange={(option) => {
-                                                console.log({option});
                                                 if (option?.value)
                                                     handleEditFieldChange({ name: 'refreshInterval', value: option?.value })
                                             }}

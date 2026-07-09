@@ -320,6 +320,7 @@ function buildApiConditionPayloadRecursive(conditionNode) {
 
         // --- Build the specific $expr based on the operator ---
         switch (exprOperator) {
+        case '$regex': // Ajout pour gérer l'alias
         case '$nin':
             const ninValueArray = Array.isArray(value) ? value : String(value).split(',').map(s => s.trim()).filter(Boolean);
             // Note: $nin at the top level is often better handled *outside* $expr

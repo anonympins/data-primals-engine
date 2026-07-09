@@ -95,6 +95,7 @@ export function ModelList({ editionMode, onModelSelect, onCreateModel, onImportM
     const demoInitMutation = useMutation((profile) => {
         return fetch('/api/demo/initialize', {
             method: 'POST',
+            credentials:"include",
             headers: { "Content-Type": "application/json"},
             body: JSON.stringify({profile: profile, packs: profiles[profile].packs}),
         });

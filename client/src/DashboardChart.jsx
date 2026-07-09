@@ -28,6 +28,7 @@ const fetchChartData = async (chartConfig) => {
     try {
         const response = await fetch(`/api/charts/aggregate`, {
             method: 'POST',
+            credentials: "include",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(chartConfig) // Le filtre sera envoyil est dans chartConfig
         });

@@ -30,6 +30,7 @@ const FlexBuilderControls = ({
         ['endpoints', 'GET'], // Clé de requête
         () => fetch('/api/data/search', {
             method: 'POST',
+            credentials: "include",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'endpoint',

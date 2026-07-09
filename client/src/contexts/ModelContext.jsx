@@ -45,7 +45,7 @@ export const ModelProvider = ({ children }) => {
     const { data: dataModels = [], isFetched } = useQuery(['api/models', me], () => {
         if(!me)
             return Promise.reject();
-        return fetch(`/api/models?lang=${lang}&_user=${encodeURIComponent(getUserId(me))}`).then((res) => {
+        return fetch(`/api/models?lang=${lang}&_user=${encodeURIComponent(getUserId(me))}`, {credentials:"include"}).then((res) => {
             if( !res.ok ){
                 return [];
             }
@@ -118,7 +118,7 @@ export const ModelProvider = ({ children }) => {
                     if( rel){
                         return Promise.resolve(rel);
                     }
-                    return fetch(`/api/data/search?${params.toString()}`, { signal, method: 'POST', headers: { "Content-Type": "application/json"}})
+                    return fetch(`/api/data/search?${params.toString()}`, { credentials:"include",signal, method: 'POST', headers: { "Content-Type": "application/json"}})
                         .then((res) => res.json())
                         .then((e) => ({
                             count: e.count,
@@ -204,7 +204,7 @@ export const ModelProvider = ({ children }) => {
                 const c = pagedFilterToMongoConds(pagedFilters, model)
                 const filter= JSON.stringify({filter:{$and:c}});
 
-                return fetch(`/api/data/search?${params.toString()}`, { signal, method: 'POST', body: filter, headers: { "Content-Type": "application/json"}})
+                return fetch(`/api/data/search?${params.toString()}`, { signal, credentials: "include", method: 'POST', body: filter, headers: { "Content-Type": "application/json"}})
                     .then((res) => res.json())
                     .then((e) => {
                         return {

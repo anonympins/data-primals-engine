@@ -28,7 +28,7 @@ const FlexBuilderPreview = ({
         setIsModalOpen(true);
 
         try {
-            const response = await fetch(`/api/actions/${node.endpointPath}`, { method: 'GET' });
+            const response = await fetch(`/api/actions/${node.endpointPath}`, {credentials: "include", method: 'GET' });
             const data = await response.json();
             setModalContent({ path: node.endpointPath, status: response.status, data });
         } catch (error) {

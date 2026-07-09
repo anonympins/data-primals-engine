@@ -1115,6 +1115,15 @@ h2.shadow {
   }
 }
 
+.mini {
+  input[type=checkbox] {
+    &:checked, &:hover, &:focus, &:active {
+      outline: 1px solid #c8c8c8;
+      background-color: #3498db;
+    }
+  }
+}
+
 .pagination-wrapper {
   justify-self: flex-end;
   .pagination {

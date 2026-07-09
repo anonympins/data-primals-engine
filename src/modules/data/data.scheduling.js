@@ -5,7 +5,7 @@ import {ObjectId} from "mongodb";
 import {getSmtpConfig} from "../user.js";
 import {runScheduledJobWithDbLock, substituteVariables} from "../workflow.js";
 import i18n from "../../i18n.js";
-import {sendEmail} from "../../email.js";
+import {changeLanguage, sendEmail} from "../../email.js";
 import {sendSseToUser} from "./data.routes.js";
 
 import {searchData} from "./data.operations.js";
@@ -101,6 +101,7 @@ export async function runStatefulAlertJob(alertId) {
                             });
                         }
 
+                        await changeLanguage(userLang);
                         await sendEmail(
                             user.email,
                             {

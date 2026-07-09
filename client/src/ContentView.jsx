@@ -49,14 +49,14 @@ const ContentView = () => { // Le prop 'menu' a été retiré car non passé par
     // 2. Récupérer le contenu principal basé sur le slug et la langue
     const {data: contentData, isLoading: isLoadingContent, error: errorContent} = useQuery(
         ['contentPage', slug, langCode, cat], // Ajout de cat pour la spécificité de la clé
-        () => fetch('/api/website/content?lang='+langCode+'&slug='+slug+'&limit=1&sort=_id:DESC', { headers: { 'Content-Type': 'application/json'}}).then(e => e.json())
+        () => fetch('/api/website/content?lang='+langCode+'&slug='+slug+'&limit=1&sort=_id:DESC', { credentials: "include", headers: { 'Content-Type': 'application/json'}}).then(e => e.json())
     );
     const pageContent = contentData?.data?.[0];
 
     // 4. Récupérer les sous-catégories de la catégorie parente 'cat'
     const {data: childCategoriesData, isLoading: isLoadingChildCategories} = useQuery(
         ['childDocCategories', cat, langCode], // Clé de query mise à jour
-        () => fetch('/api/website/taxonomies?lang='+langCode+'&identifier='+cat, { headers: { 'Content-Type': 'application/json' }}).then(e => e.json()), // Tri par order, puis par nom
+        () => fetch('/api/website/taxonomies?lang='+langCode+'&identifier='+cat, {  credentials: "include",headers: { 'Content-Type': 'application/json' }}).then(e => e.json()), // Tri par order, puis par nom
         { enabled: !!cat && !!langCode } // Activer si cat et langCode sont présents
     );
     const childCategories = childCategoriesData?.data || [];
@@ -66,7 +66,7 @@ const ContentView = () => { // Le prop 'menu' a été retiré car non passé par
 
     const {data: tocContentQuery, isLoading: isLoadingTocContent} = useQuery(
         ['tocContent', childCategoryIds, langCode], // Clé de query mise à jour
-        () => fetch( '/api/website/content?cats='+childCategoryIds.join(',')+'&lang='+langCode+'&sort=order:ASC,title:ASC', { headers: { 'Content-Type': 'application/json' }}).then(e => e.json()), // Tri par order, puis par titre
+        () => fetch( '/api/website/content?cats='+childCategoryIds.join(',')+'&lang='+langCode+'&sort=order:ASC,title:ASC', { credentials: "include",headers: { 'Content-Type': 'application/json' }}).then(e => e.json()), // Tri par order, puis par titre
         {enabled: !!langCode && childCategoryIds.length > 0} // Activer si langCode et des IDs de catégories enfants sont présents
     );
 

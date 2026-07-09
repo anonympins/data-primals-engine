@@ -15,7 +15,7 @@ const RTETrans = ({ value, onChange, field }) => {
         params.append('model', 'lang');
         params.append("_user", getUserId(me));
         params.append("depth", '1');
-        return fetch(`/api/data/search?${params.toString()}`, { signal, method: 'POST', body: JSON.stringify({}), headers: { "Content-Type": "application/json"}})
+        return fetch(`/api/data/search?${params.toString()}`, { credentials:"include", signal, method: 'POST',  body: JSON.stringify({}), headers: { "Content-Type": "application/json"}})
             .then((res) => res.json())
             .then((data) => {
                 setAvailableLangs(data.data || []);

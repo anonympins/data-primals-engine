@@ -96,6 +96,7 @@ const DashboardHtmlViewItem = ({ config }) => {
         async () => {
             const response = await fetch(`/api/data/search?model=${modelName}&depth=2&limit=${limit || 10}&sort=${JSON.stringify(sort || {})}`, {
                 method: 'POST',
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filter: filter || {}}),
             });

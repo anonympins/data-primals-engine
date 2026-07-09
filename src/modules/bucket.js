@@ -5,16 +5,15 @@ import path from "node:path";
 import {decryptValue, encryptValue} from "../data.js";
 import {loadFromDump, validateRestoreRequest} from "./data/index.js";
 import {Logger} from "../gameObject.js";
-import {middlewareAuthenticator, userInitiator} from "./user.js";
+import {getInternalSmtpConfig, getSmtpConfig, middlewareAuthenticator, userInitiator} from "./user.js";
 import {awsDefaultConfig, getHost, maxBytesPerSecondThrottleData} from "../constants.js";
 import crypto from "node:crypto";
 import i18n from "../../src/i18n.js";
-import {sendEmail} from "../email.js";
+import { sendEmail, changeLanguage } from "../email.js";
 import {throttleMiddleware} from "../middlewares/throttle.js";
 import {getCollectionForUser} from "./mongodb.js";
 import {safeAssignObject} from "../core.js";
 import {Config} from "../config.js";
-
 const restoreRequests = {};
 
 export const requestRestore = async (user, lang) => {
@@ -29,19 +28,21 @@ export const requestRestore = async (user, lang) => {
         expiresAt: expiration
     });
 
-    i18n.changeLanguage(lang);
+    const smtpConfig = await getInternalSmtpConfig(user); // Fetch SMTP config for the user
 
     try {
+        await changeLanguage(lang);
         // On utilise une nouvelle clé de traduction pour l'email
         await sendEmail(user.email, {
-            title: i18n.t('email.backup.restoreRequest.subject'),
-            content: i18n.t('email.backup.restoreRequest.content', {
+            title: i18n.t('email_backup_restoreRequest_subject'),
+            content: i18n.t('email_backup_restoreRequest_content', {
                 user: user?.username,
                 fullToken: fullRestoreToken,
                 host: getHost(),
                 modelsToken: modelsRestoreToken
             })
-        });
+        }, smtpConfig, lang).catch(e => logger.error(e.message));
+
         return { message: 'Restore links sent to your email.' };
     } catch (error) {
         console.error('Error sending email:', error);
@@ -91,6 +92,12 @@ async function _getUserS3ConfigFromDb(user) {
  * @returns {Promise<object>} - L'objet de configuration S3 final.
  */
 export async function getUserS3Config(user) {
+    // NOUVEAU : Vérification de l'interrupteur principal pour S3
+    // Si cette configuration n'est pas explicitement à `true`, on désactive S3.
+    if (Config.Get('storageS3', false) !== true) {
+        logger.debug("[S3] Le stockage S3 est désactivé via la configuration 'storageS3'.");
+        return null; // Retourne null pour indiquer que S3 n'est pas configuré.
+    }
 
     const adc = awsDefaultConfig;
     const dc = Config.Get('awsDefaultConfig', {});
@@ -256,7 +263,7 @@ export async function onInit(defaultEngine) {
         }
 
         try {
-            const result = await requestRestore(user);
+            const result = await requestRestore(user, req.query.lang);
             res.json(result);
         } catch (error) {
             console.error('Error requesting restore:', error);

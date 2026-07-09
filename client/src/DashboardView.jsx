@@ -27,6 +27,7 @@ async function updateDashboardLayout(dashboard, newLayoutData, username, t) {
     try {
         const response = await fetch(`/api/data/${dashboard._id}?_user=${username}`, {
             method: 'PUT',
+            credentials: "include",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'dashboard',
@@ -178,6 +179,7 @@ export function DashboardView({ dashboard }) {
             const response = await fetch(
                 `/api/data/search?model=kpi&lang=${lang}&_user=${me.username}`, {
                     method: 'POST',
+                    credentials: "include",
                     headers: { 'Content-Type': 'application/json' }
                 });
             if (!response.ok) {

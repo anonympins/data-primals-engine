@@ -172,6 +172,111 @@ export const Engine = {
             return engine._modules.find(m => m.module === module);
         };
 
+        /**
+         * Envoie une requête à un pair spécifique du cluster.
+         * Cette fonction gère la recherche du pair, la construction de l'URL,
+         * et l'ajout du header 'X-Target-Peer-Id' nécessaire pour le reverse proxy.
+         * @param {string} peerId - L'ID du pair cible (ex: "vox-main-1").
+         * @param {string} path - Le chemin de l'API à appeler sur le pair (ex: "/api/internal/replicate").
+         * @param {object} payload - Le corps de la requête (sera converti en JSON).
+         * @param {object} [options={}] - Options supplémentaires pour la requête fetch (method, headers, etc.).
+         * @returns {Promise<Response>} La promesse retournée par fetch.
+         */
+        engine.sendToPeer = async (peerId, path, payload, options = {}) => {
+            const targetPeer = engine.peers.find(p => p.id === peerId);
+
+            if (!targetPeer) {
+                const errorMessage = `[sendToPeer] Cannot send request: Peer '${peerId}' is not in the list of online peers.`;
+                logger.error(errorMessage);
+                return Promise.reject(new Error(errorMessage));
+            }
+
+            // Utilise le protocole défini dans les données du pair, ou https par défaut.
+            const protocol = targetPeer.protocol || 'https';
+            const apiPath = path.startsWith('/') ? path : `/${path}`;
+            const url = `${protocol}://${targetPeer.public_domain}${apiPath}`;
+
+            const fetchOptions = {
+                method: 'POST', // POST par défaut
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Target-Peer-Id': peerId, // Le header crucial pour le routage
+                    ...(options.headers || {})
+                },
+                body: JSON.stringify(payload)
+            };
+
+            try {
+                logger.info(`[sendToPeer] Sending request to peer '${peerId}' at ${url}`);
+                return await fetch(url, fetchOptions);
+            } catch (error) {
+                logger.error(`[sendToPeer] Network error while sending to peer '${peerId}':`, error.message);
+                throw error; // Relancer l'erreur pour que l'appelant puisse la gérer
+            }
+        };
+
+        engine.peers = []; // Initialise la liste des pairs
+
+        const discoverPeers = async () => {
+            const endpoint = process.env.PEERS_ENDPOINT;
+            if (!endpoint) {
+                logger.info("PEERS_ENDPOINT not set. Skipping peer discovery.");
+                return;
+            }
+
+            try {
+                logger.info(`Discovering peers from ${endpoint}...`);
+                // Ajout d'un AbortController pour gérer le timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // Timeout de 30 secondes
+
+                const response = await fetch(endpoint, { signal: controller.signal });
+                clearTimeout(timeoutId); // Annuler le timeout si la requête réussit
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch peers: ${response.status} ${response.statusText}`);
+                }
+                const data = await response.json(); // Parser en JSON
+
+                if (!data || !Array.isArray(data.peers)) { // Valider la structure
+                    throw new Error("Invalid peer discovery response: 'peers' array not found.");
+                }
+
+                const allOnlinePeers = data.peers.filter(p => (p.status === 'online' || p.public_domain.startsWith(process.env.PEER_DOMAIN)));
+
+                // --- NOUVELLE LOGIQUE DE FILTRAGE PAR PRÉFIXE ---
+                // On se base sur le nom de domaine public de l'instance pour plus de robustesse.
+                if (process.env.PEER_DOMAIN) {
+                    engine.selfUrl = process.env.PEER_DOMAIN;
+                    const selfHostname = process.env.PEER_DOMAIN; // ex: data-api-shard-1.primals.net
+                    logger.info(`[Cluster] Self hostname identified as '${selfHostname}'.`);
+                    // --- CORRECTION DE LA LOGIQUE DE PRÉFIXE ---
+                    // Extrait le préfixe du nom de domaine (ex: "data-api-shard" de "data-api-shard-1.primals.net" ou "data" de "data.primals.net")
+                    // La regex capture tout jusqu'au premier point.
+                    const selfPrefixMatch = selfHostname.match(/^([^.]+)/);
+                    if (selfPrefixMatch) {
+                        const selfPrefix = selfPrefixMatch[1].replace(/-[0-9]+$/, ''); // Supprime le suffixe numérique s'il existe
+                        logger.info(`[Cluster] Detected prefix: '${selfPrefix}'. Filtering peers...`);
+
+                        // Ne garder que les pairs qui ont le même préfixe
+                        engine.peers = allOnlinePeers.filter(p => {
+                            return (p.public_domain || '').startsWith(selfPrefix);
+                        });
+                    } else {
+                        engine.peers = allOnlinePeers; // Pas de préfixe, on garde tout
+                    }
+                } else {
+                    engine.peers = allOnlinePeers; // Pas de selfUrl, on garde tout pour éviter une erreur
+                }
+
+                logger.info(`[Cluster] Final peer list: [${engine.peers.map(p => p.id).join(', ')}]`);
+            } catch (error) {
+                logger.error(`Could not discover peers from endpoint ${endpoint}:`, error.message);
+                engine.peers = []; // En cas d'erreur, on s'assure que la liste est vide.
+            }
+        };
+
         const importAndPrepareModule = async (moduleEntryPoint, moduleName) => {
             const moduleA = await import(moduleEntryPoint);
 
@@ -273,19 +378,17 @@ export const Engine = {
             // Start http server
             server = http.createServer(app);
 
+            await discoverPeers();
+
             // Server Timeout Settings
             server.timeout = 120000;
             server.headersTimeout = 20000;
             server.requestTimeout = 30000;
             server.keepAliveTimeout = 5000;
-
             server.listen(port);
 
             await setupInitialModels();
             await installAllPacks();
-
-            if (cb)
-                await cb();
 
             engine.get('/api/health', (req, res) => {
                 res.status(200).json({
@@ -293,12 +396,21 @@ export const Engine = {
                     timestamp: new Date().toISOString()
                 });
             });
-
+            
+            // --- CORRECTION DE L'ORDRE DES MIDDLEWARES ---
+            // Les routes API doivent être enregistrées AVANT le serveur de fichiers statiques.
+            await Event.Trigger("OnServerStart", "event", "system", engine);
+            
+            // Le serveur de fichiers statiques doit être le DERNIER middleware "catch-all".
             if( fs.existsSync('client/dist') ){
                 app.use(sirv('client/dist', {
                     single: true,
                     dev: process.env.NODE_ENV === 'development'
                 }));
+            }
+
+            if (cb) {
+                await cb();
             }
 
             process.on('uncaughtException', function (exception) {
@@ -310,8 +422,6 @@ export const Engine = {
                 });
                 process.exit(1);
             });
-
-            await Event.Trigger("OnServerStart", "event", "system", engine);
         }
 
         engine.stop = async () => {

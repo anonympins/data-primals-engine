@@ -159,11 +159,22 @@ export const loadFromDump = async (user, options = {}) => {
             throw new Error(`Restore source directory (${restoreSourceDir}) not found.`);
         }
 
-        let command;
         const args = [
             '--uri', dbUrl,
             '--db', d
         ];
+
+        // --- AJOUT DE LA LOGIQUE TLS ---
+        const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TLS.toLowerCase()));
+        if (isTlsActive) {
+            args.push('--ssl');
+            if (process.env.CA_CERT) {
+                args.push('--sslCAFile', process.env.CA_CERT);
+            }
+            if (process.env.CERT_KEY) {
+                args.push('--sslPEMKeyPassword', process.env.CERT_KEY);
+            }
+        }
 
         if (modelsOnly) {
             args.push('--nsInclude', `${d}.models`);
@@ -176,7 +187,7 @@ export const loadFromDump = async (user, options = {}) => {
         args.push(restoreSourceDir);
 
 
-        logger.info(`[${action}] Executing restore command: ${command}`);
+        logger.info(`[${action}] Executing mongorestore command...`);
         await execFileAsync('mongorestore', args);
 
         // ... (Post-restore tasks) ...
@@ -250,6 +261,7 @@ export const dumpUserData = async (user) => {
             const collsToBackup = [await getUserCollectionName(user), 'models'];
             if (collsToBackup.includes(collection.name)) {
                 const query = {_user: user.username};
+
                 const args = [
                     '--uri', dbUrl,
                     '--db', d,
@@ -257,6 +269,18 @@ export const dumpUserData = async (user) => {
                     '--collection', collection.name,
                     '--query', JSON.stringify(query)
                 ];
+
+                // --- AJOUT DE LA LOGIQUE TLS ---
+                const isTlsActive = !(!process.env.TLS || ["0", "false"].includes(process.env.TLS.toLowerCase()));
+                if (isTlsActive) {
+                    args.push('--ssl');
+                    if (process.env.CA_CERT) {
+                        args.push('--sslCAFile', process.env.CA_CERT);
+                    }
+                    if (process.env.CERT_KEY) {
+                        args.push('--sslPEMKeyPassword', process.env.CERT_KEY);
+                    }
+                }
                 logger.info(`Exécution de la commande : mongodump ${args.join(' ')}`);
                 await execFileAsync('mongodump', args);
             }

@@ -29,7 +29,7 @@ const Test= ({endpoint, lang, index, headers= {}}) =>  {
 
     const [response,setResponse] = useState('');
     const query = useMutation(() => {
-        return fetch((isProd ? 'https://'+getHost()+"/" : '')+'/api'+endpoint.endpoint+'?'+params.toString(), { method: endpoint.method, headers, body: code || JSON.stringify(endpoint.body) })
+        return fetch((isProd ? 'https://'+getHost()+"/" : '')+'/api'+endpoint.endpoint+'?'+params.toString(), { credentials: "include", method: endpoint.method, headers, body: code || JSON.stringify(endpoint.body) })
             .then(e => e.json())
     },{ onSuccess: (data) => {
         setResponse(data)

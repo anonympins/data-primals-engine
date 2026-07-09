@@ -13,6 +13,7 @@ import { useState, useCallback, useMemo } from 'react';
  */
 const validateFieldOnServer = async (api, payload) => {
     return fetch('/api/data/validate', { method: 'POST',
+        credentials:"include",
         headers: {
             'Content-Type': 'application/json'
         }

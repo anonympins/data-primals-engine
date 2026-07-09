@@ -62,6 +62,7 @@ const KanbanView = ({ settings, model }) => {
         ['kanbanData', model.name], // Clé de requête unique pour ce modèle
         () => fetch(`/api/data/search?_user=${me.username}&depth=2`, { // La fonction qui appelle l'API
             method: 'POST',
+            credentials: "include",
             headers: { 'Content-Type': 'application/json' },
             // On demande toutes les données pour le modèle spécifié (limit: 0 pour "tout")
             body: JSON.stringify({ model: model.name, page: 1 })

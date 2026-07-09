@@ -64,6 +64,7 @@ const CalendarView = ({ settings, model, onEditData }) => {
         ['calendarData', model.name],
         () => fetch(`/api/data/search?_user=${me.username}&depth=1`, {
             method: 'POST',
+            credentials: "include",
             headers: { 'Content-Type': 'application/json' },
             // Note : Pour de très grands ensembles de données, vous pourriez vouloir implémenter une récupération par plage de dates.
             body: JSON.stringify({ model: model.name, page: 1 })

@@ -145,6 +145,7 @@ function Layout({ header, routes, body, footer, refreshUI, onResetQueryClient })
                     'Content-Type': 'application/json',
                     // L'authentification sera gérée par le contexte ou un intercepteur
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     model: 'env', // On cible le modèle 'env'
                     filter: { "name": { "$in": Object.values(providers).map(p => p.key) } },
@@ -452,7 +453,7 @@ function UserPage({notifs,triggerSignin,refreshUI, onAuthenticated, onResetQuery
 
     const [prompt, setPrompt] = useLocalStorage("ai_model_prompt", null);
     const { me } = useAuthContext();
-    const id = getUserHash(me)+'';
+    const id = me ? getUserHash(me)+'' : '';
 
     // NOUVEAU : On récupère l'état de la navigation
     const location = useLocation();

@@ -68,7 +68,8 @@ export const middlewareAuthenticator = async (req, res, next) => {
     }
 
     try {
-        // 1. On demande au provider (votre PrimalsUserProvider) d'identifier l'utilisateur
+        const logger = engine.getComponent(Logger);
+        // 1. On demande au provider d'identifier l'utilisateur
         await engine.userProvider.initiateUser(req);
 
         // 2. On vérifie simplement si le provider a attaché un utilisateur
@@ -342,6 +343,15 @@ export async function getEnv(user){
         return acc;
     }, {});
     return envObject;
+}
+
+export function getInternalSmtpConfig(){
+    const cfg = Config.Get('emailDefaultConfig', emailDefaultConfig);
+    cfg.host = process.env.SMTP_HOST || cfg.host;
+    cfg.port = process.env.SMTP_PORT || cfg.port;
+    cfg.user = process.env.SMTP_USER || cfg.user;
+    cfg.pass = process.env.SMTP_PASS || cfg.pass;
+    return cfg;
 }
 
 export async function getSmtpConfig(user) {

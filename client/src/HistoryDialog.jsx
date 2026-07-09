@@ -153,7 +153,7 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
             const params = new URLSearchParams({ page, limit: elementsPerPage, lang: i18n.language });
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
-            const query = await fetch(`/api/data/history/${modelName}/${recordId}?${params.toString()}`);
+            const query = await fetch(`/api/data/history/${modelName}/${recordId}?${params.toString()}`, {credentials: "include"});
             const response = await query.json();
             if (response.success) {
                 setHistory(response.data);
@@ -185,7 +185,7 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
         setPreviewLoading(true);
         setPreviewData(null);
         try {
-            const res = await fetch(`/api/data/history/${modelName}/${recordId}/${version}`);
+            const res = await fetch(`/api/data/history/${modelName}/${recordId}/${version}`, {credentials: "include"});
             const response = await res.json();
             if (response.success) {
                 setPreviewData(response.data);
@@ -209,6 +209,7 @@ export const HistoryDialog = ({ modelName, recordId, onClose }) => {
         try {
             const res = await fetch(`/api/data/history/${modelName}/${recordId}/revert/${version}`, {
                 method: 'POST',
+                credentials: "include",
                 headers: { 'Content-Type': 'application/json' }
             });
             const response = await res.json();

@@ -65,6 +65,7 @@ const WorkflowSelectorModal = ({ onClose, onSelectWorkflow }) => {
         'activeWorkflowsList',
         () => fetch('/api/data/search?_user='+me.username, {
             method: 'POST',
+            credentials: "include",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'workflow',
@@ -433,7 +434,8 @@ function DataLayout({refreshUI}, ref) {
             ///fd.append("files", fd2);
             return fetch(`${url}?lang=${lang}&_user=${encodeURIComponent(getUserId(me))}`, {
                 method,
-                body: fd
+                body: fd,
+                credentials: "include",
             }).then(e => e.json());
         } catch (error) {
             console.error('Erreur lors de l\'enregistrement des données:', error);
@@ -513,7 +515,8 @@ function DataLayout({refreshUI}, ref) {
         return fetch(`/api/data/${ids}?lang=${lang}&_user=${encodeURIComponent(getUserId(me))}`, {
             method: 'DELETE', headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            credentials: "include"
         }).then(e => e.json());
     }, [lang, me]);
 
@@ -536,7 +539,7 @@ function DataLayout({refreshUI}, ref) {
        return fetch('/api/models/import', { method: 'POST', headers: {
            'Content-Type': 'application/json'
            },
-        body: JSON.stringify({ models: selectedModels.map(m => m.name) })
+           credentials: "include",body: JSON.stringify({ models: selectedModels.map(m => m.name) })
        })
     });
 

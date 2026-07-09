@@ -1,20 +1,11 @@
-import process from "node:process";
 import nodemailer from "nodemailer";
 import juice from "juice";
 import {Event} from "./events.js";
 import {emailDefaultConfig} from "./constants.js";
 import {Config} from "./config.js";
-
-// Le transporteur par défaut, utilisé si aucune config spécifique n'est fournie.
-const defaultTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+import i18n from "./i18n.js";
+import {websiteTranslations} from "../client/src/translations.js";
+import i18next from "i18next";
 
 /**
  * Crn * @param {object} smtpConfig - L'objet de configuration SMTP.
@@ -37,6 +28,16 @@ const createTransporter = (smtpConfig) => {
 };
 
 
+
+export  const changeLanguage = async (lang) => {
+    // --- NOUVELLE LOGIQUE DE GESTION DE LANGUE ---
+    await i18n.changeLanguage(lang, (err) => {
+        if (err) return console.error('something went wrong loading', err);
+        const trs = {...websiteTranslations[lang]?.['translation']};
+        i18next.addResourceBundle(lang, 'translation', trs, true);
+    });
+}
+
 /**
  * Envoie un email en utilisant une configuration SMTP spécifique ou celle par défaut.
  * @param {string|string[]} email - Le ou les destinataires.
@@ -53,7 +54,7 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
     if (emails.length === 0) return false;
 
     // Choisir le transporteur à utiliser
-    const transporter = smtpConfig ? createTransporter(smtpConfig||cfg) : defaultTransporter;
+    const transporter = createTransporter(smtpConfig || cfg); // Always create transporter dynamically
 
     if (tpl === null) tpl = await Event.Trigger("OnEmailTemplate", "event", "system", data, lang);
     let html = tpl;
@@ -82,6 +83,8 @@ export const sendEmail = async (email = "", data, smtpConfig = null, lang, tpl =
         console.error("Error when sending to one ore more emails :", error);
         // Vous pouvez relancer l'erreur si vous voulez que l'appelant la gère
         throw error;
+    } finally {
+
     }
 };
 

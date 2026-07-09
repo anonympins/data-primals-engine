@@ -1,6 +1,7 @@
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Sso, SSOUserProvider } from '../../sso.js';
 import {Logger} from "../../gameObject.js";
+import passport from "passport";
 
 let logger;
 
@@ -12,12 +13,12 @@ export async function onInit(engine) {
     const ssoUserProvider = new SSOUserProvider(engine);
 
     // 1. Récupérer le composant PassportAuth central.
-    let passportAuth = engine.getComponent(Sso);
-    if (!passportAuth) {
-        passportAuth = engine.addComponent(Sso);
+    let ssoComponent = engine.getComponent(Sso);
+    if (!ssoComponent) {
+        ssoComponent = engine.addComponent(Sso);
         // C'EST ICI QUE L'INITIALISATION DOIT AVOIR LIEU, UNE SEULE FOIS.
-        passportAuth.initialize({ ssoUserProvider });
-        passportAuth.addLogoutRoute();
+        ssoComponent.initialize({ ssoUserProvider });
+        ssoComponent.addLogoutRoute();
         logger.info("[auth-google] Sso component was not found, created and initialized a new one.");
     }
 
@@ -35,16 +36,18 @@ export async function onInit(engine) {
     },
     async (accessToken, refreshToken, profile, done) => {
         try {
-            // On utilise le SSOUserProvider pour trouver ou créer l'utilisateur.
             const user = await ssoUserProvider.findOrCreate(profile);
-            return done(null, user);
+            // On passe le profil brut dans le 3ème argument pour le récupérer dans le callback de `authenticate`
+            // et le passer à l'événement OnSsoLogin.
+            return done(null, user, { profile });
         } catch (err) {
             return done(err);
         }
     });
 
-    // 4. Enregistrer la stratégie auprès du composant PassportAuth.
-    passportAuth.addStrategy('google', googleStrategy,
+    // 4. Enregistrer la stratégie auprès du composant SSO.
+    // Le composant Sso gère lui-même les routes, le callback, req.logIn() et le déclenchement de l'événement.
+    ssoComponent.addStrategy('google', googleStrategy,
         { authPath: '/api/auth/google', callbackPath: '/api/auth/google/callback' },
         { scope: ['profile', 'email'] }
     );

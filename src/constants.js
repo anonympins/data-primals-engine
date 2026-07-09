@@ -231,12 +231,6 @@ export const tlsAllowInvalidCertificates = false;
 export const tlsAllowInvalidHostnames = false;
 
 /**
- * Cluster configuration for data federation
- * @type {string[]}
- */
-export const clusterPeers = (process.env.CLUSTER_PEERS || '').split(',').filter(Boolean);
-
-/**
  * Options for the HTML sanitizer
  * @type {{allowedSchemesByTag: {}, selfClosing: string[], allowedSchemes: string[], enforceHtmlBoundary: boolean, disallowedTagsMode: string, allowProtocolRelative: boolean, allowedAttributes: {a: string[], img: string[], code: string[]}, allowedTags: string[], allowedSchemesAppliedToAttributes: string[]}}
  */
@@ -315,8 +309,12 @@ export const MONGO_CALC_OPERATORS = {
     '$regexMatch': {
         label: 'Find by regex',
         description: 'Find a string matching a regular expression (Ecmascript)',
-        args: 2, // input et regex
-        specialStructure: true // Indique une structure spéciale
+        specialStructure: true, // Indique une structure spéciale
+        args: [
+            { name: 'input', label: 'Input String', type: 'text', description: 'The string to match against.' },
+            { name: 'regex', label: 'Regex Pattern', type: 'text', description: 'The ECMA-262 regex pattern.' },
+            { name: 'options', label: 'Options', type: 'text', optional: true, description: 'Regex options (e.g., "i" for case-insensitivity).' }
+        ]
     },
     $and: {
         label: 'Et (and)',
@@ -483,6 +481,7 @@ export const MONGO_CALC_OPERATORS = {
     $toString: {label: 'toString', multi: false, converter: true},
     $toInt: {label: 'toInt', multi: false, converter: true},
     $toDouble: {label: 'toDouble', multi: false, converter: true},
+    $toDate: {label: 'toDate', multi: false, converter: true},
 
     // --- Special Query Operators (not for $expr) ---
     // These operators are handled by a standard $match stage, not inside $expr.
