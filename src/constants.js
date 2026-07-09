@@ -481,6 +481,7 @@ export const MONGO_CALC_OPERATORS = {
     $toString: {label: 'toString', multi: false, converter: true},
     $toInt: {label: 'toInt', multi: false, converter: true},
     $toDouble: {label: 'toDouble', multi: false, converter: true},
+    $toDate: {label: 'toDate', multi: false, converter: true},
 
     // --- Special Query Operators (not for $expr) ---
     // These operators are handled by a standard $match stage, not inside $expr.
