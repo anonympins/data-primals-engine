@@ -1176,9 +1176,11 @@ h2.shadow {
     }
     .dialog-container {
       max-width: 90%;
+      max-height: 90vh;
     }
     .dialog-relation {
       max-width: fit-content;
+      height: fit-content;
     }
   }
 }
