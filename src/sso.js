@@ -217,8 +217,14 @@ export class Sso extends Behaviour {
         // --- ROUTE DE CALLBACK AMÉLIORÉE ---
         // Nous utilisons un callback personnalisé pour déclencher des événements.
         app.get(routes.callbackPath, (req, res, next) => {
-            passport.authenticate(name, { failureRedirect: '/login', failureMessage: true }, async (err, user, info) => {
-                if (err) { return next(err); }
+            // On ajoute `failureMessage` pour que Passport stocke l'erreur dans la session.
+            passport.authenticate(name, { failureRedirect: '/login?error=sso_failed', failureMessage: true }, async (err, user, info) => {
+                if (err) {
+                    // Log de l'erreur et redirection avec un message plus explicite
+                    this.#logger.error(`[SSO Callback Error] Strategy '${name}': ${err.message}`);
+                    const errorMessage = encodeURIComponent(err.message);
+                    return res.redirect(`/login?error=${errorMessage}`);
+                }
                 if (!user) { return res.redirect('/login'); }
 
                 // Sauvegarder l'URL de retour avant que req.logIn() ne régénère potentiellement la session.

@@ -118,7 +118,6 @@ By default, the application is available at `http://localhost:7633`.
 
 ## 🧭 Explore the Platform
 Discover the core features to get started building and managing your data.
-Link to the official documentation: https://data.primals.net/en/documentation/
 
 - 🧠 [Core Concepts](https://github.com/anonympins/data-primals-engine/blob/main/doc/Concepts.md): Explore the fundamentals of data modeling
 - 🔌 [Custom API Endpoints](https://github.com/anonympins/data-primals-engine/blob/main/doc/Custom-Endpoints.md): Create dynamic HTTP routes directly from the backend
