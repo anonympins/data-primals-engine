@@ -1171,7 +1171,12 @@ h2.shadow {
     box-shadow: none;
     outline: 1px solid #5a5a5a;
   }
-
+  .dialog-container{
+    max-width: 90%;
+  }
+  .dialog-relation {
+    max-width: fit-content;
+  }
 }
 
 .condition-details {
