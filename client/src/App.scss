@@ -1161,21 +1161,25 @@ h2.shadow {
   100% {   background-image: linear-gradient(#3c3c3c 10px, transparent 0), linear-gradient(#3c3c3c 10px, transparent 0), linear-gradient(#3c3c3c 10px, transparent 0), linear-gradient(#686868 10px, transparent 0); }
 }
 
-.datas .relation-value {
-  background: #ededed;
-  color: #5a5a5a;
-  border-radius: 9px;
-  cursor: pointer;
-  padding: 2px 8px 2px 8px;
-  &:hover {
-    box-shadow: none;
-    outline: 1px solid #5a5a5a;
-  }
-  .dialog-container{
-    max-width: 90%;
-  }
-  .dialog-relation {
-    max-width: fit-content;
+
+
+#content {
+  .datas .relation-value {
+    background: #ededed;
+    color: #5a5a5a;
+    border-radius: 9px;
+    cursor: pointer;
+    padding: 2px 8px 2px 8px;
+    &:hover {
+      box-shadow: none;
+      outline: 1px solid #5a5a5a;
+    }
+    .dialog-container {
+      max-width: 90%;
+    }
+    .dialog-relation {
+      max-width: fit-content;
+    }
   }
 }
 

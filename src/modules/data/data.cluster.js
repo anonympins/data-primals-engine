@@ -512,6 +512,18 @@ async function initializeCluster(defaultEngine) {
     for (const peer of engine.peers) {
         memberList.set(peer.id, {...peer, status: 'UP', version: 1, lastUpdate: Date.now(), disk: null});
     }
+
+    // --- AMÉLIORATION CRITIQUE DE LA ROBUSTESSE ---
+    // S'assurer que le nœud actuel est TOUJOURS dans la liste des membres,
+    // même si la découverte des pairs échoue ou retourne une liste vide.
+    // C'est essentiel pour le fonctionnement en mode autonome.
+    if (!memberList.has(engine.selfId)) {
+        logger.warn(`[Cluster] Self node '${engine.selfId}' was not found in the initial peer list. Adding it to ensure standalone operation.`);
+        const selfPeerData = engine.peers.find(p => p.id === engine.selfId) || { id: engine.selfId, public_domain: engine.selfUrl, sharding: true, replica: true };
+        memberList.set(engine.selfId, { ...selfPeerData, status: 'UP', version: 1, lastUpdate: Date.now(), disk: null });
+    }
+    // --- FIN DE L'AMÉLIORATION ---
+
     logger.info(`[Cluster] Initialized. Self: ${engine.selfId} @ ${engine.selfUrl}.`);
     logMemberList();
 
