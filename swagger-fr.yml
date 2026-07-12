@@ -954,69 +954,9 @@ components:
         sponsors:
           type: array
           items:
-            type: string
-            description: ID of a contact document
-      required:
-        - title
-        - startDate
-        - endDate
-    endpoint:
-      type: object
-      properties:
-        _id:
-          type: string
-          description: Identifiant unique du document (MongoDB ObjectId)
-          readOnly: true
-        _user:
-          type: string
-          description: Identifiant de l'utilisateur propriétaire de ce document
-          readOnly: true
-        _model:
-          type: string
-          description: Nom du modèle auquel appartient ce document
-          readOnly: true
-          default: endpoint
-        _hash:
-          type: number
-          description: Hash du document pour les vérifications d'intégrité
-          readOnly: true
-        _pack:
-          type: string
-          description: Nom du pack auquel appartient ce document (le cas échéant)
-          readOnly: true
-        isActive:
-          type: boolean
-          default: true
-          description: "If checked, the endpoint is active and can be called."
-        name:
-          type: string
-          description: "A human-readable name to identify the endpoint."
-        path:
-          type: string
-          description: "The URL path after /api/actions/ (e.g., 'send-welcome-email'). Do not include '/'."
-        method:
-          type: string
-          enum:
-            - GET
-            - POST
-            - PUT
-            - PATCH
-            - DELETE
-          description: "The HTTP method required to call this endpoint."
-        code:
-          type: string
-          format: text
-          description: "The script to execute. Must return a value or an object that will be the JSON response."
-        isPublic:
-          type: boolean
-          default: false
-          description: "Si coché, ce point d'accès sera accessible sans authentification."
-      required:
-        - isActive
-        - name
-        - path
-        - method
-        - code
+            type: string,
+            description: ID of a contact document,
+      required: [title, startDate, endDate]
     permission:
       type: object
       properties:

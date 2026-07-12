@@ -449,9 +449,15 @@ export function DataTable({
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
             {advanced && !selectionMode && <div className="flex">
                 {desc && <p className="model-desc hint">{desc}</p>}
+                <Button onClick={() =>{
+                    onAddData(selectedModel);
+                }}><FaEye /> <Trans i18nKey={"btns.addData"}>Ajouter</Trans></Button>
                 <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
                     i18nKey="btns.import">Importer</Trans></Button>
                 <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans i18nKey="btns.export">Exporter</Trans></Button>
+                <Button onClick={() => {
+                    nav('/user/'+getUserHash(me)+'/dashboards');
+                }}><FaEye /> <Trans i18nKey={"dashboards.title"}>Tableaux de bord</Trans></Button>
                 {(<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
                     i18nKey="btns.backup">Backup</Trans></Button>)}
 

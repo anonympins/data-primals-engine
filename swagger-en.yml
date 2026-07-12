@@ -902,69 +902,9 @@ components:
         sponsors:
           type: array
           items:
-            type: string
-            description: ID of a contact document
-      required:
-        - title
-        - startDate
-        - endDate
-    endpoint:
-      type: object
-      properties:
-        _id:
-          type: string
-          description: Unique document identifier (MongoDB ObjectId)
-          readOnly: true
-        _user:
-          type: string
-          description: Identifier of the user who owns this document
-          readOnly: true
-        _model:
-          type: string
-          description: Name of the model this document belongs to
-          readOnly: true
-          default: endpoint
-        _hash:
-          type: number
-          description: Document hash for integrity verification
-          readOnly: true
-        _pack:
-          type: string
-          description: Name of the pack this document belongs to (if applicable)
-          readOnly: true
-        isActive:
-          type: boolean
-          default: true
-          description: "If checked, the endpoint is active and can be called."
-        name:
-          type: string
-          description: "A human-readable name to identify the endpoint."
-        path:
-          type: string
-          description: "The URL path after /api/actions/ (e.g., 'send-welcome-email'). Do not include '/'."
-        method:
-          type: string
-          enum:
-            - GET
-            - POST
-            - PUT
-            - PATCH
-            - DELETE
-          description: "The HTTP method required to call this endpoint."
-        code:
-          type: string
-          format: text
-          description: "The script to execute. Must return a value or an object that will be the JSON response."
-        isPublic:
-          type: boolean
-          default: false
-          description: "If checked, this endpoint will be accessible without authentication."
-      required:
-        - isActive
-        - name
-        - path
-        - method
-        - code
+            type: string,
+            description: ID of a contact document,
+      required: [title, startDate, endDate]
     permission:
       type: object
       properties:
