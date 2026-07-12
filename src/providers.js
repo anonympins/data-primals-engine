@@ -214,6 +214,52 @@ export class MongoUserProvider extends UserProvider {
     }
 
     /**
+     * Initialise le fournisseur en créant les comptes par défaut si nécessaire.
+     * Cette méthode est conçue pour être appelée une seule fois au démarrage.
+     */
+    async initialize() {
+        try {
+            const userCount = await this.usersCollection.countDocuments();
+            if (userCount === 0) {
+                this.logger.info("No users found. Creating default 'admin' and 'demo' accounts...");
+
+                // Récupérer les IDs des rôles "administrator" et "editor"
+                const rolesCollection = getCollection('datas');
+                const adminRole = await rolesCollection.findOne({ _model: 'role', name: 'administrator' });
+                const editorRole = await rolesCollection.findOne({ _model: 'role', name: 'editor' });
+
+                const adminRoles = adminRole ? [adminRole._id.toString()] : [];
+                const demoRoles = editorRole ? [editorRole._id.toString()] : [];
+
+                const defaultUsers = [
+                    {
+                        username: 'admin',
+                        email: 'admin@example.com',
+                        password: 'admin', // Le mot de passe sera haché par createUser
+                        roles: adminRoles
+                    },
+                    {
+                        username: 'demo',
+                        email: 'demo@example.com',
+                        password: 'demo',
+                        roles: demoRoles
+                    }
+                ];
+
+                for (const userData of defaultUsers) {
+                    await this.createUser(userData);
+                    this.logger.info(`Default user '${userData.username}' created successfully.`);
+                }
+            } else {
+                this.logger.info(`${userCount} user(s) found. Skipping default account creation.`);
+            }
+        } catch (error) {
+            this.logger.error("Error during MongoUserProvider initialization:", error);
+            // Ne pas bloquer le démarrage de l'application pour cette erreur
+        }
+    }
+
+    /**
      * Trouve un utilisateur par son ID MongoDB.
      * @param {string} id - L'ID de l'utilisateur.
      * @returns {Promise<object|null>}
@@ -289,11 +335,32 @@ export class MongoUserProvider extends UserProvider {
      * @param {object} req - L'objet requête Express.
      */
     async initiateUser(req) {
-        if (req.session?.user?._id) {
-            const user = await this.findUserById(req.session.user._id);
+        // Priorité 1: Authentification par token Bearer (pour les API)
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            try {
+                const jwt = (await import('jsonwebtoken')).default;
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const user = await this.findUserById(decoded.id);
+                if (user) {
+                    req.me = user; // Attache l'utilisateur à la requête
+                    return; // Authentification réussie
+                }
+            } catch (error) {
+                // Le token est invalide ou a expiré, on ne fait rien et on passe à la méthode suivante.
+                this.logger.warn(`[Auth] Invalid Bearer token provided: ${error.message}`);
+            }
+        }
+
+        // Priorité 2: Authentification par session (pour les interfaces web)
+        const sessionUserId = req.session?.user?._id;
+        if (sessionUserId) {
+            const user = await this.findUserById(sessionUserId);
             if (user) {
                 req.me = user; // Attache l'utilisateur à la requête
             }
         }
+        // Si aucune méthode ne fonctionne, req.me restera non défini.
     }
 }

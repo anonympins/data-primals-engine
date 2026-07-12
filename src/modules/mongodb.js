@@ -5,6 +5,7 @@ import {ObjectId} from "mongodb";
 import {isLocalUser} from "../data.js";
 import {Event} from "../events.js";
 import {Config} from "../config.js";
+import {MongoUserProvider} from "../providers.js";
 
 export let modelsCollection, datasCollection, filesCollection, packsCollection;
 
@@ -23,6 +24,8 @@ export async function onInit(defaultEngine) {
     filesCollection = getCollection("files");
     packsCollection = getCollection("packs");
 
+    if (!engine.userProvider)
+        engine.userProvider = new MongoUserProvider(engine);
 
     colls = await (currentDb.listCollections()).toArray();
 
