@@ -99,7 +99,7 @@ MONGO_DB_URL=mongodb://127.0.0.1:27017/my_database
 JWT_SECRET=a_long_and_random_secret
 ```
 
-To discover all available environment variables (AWS, SMTP, AI, etc.), consult the **[configuration documentation](wiki/Configuration)**.
+To discover all available environment variables (AWS, SMTP, AI, etc.), consult the **[configuration documentation](https://github.com/anonympins/data-primals-engine/wiki/Configuration)**.
 
 ### 4. Launch
 
