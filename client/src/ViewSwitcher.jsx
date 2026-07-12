@@ -27,7 +27,8 @@ const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureV
                         <Button
                             onClick={() => onViewChange(view.id)}
                             className={`btn-view ${isActive ? 'active' : ''}`}
-                            title={t(view.labelKey, view.defaultLabel)}
+                            data-tooltip-id="tooltipField"
+                            data-tooltip-html={t(view.labelKey, view.defaultLabel)}
                         >
                             {view.icon}
                             {/*<span className="hidden md:inline-block ml-2">{t(view.labelKey, view.defaultLabel)}</span>*/}
