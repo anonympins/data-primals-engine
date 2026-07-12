@@ -115,11 +115,23 @@ export class SSOUserProvider extends UserProvider {
     // On peut les laisser vides ou les faire lever une erreur.
     async validatePassword(user, password) { return false; }
     async findUserByUsername(username) { return await this.usersCollection.findOne({ username }); }
+
+    /**
+     * Initialise l'utilisateur sur la requête à partir d'un token JWT (API) ou d'une session (Web).
+     * @param {object} req - L'objet requête Express.
+     */
     async initiateUser(req) {
-        const username = req.query._user || req.headers._user || req.cookies.username;
-        const user = await this.findUserByUsername(username);
-        if (user) {
-            req.me = user; // Attache l'utilisateur à la requête
+        // Priorité 1: Tente l'authentification par token Bearer (pour les API)
+        // Cette méthode est héritée de UserProvider et centralise la logique JWT.
+        const tokenAuthenticated = await this.initiateUserFromToken(req);
+        if (tokenAuthenticated) {
+            return;
+        }
+
+        // Priorité 2: Tente l'authentification par session (pour les interfaces web)
+        // Passport place l'utilisateur désérialisé dans `req.user`.
+        if (req.user) {
+            req.me = req.user;
         }
     }
 }

@@ -69,6 +69,33 @@ export class UserProvider {
     }
 
     /**
+     * Tente d'authentifier un utilisateur à partir d'un token Bearer JWT.
+     * Logique commune pour l'authentification API.
+     * @param {object} req - L'objet requête Express.
+     * @returns {Promise<boolean>} True si un utilisateur a été authentifié, sinon false.
+     */
+    async initiateUserFromToken(req) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            try {
+                // L'import dynamique est conservé pour la performance
+                const jwt = (await import('jsonwebtoken')).default;
+                const decoded = jwt.verify(token, process.env.JWT_SECRET); // Utilise la clé secrète de l'environnement
+                const user = await this.findUserById(decoded.id);
+                if (user) {
+                    req.me = user; // Attache l'utilisateur à la requête
+                    return true; // Authentification réussie
+                }
+            } catch (error) {
+                // Le token est invalide, a expiré, ou l'utilisateur n'existe pas.
+                this.engine.getComponent(Logger)?.warn(`[Auth] Invalid Bearer token provided: ${error.message}`);
+            }
+        }
+        return false;
+    }
+
+    /**
      * Récupère la limite de stockage d'un utilisateur.
      * @param user
      * @returns {Promise<number>}
@@ -335,25 +362,11 @@ export class MongoUserProvider extends UserProvider {
      * @param {object} req - L'objet requête Express.
      */
     async initiateUser(req) {
-        // Priorité 1: Authentification par token Bearer (pour les API)
-        const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            const token = authHeader.substring(7);
-            try {
-                const jwt = (await import('jsonwebtoken')).default;
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                const user = await this.findUserById(decoded.id);
-                if (user) {
-                    req.me = user; // Attache l'utilisateur à la requête
-                    return; // Authentification réussie
-                }
-            } catch (error) {
-                // Le token est invalide ou a expiré, on ne fait rien et on passe à la méthode suivante.
-                this.logger.warn(`[Auth] Invalid Bearer token provided: ${error.message}`);
-            }
-        }
+        // Priorité 1: Tente l'authentification par token Bearer (pour les API)
+        const tokenAuthenticated = await this.initiateUserFromToken(req);
+        if (tokenAuthenticated) return;
 
-        // Priorité 2: Authentification par session (pour les interfaces web)
+        // Priorité 2: Si pas de token, tente l'authentification par session (pour les interfaces web)
         const sessionUserId = req.session?.user?._id;
         if (sessionUserId) {
             const user = await this.findUserById(sessionUserId);
