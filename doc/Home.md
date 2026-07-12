@@ -28,6 +28,6 @@ Go further by developing your own features and business logic.
 
 ## 💻 For Developers
 Essential tools for a seamless development experience.
-
+- ⚙️ [Configuration](Configuration): Discover all available environment variables.
 - 📖 [Explore the API with Swagger](https://data.primals.net/api-docs/): Test API access points directly from your browser.
 - 📮 [Postman Collection](https://data.primals.net/doc/API.postman_collection.json): Import our collection to start querying in just a few clicks.
