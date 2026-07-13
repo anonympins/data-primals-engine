@@ -668,18 +668,18 @@ function DataLayout({refreshUI}, ref) {
                 />)}</>
             <div className="flex mg-1">
 
-                {<ViewSwitcher
-                    currentView={currentView}
-                    onViewChange={handleSwitchView}
-                    configuredViews={configuredViews}
-                    onConfigureView={handleConfigureCurrentView}
-                />}
                 <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('dashboards.title')} onClick={() => {
                     nav('/user/'+getUserHash(me)+'/dashboards');
                 }}><FaEye /></Button>
                 <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('views.workflow', 'Workflow')}  onClick={() => setWorkflowListModalOpen(true)} className={currentView === 'workflow' ? 'active' : ''}>
                     <FaProjectDiagram />
                 </Button>
+                {<ViewSwitcher
+                    currentView={currentView}
+                    onViewChange={handleSwitchView}
+                    configuredViews={configuredViews}
+                    onConfigureView={handleConfigureCurrentView}
+                />}
                 <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-md">
                     <Button data-tooltip-place={'bottom'} onClick={undo} disabled={!canUndo} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.undo', 'Annuler')}>
                         <FaUndo />
