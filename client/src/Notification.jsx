@@ -115,21 +115,6 @@ const NotificationList = forwardRef((props, ref) => {
                 {unreadCount > 0 && <div className={"notification-bubble-count"}>{unreadCount}</div>}
             </div>
         </div>
-
-            {unreadCount > 0 && <button onClick={toggleBubble} className={`notification-bubble fab ${showBubble ? 'visible' : ''}`}>
-                <div>
-                    <FaBell/>
-                    {unreadCount > 0 && <span className="notification-bubble-count">{unreadCount}</span>}
-                </div>
-                {showBubble && <div className='notifications-bubble-content'>
-                    {readNotifications.map(notification => (
-                        <Notification
-                            key={notification.id}
-                            notification={notification}
-                        />
-                    ))}
-                </div>}
-            </button>}
         </>
     );
 });
