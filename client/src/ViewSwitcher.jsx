@@ -27,7 +27,10 @@ const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureV
                         <Button
                             onClick={() => onViewChange(view.id)}
                             className={`btn-view ${isActive ? 'active' : ''}`}
-                            title={t(view.labelKey, view.defaultLabel)}
+
+                            data-tooltip-place={'bottom'}
+                            data-tooltip-id="tooltipField"
+                            data-tooltip-html={t(view.labelKey, view.defaultLabel)}
                         >
                             {view.icon}
                             {/*<span className="hidden md:inline-block ml-2">{t(view.labelKey, view.defaultLabel)}</span>*/}
@@ -37,6 +40,7 @@ const ViewSwitcher = ({ currentView, onViewChange, configuredViews, onConfigureV
                             <Button
                                 onClick={onConfigureView}
                                 className="btn-view-settings"
+                                data-tooltip-place={'bottom'}
                                 data-tooltip-id="view-settings-tooltip"
                                 data-tooltip-content={t('views.configure', 'Configurer la vue {{view}}', { view: t(view.labelKey, view.defaultLabel) })}
                             >

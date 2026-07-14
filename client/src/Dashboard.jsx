@@ -358,10 +358,6 @@ export function DashboardsPage() {
         <div className="dashboards-page">
             <div className={"flex right actions"}>
                 <Button onClick={() => {
-                    nav('/user/'+getUserHash(me)+'/dashboards');
-                }}><FaEye /> <Trans i18nKey={"dashboards.title"}>Tableaux de bord</Trans></Button>
-
-                <Button onClick={() => {
                     nav("/user/"+getUserHash(me)+"/?model="+(selectedModel?.name||'dashboard'));
                 }}><FaNoteSticky /> <Trans i18nKey={"models"}>Modèles</Trans></Button>
             </div>

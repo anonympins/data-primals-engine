@@ -668,32 +668,35 @@ function DataLayout({refreshUI}, ref) {
                 />)}</>
             <div className="flex mg-1">
 
+                <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('dashboards.title')} onClick={() => {
+                    nav('/user/'+getUserHash(me)+'/dashboards');
+                }}><FaEye /></Button>
+                <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('views.workflow', 'Workflow')}  onClick={() => setWorkflowListModalOpen(true)} className={currentView === 'workflow' ? 'active' : ''}>
+                    <FaProjectDiagram />
+                </Button>
                 {<ViewSwitcher
                     currentView={currentView}
                     onViewChange={handleSwitchView}
                     configuredViews={configuredViews}
                     onConfigureView={handleConfigureCurrentView}
                 />}
-                <Button onClick={() => setWorkflowListModalOpen(true)} className={currentView === 'workflow' ? 'active' : ''} title={t('views.workflow', 'Workflow')}>
-                    <FaProjectDiagram />
-                </Button>
                 <div className="flex items-center gap-1 p-1 bg-gray-200 rounded-md">
-                    <Button onClick={undo} disabled={!canUndo} title={t('btns.undo', 'Annuler')}>
+                    <Button data-tooltip-place={'bottom'} onClick={undo} disabled={!canUndo} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.undo', 'Annuler')}>
                         <FaUndo />
                     </Button>
-                    <Button onClick={redo} disabled={!canRedo} title={t('btns.redo', 'Rétablir')}>
+                    <Button data-tooltip-place={'bottom'} onClick={redo} disabled={!canRedo} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.redo', 'Rétablir')}>
                         <FaRedo />
                     </Button>
                 </div>
-                <Button onClick={() => {
+                <Button  data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.importModels')} onClick={() => {
                     setImportModalVisible(true);
                 }} className="btn tourStep-import-model"><FaFileImport/><span className={"no-mobile-text"}> <Trans
                     i18nKey="btns.importModels">Modèles</Trans></span></Button>
-                <Button onClick={() => {
+                <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.importPacks')} onClick={() => {
                     setShowPackGallery(true);
                 }} className="btn tourStep-import-pack"><FaBoxOpen/><span className={"no-mobile-text"}><Trans
                     i18nKey="btns.importPacks">Packs</Trans></span></Button>
-                <Button className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><span className={"no-mobile-text"}><Trans
+                <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.showTutos')} className={"tourStep-tutorials btn"} onClick={handleShowTutorialMenu} title={t("btns.showTutos")}><FaBookAtlas/><span className={"no-mobile-text"}><Trans
                     i18nKey="btns.showTutos">Tutoriels</Trans></span></Button>
 
                 <DialogProvider>
@@ -715,7 +718,7 @@ function DataLayout({refreshUI}, ref) {
                         />
                     )}
                 </DialogProvider>
-                <Button className="btn" onClick={() => {
+                <Button  data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.api', 'API')} className="btn" onClick={() => {
                     setAPIInfoVisible(true);
                     setDataEditorVisible(false);
                     setEditionMode(false);

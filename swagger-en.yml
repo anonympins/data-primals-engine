@@ -902,69 +902,9 @@ components:
         sponsors:
           type: array
           items:
-            type: string
-            description: ID of a contact document
-      required:
-        - title
-        - startDate
-        - endDate
-    endpoint:
-      type: object
-      properties:
-        _id:
-          type: string
-          description: Unique document identifier (MongoDB ObjectId)
-          readOnly: true
-        _user:
-          type: string
-          description: Identifier of the user who owns this document
-          readOnly: true
-        _model:
-          type: string
-          description: Name of the model this document belongs to
-          readOnly: true
-          default: endpoint
-        _hash:
-          type: number
-          description: Document hash for integrity verification
-          readOnly: true
-        _pack:
-          type: string
-          description: Name of the pack this document belongs to (if applicable)
-          readOnly: true
-        isActive:
-          type: boolean
-          default: true
-          description: "If checked, the endpoint is active and can be called."
-        name:
-          type: string
-          description: "A human-readable name to identify the endpoint."
-        path:
-          type: string
-          description: "The URL path after /api/actions/ (e.g., 'send-welcome-email'). Do not include '/'."
-        method:
-          type: string
-          enum:
-            - GET
-            - POST
-            - PUT
-            - PATCH
-            - DELETE
-          description: "The HTTP method required to call this endpoint."
-        code:
-          type: string
-          format: text
-          description: "The script to execute. Must return a value or an object that will be the JSON response."
-        isPublic:
-          type: boolean
-          default: false
-          description: "If checked, this endpoint will be accessible without authentication."
-      required:
-        - isActive
-        - name
-        - path
-        - method
-        - code
+            type: string,
+            description: ID of a contact document,
+      required: [title, startDate, endDate]
     permission:
       type: object
       properties:
@@ -3171,12 +3111,15 @@ components:
         type:
           type: string
           enum:
-            - UpdateData
-            - CreateData
-            - DeleteData
-            - ExecuteScript
-            - CallWebhook
-            - Wait
+            - UpdateData             # Modify existing data
+            - CreateData             # Add new data
+            - DeleteData             # Remove data
+            - ExecuteScript          # Run custom JavaScript
+            - HttpRequest            # Make an external HTTP request
+            - SendEmail              # Send an email
+            - Wait                   # Pause the workflow
+            - GenerateAIContent      # Generate content using an AI model
+            - ExecuteServiceFunction # Call an internal service function
           description: "The type of operation to perform."
         targetModel:
           type: string
@@ -3194,13 +3137,14 @@ components:
           type: string
           format: text
           default: '{}'
-          description: "Object template for the new document to create"
+          description: "Object template for the new document to create. Can include variables like {triggerData.name}."
         script:
           type: string
+          format: text
           description: "The script to execute."
         url:
           type: string
-          description: "The URL to call."
+          description: "The URL for the HTTP request. Can include variables like {triggerData.orderId}."
         method:
           type: string
           enum:
@@ -3210,17 +3154,17 @@ components:
             - PATCH
             - DELETE
           default: POST
-          description: "HTTP method."
+          description: "The HTTP method for the request."
         headers:
           type: string
           format: text
           default: '{}'
-          description: "HTTP headers as key-value pairs."
+          description: "HTTP headers as a JSON object. Can include variables like {env.API_KEY}."
         body:
           type: string
           format: text
           default: '{}'
-          description: "Request body, can include variables."
+          description: "The request body as a JSON object. Can include variables."
         duration:
           type: number
           description: "Duration to wait."
@@ -3233,7 +3177,29 @@ components:
             - hours
             - days
           default: seconds
-          description: "Unit for the duration."
+          description: "The unit for the wait duration."
+        aiProvider:
+          type: string
+          enum: [OpenAI, Google, DeepSeek, Anthropic]
+          description: "The AI provider to use for content generation."
+        aiModel:
+          type: string
+          description: "The specific model to use (e.g., 'gpt-4o-mini', 'gemini-1.5-pro')."
+        prompt:
+          type: string
+          format: text
+          description: "The prompt to send to the AI. Can include variables like {triggerData.description}."
+        serviceName:
+          type: string
+          description: "The name of the registered internal service to call (e.g., 'stripe')."
+        functionName:
+          type: string
+          description: "The name of the function to execute within the service."
+        args:
+          type: string
+          format: text
+          default: '[]'
+          description: "An array of arguments to pass to the service function, as a JSON string. Can include variables."
       required:
         - name
         - type

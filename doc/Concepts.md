@@ -4,6 +4,40 @@
 
 ---
 
+## 0. Engine Initialization
+
+The `Engine` is the heart of your `data-primals-engine` application. It orchestrates all the components, modules, and routes. Initializing it correctly is the first step to building your backend.
+
+### Basic Initialization
+
+The engine is built on top of **Express.js** and is initialized asynchronously. Here is the minimal setup to get your server running:
+
+```javascript
+import express from 'express';
+import { Engine, Config } from 'data-primals-engine';
+
+// 1. Create an Express app
+const app = express();
+
+// 2. (Optional) Configure which modules to load
+// The engine is modular. You enable features by adding them to the 'modules' list.
+// 'mongodb', 'data', and 'user' are essential for most applications.
+Config.Set("modules", ["mongodb", "data", "user", "workflow"]);
+
+// 3. Create the engine instance asynchronously
+const engine = await Engine.Create({ app });
+
+// 4. Start the server
+const port = process.env.PORT || 7633;
+engine.start(port, () => {
+  console.log(`🚀 Server started on http://localhost:${port}`);
+});
+```
+
+This simple setup gives you a fully functional backend with a REST API for the modules you've enabled. You can learn more about creating your own modules in the [Modules](Modules) documentation.
+
+---
+
 ## 1. [Models](data-models)
 
 A **model** represents a data entity in your application, similar to a table in an SQL database or a collection in MongoDB. Each model has a set of fields that define the structure of the data it contains.

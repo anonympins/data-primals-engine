@@ -106,6 +106,7 @@
     "handlebars": "4.7.9",
     "i18next-browser-languagedetector": "^8.2.0",
     "isolated-vm": "^5.0.4",
+    "jsonwebtoken": "^9.0.3",
     "juice": "^11.0.3",
     "leaflet": "^1.9.4",
     "mathjs": "15.2.0",

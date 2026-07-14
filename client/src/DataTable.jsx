@@ -447,14 +447,14 @@ export function DataTable({
     const desc = t(`model_description_${selectedModel?.name}`, selectedModel?.description || '');
     return (
         <div className={`datatable${filterActive ? ' filter-active' : ''}`}>
-            {advanced && !selectionMode && <div className="flex">
-                {desc && <p className="model-desc hint">{desc}</p>}
-                <Button onClick={handleImport} title={t("btns.import")}><FaFileImport/><Trans
-                    i18nKey="btns.import">Importer</Trans></Button>
-                <Button disabled={isLoading} onClick={handleExport} title={t("btns.export")}><FaFileExport/><Trans i18nKey="btns.export">Exporter</Trans></Button>
-                {(<Button onClick={handleBackup} title={t("btns.backup")}><FaDatabase/><Trans
-                    i18nKey="btns.backup">Backup</Trans></Button>)}
-
+            {advanced && !selectionMode && <div className="flex model-desc">
+                {desc && <p className="">{desc}</p>}
+                <div><Button data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.addData')} onClick={() =>{
+                }}><FaPlus /></Button>
+                <Button data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.import')}  onClick={handleImport}><FaFileImport/></Button>
+                <Button data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.export')}  disabled={isLoading} onClick={handleExport}><FaFileExport/></Button>
+                {(<Button data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.backup')}  onClick={handleBackup}><FaDatabase/></Button>)}
+                </div>
             </div>}
             <div className={"table-wrapper"}>
                 <Tooltip id={"tooltipFile"} clickable={true} />

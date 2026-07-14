@@ -479,6 +479,58 @@ components:
           type: string
           example: "Opération réussie."
     # --- Schémas de Modèles ---
+    endpoint:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Identifiant unique du document (MongoDB ObjectId)
+          readOnly: true
+        _user:
+          type: string
+          description: Identifiant de l'utilisateur propriétaire de ce document
+          readOnly: true
+        _model:
+          type: string
+          description: Nom du modèle auquel appartient ce document
+          readOnly: true
+          default: endpoint
+        _hash:
+          type: number
+          description: Hash du document pour les vérifications d'intégrité
+          readOnly: true
+        _pack:
+          type: string
+          description: Nom du pack auquel appartient ce document (le cas échéant)
+          readOnly: true
+        isActive:
+          type: boolean
+          default: true
+          description: "Si coché, l'endpoint est actif et peut être appelé."
+        name:
+          type: string
+          description: "Un nom lisible par l'homme pour identifier l'endpoint."
+        path:
+          type: string
+          description: "Le chemin de l'URL après /api/actions/ (ex: 'send-welcome-email'). Ne pas inclure de '/'."
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+          description: "La méthode HTTP requise pour appeler cet endpoint."
+        code:
+          type: string
+          format: text
+          description: "Le script à exécuter. Doit retourner une valeur ou un objet qui sera la réponse JSON."
+        isPublic:
+          type: boolean
+          default: false
+          description: "Si coché, ce point d'accès sera accessible sans authentification."
+      required:
+        - isActive
+        - name
+        - path
+        - method
+        - code
     userPermission:
       type: object
       properties:
@@ -510,13 +562,13 @@ components:
           type: string
           description: ID of a permission document
         isGranted:
-          type: boolean
+          type: "boolean"
           description: "True pour accorder la permission, False pour la révoquer explicitement."
         expiresAt:
           type: string
           format: date-time
           description: "Si défini, l'exception (l'octroi ou la révocation) est temporaire."
-        env:
+        env: # Ajout du champ manquant
           type: string
           description: ID of a env document
       required:
@@ -902,69 +954,9 @@ components:
         sponsors:
           type: array
           items:
-            type: string
-            description: ID of a contact document
-      required:
-        - title
-        - startDate
-        - endDate
-    endpoint:
-      type: object
-      properties:
-        _id:
-          type: string
-          description: Identifiant unique du document (MongoDB ObjectId)
-          readOnly: true
-        _user:
-          type: string
-          description: Identifiant de l'utilisateur propriétaire de ce document
-          readOnly: true
-        _model:
-          type: string
-          description: Nom du modèle auquel appartient ce document
-          readOnly: true
-          default: endpoint
-        _hash:
-          type: number
-          description: Hash du document pour les vérifications d'intégrité
-          readOnly: true
-        _pack:
-          type: string
-          description: Nom du pack auquel appartient ce document (le cas échéant)
-          readOnly: true
-        isActive:
-          type: boolean
-          default: true
-          description: "If checked, the endpoint is active and can be called."
-        name:
-          type: string
-          description: "A human-readable name to identify the endpoint."
-        path:
-          type: string
-          description: "The URL path after /api/actions/ (e.g., 'send-welcome-email'). Do not include '/'."
-        method:
-          type: string
-          enum:
-            - GET
-            - POST
-            - PUT
-            - PATCH
-            - DELETE
-          description: "The HTTP method required to call this endpoint."
-        code:
-          type: string
-          format: text
-          description: "The script to execute. Must return a value or an object that will be the JSON response."
-        isPublic:
-          type: boolean
-          default: false
-          description: "Si coché, ce point d'accès sera accessible sans authentification."
-      required:
-        - isActive
-        - name
-        - path
-        - method
-        - code
+            type: string,
+            description: ID of a contact document,
+      required: [title, startDate, endDate]
     permission:
       type: object
       properties:
