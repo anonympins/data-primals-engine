@@ -445,7 +445,8 @@ function DataLayout({refreshUI}, ref) {
 
     // La mutation react-query qui gère l'appel API et la logique post-succès.
     const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall, {
-        onSuccess: (response, { record, apiCallParams, originalData }) => {
+        onSuccess: (response, d) => {
+            const { record, apiCallParams, originalData, formData } = d;
             if (!response.success) {
                 addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: response.error, status: 'error' });
                 return;
@@ -457,10 +458,22 @@ function DataLayout({refreshUI}, ref) {
                 // 'before' doit contenir les données originales (record)
                 // 'after' doit contenir les nouvelles données du formulaire (formData)
                 const commandContext = {
-                    before: { ...apiCallParams, formData: originalData },
-                    after: { ...apiCallParams, formData: response.data } // Utiliser response.data pour avoir l'état final complet
+                    before: { formRef: apiCallParams.formRef, record: originalData, formData: originalData, updateApiCall: insertOrUpdateApiCall },
+                    // --- CORRECTION CLÉ ---
+                    // La structure de `after` doit correspondre à ce que la mutation attend.
+                    // La mutation attend un objet avec `record`, `apiCallParams`, et `originalData`.
+                    // Pour un "redo", `originalData` est l'état *après* la première modification.
+                    after: {
+                        formData: formData,
+                        record: record, // Le document mis à jour devient le "record" pour le redo.
+                        originalData: record, // Les données originales pour un "undo" du redo.
+                        // apiCallParams contient les données du formulaire et la référence.
+                        apiCallParams: { formRef: apiCallParams.formRef, record: response.data, formData: response.data },
+                        updateApiCall: insertOrUpdateApiCall
+                    }
                 };
-                command = createUpdateCommand(selectedModel.name, commandContext, insertOrUpdateApiCall);
+                console.log({commandContext})
+                command = createUpdateCommand(selectedModel.name, commandContext);
             } else { // C'était une insertion
                 // --- CORRECTION : Assurer que le contexte est complet pour l'insertion ---
                 // 'before' est vide car il n'y avait rien avant.
@@ -486,7 +499,7 @@ function DataLayout({refreshUI}, ref) {
         const apiCallParams = { formData, record, formRef };
         if (record) {
             // C'est une mise à jour
-            insertOrUpdateMutation({ record, apiCallParams, originalData: record });
+            insertOrUpdateMutation({ record, formData: formData, apiCallParams, originalData: record });
         } else {
             // C'est une insertion
             insertOrUpdateMutation({ record: null, apiCallParams, originalData: formData });

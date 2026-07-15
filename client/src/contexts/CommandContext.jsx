@@ -136,12 +136,11 @@ export class InsertCommand {
 }
 
 export class UpdateCommand {
-    constructor(modelName, originalData, apiCallParams, updateApiCall) {
+    constructor(modelName, context) {
         this.modelName = modelName;
-        this.originalData = Array.isArray(originalData) ? [...originalData] : [{ ...originalData }]; // Copie pour l'undo, s'assure que c'est un tableau
-        this.apiCallParams = apiCallParams;
-        this.updateApiCall = updateApiCall;
-        this.recordIds = this.originalData.map(d => d._id);
+        // --- CORRECTION ---
+        // On stocke le contexte complet qui contient 'before' et 'after'.
+        this.context = context;
         this.successMessage = "Donnée mise à jour";
     }
 
@@ -149,25 +148,26 @@ export class UpdateCommand {
     // Elle refait la mise à jour avec les nouvelles données.
     async execute(apiCall) {
         const redoVariables = {
-            record: this.apiCallParams.record, // Le `record` est dans les params
-            apiCallParams: this.apiCallParams,
-            originalData: this.originalData[0] // Pour la symétrie avec la mutation
+            record: this.context.after.formData, // Le document mis à jour
+            apiCallParams: this.context.after,
+            originalData: this.context.after.formData
         };
-        const response = await this.updateApiCall(redoVariables);
+        console.log("--- REDO (Update) ---", { redoVariables });
+        const response = await this.context.after.updateApiCall(redoVariables);
         if (!response.success) throw new Error(response.error || 'Update failed');
     }
 
     async undo() {
-        // Pour annuler, on ré-applique les données originales pour chaque document
-        const undoPromises = this.originalData.map(doc => {
-            const undoVariables = {
-                record: doc, // Le document à restaurer
-                apiCallParams: { ...this.apiCallParams, formData: doc }, // Les paramètres, en s'assurant que formData est bien le document original
-                originalData: doc
-            };
-            return this.updateApiCall(undoVariables);
-        });
-        await Promise.all(undoPromises);
+        // --- CORRECTION ---
+        // Utilise le contexte 'before' qui contient les données *avant* la mise à jour.
+        const undoVariables = {
+            record: this.context.before.formData, // Le document original à restaurer
+            apiCallParams: this.context.before,
+            originalData: this.context.before.formData
+        };
+        console.log("--- UNDO (Update) ---", { undoVariables });
+        const response = await this.context.before.updateApiCall(undoVariables);
+        if (!response.success) throw new Error(response.error || 'Undo (Update) failed');
     }
 }
 
@@ -229,7 +229,7 @@ const commandManagerInstance = new CommandManager();
 export const createInsertCommand = (modelName, context, insertApiCall, deleteApiCall, insertedItem = null) => {
     return new InsertCommand(modelName, context, insertApiCall, deleteApiCall, insertedItem);
 };
-export const createUpdateCommand = (modelName, record, apiCallParams, apiCall) => new UpdateCommand(modelName, record, apiCallParams, apiCall);
+export const createUpdateCommand = (modelName, context) => new UpdateCommand(modelName, context);
 export const createDeleteCommand = (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete);
 
 // --- Provider Component ---
