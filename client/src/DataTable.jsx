@@ -450,6 +450,7 @@ export function DataTable({
             {advanced && !selectionMode && <div className="flex model-desc">
                 {desc && <p className="">{desc}</p>}
                 <div><Button data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.addData')} onClick={() =>{
+                    onAddData(model)
                 }}><FaPlus /></Button>
                 <Button data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.import')}  onClick={handleImport}><FaFileImport/></Button>
                 <Button data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.export')}  disabled={isLoading} onClick={handleExport}><FaFileExport/></Button>

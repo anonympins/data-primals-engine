@@ -411,7 +411,7 @@ function DataLayout({refreshUI}, ref) {
         const url = record ? `/api/data/${record._id}` : `/api/data`; // Determine URL
 
         try {
-            const formElement = formRef.current;
+            const formElement = formRef?.current; // Utilisation de l'optional chaining
             const fd = new FormData();
 
             let obj = {};
@@ -445,18 +445,32 @@ function DataLayout({refreshUI}, ref) {
 
     // La mutation react-query qui gère l'appel API et la logique post-succès.
     const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall, {
-        onSuccess: (response, variables) => {
+        onSuccess: (response, { record, apiCallParams, originalData }) => {
             if (!response.success) {
                 addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: response.error, status: 'error' });
                 return;
             }
 
-            const { record, apiCallParams } = variables;
             let command;
             if (record) { // C'était une mise à jour
-                command = createUpdateCommand(selectedModel.name, record, apiCallParams, insertOrUpdateApiCall);
+                // --- CORRECTION : Passer l'état complet avant et après ---
+                // 'before' doit contenir les données originales (record)
+                // 'after' doit contenir les nouvelles données du formulaire (formData)
+                const commandContext = {
+                    before: { ...apiCallParams, formData: originalData },
+                    after: { ...apiCallParams, formData: response.data } // Utiliser response.data pour avoir l'état final complet
+                };
+                command = createUpdateCommand(selectedModel.name, commandContext, insertOrUpdateApiCall);
             } else { // C'était une insertion
-                command = createInsertCommand(selectedModel.name, { ...apiCallParams, formData: response.data });
+                // --- CORRECTION : Assurer que le contexte est complet pour l'insertion ---
+                // 'before' est vide car il n'y avait rien avant.
+                // 'after' doit contenir les données complètes retournées par le serveur (incluant _id, _hash, etc.)
+                const commandContext = {
+                    before: { ...apiCallParams, formData: {} }, // L'état avant l'insertion est un objet vide
+                    // --- CORRECTION ---
+                    after: { ...apiCallParams, record: response.data, formData: response.data }
+                };
+                command = createInsertCommand(selectedModel.name, commandContext, insertOrUpdateApiCall, deleteApiCall, response.data);
             }
             addCommand(command); // On ajoute la commande à l'historique SEULEMENT si l'appel API a réussi.
             addNotification({ title: command.successMessage, status: 'completed' });
@@ -472,10 +486,10 @@ function DataLayout({refreshUI}, ref) {
         const apiCallParams = { formData, record, formRef };
         if (record) {
             // C'est une mise à jour
-            insertOrUpdateMutation({ record, apiCallParams });
+            insertOrUpdateMutation({ record, apiCallParams, originalData: record });
         } else {
             // C'est une insertion
-            insertOrUpdateMutation({ record: null, apiCallParams });
+            insertOrUpdateMutation({ record: null, apiCallParams, originalData: formData });
         }
     };
 
