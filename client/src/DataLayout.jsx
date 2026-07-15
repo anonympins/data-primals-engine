@@ -263,16 +263,6 @@ function DataLayout({refreshUI}, ref) {
         return viewSettings[selectedModel.name] || {};
     }, [viewSettings, selectedModel]);
 
-    // --- MODIFICATION : Vérifie si les vues sont configurées pour le modèle courant ---
-    const configuredViews = useMemo(() => {
-        if (!selectedModel) return { calendar: false, kanban: false };
-        const modelSettings = viewSettings[selectedModel.name] || {};
-        return {
-            calendar: !!modelSettings.calendar?.titleField && !!modelSettings.calendar?.startField && !!modelSettings.calendar?.endField,
-            kanban: !!modelSettings.kanban?.groupByField,
-        };
-    }, [viewSettings, selectedModel]);
-
     // --- AJOUT : Logique de rendu de la vue courante ---
     const renderCurrentView = () => {
         if (!selectedModel) return null;
@@ -319,10 +309,9 @@ function DataLayout({refreshUI}, ref) {
                             dataEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }, 100);
                     }}
-                    deleteApiCall={deleteApiCall}
+                    onDeleteItem={handleSingleItemDeletion}
                     queryClient={queryClient}
                 />
-                ;
         }
     };
 
@@ -547,21 +536,38 @@ function DataLayout({refreshUI}, ref) {
         }).then(e => e.json());
     }, [lang, me]);
 
-    // Cette mutation n'est plus directement utilisée, mais on la garde pour l'instant.
-    const { mutateAsync: deleteMutation } = useMutation(deleteApiCall);
+    const { mutate: deleteMutation, isLoading: isDeleting } = useMutation(deleteApiCall, {
+        onSuccess: (response, itemsToDelete) => {
+            if (!response.success) {
+                addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: response.error, status: 'error' });
+                return;
+            }
+
+            const command = createDeleteCommand(deleteApiCall, selectedModel.name, itemsToDelete);
+            addCommand(command);
+            addNotification({ title: command.successMessage, status: 'completed' });
+            setCheckedItems([]); // Vider la sélection
+            queryClient.invalidateQueries(['api/data', selectedModel.name]);
+        },
+        onError: (error) => {
+            addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: error.message, status: 'error' });
+        }
+    });
+
+    // --- NOUVEAU : Fonction pour supprimer UN SEUL item ---
+    // C'est cette fonction que nous passerons à DataTable pour le bouton de la ligne.
+    const handleSingleItemDeletion = (item) => {
+        if (window.confirm(t('datatable.delete.confirmOne', 'Êtes-vous sûr de vouloir supprimer cet élément ?'))) {
+            deleteMutation([item]);
+        }
+    };
 
     const handleDeletion = () => {
-        // On appelle directement la suppression via la mutation
-        deleteMutation(checkedItems, {
-            onSuccess: () => {
-                // Et on crée la commande pour l'historique seulement après le succès
-                const command = createDeleteCommand(deleteApiCall, selectedModel.name, checkedItems, deleteApiCall);
-                addCommand(command);
-                addNotification({ title: command.successMessage, status: 'completed' });
-                setCheckedItems([]); // Vider la sélection
-            }
-        });
-    }
+        if (window.confirm(t('datatable.delete.confirmMultiple', 'Êtes-vous sûr de vouloir supprimer les {{count}} éléments sélectionnés ?', { count: checkedItems.length }))) {
+            deleteMutation(checkedItems);
+        }
+    };
+
     const importModelsMutation = useMutation((selectedModels) => {
        return fetch('/api/models/import', { method: 'POST', headers: {
            'Content-Type': 'application/json'
@@ -569,6 +575,17 @@ function DataLayout({refreshUI}, ref) {
            credentials: "include",body: JSON.stringify({ models: selectedModels.map(m => m.name) })
        })
     });
+
+    // --- MODIFICATION : Vérifie si les vues sont configurées pour le modèle courant ---
+    const configuredViews = useMemo(() => {
+        if (!selectedModel) return { calendar: false, kanban: false };
+        const modelSettings = viewSettings[selectedModel.name] || {};
+        return {
+            calendar: !!modelSettings.calendar?.titleField && !!modelSettings.calendar?.startField && !!modelSettings.calendar?.endField,
+            kanban: !!modelSettings.kanban?.groupByField,
+        };
+    }, [viewSettings, selectedModel]);
+
 
     const handleConfigureCurrentView = () => {
         if (!selectedModel) return;
@@ -841,7 +858,7 @@ function DataLayout({refreshUI}, ref) {
                     {isDataLoaded && currentView === 'table'  && (<>
                         {selectedModel && (<Pagination showElementsPerPage={true} onChange={page => {
                             // C'est maintenant le seul endroit qui met à jour la page.
-                            setPage(page);
+                            setPage(page); // TODO: setPage is not a function
                             setCheckedItems([]);
                             gtag("event", "select_content", {
                                 content_type: "change_page",
@@ -849,14 +866,14 @@ function DataLayout({refreshUI}, ref) {
                             });
                             // On utilise refetchQueries pour forcer le rafraîchissement immédiatement.
                             queryClient.refetchQueries(['api/data', selectedModel.name, 'page']);
-                        }} page={page} setPage={setPage} totalCount={countByModel[selectedModel.name]}
+                        }} page={page} totalCount={countByModel[selectedModel.name]}
                                                        hasPreviousNext={true} visibleItemsCount={5}
                                                        elementsPerPage={elementsPerPage}/>)}
                         <div className="actions flex">
                             <Button onClick={() => {
                                 setCheckedItems(paginatedDataByModel[selectedModel.name]);
                             }}><Trans i18nKey={"datatable.selectAll"}>Tout sélectionner</Trans></Button>
-                            <Button onClick={handleDeletion} disabled={!checkedItems?.length}><Trans
+                            <Button onClick={handleDeletion} disabled={!checkedItems?.length || isDeleting}><Trans
                                 i18nKey={"datatable.deleteSelection"}>Supprimer la sélection</Trans></Button>
                         </div>
                     </>)}

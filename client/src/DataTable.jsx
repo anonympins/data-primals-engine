@@ -57,7 +57,7 @@ import {pagedFilterToMongoConds} from "./filter.js";
 import {isConditionMet} from "../../src/filter";
 import {DataImporter} from "./DataImporter.jsx";
 import {HistoryDialog} from "./HistoryDialog.jsx";
-import { useCommand } from './contexts/CommandContext.jsx';
+import { createDeleteCommand, useCommand } from './contexts/CommandContext.jsx';
 import {Config} from "../../src/config.js"; 
 import {useNavigate} from "react-router-dom";
 import {NavLink} from "react-router";
@@ -254,16 +254,16 @@ const RichText = ({ value, initialLang }) => {
 export function DataTable({
                               model,
                               checkedItems,
+
                               setCheckedItems = () => {},
                               onEdit,
-                              onAddData,
-                              onDuplicateData,
-                              onDelete,
+                              onAddData, onDuplicateData, onDeleteItem,
                               filterValues,
                               setFilterValues = () => {},
                               data: propData,
                               advanced= true, selectionMode= false, deleteApiCall
                           }) {
+    const queryClient = useQueryClient()
     const {
         models,
         elementsPerPage,
@@ -278,19 +278,7 @@ export function DataTable({
     const {t, i18n} = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     const {me} = useAuthContext();
-    const { execute, DeleteCommand } = useCommand();
-
-    const queryClient = useQueryClient();
-    // Si des données sont passées en props, on les utilise, sinon on prend celles du contexte.
     const data = propData || paginatedDataByModel[model?.name] || [];
-
-    const handleDelete = async (item) => {
-        // On utilise le système de commandes pour la suppression afin de gérer l'historique (undo/redo)
-        // Le queryClient n'est plus passé ici, le CommandManager s'en occupe.
-        const command = new DeleteCommand(deleteApiCall, model.name, item);
-        // On attend que la commande et le rafraîchissement soient terminés.
-        await execute(command);
-    };
 
     const isDataLoaded = true;
     const [importVisible, setImportVisible] = useState(false);
@@ -748,7 +736,10 @@ export function DataTable({
 
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.delete', 'Supprimer')}
-                                                onClick={() => handleDelete(item)}><FaTrash/></button>
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onDeleteItem(item);
+                                                }}><FaTrash/></button>
                                     </td>)}
                                 </tr>
                             </DialogProvider></>

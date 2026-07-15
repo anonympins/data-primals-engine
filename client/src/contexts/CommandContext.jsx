@@ -172,18 +172,33 @@ export class UpdateCommand {
 }
 
 export class DeleteCommand {
-    constructor(apiCall, modelName, itemsToDelete) {
-        this.apiCall = apiCall;
+    constructor(deleteApiCall, modelName, itemsToDelete) {
+        this.deleteApiCall = deleteApiCall;
         this.modelName = modelName;
         this.itemsToDelete = Array.isArray(itemsToDelete) ? [...itemsToDelete] : [itemsToDelete];
         this.successMessage = "Donnée(s) supprimée(s)";
     }
 
-    // La méthode execute est utilisée pour le 'redo'.
-    // Elle doit refaire la suppression.
-    async execute(apiCall) {
-        // On utilise la fonction stockée dans le constructeur.
-        const response = await this.apiCall(this.itemsToDelete);
+    /**
+     * La méthode execute est utilisée pour l'action initiale et le 'redo'.
+     * Elle effectue la suppression via l'appel API.
+     */
+    async execute() {
+        // On garde une copie des items avant de les supprimer pour pouvoir les restaurer (undo)
+        const itemsBeforeDelete = JSON.parse(JSON.stringify(this.itemsToDelete));
+
+        const response = await this.deleteApiCall(this.itemsToDelete);
+
+        // Si la suppression échoue, on lève une erreur pour que le CommandManager l'intercepte.
+        if (!response.success) {
+            throw new Error(response.error || 'Delete failed');
+        }
+        // On met à jour l'état interne avec les données qui ont été supprimées.
+        this.itemsToDelete = itemsBeforeDelete;
+    }
+
+    async redo() {
+        const response = await this.deleteApiCall(this.itemsToDelete);
         if (!response.success) throw new Error(response.error || 'Delete failed');
     }
 
@@ -230,7 +245,7 @@ export const createInsertCommand = (modelName, context, insertApiCall, deleteApi
     return new InsertCommand(modelName, context, insertApiCall, deleteApiCall, insertedItem);
 };
 export const createUpdateCommand = (modelName, context) => new UpdateCommand(modelName, context);
-export const createDeleteCommand = (apiCall, modelName, itemsToDelete) => new DeleteCommand(apiCall, modelName, itemsToDelete);
+export const createDeleteCommand = (deleteApiCall, modelName, itemsToDelete) => new DeleteCommand(deleteApiCall, modelName, itemsToDelete);
 
 // --- Provider Component ---
 export const CommandProvider = ({ children, onResetQueryClient }) => {
@@ -238,12 +253,12 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
     const { t, i18n } = useTranslation();
     const queryClient = useQueryClient(); // On récupère le client ici
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
-    
+
     // On utilise l'instance unique et on met à jour ses dépendances via useEffect
     // pour s'assurer qu'elle a toujours les dernières fonctions (qui sont recréées à chaque rendu).
     const commandManagerRef = useRef(commandManagerInstance);
     useEffect(() => {
-        commandManagerInstance.updateDependencies(addNotification, t, onResetQueryClient, queryClient);
+        commandManagerRef.current.updateDependencies(addNotification, t, onResetQueryClient, queryClient);
     }, [addNotification, t, onResetQueryClient, queryClient]);
     
     const [canUndo, setCanUndo] = useState(commandManagerRef.current.canUndo());
@@ -253,9 +268,14 @@ export const CommandProvider = ({ children, onResetQueryClient }) => {
         setCanUndo(commandManagerRef.current.canUndo());
         setCanRedo(commandManagerRef.current.canRedo());
     };
+    
+    const addCommand = async (command) => {
+        // --- CORRECTION MAJEURE ---
+        // On exécute la commande AVANT de l'ajouter à l'historique.
+        // La commande elle-même contient maintenant la logique d'appel API.
+        await command.execute();
+        // -------------------------
 
-    // Renommée en 'addCommand' pour plus de clarté.
-    const addCommand = (command) => {
         commandManagerRef.current.add(command);
         updateUndoRedoState();
     };
