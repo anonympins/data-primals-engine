@@ -13641,9 +13641,8 @@ i18n
     .init({
         debug: false,
         detection: options,
-      
         fallbackLng: "fr",
-        keySeparator: false,
+        keySeparator: ".",
         interpolation: {
             escapeValue: false // not needed for react as it escapes by default
         },
