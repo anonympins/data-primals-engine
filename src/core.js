@@ -18,6 +18,29 @@ export const sequential = async (tasks) => {
     return res;
 };
 
+
+export function isObject(item) {
+    return (item && typeof item === 'object' && !Array.isArray(item));
+}
+
+export function deepMerge(target, source) {
+    const output = { ...target };
+
+    if (isObject(target) && isObject(source)) {
+        Object.keys(source).forEach(key => {
+            if (isObject(source[key])) {
+                if (!(key in target))
+                    Object.assign(output, { [key]: source[key] });
+                else
+                    output[key] = deepMerge(target[key], source[key]);
+            } else {
+                Object.assign(output, { [key]: source[key] });
+            }
+        });
+    }
+
+    return output;
+}
 export function isValidRegex(s) {
     try {
         const m = s.match(/^([/~@;%#'])(.*?)\1([gimsuy]*)$/);
