@@ -134,6 +134,16 @@ export const Engine = {
             logger.info(`Custom UserProvider '${providerInstance.constructor.name}' has been set.`);
         };
 
+        // --- CORRECTION ---
+        // Ajout des getters pour que les modules puissent accéder à l'instance du client et de la DB.
+        engine.getMongoClient = () => {
+            if (!MongoClient) MongoClient = InitMongo();
+            return MongoClient;
+        };
+        engine.getDatabase = () => {
+            return MongoDatabase();
+        };
+
         if (!options.app) {
             options.app = express();
         }

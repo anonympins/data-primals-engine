@@ -1,9 +1,11 @@
-import { getCollection, MongoClient } from './mongodb.js';
+import {getCollection, switchDatabase} from './mongodb.js';
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, CreateMultipartUploadCommand, UploadPartCopyCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { gzip, gunzip } from 'zlib';
 import { promisify } from 'util';
 import { Readable } from 'stream';
 import { getUserS3Config } from './bucket.js'; // On réutilise la logique existante si possible
+import { Config } from '../config.js';
+import { runScheduledJobWithDbLock } from './workflow.js'; // Importer le planificateur
 
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
@@ -41,20 +43,70 @@ async function getS3ClientForUser(user) {
 }
 
 /**
+ * Planifie l'exécution de la tâche d'archivage pour tous les utilisateurs.
+ * Utilise un verrouillage basé sur la base de données pour s'assurer qu'une seule instance
+ * exécute la tâche dans un environnement clusterisé.
+ */
+function scheduleArchiveJob() {
+    const jobId = 'archive-old-data';
+    const cronExpression = Config.Get('archiveCronSchedule', '0 0 * * *'); // Tous les jours à minuit par défaut
+
+    runScheduledJobWithDbLock(jobId, async () => {
+        console.log(`[CRON - ${jobId}] Lancement du job d'archivage...`);
+        try {
+            // Archiver les données de plus de 90 jours par défaut
+            const retentionDays = Config.Get('archiveRetentionDays', 90);
+            const archiveOlderThan = new Date();
+            archiveOlderThan.setDate(archiveOlderThan.getDate() - retentionDays);
+
+            await archiveOldDataForAllUsers(archiveOlderThan);
+            console.log(`[CRON - ${jobId}] Job d'archivage terminé avec succès.`);
+        } catch (error) {
+            console.error(`[CRON - ${jobId}] Une erreur est survenue pendant le job d'archivage:`, error);
+            // L'erreur est re-levée pour que runScheduledJobWithDbLock puisse la logger si nécessaire
+            throw error;
+        }
+    }, cronExpression);
+
+    console.log(`[Archive] Tâche d'archivage planifiée avec l'expression cron: "${cronExpression}".`);
+}
+
+/**
+ * Fonction d'initialisation du module, appelée au démarrage du moteur.
+ */
+export function onInit() {
+    scheduleArchiveJob();
+}
+
+/**
  * Itère sur tous les utilisateurs et modèles configurés pour l'archivage
  * et lance le processus d'archivage pour chacun.
  * @param {Date} archiveOlderThan - La date seuil.
  */
 export async function archiveOldDataForAllUsers(archiveOlderThan) {
-    // TODO: Idéalement, cette liste de modèles viendrait d'une configuration.
-    const modelsToArchive = ['orders', 'logs', 'events']; // Exemple de modèles à archiver
+    // On récupère la liste globale des modèles à archiver depuis la configuration.
+    const globalModelsToArchive = Config.Get('archiveModels');
 
-    const primalsDb = MongoClient.db("primals");
-    const usersCollection = primalsDb.collection("users");
-    const usersCursor = usersCollection.find({}, { projection: { username: 1 } });
+    await switchDatabase('primals');
+    const usersCollection = getCollection("users");
+    const modelsCollection = getCollection("models");
+    const usersCursor = usersCollection.find({}, { projection: { username: 1, _id: 0 } });
 
     for await (const user of usersCursor) {
         console.log(`[Archive Job] Vérification de l'archivage pour l'utilisateur: ${user.username}`);
+        
+        let modelsToArchive;
+
+        if (globalModelsToArchive && globalModelsToArchive.length > 0) {
+            // Utiliser la liste globale si elle est définie
+            modelsToArchive = globalModelsToArchive;
+        } else {
+            // Sinon, récupérer tous les modèles de l'utilisateur
+            const userModels = await modelsCollection.find({ _user: user.username }, { projection: { name: 1 } }).toArray();
+            modelsToArchive = userModels.map(m => m.name);
+            console.log(`[Archive Job] Aucun 'archiveModels' configuré. Archivage de ${modelsToArchive.length} modèles trouvés pour ${user.username}.`);
+        }
+
         for (const modelName of modelsToArchive) {
             try {
                 await archiveOldData(modelName, user, archiveOlderThan);
@@ -63,6 +115,7 @@ export async function archiveOldDataForAllUsers(archiveOlderThan) {
             }
         }
     }
+    await switchDatabase();
 }
 
 /**
