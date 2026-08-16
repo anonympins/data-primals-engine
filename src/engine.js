@@ -32,7 +32,10 @@ import { pathToFileURL } from 'node:url';
 import {validateModelStructure} from "./modules/data/data.validation.js";
 import { setSafeRegex } from "./filter.js";
 import safeRegexCallback from "safe-regex";
+import { initServerI18n } from "./i18n.js";
+import {handleArchiveRestore, handleArchiveSearch} from "./modules/archive.js";
 import {createModel, deleteModels, getModels, installAllPacks} from "./modules/data/data.operations.js";
+import {middlewareAuthenticator, userInitiator} from "./modules/user.js";
 // Constants
 
 let dbName = Config.Get('dbName', dbNameBase);
@@ -104,6 +107,9 @@ export const MongoDatabase = () => {
     if( !MongoClient)
         MongoClient = InitMongo();
     console.log('SELECTING ' + dbName + " database.");
+
+    // Initialise i18next pour le serveur
+    initServerI18n();
     return MongoClient.db(dbName);
 }
 

@@ -48,6 +48,7 @@ import { findFirstAvailableProvider, getAIProvider } from '../assistant/provider
 import { isProxiedRequest, proxyRequest, onInit as clusterInit } from './data.cluster.js';
 import {providers} from "../assistant/constants.js";
 
+import { handleArchiveSearch, handleArchiveRestore } from '../archive.js';
 let logger, engine;
 
 // ANCIEN : Stockage en mémoire locale, non scalable
@@ -521,6 +522,10 @@ export async function registerRoutes(defaultEngine){
     // NOUVEL ENDPOINT : Invalidation de cache interne au cluster
     engine.all('/api/actions/:user/:path', [middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
     engine.all('/api/actions/:path', [middlewareAuthenticator, middlewareEndpointAuthenticator, userInitiator], handleCustomEndpointRequest);
+    // --- ARCHIVAGE ---
+    engine.post('/api/archive/search', [middlewareAuthenticator, userInitiator], handleArchiveSearch);
+    engine.post('/api/archive/restore', [middlewareAuthenticator, userInitiator], handleArchiveRestore);
+
     engine.post('/api/demo/initialize', [middlewareAuthenticator, userInitiator], handleDemoInitialization);
     engine.get('/api/data/check-uniqueness', [middlewareAuthenticator, userInitiator], checkUniqueness);
     engine.post('/api/data/validate', [middlewareAuthenticator, userInitiator, middlewareLogger], validateDataRealtime);

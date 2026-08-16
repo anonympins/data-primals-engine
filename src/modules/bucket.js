@@ -66,7 +66,7 @@ async function _getUserS3ConfigFromDb(user) {
             _model: 'env',
             _user: user.username,
             // On ne cherche que les clés pertinentes pour optimiser la requête
-            key: { $in: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET_NAME'] }
+            key: { $in: ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_REGION', 'S3_BUCKET_NAME', 'S3_PATH_PREFIX'] }
         }).toArray();
 
         // Transforme le tableau de documents [{key, value}, ...] en un objet de configuration.
@@ -75,6 +75,7 @@ async function _getUserS3ConfigFromDb(user) {
             if (envVar.key === 'AWS_SECRET_ACCESS_KEY') config.secretAccessKey = envVar.value; // La clé est déjà chiffrée en BDD
             if (envVar.key === 'AWS_REGION') config.region = envVar.value;
             if (envVar.key === 'AWS_BUCKET_NAME') config.bucketName = envVar.value;
+            if (envVar.key === 'S3_PATH_PREFIX') config.pathPrefix = envVar.value;
             return config;
         }, {});
 
@@ -105,9 +106,9 @@ export async function getUserS3Config(user) {
     // 1. Récupérer la configuration globale par défaut
     const defaultConfig = {
         accessKeyId: dc.accessKeyId || process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: dc.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY,
+        secretAccessKey: dc.secretAccessKey || process.env.S3_SECRET_ACCESS_KEY,
         region: dc.region || process.env.AWS_REGION || adc.region,
-        bucketName: dc.bucketName || process.env.AWS_BUCKET_NAME || adc.bucketName
+        bucketName: dc.bucketName || process.env.S3_BUCKET_NAME || adc.bucketName
     };
 
     // 2. Récupérer la configuration spécifique de l'utilisateur
@@ -119,7 +120,8 @@ export async function getUserS3Config(user) {
             accessKeyId: userConfig.accessKeyId || defaultConfig.accessKeyId,
             secretAccessKey: userConfig.secretAccessKey || defaultConfig.secretAccessKey,
             region: userConfig.region || defaultConfig.region,
-            bucketName: userConfig.bucketName || defaultConfig.bucketName
+            bucketName: userConfig.bucketName || defaultConfig.bucketName,
+            pathPrefix: userConfig.pathPrefix || ''
         };
     }
     return defaultConfig;

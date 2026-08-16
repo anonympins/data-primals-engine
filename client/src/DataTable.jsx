@@ -11,7 +11,7 @@ import {
     FaBook,
     FaCopy,
     FaDatabase, FaEraser, FaEye,
-    FaFileExport,
+    FaFileExport, FaFileArchive,
     FaFileImport,
     FaFilter, FaHistory,
     FaInfo,
@@ -73,7 +73,8 @@ const Header = ({
                     onChangeFilterValue,
                     setFilterValues,
                     filterValues,
-                    advanced=true,
+                    onLoadFromArchive,
+                    advanced = true,
                     selectionMode=false
                 }) => {
 
@@ -114,6 +115,9 @@ const Header = ({
 
                 <Button type={"button"} onClick={handleFilter} className={iconFilterActive ? ' active' : ''}><FaFilter/></Button>
                 {filterActive && <Button type={"button"} onClick={() => handleAdvancedFilter()}><FaWrench /></Button>}
+                {filterActive && onLoadFromArchive && (
+                    <Button type={"button"} onClick={onLoadFromArchive} title={t('datatable.loadArchive', 'Charger depuis les archives')}><FaDatabase /></Button>
+                )}
                 <CheckboxField checkbox={true} checked={checkedItems?.length === data.length} onChange={e => {
                     if (checkedItems?.length === data.length) {
                         setCheckedItems([]);
@@ -260,6 +264,9 @@ export function DataTable({
                               onAddData, onDuplicateData, onDeleteItem,
                               filterValues,
                               setFilterValues = () => {},
+                              onLoadFromArchive,
+                              isArchiveLoading,
+                              archivedData,
                               data: propData,
                               advanced= true, selectionMode= false, deleteApiCall
                           }) {
@@ -267,7 +274,8 @@ export function DataTable({
     const {
         models,
         elementsPerPage,
-        paginatedDataByModel,
+        // We will now use a memoized combination of local and archived data
+        paginatedDataByModel: localPaginatedData,
         countByModel,
         pagedSort,
         selectedModel,
@@ -278,7 +286,14 @@ export function DataTable({
     const {t, i18n} = useTranslation();
     const lang = (i18n.resolvedLanguage || i18n.language).split(/[-_]/)?.[0];
     const {me} = useAuthContext();
-    const data = propData || paginatedDataByModel[model?.name] || [];
+
+    // Combine local and archived data
+    const data = useMemo(() => {
+        const localData = propData || localPaginatedData[model?.name] || [];
+        const archive = archivedData || [];
+        // Simple concatenation. You could add more sophisticated merging/sorting logic here.
+        return [...localData, ...archive];
+    }, [propData, localPaginatedData, model?.name, archivedData]);
 
     const isDataLoaded = true;
     const [importVisible, setImportVisible] = useState(false);
@@ -430,6 +445,31 @@ export function DataTable({
         onDuplicateData(dataToDuplicate);
     };
 
+    // NOUVEAU : Mutation pour la restauration
+    const { mutate: restoreItem, isLoading: isRestoring } = useMutation(
+        (item) => fetch('/api/archive/restore', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ docId: item._id })
+        }).then(res => res.json()),
+        {
+            onSuccess: (data, variables) => {
+                if (data.success) {
+                    addNotification({ status: 'completed', title: t('datatable.restoreSuccess', 'Document restauré avec succès.') });
+                    // Invalider les requêtes pour rafraîchir les données de la table et des archives
+                    queryClient.invalidateQueries(['api/data', model.name]);
+                    queryClient.invalidateQueries(['archiveData', model.name]);
+                } else {
+                    addNotification({ status: 'error', title: data.error || t('datatable.restoreError', 'Erreur lors de la restauration.') });
+                }
+            },
+            onError: (error) => {
+                addNotification({ status: 'error', title: error.message || t('datatable.restoreError', 'Erreur lors de la restauration.') });
+            }
+        }
+    );
+
     const nav = useNavigate();
 
     const desc = t(`model_description_${selectedModel?.name}`, selectedModel?.description || '');
@@ -454,7 +494,7 @@ export function DataTable({
                     }} plugins={[Captions,Zoom]} index={lightboxIndex} open={lightboxOpened} close={()=> setLightboxOpened(false)}
                     slides={lightboxSlides}
                     on={{
-                        click: ()=>{
+                        click: () => {
 
                         }
                     }}
@@ -462,7 +502,7 @@ export function DataTable({
                 {isDataLoaded && (
                     <table>
                         <thead>
-                        <Header advanced={advanced} model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter} selectionMode={selectionMode}/>
+                        <Header advanced={advanced} model={model} setCheckedItems={setCheckedItems} filterValues={filterValues} data={data} setFilterValues={setFilterValues} onChangeFilterValue={onChangeFilterValue} checkedItems={checkedItems} filterActive={filterActive} handleFilter={handleFilter} selectionMode={selectionMode} onLoadFromArchive={onLoadFromArchive} />
                         </thead>
                         <tbody>
                         {(data || []).map((item) => (
@@ -479,7 +519,7 @@ export function DataTable({
                                         setCheckedItems((checkedItems || []).filter(i => i._id !== item._id));
                                     }
                                 }}>
-                                    {advanced && (<td className={"mini"}>
+                                    {advanced && (<td className={`mini ${item._isArchived ? 'archived-row' : ''}`}>
                                         <CheckboxField checkbox={true} className={"input-ref"}
                                                        checked={checkedItems?.some(i => i?._id === item._id)}
                                                        onChange={() => {
@@ -489,7 +529,7 @@ export function DataTable({
                                     {(model?.fields ||[]).map(field => {
 
                                         if( !isConditionMet(model, field.condition, item, models, me, false)){
-                                            return <td className={"notmet"} key={item._id + field.name}></td>; // Do not render the header cell if the condition isn't met
+                                            return <td className={`notmet ${item._isArchived ? 'archived-row' : ''}`} key={item._id + field.name}></td>; // Do not render the header cell if the condition isn't met
                                         }
 
                                         const hiddenable = (content) => {
@@ -498,9 +538,9 @@ export function DataTable({
                                             return content;
                                         }
                                         if( field.type === 'relation' && !models.find(f => f.name === field.relation && f._user === me?.username ))
-                                            return <td className={"empty"} key={item._id + field.name}></td>
+                                            return <td className={`empty ${item._isArchived ? 'archived-row' : ''}`} key={item._id + field.name}></td>
                                         if (field.type === "relation" && typeof field.relation === "string") {
-                                            return <td key={item._id + field.name} style={{backgroundColor: field.color}}>{hiddenable(<RelationValue field={field}
+                                            return <td key={item._id + field.name} className={item._isArchived ? 'archived-row' : ''} style={{backgroundColor: field.color}}>{hiddenable(<RelationValue field={field}
                                                                                                   data={item}/>)}</td>;
                                         }
                                         if( field.type === "cronSchedule" ){
@@ -511,12 +551,12 @@ export function DataTable({
 
                                             }
                                             return <td
-                                                className={isLightColor(field.color)?"lighted":"unlighted"} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}
+                                                className={`${isLightColor(field.color)?"lighted":"unlighted"} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}
                                                 key={field.name}>{hiddenable(val)}</td>;
                                         }
                                         if (field.type === "date" && item[field.name]) {
                                             return <td
-                                                className={isLightColor(field.color)?"lighted":"unlighted"} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}
+                                                className={`${isLightColor(field.color)?"lighted":"unlighted"} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}
                                                 key={field.name}>{hiddenable(new Date(item[field.name]).toLocaleDateString(i18n.resolvedLanguage || i18n.language, {
                                                 day: "numeric",
                                                 month: "numeric",
@@ -525,7 +565,7 @@ export function DataTable({
                                         }
                                         if (field.type === "datetime" && item[field.name]) {
                                             return <td
-                                                className={isLightColor(field.color)?"lighted":"unlighted"} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}
+                                                className={`${isLightColor(field.color)?"lighted":"unlighted"} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}
                                                 key={field.name}>{hiddenable(new Date(item[field.name]).toLocaleDateString(i18n.resolvedLanguage || i18n.language, {
                                                 day: "numeric",
                                                 month: "numeric",
@@ -536,24 +576,24 @@ export function DataTable({
                                         }
                                         if (field.type === "enum") {
                                             return <td
-                                                key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(field.items.includes(item[field.name]) ? `${t(item[field.name], item[field.name])}` : `${item[field.name] || ''}`)}</td>;
+                                                key={field.name} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(field.items.includes(item[field.name]) ? `${t(item[field.name], item[field.name])}` : `${item[field.name] || ''}`)}</td>;
                                         }
                                         if (field.type === "code") {
                                             const v = typeof(item[field.name]) === "string" ? item[field.name] : (item[field.name] ? JSON.stringify(item[field.name], null, 2) : '');
                                             return <td
-                                                key={field.name}>{v && hiddenable(<CodeField language={field.language} name={field.name} value={v} disabled={true} />)}</td>;
+                                                key={field.name} className={item._isArchived ? 'archived-row' : ''}>{v && hiddenable(<CodeField language={field.language} name={field.name} value={v} disabled={true} />)}</td>;
                                         }
                                         if (field.type === "object") {
-                                            return <td key={field.name}>{hiddenable(<CodeField language={'json'} name={field.name} value={item[field.name] ? JSON.stringify(item[field.name], null, 2) : ''} disabled={true} />)}</td>;
+                                            return <td key={field.name} className={item._isArchived ? 'archived-row' : ''}>{hiddenable(<CodeField language={'json'} name={field.name} value={item[field.name] ? JSON.stringify(item[field.name], null, 2) : ''} disabled={true} />)}</td>;
                                         }
                                         if (field.type === 'email') {
-                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}><a href={"mailto:"+item[field.name]} style={{color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name])}</a></td>;
+                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}><a href={"mailto:"+item[field.name]} style={{color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name])}</a></td>;
                                         }
                                         if (field.type === 'phone') {
-                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>{hiddenable(item[field.name] && <PhoneField name={"phone"} value={item[field.name]} disabled={true} onChange={() => {}}></PhoneField>)}</td>;
+                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}>{hiddenable(item[field.name] && <PhoneField name={"phone"} value={item[field.name]} disabled={true} onChange={() => {}}></PhoneField>)}</td>;
                                         }
                                         if (field.type === 'model') {
-                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>{hiddenable(item[field.name] ? `${t('model_'+item[field.name], item[field.name])} (${item[field.name]})`:'')}</td>;
+                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}>{hiddenable(item[field.name] ? `${t('model_'+item[field.name], item[field.name])} (${item[field.name]})`:'')}</td>;
                                         }
                                         if (field.type === 'geolocation') {
                                             const geoData = item[field.name];
@@ -562,7 +602,7 @@ export function DataTable({
                                                 const coordinatesText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                                                 const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
                                                 return (
-                                                    <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>
+                                                    <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}>
                                                         {hiddenable(
                                                             <a href={mapUrl} target="_blank" rel="noopener noreferrer" style={{color: 'inherit'}}>
                                                                 {coordinatesText}
@@ -571,7 +611,7 @@ export function DataTable({
                                                     </td>
                                                 );
                                             }
-                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={isLightColor(field.color)?"lighted":""}>{hiddenable('')}</td>;
+                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}>{hiddenable('')}</td>;
                                         }
                                         if (field.type === 'password') {
                                             return <></>;
@@ -590,7 +630,7 @@ export function DataTable({
                                                 };
 
                                                 if( !Array.isArray(item[field.name]))
-                                                    return <td key={field.name}>
+                                                    return <td key={field.name} className={item._isArchived ? 'archived-row' : ''}>
                                                     </td>
                                                 t = (item[field.name] ||[]).map((it,i) => {
 
@@ -607,14 +647,14 @@ export function DataTable({
                                                         className="image" src={`/resources/${it.guid}`}
                                                         alt={`${it.name} (${it.guid})`}/></a>
                                                 });
-                                                return <td key={field.name}>
+                                                return <td key={field.name} className={item._isArchived ? 'archived-row' : ''}>
                                                     {hiddenable(<div className="gallery">{t}</div>)}
                                                 </td>;
                                             }
-                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name]?.join(', ') || '')}</td>;
+                                            return <td key={field.name} className={item._isArchived ? 'archived-row' : ''} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name]?.join(', ') || '')}</td>;
                                         }
                                         if (field.type === 'url') {
-                                            return <td key={field.name}>
+                                            return <td key={field.name} className={item._isArchived ? 'archived-row' : ''}>
                                                 {hiddenable(item[field.name] && (<><a href={item[field.name]}
                                                                            title={item[field.name]} style={{color: field.color}}
                                                                            className={"link-value"}
@@ -637,14 +677,14 @@ export function DataTable({
                                                 <strong>timestamp</strong> : ${new Date(item[field.name].createdAt)?.toLocaleString(lang)}
                                             `;
                                             if (['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml', 'image/webp', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/x-windows-bmp'].includes(item[field.name].mimeType))
-                                                return <td key={field.name}>{hiddenable(<a
+                                                return <td key={field.name} className={item._isArchived ? 'archived-row' : ''}>{hiddenable(<a
                                                     data-tooltip-id={"tooltipFile"} data-tooltip-html={r}
                                                     href={`/resources/${item[field.name].guid}`} target="_blank"
                                                     rel="noopener noreferrer"><img className="image"
                                                     src={`/resources/${item[field.name].guid}`}
                                                     alt={`${item[field.name].filename}`}/></a>
                                                 )}</td>;
-                                            return <td key={field.name} className={isLightColor(field.color)?"lighted":""}><a  style={{color: field.color}}
+                                            return <td key={field.name} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}><a  style={{color: field.color}}
                                                                             href={`/resources/${item[field.name].guid}`}
                                                                            target="_blank"
                                                                            rel="noopener noreferrer" data-tooltip-id={"tooltipFile"} data-tooltip-html={r}>{hiddenable(item[field.name].filename)}</a>
@@ -652,7 +692,7 @@ export function DataTable({
                                         }
                                         if (field.type === 'number') {
                                             if (field.delay) {
-                                                return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(formatDuration(item[field.name], t))}</td>;
+                                                return <td key={field.name} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(formatDuration(item[field.name], t))}</td>;
                                             }
                                             if (field.gauge) {
                                                 const value = item[field.name];
@@ -667,7 +707,7 @@ export function DataTable({
                                                 const title = field.percent ? `${value} (${Math.round(percentage)}%)` : `${value} / ${max}`;
 
                                                 return (
-                                                    <td key={field.name} className={isLightColor(field.color) ? "lighted" : "unlighted"} style={{backgroundColor: field.color}}>
+                                                    <td key={field.name} className={`${isLightColor(field.color) ? "lighted" : "unlighted"} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color}}>
                                                         {hiddenable(
                                                             <div className="gauge-container" data-tooltip-id={"tooltipFile"} data-tooltip-content={title}>
                                                                 <div className="gauge-bar" style={{ width: `${percentage}%` }}></div>
@@ -681,37 +721,45 @@ export function DataTable({
                                                 let formatter = new Intl.NumberFormat(lang);
                                                 val = formatter.format(item[field.name]);
                                             }
-                                            return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(val ? `${val} ${field.unit || ''}` : '')}</td>;
+                                            return <td key={field.name} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(val ? `${val} ${field.unit || ''}` : '')}</td>;
                                         }
                                         if (field.type === "boolean") {
-                                            return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name] ? t('yes') : t('no'))}</td>;
+                                            return <td key={field.name} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name] ? t('yes') : t('no'))}</td>;
                                         }
                                         if (field.type === 'string_t') {
-                                            return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name] ? (item[field.name].value || item[field.name].key) : '')}</td>;
+                                            return <td key={field.name} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>{hiddenable(item[field.name] ? (item[field.name].value || item[field.name].key) : '')}</td>;
                                         }
                                         if (field.type === 'richtext') {
-                                            return <td key={field.name}  className={isLightColor(field.color)?"lighted":""}>
+                                            return <td key={field.name}  className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}>
                                                 {hiddenable(<div className="rte-value"
                                                      dangerouslySetInnerHTML={{__html: item[field.name]}}></div>)}
                                             </td>;
                                         }
                                         if (field.type === 'richtext_t') {
-                                            return <td key={field.name}  className={isLightColor(field.color)?"lighted":""}>
+                                            return <td key={field.name}  className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`}>
                                                 {hiddenable(<RichText value={item[field.name]} initialLang={lang} />)}
                                             </td>;
                                         }
                                         if (field.type === 'color') {
-                                            return <td key={field.name} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>
+                                            return <td key={field.name} className={item._isArchived ? 'archived-row' : ''} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>
                                                 {hiddenable(<ColorField name={field.name} disabled={true}
                                                     value={item[field.name]}/>)}</td>;
                                         }
-                                        return <td key={field.name} className={isLightColor(field.color)?"lighted":""} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>
+                                        return <td key={field.name} className={`${isLightColor(field.color)?"lighted":""} ${item._isArchived ? 'archived-row' : ''}`} style={{backgroundColor: field.color, color: isLightColor(field.color) ? 'black': '#E3E3E3'}}>
                                             {hiddenable(item[field.name])}</td>;
                                     })}
                                     {advanced && !selectionMode && (<td>
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.edit', 'Modifier')}
+                                                disabled={item._isArchived} // Désactiver si archivé
                                                 onClick={() => handleEdit(item)}><FaPencil/></button>
+                                        {item._isArchived && (
+                                            <button
+                                                onClick={() => restoreItem(item)}
+                                                data-tooltip-id="tooltipActions"
+                                                data-tooltip-content={t('btns.restore', 'Restaurer depuis les archives')}
+                                            ><FaFileArchive /></button>
+                                        )}
                                         <button
                                             onClick={() => handleDuplicate(item)}
                                             data-tooltip-id="tooltipActions"
@@ -736,6 +784,7 @@ export function DataTable({
 
                                         <button data-tooltip-id="tooltipActions"
                                                 data-tooltip-content={t('btns.delete', 'Supprimer')}
+                                                disabled={item._isArchived} // Désactiver si archivé
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     onDeleteItem(item);
@@ -748,6 +797,11 @@ export function DataTable({
                         </tbody>
 
                         <tfoot>
+                        {isArchiveLoading && (
+                            <tr>
+                                <td colSpan={model?.fields.length + 2} style={{ textAlign: 'center' }}><FaSpinner className="spin" /> <Trans i18nKey="datatable.loadingArchive">Chargement des archives...</Trans></td>
+                            </tr>
+                        )}
                         {data.length > 10 && (<Header advanced={advanced} reversed={true} model={model} setCheckedItems={setCheckedItems}
                                                       filterValues={filterValues} data={data}
                                                       setFilterValues={setFilterValues} selectionMode={selectionMode}

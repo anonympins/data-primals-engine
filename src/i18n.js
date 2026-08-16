@@ -13630,5 +13630,24 @@ const options = {
     lookupQuerystring: "lang"
 };
 
+let initialized = false;
+
+export const initServerI18n = () => {
+    if (initialized) {
+        return;
+    }
+    i18n
+        .use(initReactI18next) // bind react-i18next to the instance
+        .init({
+            fallbackLng: "fr",
+            keySeparator: ".",
+            interpolation: {
+                escapeValue: false
+            },
+            resources: translations
+        });
+    initialized = true;
+};
+
 export {Trans, useTranslation, I18nextProvider};
 export default i18n;

@@ -1,6 +1,6 @@
 import React, {forwardRef, useCallback, useEffect, useMemo, useReducer, useRef, useState} from 'react';
 
-import {FaUndo, FaRedo, FaSitemap} from 'react-icons/fa';
+import {FaUndo, FaRedo, FaSitemap, FaWrench} from 'react-icons/fa';
 import "./App.scss";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import ModelCreator from "./ModelCreator.jsx";
@@ -46,6 +46,7 @@ import {AssistantChat, NotificationList} from "../index.js";
 import {createDeleteCommand, createInsertCommand, createUpdateCommand, useCommand} from './contexts/CommandContext.jsx';
 
 import "./DataLayout.scss"
+import S3ConfigDialog from "./S3ConfigDialog.jsx";
 import WorkflowEditor from "./WorkflowEditor.jsx";
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
@@ -103,7 +104,9 @@ function DataLayout({refreshUI}, ref) {
     const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
     const [isKanbanModalOpen, setKanbanModalOpen] = useState(false);
     const [isWorkflowListModalOpen, setWorkflowListModalOpen] = useState(false);
+    const [isS3ConfigOpen, setS3ConfigOpen] = useState(false);
 
+    const [showArchived, setShowArchived] = useState(false);
     const [showPackGallery, setShowPackGallery] = useState(false); 
     const [checkedItems, setCheckedItems] = useState([]);
 
@@ -124,7 +127,7 @@ function DataLayout({refreshUI}, ref) {
     const [viewsByModel, setViewsByModel] = useLocalStorage('dataLayout_viewsByModel', {});
 
     const [filterValues, setFilterValues] = useState({});
-    const { dataByModel,paginatedDataByModel,
+    const { dataByModel, paginatedDataByModel,
         setRelationFilters, setSelectedModel, selectedModel,
         setFilteredDatasToLoad,
         setRelationIds,
@@ -137,6 +140,43 @@ function DataLayout({refreshUI}, ref) {
         generatedModels,
         models
     } = useModelContext(); // Utilisez le contexte
+
+    // New query to fetch archived data when `showArchived` is true
+    const { data: archivedData, isLoading: isLoadingArchived } = useQuery(
+        ['archiveData', selectedModel?.name, pagedFilters],
+        async () => {
+            const response = await fetch('/api/archive/search', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: selectedModel.name,
+                    filter: pagedFilters[selectedModel.name] || {}
+                }),
+            });
+            if (!response.ok) throw new Error('Failed to fetch archived data');
+            const result = await response.json();
+            return result.data || [];
+        },
+        { enabled: !!selectedModel && showArchived }
+    );
+
+    const [isS3Configured, setIsS3Configured] = useState(false);
+    useQuery(
+        's3ConfigCheck',
+        () => fetch('/api/data/search', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'env',
+                filter: { "name": "S3_BUCKET_NAME" },
+                limit: 1
+            })
+        }).then(res => res.json()),
+        { onSuccess: (data) => setIsS3Configured(data?.data?.length > 0 && !!data.data[0].value) }
+    );
+
     const queryClient = useQueryClient();
 
     const isDataLoaded = true;
@@ -310,6 +350,11 @@ function DataLayout({refreshUI}, ref) {
                         }, 100);
                     }}
                     onDeleteItem={handleSingleItemDeletion}
+                    // Pass archive-related props
+                    onLoadFromArchive={() => setShowArchived(true)}
+                    isS3Configured={isS3Configured}
+                    isArchiveLoading={isLoadingArchived}
+                    archivedData={archivedData}
                     queryClient={queryClient}
                 />
         }
@@ -736,6 +781,9 @@ function DataLayout({refreshUI}, ref) {
                     setImportModalVisible(true);
                 }} className="btn tourStep-import-model"><FaFileImport/><span className={"no-mobile-text"}> <Trans
                     i18nKey="btns.importModels">Modèles</Trans></span></Button>
+                {isS3Configured && (<Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.backup')}  onClick={handleBackup}><FaDatabase/></Button>)}
+                <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('backup.s3config.configure')} onClick={() => setS3ConfigOpen(true)}><FaWrench /></Button>
+
                 <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.importPacks')} onClick={() => {
                     setShowPackGallery(true);
                 }} className="btn tourStep-import-pack"><FaBoxOpen/><span className={"no-mobile-text"}><Trans
@@ -916,6 +964,11 @@ function DataLayout({refreshUI}, ref) {
                     onSave={handleSaveKanbanConfig}
                     model={selectedModel}
                     modelFields={selectedModel?.fields||[]}
+                    initialSettings={currentModelViewSettings.kanban}
+                />
+                <S3ConfigDialog
+                    isOpen={isS3ConfigOpen}
+                    onClose={() => setS3ConfigOpen(false)}
                     initialSettings={currentModelViewSettings.kanban}
                 />
             </DialogProvider>

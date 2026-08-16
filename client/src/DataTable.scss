@@ -185,3 +185,10 @@
     font-size: 1rem;
   }
 }
+
+.archived-row {
+  background-color: #f0f2f5 !important; // A light grey background
+  color: #546e7a; // A muted text color
+  font-style: italic;
+  opacity: 0.8;
+}

@@ -14,6 +14,7 @@ import {
 import {sleep} from "../src/core.js";
 import fs from "node:fs";
 import {initEngine} from "../src/setenv.js";
+import i18n from 'i18next'; // Import i18next
 import {Config} from "../src/index.js";
 
 // --- Données Mock ---
@@ -50,6 +51,14 @@ function blobToFile(theBlob, fileName){
 beforeAll(async () =>{
     Config.Set("modules", ["mongodb", "data", "file", "bucket", "workflow","user", "assistant"]);
     await initEngine();
+
+    // Explicitly initialize i18next for the test environment
+    // This ensures that `hasLanguageSomeTranslations` is defined and prevents the TypeError.
+    await i18n.init({
+        lng: 'en', // Set a default language
+        fallbackLng: 'en',
+        resources: { en: { translation: {} } } // Provide minimal resources to initialize internal state
+    });
 })
 
 beforeEach(async() =>{
