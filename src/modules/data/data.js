@@ -34,7 +34,7 @@ export const getAPILang = (langs) => {
         return 'en';
     const array = (langs || 'en')?.split(/,|;q=/g)
 
-    let quality
+    let quality;
     return array.reverse().reduce((e, val) => {
         if (!isNaN(val)) {
             quality = Number(val);
@@ -147,7 +147,7 @@ export async function onInit(defaultEngine) {
     logger = engine.getComponent(Logger);
 
     // set backup scheduler
-    schedule.scheduleJob("0 2 * * *", jobDumpUserData);
+    schedule.scheduleJob("0 0 * * *", jobDumpUserData); // Exécution à minuit
     //await jobDumpUserData();
 
 
@@ -208,7 +208,7 @@ export const getResource = async (guid, user) => {
     }
 
     // La vérification des permissions reste la même...
-    if (user.username !== 'demo' && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_READ_FILE", `API_READ_FILE_privateFile_${guid}`], user)) {
+    if (!isDemoUser(user) && isLocalUser(user) && !await hasPermission(["API_ADMIN", "API_READ_FILE", `API_READ_FILE_privateFile_${guid}`], user)) {
         if (file.user !== (user._user || user.username)) {
             throw new Error("Vous n'êtes pas autorisé à accéder à ce fichier.");
         }

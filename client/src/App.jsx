@@ -15,8 +15,7 @@ import {
     useSearchParams
 } from "react-router-dom";
 import {Trans, useTranslation} from "react-i18next";
-import "../../src/i18n.js"
-import "../src/i18n.js"
+import { initI18n } from "../src/i18n.js";
 
 import {
     ModelProvider, useModelContext,
@@ -61,6 +60,9 @@ import {websiteTranslations} from "./translations.js";
 
 import { Tooltip } from 'react-tooltip';
 import {providers} from "../../src/modules/assistant/constants.js";
+
+// Initialiser i18next avec les traductions de l'application de démonstration
+initI18n(Object.keys(websiteTranslations).map(m=>websiteTranslations[m].translation));
 
 let queryClient = new QueryClient();
 

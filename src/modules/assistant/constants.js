@@ -12,9 +12,8 @@ export const providers = {
     },
     "DeepSeek": {
         key: "DEEPSEEK_API_KEY",
-        defaultModel: 'deepseek-chat',
-        // As per the error message, 'deepseek-v2-coder' is a good candidate for code/JSON generation
-        generationModel: 'deepseek-coder'
+        defaultModel: 'deepseek-v4-flash',
+        generationModel: 'deepseek-v4-flash'
     },
     "Anthropic": {
         key:"ANTHROPIC_API_KEY",

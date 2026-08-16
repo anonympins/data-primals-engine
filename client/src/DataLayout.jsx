@@ -1,6 +1,6 @@
 import React, {forwardRef, useCallback, useEffect, useMemo, useReducer, useRef, useState} from 'react';
 
-import {FaUndo, FaRedo, FaSitemap} from 'react-icons/fa';
+import {FaUndo, FaRedo, FaSitemap, FaWrench} from 'react-icons/fa';
 import "./App.scss";
 import {useMutation, useQuery, useQueryClient} from "react-query";
 import ModelCreator from "./ModelCreator.jsx";
@@ -46,6 +46,7 @@ import {AssistantChat, NotificationList} from "../index.js";
 import {createDeleteCommand, createInsertCommand, createUpdateCommand, useCommand} from './contexts/CommandContext.jsx';
 
 import "./DataLayout.scss"
+import S3ConfigDialog from "./S3ConfigDialog.jsx";
 import WorkflowEditor from "./WorkflowEditor.jsx";
 
 const NotConfiguredPlaceholder = ({ type, onConfigure }) => (
@@ -103,7 +104,9 @@ function DataLayout({refreshUI}, ref) {
     const [isCalendarModalOpen, setCalendarModalOpen] = useState(false);
     const [isKanbanModalOpen, setKanbanModalOpen] = useState(false);
     const [isWorkflowListModalOpen, setWorkflowListModalOpen] = useState(false);
+    const [isS3ConfigOpen, setS3ConfigOpen] = useState(false);
 
+    const [showArchived, setShowArchived] = useState(false);
     const [showPackGallery, setShowPackGallery] = useState(false); 
     const [checkedItems, setCheckedItems] = useState([]);
 
@@ -124,7 +127,7 @@ function DataLayout({refreshUI}, ref) {
     const [viewsByModel, setViewsByModel] = useLocalStorage('dataLayout_viewsByModel', {});
 
     const [filterValues, setFilterValues] = useState({});
-    const { dataByModel,paginatedDataByModel,
+    const { dataByModel, paginatedDataByModel,
         setRelationFilters, setSelectedModel, selectedModel,
         setFilteredDatasToLoad,
         setRelationIds,
@@ -137,6 +140,43 @@ function DataLayout({refreshUI}, ref) {
         generatedModels,
         models
     } = useModelContext(); // Utilisez le contexte
+
+    // New query to fetch archived data when `showArchived` is true
+    const { data: archivedData, isLoading: isLoadingArchived } = useQuery(
+        ['archiveData', selectedModel?.name, pagedFilters],
+        async () => {
+            const response = await fetch('/api/archive/search', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: selectedModel.name,
+                    filter: pagedFilters[selectedModel.name] || {}
+                }),
+            });
+            if (!response.ok) throw new Error('Failed to fetch archived data');
+            const result = await response.json();
+            return result.data || [];
+        },
+        { enabled: !!selectedModel && showArchived }
+    );
+
+    const [isS3Configured, setIsS3Configured] = useState(false);
+    useQuery(
+        's3ConfigCheck',
+        () => fetch('/api/data/search', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'env',
+                filter: { "name": "S3_BUCKET_NAME" },
+                limit: 1
+            })
+        }).then(res => res.json()),
+        { onSuccess: (data) => setIsS3Configured(data?.data?.length > 0 && !!data.data[0].value) }
+    );
+
     const queryClient = useQueryClient();
 
     const isDataLoaded = true;
@@ -263,16 +303,6 @@ function DataLayout({refreshUI}, ref) {
         return viewSettings[selectedModel.name] || {};
     }, [viewSettings, selectedModel]);
 
-    // --- MODIFICATION : Vérifie si les vues sont configurées pour le modèle courant ---
-    const configuredViews = useMemo(() => {
-        if (!selectedModel) return { calendar: false, kanban: false };
-        const modelSettings = viewSettings[selectedModel.name] || {};
-        return {
-            calendar: !!modelSettings.calendar?.titleField && !!modelSettings.calendar?.startField && !!modelSettings.calendar?.endField,
-            kanban: !!modelSettings.kanban?.groupByField,
-        };
-    }, [viewSettings, selectedModel]);
-
     // --- AJOUT : Logique de rendu de la vue courante ---
     const renderCurrentView = () => {
         if (!selectedModel) return null;
@@ -319,10 +349,14 @@ function DataLayout({refreshUI}, ref) {
                             dataEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }, 100);
                     }}
-                    deleteApiCall={deleteApiCall}
+                    onDeleteItem={handleSingleItemDeletion}
+                    // Pass archive-related props
+                    onLoadFromArchive={() => setShowArchived(true)}
+                    isS3Configured={isS3Configured}
+                    isArchiveLoading={isLoadingArchived}
+                    archivedData={archivedData}
                     queryClient={queryClient}
                 />
-                ;
         }
     };
 
@@ -411,7 +445,7 @@ function DataLayout({refreshUI}, ref) {
         const url = record ? `/api/data/${record._id}` : `/api/data`; // Determine URL
 
         try {
-            const formElement = formRef.current;
+            const formElement = formRef?.current; // Utilisation de l'optional chaining
             const fd = new FormData();
 
             let obj = {};
@@ -445,18 +479,45 @@ function DataLayout({refreshUI}, ref) {
 
     // La mutation react-query qui gère l'appel API et la logique post-succès.
     const { mutate: insertOrUpdateMutation, isLoading } = useMutation(insertOrUpdateApiCall, {
-        onSuccess: (response, variables) => {
+        onSuccess: (response, d) => {
+            const { record, apiCallParams, originalData, formData } = d;
             if (!response.success) {
                 addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: response.error, status: 'error' });
                 return;
             }
 
-            const { record, apiCallParams } = variables;
             let command;
             if (record) { // C'était une mise à jour
-                command = createUpdateCommand(selectedModel.name, record, apiCallParams, insertOrUpdateApiCall);
+                // --- CORRECTION : Passer l'état complet avant et après ---
+                // 'before' doit contenir les données originales (record)
+                // 'after' doit contenir les nouvelles données du formulaire (formData)
+                const commandContext = {
+                    before: { formRef: apiCallParams.formRef, record: originalData, formData: originalData, updateApiCall: insertOrUpdateApiCall },
+                    // --- CORRECTION CLÉ ---
+                    // La structure de `after` doit correspondre à ce que la mutation attend.
+                    // La mutation attend un objet avec `record`, `apiCallParams`, et `originalData`.
+                    // Pour un "redo", `originalData` est l'état *après* la première modification.
+                    after: {
+                        formData: formData,
+                        record: record, // Le document mis à jour devient le "record" pour le redo.
+                        originalData: record, // Les données originales pour un "undo" du redo.
+                        // apiCallParams contient les données du formulaire et la référence.
+                        apiCallParams: { formRef: apiCallParams.formRef, record: response.data, formData: response.data },
+                        updateApiCall: insertOrUpdateApiCall
+                    }
+                };
+                console.log({commandContext})
+                command = createUpdateCommand(selectedModel.name, commandContext);
             } else { // C'était une insertion
-                command = createInsertCommand(selectedModel.name, { ...apiCallParams, formData: response.data });
+                // --- CORRECTION : Assurer que le contexte est complet pour l'insertion ---
+                // 'before' est vide car il n'y avait rien avant.
+                // 'after' doit contenir les données complètes retournées par le serveur (incluant _id, _hash, etc.)
+                const commandContext = {
+                    before: { ...apiCallParams, formData: {} }, // L'état avant l'insertion est un objet vide
+                    // --- CORRECTION ---
+                    after: { ...apiCallParams, record: response.data, formData: response.data }
+                };
+                command = createInsertCommand(selectedModel.name, commandContext, insertOrUpdateApiCall, deleteApiCall, response.data);
             }
             addCommand(command); // On ajoute la commande à l'historique SEULEMENT si l'appel API a réussi.
             addNotification({ title: command.successMessage, status: 'completed' });
@@ -472,10 +533,10 @@ function DataLayout({refreshUI}, ref) {
         const apiCallParams = { formData, record, formRef };
         if (record) {
             // C'est une mise à jour
-            insertOrUpdateMutation({ record, apiCallParams });
+            insertOrUpdateMutation({ record, formData: formData, apiCallParams, originalData: record });
         } else {
             // C'est une insertion
-            insertOrUpdateMutation({ record: null, apiCallParams });
+            insertOrUpdateMutation({ record: null, apiCallParams, originalData: formData });
         }
     };
 
@@ -520,21 +581,38 @@ function DataLayout({refreshUI}, ref) {
         }).then(e => e.json());
     }, [lang, me]);
 
-    // Cette mutation n'est plus directement utilisée, mais on la garde pour l'instant.
-    const { mutateAsync: deleteMutation } = useMutation(deleteApiCall);
+    const { mutate: deleteMutation, isLoading: isDeleting } = useMutation(deleteApiCall, {
+        onSuccess: (response, itemsToDelete) => {
+            if (!response.success) {
+                addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: response.error, status: 'error' });
+                return;
+            }
+
+            const command = createDeleteCommand(deleteApiCall, selectedModel.name, itemsToDelete);
+            addCommand(command);
+            addNotification({ title: command.successMessage, status: 'completed' });
+            setCheckedItems([]); // Vider la sélection
+            queryClient.invalidateQueries(['api/data', selectedModel.name]);
+        },
+        onError: (error) => {
+            addNotification({ title: t('command.error.execute', 'Erreur d\'exécution'), message: error.message, status: 'error' });
+        }
+    });
+
+    // --- NOUVEAU : Fonction pour supprimer UN SEUL item ---
+    // C'est cette fonction que nous passerons à DataTable pour le bouton de la ligne.
+    const handleSingleItemDeletion = (item) => {
+        if (window.confirm(t('datatable.delete.confirmOne', 'Êtes-vous sûr de vouloir supprimer cet élément ?'))) {
+            deleteMutation([item]);
+        }
+    };
 
     const handleDeletion = () => {
-        // On appelle directement la suppression via la mutation
-        deleteMutation(checkedItems, {
-            onSuccess: () => {
-                // Et on crée la commande pour l'historique seulement après le succès
-                const command = createDeleteCommand(deleteApiCall, selectedModel.name, checkedItems, deleteApiCall);
-                addCommand(command);
-                addNotification({ title: command.successMessage, status: 'completed' });
-                setCheckedItems([]); // Vider la sélection
-            }
-        });
-    }
+        if (window.confirm(t('datatable.delete.confirmMultiple', 'Êtes-vous sûr de vouloir supprimer les {{count}} éléments sélectionnés ?', { count: checkedItems.length }))) {
+            deleteMutation(checkedItems);
+        }
+    };
+
     const importModelsMutation = useMutation((selectedModels) => {
        return fetch('/api/models/import', { method: 'POST', headers: {
            'Content-Type': 'application/json'
@@ -542,6 +620,17 @@ function DataLayout({refreshUI}, ref) {
            credentials: "include",body: JSON.stringify({ models: selectedModels.map(m => m.name) })
        })
     });
+
+    // --- MODIFICATION : Vérifie si les vues sont configurées pour le modèle courant ---
+    const configuredViews = useMemo(() => {
+        if (!selectedModel) return { calendar: false, kanban: false };
+        const modelSettings = viewSettings[selectedModel.name] || {};
+        return {
+            calendar: !!modelSettings.calendar?.titleField && !!modelSettings.calendar?.startField && !!modelSettings.calendar?.endField,
+            kanban: !!modelSettings.kanban?.groupByField,
+        };
+    }, [viewSettings, selectedModel]);
+
 
     const handleConfigureCurrentView = () => {
         if (!selectedModel) return;
@@ -692,6 +781,9 @@ function DataLayout({refreshUI}, ref) {
                     setImportModalVisible(true);
                 }} className="btn tourStep-import-model"><FaFileImport/><span className={"no-mobile-text"}> <Trans
                     i18nKey="btns.importModels">Modèles</Trans></span></Button>
+                {isS3Configured && (<Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.backup')}  onClick={handleBackup}><FaDatabase/></Button>)}
+                <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('backup.s3config.configure')} onClick={() => setS3ConfigOpen(true)}><FaWrench /></Button>
+
                 <Button data-tooltip-place={'bottom'} data-tooltip-id={"tooltipField"} data-tooltip-html={t('btns.importPacks')} onClick={() => {
                     setShowPackGallery(true);
                 }} className="btn tourStep-import-pack"><FaBoxOpen/><span className={"no-mobile-text"}><Trans
@@ -814,7 +906,7 @@ function DataLayout({refreshUI}, ref) {
                     {isDataLoaded && currentView === 'table'  && (<>
                         {selectedModel && (<Pagination showElementsPerPage={true} onChange={page => {
                             // C'est maintenant le seul endroit qui met à jour la page.
-                            setPage(page);
+                            setPage(page); // TODO: setPage is not a function
                             setCheckedItems([]);
                             gtag("event", "select_content", {
                                 content_type: "change_page",
@@ -822,14 +914,14 @@ function DataLayout({refreshUI}, ref) {
                             });
                             // On utilise refetchQueries pour forcer le rafraîchissement immédiatement.
                             queryClient.refetchQueries(['api/data', selectedModel.name, 'page']);
-                        }} page={page} setPage={setPage} totalCount={countByModel[selectedModel.name]}
+                        }} page={page} totalCount={countByModel[selectedModel.name]}
                                                        hasPreviousNext={true} visibleItemsCount={5}
                                                        elementsPerPage={elementsPerPage}/>)}
                         <div className="actions flex">
                             <Button onClick={() => {
                                 setCheckedItems(paginatedDataByModel[selectedModel.name]);
                             }}><Trans i18nKey={"datatable.selectAll"}>Tout sélectionner</Trans></Button>
-                            <Button onClick={handleDeletion} disabled={!checkedItems?.length}><Trans
+                            <Button onClick={handleDeletion} disabled={!checkedItems?.length || isDeleting}><Trans
                                 i18nKey={"datatable.deleteSelection"}>Supprimer la sélection</Trans></Button>
                         </div>
                     </>)}
@@ -872,6 +964,11 @@ function DataLayout({refreshUI}, ref) {
                     onSave={handleSaveKanbanConfig}
                     model={selectedModel}
                     modelFields={selectedModel?.fields||[]}
+                    initialSettings={currentModelViewSettings.kanban}
+                />
+                <S3ConfigDialog
+                    isOpen={isS3ConfigOpen}
+                    onClose={() => setS3ConfigOpen(false)}
                     initialSettings={currentModelViewSettings.kanban}
                 />
             </DialogProvider>

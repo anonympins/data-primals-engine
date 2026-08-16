@@ -14,16 +14,20 @@
   },
   "resolutions": {
     "markdown-it": ">=14.1.1",
-    "immutable": ">=5.1.5",
-    "body-parser": ">=2.2.1",
-    "js-yaml": ">=4.1.1",
+    "immutable": ">=5.1.8",
+    "body-parser": ">=2.3.0",
+    "js-yaml": ">=4.3.1",
+    "nanoid": ">=3.3.18",
     "prismjs": ">=1.30.0",
     "qs": ">=6.14.1",
     "lodash": ">=4.18.0",
     "react-router": ">=7.12.0",
     "react-router-dom": ">=7.12.0",
     "minimatch": ">=3.1.4",
-    "path-to-regexp": ">=8.4.0"
+    "path-to-regexp": ">=8.4.0",
+    "postcss": ">=8.5.23",
+    "lodash-es": ">=4.18.0",
+    "brace-expansion": ">=5.0.9"
   },
   "peerDependencies": {
     "@tiptap/react": "^2.26.1",

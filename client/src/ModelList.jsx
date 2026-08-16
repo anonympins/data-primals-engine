@@ -65,7 +65,6 @@ export function ModelList({ editionMode, onModelSelect, onCreateModel, onImportM
         return Array.from(tagsSet).sort();
     }, [models, me?.username]);
 
-    console.log(allTags,"t");
     const filteredModels = useMemo(() => {
         if (!models) return [];
         let results = models.filter(model => model._user === me?.username);
