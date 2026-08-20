@@ -4,6 +4,7 @@
 ![](https://img.shields.io/npm/last-update/data-primals-engine)
 ![](https://img.shields.io/github/v/release/anonympins/data-primals-engine)
 ![](https://img.shields.io/github/license/anonympins/data-primals-engine)
+![](https://img.shields.io/github/watchers/anonympins/data-primals-engine)
 
 **data-primals-engine** is a powerful and flexible **Node.js** backend framework designed to accelerate the development of complex data-driven applications. Built on **Express.js** and **MongoDB**, it provides a solid foundation so you can focus on what makes your application unique.
 
