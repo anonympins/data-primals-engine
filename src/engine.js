@@ -39,23 +39,6 @@ import {middlewareAuthenticator, userInitiator} from "./modules/user.js";
 // Constants
 
 let dbName = Config.Get('dbName', dbNameBase);
-let caFile, certFile, keyFile;
-try {
-    if (process.env.CA_CERT)
-        caFile = fs.readFileSync(process.env.CA_CERT);
-} catch (e) {}
-try {
-    if (process.env.CERT)
-        certFile = fs.readFileSync(process.env.CERT);
-}catch (e) {}
-try{
-    if (process.env.CERT_KEY)
-        keyFile = fs.readFileSync(process.env.CERT_KEY);
-} catch (e) {}
-
-const secureContext = tls.createSecureContext({
-    ca: caFile, cert: certFile, key: keyFile
-});
 
 export const dbUrl = process.env.CI ? 'mongodb://mongodb:27017' : (process.env.MONGO_DB_URL || 'mongodb://127.0.0.1:27017');
 
